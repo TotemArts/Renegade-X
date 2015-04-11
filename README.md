@@ -10,3 +10,5 @@ To setup, first download the SDK from http://renegade-x.com/download.php, then c
   - Engine          <- Git Ignored (From SDK)
   - Example Assets  <- Git Ignored (From SDK)
   - UDK Game        <- Git Ignored (From SDK)
+
+Note: The Head revision contains the latest code, as it is being developed by the team. As such, it may reference assets that have not yet been released in the SDK, which can cause compile errors, warnings, and unexpeced behaviour. Therefore, It's recommended to checkout the branch that coincides with the version of the SDK you have downloaded.
