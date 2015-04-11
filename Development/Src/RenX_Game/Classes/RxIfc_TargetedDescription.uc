@@ -1,0 +1,3 @@
+interface RxIfc_TargetedDescription;
+
+simulated function string GetTargetedDescription(PlayerController PlayerPerspective);

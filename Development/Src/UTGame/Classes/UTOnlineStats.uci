@@ -1,0 +1,17 @@
+/**
+ * Copyright 1998-2015 Epic Games, Inc. All Rights Reserved.
+ *
+ * Stats defines for values stored on the online subsystem
+ * IMPORTANT: Do not change any stats id values, they are hard-coded on the Steam backend!!!
+ */
+
+// Achievement/leaderboard related stats groups (NOTE: If these are changed, ViewId mapping in DefaultEngine.ini need changing too)
+`define STATS_GROUP_ACHIEVEMENTS		30
+`define STATS_GROUP_LEADERBOARDS_DM		35
+`define STATS_GROUP_LEADERBOARDS_TDM		36
+`define STATS_GROUP_LEADERBOARDS_CTF		37
+
+
+// STATS_GROUP_LEADERBOARDS properties
+`define LEADERBOARDS_SCORE			0
+

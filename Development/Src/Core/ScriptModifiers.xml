@@ -1,0 +1,274 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Keywords>
+  <Category Name="cpptext">
+    <Keyword>cpptext</Keyword>
+  </Category>
+
+  <Category Name="structcpptext">
+    <Keyword>structcpptext</Keyword>
+  </Category>
+
+  <Category Name="function">
+    <Keyword>client</Keyword>
+    <Keyword>exec</Keyword>
+    <Keyword>final</Keyword>
+    <Keyword>iterator</Keyword>
+    <Keyword>k2call</Keyword>
+    <Keyword>k2override</Keyword>
+    <Keyword>k2pure</Keyword>
+    <Keyword>latent</Keyword>
+    <Keyword>native</Keyword>
+    <Keyword>noexport</Keyword>
+    <Keyword>noexportheader</Keyword>
+    <Keyword>private</Keyword>
+    <Keyword>protected</Keyword>
+    <Keyword>public</Keyword>
+    <Keyword>reliable</Keyword>
+    <Keyword>server</Keyword>
+    <Keyword>simulated</Keyword>
+    <Keyword>singular</Keyword>
+    <Keyword>static</Keyword>
+    <Keyword>transient</Keyword>
+    <Keyword>unreliable</Keyword>
+    <Keyword>virtual</Keyword>
+  </Category>
+
+  <Category Name="parameter">
+    <Keyword>coerce</Keyword>
+    <Keyword>const</Keyword>
+    <Keyword>init</Keyword>
+    <Keyword>optional</Keyword>
+    <Keyword>out</Keyword>
+    <Keyword>skip</Keyword>
+  </Category>
+
+  <Category Name="state">
+    <Keyword>auto</Keyword>
+    <Keyword>simulated</Keyword>
+  </Category>
+
+  <Category Name="struct">
+    <Keyword>export</Keyword>
+    <Keyword>extends</Keyword>
+    <Keyword>immutable</Keyword>
+    <Keyword>immutablewhencooked</Keyword>
+    <Keyword>native</Keyword>
+    <Keyword>transient</Keyword>
+  </Category>
+
+  <Category Name="class">
+    <Keyword>abstract</Keyword>
+    <Keyword>collapsecategories</Keyword>
+    <Keyword>config</Keyword>
+    <Keyword>dependson</Keyword>
+    <Keyword>deprecated</Keyword>
+    <Keyword>hidecategories</Keyword>
+    <Keyword>hidedropdown</Keyword>
+    <Keyword>implements</Keyword>
+    <Keyword>inherits</Keyword>
+    <Keyword>nativereplication</Keyword>
+    <Keyword>nontransient</Keyword>
+    <Keyword>notplaceable</Keyword>
+    <Keyword>perobjectconfig</Keyword>
+    <Keyword>perobjectlocalized</Keyword>
+    <Keyword>placeable</Keyword>
+    <Keyword>showcategories</Keyword>
+  </Category>
+
+  <Category Name="type">
+    <Keyword>instanced</Keyword>
+  </Category>
+
+  <Category Name="var">
+    <Keyword>config</Keyword>
+    <Keyword>const</Keyword>
+    <Keyword>crosslevelpassive</Keyword>
+    <Keyword>databinding</Keyword>
+    <Keyword>deprecated</Keyword>
+    <Keyword>duplicatetransient</Keyword>
+    <Keyword>editconst</Keyword>
+    <Keyword>editfixedsize</Keyword>
+    <Keyword>edithide</Keyword>
+    <Keyword>editinline</Keyword>
+    <Keyword>editinlinenew</Keyword>
+    <Keyword>editinlineuse</Keyword>
+    <Keyword>edittextbox</Keyword>
+    <Keyword>editoronly</Keyword>
+    <Keyword>export</Keyword>
+    <Keyword>globalconfig</Keyword>
+    <Keyword>init</Keyword>
+    <Keyword>input</Keyword>
+    <Keyword>instanced</Keyword>
+    <Keyword>interp</Keyword>
+    <Keyword>localized</Keyword>
+    <Keyword>native</Keyword>
+    <Keyword>noclear</Keyword>
+    <Keyword>noexport</Keyword>
+    <Keyword>noimport</Keyword>
+    <Keyword>nontransactional</Keyword>
+    <Keyword>notforconsole</Keyword>
+    <Keyword>private</Keyword>
+    <Keyword>protected</Keyword>
+    <Keyword>protectedwrite</Keyword>
+    <Keyword>public</Keyword>
+    <Keyword>repnotify</Keyword>
+    <Keyword>serializetext</Keyword>
+    <Keyword>transient</Keyword>
+  </Category>
+
+  <Category Name="declarations">
+    <Keyword>`if</Keyword>
+    <Keyword>`else</Keyword>
+    <Keyword>`endif</Keyword>
+    <Keyword>`isdefined</Keyword>
+    <Keyword>`notdefined</Keyword>
+    <Keyword>`define</Keyword>
+  </Category>
+
+  <Category Name="special">
+    <Keyword>class</Keyword>
+    <Keyword>interface</Keyword>
+    <Keyword>struct</Keyword>
+    <Keyword>function</Keyword>
+    <Keyword>delegate</Keyword>
+    <Keyword>event</Keyword>
+    <Keyword>operator</Keyword>
+    <Keyword>preoperator</Keyword>
+    <Keyword>postoperator</Keyword>
+    <Keyword>enum</Keyword>
+    <Keyword>state</Keyword>
+    <Keyword>var</Keyword>
+    <Keyword>replication</Keyword>
+    <Keyword>defaultproperties</Keyword>
+    <Keyword>structdefaultproperties</Keyword>
+    <Keyword>ignores</Keyword>
+    <Keyword>override</Keyword>
+    <Keyword>extends</Keyword>
+    <Keyword>within</Keyword>
+  </Category>
+
+  <Category Name="operators">
+    <Keyword>dot</Keyword>
+    <Keyword>cross</Keyword>
+    <Keyword>clockwisefrom</Keyword>
+  </Category>
+
+  <Category Name="primitives">
+    <Keyword>array</Keyword>
+    <Keyword>bool</Keyword>
+    <Keyword>byte</Keyword>
+    <Keyword>float</Keyword>
+    <Keyword>int</Keyword>
+    <Keyword>name</Keyword>
+    <Keyword>string</Keyword>
+  </Category>
+
+  <Category Name="literals">
+    <Keyword>true</Keyword>
+    <Keyword>false</Keyword>
+    <Keyword>none</Keyword>
+  </Category>
+
+  <Category Name="statements">
+    <Keyword>break</Keyword>
+    <Keyword>case</Keyword>
+    <Keyword>class</Keyword>
+    <Keyword>continue</Keyword>
+    <Keyword>default</Keyword>
+    <Keyword>do</Keyword>
+    <Keyword>else</Keyword>
+    <Keyword>for</Keyword>
+    <Keyword>foreach</Keyword>
+    <Keyword>global</Keyword>
+    <Keyword>goto</Keyword>
+    <Keyword>if</Keyword>
+    <Keyword>local</Keyword>
+    <Keyword>new</Keyword>
+    <Keyword>property</Keyword>
+    <Keyword>return</Keyword>
+    <Keyword>self</Keyword>
+    <Keyword>super</Keyword>
+    <Keyword>switch</Keyword>
+    <Keyword>until</Keyword>
+    <Keyword>while</Keyword>
+  </Category>
+
+  <Category Name="cppkeywords">
+    <Keyword>abstract</Keyword>
+    <Keyword>__asm</Keyword>
+    <Keyword>bool</Keyword>
+    <Keyword>break</Keyword>
+    <Keyword>case</Keyword>
+    <Keyword>catch</Keyword>
+    <Keyword>char</Keyword>
+    <Keyword>class</Keyword>
+    <Keyword>const</Keyword>
+    <Keyword>const_cast</Keyword>
+    <Keyword>continue</Keyword>
+    <Keyword>default</Keyword>
+    <Keyword>delete</Keyword>
+    <Keyword>do</Keyword>
+    <Keyword>double</Keyword>
+    <Keyword>dynamic_cast</Keyword>
+    <Keyword>else</Keyword>
+    <Keyword>enum</Keyword>
+    <Keyword>explicit</Keyword>
+    <Keyword>extern</Keyword>
+    <Keyword>false</Keyword>
+    <Keyword>finally</Keyword>
+    <Keyword>float</Keyword>
+    <Keyword>for</Keyword>
+    <Keyword>friend</Keyword>
+    <Keyword>goto</Keyword>
+    <Keyword>if</Keyword>
+    <Keyword>inline</Keyword>
+    <Keyword>int</Keyword>
+    <Keyword>long</Keyword>
+    <Keyword>mutable</Keyword>
+    <Keyword>namespace</Keyword>
+    <Keyword>new</Keyword>
+    <Keyword>operator</Keyword>
+    <Keyword>private</Keyword>
+    <Keyword>protected</Keyword>
+    <Keyword>public</Keyword>
+    <Keyword>register</Keyword>
+    <Keyword>reinterpret_cast</Keyword>
+    <Keyword>return</Keyword>
+    <Keyword>short</Keyword>
+    <Keyword>signed</Keyword>
+    <Keyword>sizeof</Keyword>
+    <Keyword>static</Keyword>
+    <Keyword>static_cast</Keyword>
+    <Keyword>struct</Keyword>
+    <Keyword>switch</Keyword>
+    <Keyword>template</Keyword>
+    <Keyword>this</Keyword>
+    <Keyword>throw</Keyword>
+    <Keyword>true</Keyword>
+    <Keyword>try</Keyword>
+    <Keyword>typedef</Keyword>
+    <Keyword>typename</Keyword>
+    <Keyword>union</Keyword>
+    <Keyword>unsigned</Keyword>
+    <Keyword>using</Keyword>
+    <Keyword>virtual</Keyword>
+    <Keyword>void</Keyword>
+    <Keyword>volatile</Keyword>
+    <Keyword>wchar_t</Keyword>
+    <Keyword>while</Keyword>
+  </Category>
+
+  <Category Name="cppdirectives">
+    <Keyword>#define</Keyword>
+    <Keyword>#error</Keyword>
+    <Keyword>#if</Keyword>
+    <Keyword>#ifdef</Keyword>
+    <Keyword>#ifndef</Keyword>
+    <Keyword>#elif</Keyword>
+    <Keyword>#else</Keyword>
+    <Keyword>#endif</Keyword>
+    <Keyword>#pragma</Keyword>
+    <Keyword>#include</Keyword>
+    <Keyword>#undef"</Keyword>
+  </Category>
+</Keywords>

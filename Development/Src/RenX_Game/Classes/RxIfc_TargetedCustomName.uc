@@ -1,0 +1,3 @@
+interface RxIfc_TargetedCustomName;
+
+simulated function string GetTargetedName(PlayerController PlayerPerspective);

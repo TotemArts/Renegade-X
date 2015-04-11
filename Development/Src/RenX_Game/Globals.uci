@@ -1,0 +1,21 @@
+/**
+ * Globals.uci - Unreal Engine global include file for UnrealScript.
+ * Never include this file before the class definition.
+ */
+
+/**
+ * Macro for accessing RxLog outside of the Game class.
+ */
+`define	LogRx(Msg)	Rx_Game(WorldInfo.Game).RxLog(`Msg)
+`define LogRxPub(Msg) Rx_Game(WorldInfo.Game).RxLogPub(`Msg)
+
+`define PlayerLog(Player) class'Rx_Game'.static.GetPRILogName(`Player)
+
+`define GamePort int(Mid(WorldInfo.GetAddressURL(),InStr(WorldInfo.GetAddressURL(),":")+1))
+
+`define BlankSteamID "0x0000000000000000"
+
+`define nbsp " "
+
+// Log Message seperator
+`define s $`nbsp$

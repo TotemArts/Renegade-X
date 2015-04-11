@@ -1,0 +1,33 @@
+/**
+ * RconProtocol.uci - Includes for strings used in the Rcon Protocol.
+ */
+
+`define ProtocolVersion	"003"
+ 
+ // Packet Commands
+`define AUTH		"a"		// c->s Auth Request, s->c Auth Confirmed
+`define COMMAND		"c"		// c->s ConsoleCommand, s->c ConsoleCommand Completed/End of Response
+`define RESPONSE    "r"     // s->c ConsoleCommand Response
+`define	SUB			"s"		// c->s Subscribe to Logs, s->c Confirmed
+`define UNSUB		"u"		// c->s Unsubscribe from Logs, s->c Confirmed
+`define VERSION	    "v"		// s->c RxRcon Protocol Version and RenX Version
+`define LOGMSG		"l"		// s->c RxLog message
+`define ERROR		"e"		// s->c Error with Message
+
+// Error Messages
+`define	Err_NotWhitelisted		"Not on Whitelist"
+`define Err_PolicyDenied		"Denied by IP Policy"
+`define Err_InvalidPass			"Invalid Password"
+`define Err_NotAuthd			"Not Authenticated"
+`define Err_AuthTimeout			"Did not Authenticate - Disconnecting"
+`define Err_TooManyAttempts		"Too many Password Attempts - Banned"
+`define Err_TooManySubs			"At Subscriber Limit"
+`define Err_UnknownOperation	"Unknown RCON operation"
+`define Err_RconLocked			"Rcon Locked - Disconnecting"
+`define Err_NonSeamless         "NonSeamless Travel - Disconnecting"
+
+
+
+// Helper Macros
+`define PacketContent(Payload) Mid(`Payload,1)
+`define PacketType(Payload) Left(`Payload,1)
