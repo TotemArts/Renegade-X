@@ -445,4 +445,7 @@ defaultproperties
     End Object
     TailRotorStop=TailRotorStopSoundComponent
     Components.Add(TailRotorStopSoundComponent)	
+
+	VehicleIconTexture=Texture2D'RX_VH_Apache.UI.T_VehicleIcon_Apache'
+	MinimapIconTexture=Texture2D'RX_VH_Apache.UI.T_MinimapIcon_Apache'
 }

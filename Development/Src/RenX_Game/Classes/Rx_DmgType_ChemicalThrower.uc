@@ -30,4 +30,5 @@ defaultproperties
 	MotorDecayTime=1.0
 
 	IconTextureName="T_WeaponIcon_ChemicalThrower"
+	IconTexture=Texture2D'RX_WP_ChemicalThrower.UI.T_WeaponIcon_ChemicalThrower'
 }

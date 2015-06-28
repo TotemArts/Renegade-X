@@ -202,6 +202,8 @@ DefaultProperties
     InventoryGroup=2.1
     GroupWeight=1
     InventoryMovieGroup=15
+
+	WeaponIconTexture=Texture2D'RX_WP_LaserChaingun.UI.T_WeaponIcon_LaserChainGun'
     
     // AI Hints:
     // MaxDesireability=0.7

@@ -20,4 +20,5 @@ defaultproperties
 	KDeathUpKick=200
 
 	IconTextureName="T_WeaponIcon_Pistol"
+	IconTexture=Texture2D'RX_WP_Pistol.UI.T_WeaponIcon_Pistol'
 }

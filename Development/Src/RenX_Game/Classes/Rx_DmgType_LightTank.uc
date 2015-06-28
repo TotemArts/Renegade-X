@@ -11,4 +11,6 @@ defaultproperties
     BuildingDamageScaling=1.56f
 
 	IconTextureName="T_DeathIcon_LightTank"
+	IconTexture=Texture2D'RX_VH_LightTank.UI.T_DeathIcon_LightTank'
+
 }

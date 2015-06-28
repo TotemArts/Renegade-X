@@ -144,6 +144,8 @@ DefaultProperties
 
 	DrawScale=1.0
 
+	VehicleIconTexture=Texture2D'RX_VH_HoverCraft.UI.T_VehicleIcon_HoverCraft'
+	MinimapIconTexture=Texture2D'RX_VH_HoverCraft.UI.T_MinimapIcon_HoverCraft'
 
 //========================================================\\
 //*********** Vehicle Seats & Weapon Properties **********\\

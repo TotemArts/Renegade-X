@@ -24,4 +24,6 @@ defaultproperties
 	
 	BleedDamageFactor=0.1
 	BleedCount=10
+	
+	IconTexture=Texture2D'RX_WP_EMPGrenade.UI.T_WeaponIcon_EMPGrenade'
 }

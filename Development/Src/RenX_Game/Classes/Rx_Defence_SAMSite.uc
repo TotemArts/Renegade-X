@@ -88,6 +88,8 @@ DefaultProperties
 
     DrawScale=1.0
 
+	VehicleIconTexture=Texture2D'RX_DEF_SamSite.UI.T_VehicleIcon_SAMSite'
+	MinimapIconTexture=Texture2D'RX_DEF_SamSite.UI.T_MinimapIcon_SAMSite'
 
 //========================================================\\
 //*********** Vehicle Seats & Weapon Properties **********\\

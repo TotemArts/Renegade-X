@@ -55,6 +55,11 @@ DefaultProperties
 
     
     MyDamageType=class'Rx_DmgType_ChainGun'
+	
+	Begin Object Name=CollisionCylinder
+		CollisionRadius=20
+		CollisionHeight=20
+	End Object
 
     DrawScale= 1.0f
 
@@ -63,9 +68,9 @@ DefaultProperties
     MaxSpeed=9000
     AccelRate=0
     LifeSpan=0.8
-    Damage=12
-    DamageRadius=80
-	HeadShotDamageMult=2.5
+    Damage=8
+    DamageRadius=0
+	HeadShotDamageMult=2.0
     MomentumTransfer=10000
     bSuppressExplosionFX=True // Do not spawn hit effect in mid air
 }

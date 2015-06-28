@@ -247,13 +247,43 @@ function AddAdmin( PlayerController Caller, PlayerReplicationInfo NewAdmin, bool
 	}
 }
 
-// Jacked version of AccessControl::KickBan(...), fixes a problem with the way it gets the IP.
-function KickBan( string Target )
+// ForceKickPlayer copied from AccessControl -- adds ability to pass KickReason to client
+function bool ForceKickPlayer(PlayerController C, string KickReason)
 {
-	local PlayerController P;
+	if (C != None && NetConnection(C.Player)!=None )
+	{
+		if (C.Pawn != None)
+		{
+			C.Pawn.Suicide();
+		}
+
+		`LogRx("PLAYER" `s "Kick;" `s `PlayerLog(C.PlayerReplicationInfo) `s "for" `s KickReason);
+		if (KickReason == "" || KickReason == DefaultKickReason || Rx_Controller(C) == None)
+			C.ClientWasKicked();
+		else
+			Rx_Controller(C).ClientWasKickedReason(KickReason);
+
+		if (C != None)
+		{
+			C.Destroy();
+		}
+		return true;
+	}
+	return false;
+}
+
+function bool KickPlayer(PlayerController C, string KickReason)
+{
+	if (KickReason != "" && KickReason != DefaultKickReason)
+		KickReason = "You were kicked from the server for: " $ KickReason;
+	return super.KickPlayer(C, KickReason);
+}
+
+// Jacked version of AccessControl::KickBan(...), fixes a problem with the way it gets the IP.
+function bool KickBanReason(PlayerController P, string reason )
+{
 	local string IP;
 
-	P =  PlayerController( GetControllerFromString(Target) );
 	if ( NetConnection(P.Player) != None )
 	{
 		if (!WorldInfo.IsConsoleBuild())
@@ -273,9 +303,18 @@ function KickBan( string Target )
 			BannedIDs.AddItem(P.PlayerReplicationInfo.UniqueId);
 			SaveConfig();
 		}
-		KickPlayer(P, DefaultKickReason);
-		return;
+		return Super.KickPlayer(P, reason);
 	}
+}
+
+function bool KickBanPlayer(PlayerController C, string reason)
+{
+	return KickBanReason(C, "You were banned from the server for: " $ reason);
+}
+
+function KickBan( string Target )
+{
+	KickBanReason(PlayerController(GetControllerFromString(Target)), DefaultKickReason);
 }
 
 function Controller GetControllerFromString(string Target)

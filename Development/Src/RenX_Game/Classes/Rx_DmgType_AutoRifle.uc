@@ -20,4 +20,5 @@ defaultproperties
 	KDeathUpKick=500
 
 	IconTextureName="T_WeaponIcon_AutoRifle"
+	IconTexture=Texture2D'RX_WP_AutoRifle.UI.T_WeaponIcon_AutoRifle'
 }

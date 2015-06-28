@@ -333,6 +333,8 @@ DefaultProperties
 	End Object
 	TowRopeMeshR=STowRingMeshR
 
+	VehicleIconTexture=Texture2D'RX_VH_MammothTank.UI.T_VehicleIcon_MammothTank'
+	MinimapIconTexture=Texture2D'RX_VH_MammothTank.UI.T_MinimapIcon_MammothTank'
 
 //========================================================\\
 //*********** Vehicle Seats & Weapon Properties **********\\

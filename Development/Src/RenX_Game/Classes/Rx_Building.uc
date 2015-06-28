@@ -17,7 +17,7 @@ var(RenX_Buildings) int                         Health;                 // Start
 var(RenX_Buildings) int                         HealthMax;                // Max Health for the building
 var(RenX_Buildings) bool                        bBuildingDebug;         // Set to true to enable Debug Logging
 
-var const class<Rx_Building_Internals>          BuildingInternalsClass; // Class of the internals that needs spawned
+var class<Rx_Building_Internals>          BuildingInternalsClass; // Class of the internals that needs spawned
 var repnotify Rx_Building_Internals             BuildingInternals;      // Instance of the internals that handles the logic like TakeDamage and the like
 
 var(BuildingLights) array<PointLightComponent>  PointLightComponents;   // Point lights for the pre setup lighting

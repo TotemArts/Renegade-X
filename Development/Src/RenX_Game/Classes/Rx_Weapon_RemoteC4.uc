@@ -238,6 +238,8 @@ DefaultProperties
 	InventoryGroup=4
 	GroupWeight=1
 	InventoryMovieGroup=24
+
+	WeaponIconTexture=Texture2D'RX_WP_RemoteC4.UI.T_WeaponIcon_RemoteC4'
 	
 	// AI Hints:
 	//MaxDesireability=0.7

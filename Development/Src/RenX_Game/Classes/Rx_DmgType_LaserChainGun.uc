@@ -21,4 +21,5 @@ defaultproperties
 	BleedCount=5
 
 	IconTextureName="T_WeaponIcon_LaserChainGun"
+	IconTexture=Texture2D'RX_WP_LaserChaingun.UI.T_WeaponIcon_LaserChainGun'
 }

@@ -36,6 +36,7 @@ var(Damage) Vector               VectorHurtOrigin;
 var() string                     DeployableName;
 var() name                       ExplosionSocketName;
 var() SoundCue                   ExplosionSound;
+var bool                         PlayExplosionSound;
 var() SoundCue                   DisarmedSound;
 var() ParticleSystem             ExplosionEffect;
 var() ParticleSystem             DisarmedEffect;
@@ -247,7 +248,7 @@ simulated function PlayExplosionEffect()
 
    if (WorldInfo.NetMode != NM_DedicatedServer)
    {
-      if (ExplosionSound != none && ((!self.IsA('Rx_Weapon_DeployedIonCannonBeacon') && !self.IsA('Rx_Weapon_DeployedNukeBeacon')) || bImminentExplode))
+      if (ExplosionSound != none && (PlayExplosionSound || bImminentExplode))
       {
          PlaySound(ExplosionSound, true,,false);
       }
@@ -512,7 +513,7 @@ defaultproperties
 	//CollisionComponent= DeployableMesh
    
    BlinkingLight=ParticleSystem'RX_WP_Nuke.Effects.P_NukeBeacon_BlinkingLight'
-   
+   PlayExplosionSound = false;
    DisarmedEffect=ParticleSystem'RX_FX_Munitions.Explosions.P_EquipmentDisarmed'
    DisarmedSound=SoundCue'RX_WP_VoltAutoRifle.Sounds.SC_VoltAutoRifle_Fire'
 

@@ -208,6 +208,8 @@ DefaultProperties
 	bDisplaycrosshair = true;
 	InventoryMovieGroup=5
 	// DroppedPickupClass = class'RxDroppedPickup_SniperRifle'
+	
+	WeaponIconTexture=Texture2D'RX_WP_SniperRifle.UI.T_WeaponIcon_SniperRifle'
 
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_SniperRifle'

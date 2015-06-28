@@ -17,4 +17,5 @@ defaultproperties
 	KDeathUpKick=500
 
 	IconTextureName="T_DeathIcon_AGT"
+	IconTexture=Texture2D'RX_BU_AGT.UI.T_DeathIcon_AGT'
 }

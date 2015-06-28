@@ -149,6 +149,8 @@ DefaultProperties
 	InventoryGroup=1
 	InventoryMovieGroup=34
 	
+	WeaponIconTexture=Texture2D'RX_WP_TiberiumFlechetteRifle.UI.T_WeaponIcon_TiberiumFlechetteRifle'
+
 	// AI Hints:
 	//MaxDesireability=0.3
 	AIRating=+0.1

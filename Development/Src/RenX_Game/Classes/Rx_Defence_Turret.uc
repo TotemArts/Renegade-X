@@ -33,9 +33,7 @@ DefaultProperties
     
     MaxDesireability=0.8
     MomentumMult=0.7
-	
-	DeadVehicleLifeSpan=0.0
-    
+ 
     AIPurpose=AIP_Defensive
 
 
@@ -58,6 +56,9 @@ DefaultProperties
     End Object
 
     DrawScale=1.0
+
+	VehicleIconTexture=Texture2D'RX_DEF_Turret.UI.T_VehicleIcon_Turret'
+	MinimapIconTexture=Texture2D'RX_DEF_Turret.UI.T_MinimapIcon_Turret'
 
 
 //========================================================\\

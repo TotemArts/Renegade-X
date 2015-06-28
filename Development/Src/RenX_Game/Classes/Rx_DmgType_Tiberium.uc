@@ -93,4 +93,5 @@ DefaultProperties
 	PS_AttachToBody=ParticleSystem'RX_Deco_Tiberium.Effects.P_TiberiumMist_Poison'
 
 	IconTextureName="T_DeathIcon_Tiberium"
+	IconTexture=Texture2D'RenX_AssetBase.DeathIcons.T_DeathIcon_Tiberium'
 }

@@ -179,5 +179,7 @@ DefaultProperties
 	CreditContent.Add("Renegade X Beta Testers")
 	CreditContent.Add("TREK Industries")
 	CreditContent.Add("WillyG for the Gemini Online Service")
+	CreditContent.Add("Tiberian Aftermath")
+	CreditContent.Add("Tiberian Sun: Reborn")
 	CreditContent.Add("Our loyal fans")
 }

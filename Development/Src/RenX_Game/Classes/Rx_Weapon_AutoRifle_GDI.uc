@@ -16,4 +16,5 @@ DefaultProperties
 	WeaponProjectiles(0)=class'RenX_Game.Rx_Projectile_AutoRifle_GDI'
 	WeaponProjectiles(1)=class'RenX_Game.Rx_Projectile_AutoRifle_GDI'
 	
+	//WeaponIconTexture
 }

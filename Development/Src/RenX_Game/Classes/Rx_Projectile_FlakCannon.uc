@@ -55,16 +55,16 @@ DefaultProperties
     
 	Physics=PHYS_Falling
     
-	CustomGravityScaling=1.0
+	CustomGravityScaling=0.5
     
     MyDamageType=class'Rx_DmgType_FlakCannon'
     
 	TossZ=100.0
-    Speed=6000
-    MaxSpeed=6000
-	TerminalVelocity=6000.0
+    Speed=3000
+    MaxSpeed=3000
+	TerminalVelocity=3000.0
     AccelRate=0
-    LifeSpan=0.5
+    LifeSpan=1.0
     Damage=60
     DamageRadius=300
 	HeadShotDamageMult=2.5

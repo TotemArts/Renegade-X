@@ -20,7 +20,7 @@
     <PackageExtensions>.upk;.udk</PackageExtensions>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|Win32' ">
-    <DebugSymbols>true</DebugSymbols>
+    <DebugSymbols>True</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <UccUseUnpublished>False</UccUseUnpublished>
@@ -32,6 +32,7 @@
     <WindowHeight>768</WindowHeight>
     <ShowLogWindow>True</ShowLogWindow>
     <LogToFile>False</LogToFile>
+    <BuildArgs />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|Win32' ">
     <DebugSymbols>false</DebugSymbols>
@@ -1622,6 +1623,8 @@
     <Compile Include="OnlineSubsystemSteamworks\Classes\OnlineGameInterfaceSteamworks.uc" />
     <Compile Include="OnlineSubsystemSteamworks\Classes\OnlineLobbyInterfaceSteamworks.uc" />
     <Compile Include="OnlineSubsystemSteamworks\Classes\OnlineSubsystemSteamworks.uc" />
+    <Compile Include="RenX_ExampleMutators\Classes\Rx_Mutator_GiveSniper.uc" />
+    <Compile Include="RenX_ExampleMutators\Classes\Rx_Mutator_SBHSniper.uc" />
     <Compile Include="RenX_Game\Classes\AimingWeaponClass.uc" />
     <Compile Include="RenX_Game\Classes\GeminiLinkClient.uc" />
     <Compile Include="RenX_Game\Classes\GeminiOnlineService.uc" />
@@ -1641,6 +1644,7 @@
     <Compile Include="RenX_Game\Classes\Rx_Airstrike_A10.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Airstrike_AC130.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Airstrike_Vehicle.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_AlienAbductionBeam.uc" />
     <Compile Include="RenX_Game\Classes\Rx_AnimBlendByDriving.uc" />
     <Compile Include="RenX_Game\Classes\Rx_AreaObjective.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Attachment_Airstrike.uc" />
@@ -1831,12 +1835,27 @@
     <Compile Include="RenX_Game\Classes\Rx_Building_WeaponsFactory_Internals.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Building_WeaponsFactory_Ramps.uc" />
     <Compile Include="RenX_Game\Classes\Rx_CameraActor.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_CapturableMCT.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_CapturableMCT_Internals.uc" />
     <Compile Include="RenX_Game\Classes\Rx_CapturePoint.uc" />
     <Compile Include="RenX_Game\Classes\Rx_CapturePoint_TechBuilding.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Chinook_Airdrop.uc" />
     <Compile Include="RenX_Game\Classes\Rx_ClanWarsConnection.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Controller.uc" />
     <Compile Include="RenX_Game\Classes\Rx_CratePickup.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_CrateType.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_CrateType_Abduction.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_CrateType_Character.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_CrateType_Money.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_CrateType_Nuke.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_CrateType_RAVehicle.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_CrateType_Refill.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_CrateType_Speed.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_CrateType_Spy.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_CrateType_Suicide.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_CrateType_TimeBomb.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_CrateType_TSVehicle.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_CrateType_Vehicle.uc" />
     <Compile Include="RenX_Game\Classes\Rx_CreditDonationHandler.uc" />
     <Compile Include="RenX_Game\Classes\Rx_DamageVehicleVolume.uc" />
     <Compile Include="RenX_Game\Classes\Rx_DeathMessage.uc" />
@@ -1869,6 +1888,7 @@
     <Compile Include="RenX_Game\Classes\Rx_DmgType.uc" />
     <Compile Include="RenX_Game\Classes\Rx_DmgType_A10_Missile.uc" />
     <Compile Include="RenX_Game\Classes\Rx_DmgType_AATower.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_DmgType_Abduction.uc" />
     <Compile Include="RenX_Game\Classes\Rx_DmgType_AGT_MG.uc" />
     <Compile Include="RenX_Game\Classes\Rx_DmgType_AGT_Rocket.uc" />
     <Compile Include="RenX_Game\Classes\Rx_DmgType_Apache_Gun.uc" />
@@ -1990,6 +2010,8 @@
     <Compile Include="RenX_Game\Classes\Rx_FamilyInfo_Nod_StealthBlackHand.uc" />
     <Compile Include="RenX_Game\Classes\Rx_FamilyInfo_Nod_Technician.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Game.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_GameViewportClient.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Game_Utils.uc" />
     <Compile Include="RenX_Game\Classes\Rx_GFxDamageSystem.uc" />
     <Compile Include="RenX_Game\Classes\Rx_GFXFrontEnd.uc" />
     <Compile Include="RenX_Game\Classes\Rx_GFxFrontEnd_Dialog.uc" />
@@ -2088,12 +2110,23 @@
     <Compile Include="RenX_Game\Classes\Rx_Message_Vehicle.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Message_VehicleProduced.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Mutator.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_ObjectTooltipInterface.uc" />
     <Compile Include="RenX_Game\Classes\Rx_ObservedPoint.uc" />
     <Compile Include="RenX_Game\Classes\Rx_ParticleField.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Pawn.uc" />
     <Compile Include="RenX_Game\Classes\Rx_PawnSoundGroup.uc" />
     <Compile Include="RenX_Game\Classes\Rx_PawnSoundGroup_Female.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Pawn_SBH.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Pickup.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Pickup_Ammo.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Pickup_Armour.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Pickup_ArmourHeavy.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Pickup_ArmourLight.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Pickup_ArmourMedium.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Pickup_Health.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Pickup_HealthLarge.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Pickup_HealthMedium.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Pickup_HealthSmall.uc" />
     <Compile Include="RenX_Game\Classes\Rx_PlayAreaVolume.uc" />
     <Compile Include="RenX_Game\Classes\Rx_PlayerInput.uc" />
     <Compile Include="RenX_Game\Classes\Rx_PRI.uc" />
@@ -2148,16 +2181,20 @@
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Commands_Container.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_BotList.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_BotVarList.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_BuildingInfo.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_CancelVote.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_ChangeMap.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_ChangeName.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_ClientList.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_ClientVarList.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_Disarm.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_DisarmBeacon.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_DisarmC4.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_EndMap.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_ForceKick.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_ForceNonSeamless.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_ForceSeamless.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_GameInfo.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_GiveCredits.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_HasCommand.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_Help.uc" />
@@ -2175,6 +2212,7 @@
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_Ping.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_PlayerInfo.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_RecordDemo.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_ServerInfo.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_SwapTeams.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_Team.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_Team2.uc" />
@@ -2182,6 +2220,7 @@
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_TextUnmute.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_UnloadMutator.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_VehicleLimit.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Rcon_Out.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Ref_NavigationPoint.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Sentinel.uc" />
     <Compile Include="RenX_Game\Classes\Rx_SentinelComponent_ExplosionEffects.uc" />
@@ -2229,6 +2268,7 @@
     <Compile Include="RenX_Game\Classes\Rx_TeamAI.uc" />
     <Compile Include="RenX_Game\Classes\Rx_TeamInfo.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Tib_NavigationPoint.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_UIDataProvider_MapInfo.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Utils.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Vehicle.uc" />
     <Compile Include="RenX_Game\Classes\Rx_VehicleBlockingVolume.uc" />
@@ -2398,6 +2438,7 @@
     <Compile Include="RenX_Game\Classes\Rx_Weapon_Chaingun_Nod.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Weapon_Charged.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Weapon_ChemicalThrower.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Weapon_CrateNuke.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Weapon_Deployable.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Weapon_DeployedActor.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Weapon_DeployedATMine.uc" />
@@ -3265,9 +3306,67 @@
     <Content Include="**\*.uci" />
   </ItemGroup>
   <ItemGroup>
-    <Config Include="..\..\UDKGame\Config\Default*.ini">
+    <Config Include="..\..\UDKGame\Config\DefaultCharInfo.ini">
       <Link>Config\Default*.ini</Link>
     </Config>
+    <Config Include="..\..\UDKGame\Config\DefaultEditor.ini">
+      <Link>Config\Default*.ini</Link>
+    </Config>
+    <Config Include="..\..\UDKGame\Config\DefaultEditorKeyBindings.ini">
+      <Link>Config\Default*.ini</Link>
+    </Config>
+    <Config Include="..\..\UDKGame\Config\DefaultEditorUDK.ini">
+      <Link>Config\Default*.ini</Link>
+    </Config>
+    <Config Include="..\..\UDKGame\Config\DefaultEditorUserSettings.ini">
+      <Link>Config\Default*.ini</Link>
+    </Config>
+    <Config Include="..\..\UDKGame\Config\DefaultEngine.ini">
+      <Link>Config\Default*.ini</Link>
+    </Config>
+    <Config Include="..\..\UDKGame\Config\DefaultEngineUDK.ini">
+      <Link>Config\Default*.ini</Link>
+    </Config>
+    <Config Include="..\..\UDKGame\Config\DefaultGame.ini">
+      <Link>Config\Default*.ini</Link>
+    </Config>
+    <Config Include="..\..\UDKGame\Config\DefaultGameUDK.ini">
+      <Link>Config\Default*.ini</Link>
+    </Config>
+    <Config Include="..\..\UDKGame\Config\DefaultInput.ini">
+      <Link>Config\Default*.ini</Link>
+    </Config>
+    <Config Include="..\..\UDKGame\Config\DefaultInputDefaults.ini">
+      <Link>Config\Default*.ini</Link>
+    </Config>
+    <Config Include="..\..\UDKGame\Config\DefaultLightmass.ini">
+      <Link>Config\Default*.ini</Link>
+    </Config>
+    <Config Include="..\..\UDKGame\Config\DefaultMapDataInfo.ini">
+      <Link>Config\DefaultMapDataInfo.ini</Link>
+    </Config>
+    <Config Include="..\..\UDKGame\Config\DefaultMenu.ini">
+      <Link>Config\Default*.ini</Link>
+    </Config>
+    <Config Include="..\..\UDKGame\Config\DefaultPurchaseSystem.ini">
+      <Link>Config\Default*.ini</Link>
+    </Config>
+    <Config Include="..\..\UDKGame\Config\DefaultRenegadeX.ini">
+      <Link>Config\Default*.ini</Link>
+    </Config>
+    <Config Include="..\..\UDKGame\Config\DefaultSystemSettings.ini">
+      <Link>Config\Default*.ini</Link>
+    </Config>
+    <Config Include="..\..\UDKGame\Config\DefaultUI.ini">
+      <Link>Config\Default*.ini</Link>
+    </Config>
+    <Config Include="..\..\UDKGame\Config\DefaultWeapon.ini">
+      <Link>Config\Default*.ini</Link>
+    </Config>
+    <Config Include="..\..\UDKGame\Config\DefaultWeaponDefaults.ini">
+      <Link>Config\Default*.ini</Link>
+    </Config>
+    <Config Include="..\..\UDKGame\Config\DefaultMapDataInfo.ini" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Config\" />
@@ -3287,12 +3386,14 @@
     <Folder Include="IpDrv\Classes\" />
     <Folder Include="MyMod2\" />
     <Folder Include="MyMod2\Classes\" />
+    <Folder Include="RenX_ExampleMutators" />
     <Folder Include="OnlineSubsystemGameCenter\" />
     <Folder Include="OnlineSubsystemGameCenter\Classes\" />
     <Folder Include="OnlineSubsystemPC\" />
     <Folder Include="OnlineSubsystemPC\Classes\" />
     <Folder Include="OnlineSubsystemSteamworks\" />
     <Folder Include="OnlineSubsystemSteamworks\Classes\" />
+    <Folder Include="RenX_ExampleMutators\Classes" />
     <Folder Include="RenX_Game\" />
     <Folder Include="RenX_Game\Classes\" />
     <Folder Include="RenX_RCam\" />

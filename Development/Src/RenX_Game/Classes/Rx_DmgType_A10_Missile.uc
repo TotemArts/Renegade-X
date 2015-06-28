@@ -12,4 +12,5 @@ defaultproperties
 	MineDamageScaling=2.0
 
 	IconTextureName="T_WeaponIcon_A10"
+	IconTexture=Texture2D'RX_VH_A-10.UI.T_DeathIcon_A10'
 }

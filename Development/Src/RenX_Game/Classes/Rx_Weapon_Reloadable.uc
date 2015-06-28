@@ -81,12 +81,13 @@ simulated event ReplicatedEvent(name VarName)
 		if(CurrentlyReloading == false) 
 		{
 			CurrentAmmoInClipClientside = ClipSize;
-			PostReloadUpdate();		
-			/*if( PendingFire(0) || PendingFire(1) ) 
+			PostReloadUpdate();	
+			
+			if( (PendingFire(0) && CurrentFireMode == 0) || (PendingFire(1) && CurrentFireMode == 1) ) 
 			{
 				RestartWeaponFiringAfterReload();	
 			} 
-			else*/ if(!IsInState('WeaponPuttingDown')) 
+			else if(!IsInState('WeaponPuttingDown')) 
 			{
 				GotoState('Active');
 			}	
@@ -242,18 +243,18 @@ state Reloading
 		}
 		if (CurrentReloadState == 0) // Weapon is lowered
 		{
-			/*if( PendingFire(0) || PendingFire(1) ) 
+			if(PendingFire(0) || PendingFire(1) )  
 			{
 				CurrentlyReloading = false;
 				GoToState('WeaponFiring');
 				return;
 			}
 			else
-			{*/
+			{
 				CurrentlyReloading = false;
 				GoToState('Active');
 				return;
-			//}
+			}
 		}
 		else if (CurrentReloadState == 1) // Weapon currently reloading
 		{
@@ -304,14 +305,14 @@ state Reloading
 		CurrentlyReloading = false;
 		PostReloadUpdate();
 
-		/*if( PendingFire(0) || PendingFire(1) ) 
+		if((PendingFire(0) && CurrentFireMode == 0) || (PendingFire(1) && CurrentFireMode == 1) ) 
 		{
 			RestartWeaponFiringAfterReload();	
 		}
 		else
-		{*/
+		{
 			GotoState('Active');
-		//}
+		}
 	}
 
 	simulated function bool bReadyToFire()

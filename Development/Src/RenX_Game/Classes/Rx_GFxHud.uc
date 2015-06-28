@@ -85,6 +85,8 @@ var GFxObject ArmorBar, ArmorN, ArmorMaxN;
 var GFxObject StaminaBar;
 var GFxObject AmmoInClipN, AmmoBar, AmmoReserveN, AltAmmoInClipN, AltAmmoBar, InfinitAmmo, AltInfinitAmmo, WeaponBlock, VAltWeaponBlock;
 var GFxObject WeaponMC, WeaponPrevMC, WeaponNextMC, VBackdrop, WeaponName, AltWeaponName;
+
+//
 var GFxObject GrenadeN, GrenadeMC, TimedC4MC, RemoteC4MC, ProxyC4MC, BeaconMC;
 var GFxObject HitLocMC[8];
 var GFxObject BottomInfo;
@@ -194,10 +196,11 @@ function ResizedScreenCheck()
 function TickHUD() 
 {
 	local Rx_Pawn RxP;
+	local Pawn TempPawn;
 	local Rx_Weapon RxWeap;
 	local Rx_Vehicle RxV;
 	local Rx_Vehicle_Weapon RxVWeap;
-	local Rx_Controller RxPC;
+	local UTPlayerController RxPC;
 	local Rx_GRI RxGRI;
 	local byte i;
 	
@@ -205,20 +208,25 @@ function TickHUD()
 		return;
 	}
 
-	RxPC = Rx_Controller(GetPC());
+	RxPC = UTPlayerController(GetPC());
 	if(RxPC == None) {
 		return;
 	}
 
+	if(RxPC.Pawn != None)
+		TempPawn = RxPC.Pawn;
+	else if(Pawn(RxPC.viewtarget) != None)
+		TempPawn = Pawn(RxPC.viewtarget);		
+
 
 	//assign all 4 var here. RxP RxV, RxWeap, RxVehicleWeap
-	if (Rx_Pawn(RxPC.Pawn) != none) {
-		RxP = Rx_Pawn(RxPC.Pawn);
+	if (Rx_Pawn(TempPawn) != none) {
+		RxP = Rx_Pawn(TempPawn);
 		RxWeap = Rx_Weapon(RxP.Weapon);
 		RxV = none;
 		RxVWeap = none;
-	} else if (Rx_Vehicle(RxPC.pawn) != none) {
-		RxV = Rx_Vehicle(RxPC.pawn);
+	} else if (Rx_Vehicle(TempPawn) != none) {
+		RxV = Rx_Vehicle(TempPawn);
 		if (RxV.Weapon != none) {
 			RxVWeap = Rx_Vehicle_Weapon(RxV.Weapon);
 		} else {
@@ -232,10 +240,10 @@ function TickHUD()
 		}
 		RxP = none;
 		RxWeap = none;
-	} else if (Rx_VehicleSeatPawn(RxPC.Pawn) != None) {
-		RxV = Rx_Vehicle(Rx_VehicleSeatPawn(RxPC.Pawn).MyVehicle);
-		if (Rx_VehicleSeatPawn(RxPC.Pawn).MyVehicleWeapon != none) {
-			RxVWeap = Rx_Vehicle_Weapon(Rx_VehicleSeatPawn(RxPC.Pawn).MyVehicleWeapon);
+	} else if (Rx_VehicleSeatPawn(TempPawn) != None) {
+		RxV = Rx_Vehicle(Rx_VehicleSeatPawn(TempPawn).MyVehicle);
+		if (Rx_VehicleSeatPawn(TempPawn).MyVehicleWeapon != none) {
+			RxVWeap = Rx_Vehicle_Weapon(Rx_VehicleSeatPawn(TempPawn).MyVehicleWeapon);
 		} else if (RxV.Weapon != none) {
 			RxVWeap = Rx_Vehicle_Weapon(RxV.Weapon);
 		} else {
@@ -266,7 +274,7 @@ function TickHUD()
 // 	}
 
 	SetLivingHUDVisible(true);
-	if(RxP != none) {
+	if(RxP != none && RxP.Health > 0) {
 		if (VehicleDeathMsgTime >= 0)
 		{
 			if (RenxHud.WorldInfo.TimeSeconds < VehicleDeathMsgTime)
@@ -427,12 +435,12 @@ function TickHUD()
 	}
 
 	/** Code that was found to be expensive and doesent need to be updated every Tick was moved here */
-	if(RxPC.Pawn != None && RxPC.Pawn.WorldInfo.TimeSeconds - LastTipsUpdateTime > 0.15)
+	if(TempPawn != None && TempPawn.WorldInfo.TimeSeconds - LastTipsUpdateTime > 0.15)
 	{
 		ResizedScreenCheck();
 		UpdateBuildings();
 		UpdateTips();
-		LastTipsUpdateTime = RxPC.Pawn.WorldInfo.TimeSeconds;
+		LastTipsUpdateTime = TempPawn.WorldInfo.TimeSeconds;
 		//UpdateScoreboard();
 	} else if(GameplayTipsText.GetString("htmlText") != "")
 	{
@@ -445,10 +453,11 @@ function TickHUD()
 function UpdateTips()
 {
 	local Rx_Controller RxPC;
-	local Rx_BuildingAttachment_PT PT;
-	local Rx_BuildingAttachment_MCT MCT;
+	local Rx_ObjectTooltipInterface OT;
 	local string bindKey;
 	local string jumpKey;
+	local string tooltip;
+	local Actor act;
 	local UTVehicle veh;
 
 	RxPC = Rx_Controller(GetPC());
@@ -499,51 +508,46 @@ function UpdateTips()
 			}
 		}
 
-		if (Rx_BuildingAttachment_MCT(RenxHud.TargetingBox.TargetedActor) != none && RenxHud.ShowBasicTips)
+		if (RxPC.bIsInPurchaseTerminal == false)
 		{
-			MCT = Rx_BuildingAttachment_MCT(RenxHud.TargetingBox.TargetedActor);
-			if (Rx_Building_TechBuilding_Internals(MCT.OwnerBuilding) != none)
+			OT = Rx_ObjectTooltipInterface(RenxHud.TargetingBox.TargetedActor);
+			if (OT != none && OT.IsTouchingOnly() == false && (RenxHud.ShowBasicTips || OT.IsBasicOnly() == false))
 			{
-				FadeScreenMC.SetVisible(true);
-				GameplayTipsText.SetVisible(true);
-				GameplayTipsText.SetString("htmlText", "Use the <font color='#ff0000' size='20'>Repair Gun</font> to capture." );
-				return;
-			}
-			else if (MCT.OwnerBuilding != none && MCT.OwnerBuilding.TeamID != RxPC.GetTeamNum())
-			{
-				FadeScreenMC.SetVisible(true);
-				GameplayTipsText.SetVisible(true);
-				GameplayTipsText.SetString("htmlText", "Plant <font color='#ff0000' size='20'>C4</font> on the MCT to destroy the building." );
-				return;
-			}
-		}
-
-		foreach RxPC.Pawn.TouchingActors(class'Rx_BuildingAttachment_PT', PT)
-		{
-			if(RxPC.bIsInPurchaseTerminal || !RxPC.bCanAccessPT) {
-				continue;
-			} else {
-				if (RxPC.GetTeamNum() == PT.GetTeamNum() && class'Rx_Utils'.static.OrientationToB(PT, RxPC.Pawn) > 0.1) {
+				tooltip = OT.GetTooltip(RxPC);
+				if (tooltip != "")
+				{
 					FadeScreenMC.SetVisible(true);
 					GameplayTipsText.SetVisible(true);
-					GameplayTipsText.SetString("htmlText", "Press <font color='#ff0000' size='20'>[ " $ bindKey $ " ]</font> to access the PURCHASE TERMINAL");
-				} else {
-					if (GameplayTipsText.GetText() != "") {
-						
-						GameplayTipsText.SetString("htmlText", "");
-						GameplayTipsText.SetVisible(false);
-						FadeScreenMC.SetVisible(false); 
+					GameplayTipsText.SetString("htmlText", tooltip);
+					return;
+				}
+			}
+
+			if (RxPC.bCanAccessPT)
+			{
+				foreach RxPC.Pawn.Touching(act)
+				{
+					OT = Rx_ObjectTooltipInterface(act);
+					if (OT != none && (RenxHud.ShowBasicTips || OT.IsBasicOnly() == false))
+					{
+						tooltip = OT.GetTooltip(RxPC);
+						if (tooltip != "")
+						{
+							FadeScreenMC.SetVisible(true);
+							GameplayTipsText.SetVisible(true);
+							GameplayTipsText.SetString("htmlText", tooltip);
+							return;
+						}
 					}
 				}
 			}
 		}
-	} else {
-		if (GameplayTipsText.GetText() != "") {
-						
-			GameplayTipsText.SetString("htmlText", "");
-			GameplayTipsText.SetVisible(false);
-			FadeScreenMC.SetVisible(false); 
-		}
+	}
+	else if (GameplayTipsText.GetText() != "")
+	{					
+		GameplayTipsText.SetString("htmlText", "");
+		GameplayTipsText.SetVisible(false);
+		FadeScreenMC.SetVisible(false); 
 	}
 }
 
@@ -601,6 +605,8 @@ function UpdateHUDVars()
 	WeaponMC        = GetVariableObject("_root.WeaponBlock.Weapon");
 	WeaponPrevMC    = GetVariableObject("_root.WeaponBlock.WeaponPrev");
 	WeaponNextMC    = GetVariableObject("_root.WeaponBlock.WeaponNext");
+
+
 	AltWeaponName   = GetVariableObject("_root.WeaponBlock.AltWeaponBlock.AltWeaponName");
 	AltAmmoInClipN  = GetVariableObject("_root.WeaponBlock.AltWeaponBlock.AltAmmoInClipN");
 	AltInfinitAmmo  = GetVariableObject("_root.WeaponBlock.AltWeaponBlock.AltInfinity");
@@ -852,11 +858,14 @@ function UpdateWeapon(UTWeapon weapon)
 
 		lastWeaponHeld = weapon;
 
-		WeaponMC.GotoAndStopI(int(Rx_Weapon(weapon).GetInventoryMovieGroup()));
+		//CHANGE WEAPON HERE
+		//WeaponMC.GotoAndStopI(int(Rx_Weapon(weapon).GetInventoryMovieGroup()));
+		LoadTexture(Rx_Weapon(weapon).WeaponIconTexture != none ? "img://" $ PathName(Rx_Weapon(weapon).WeaponIconTexture) : PathName(Texture2D'RenxHud.T_WeaponIcon_MissingCameo'), WeaponMC);
 
 		if(prevWeapon != none && Rx_Weapon(prevWeapon) != None) {
 			WeaponPrevMC.SetVisible(true);
-			WeaponPrevMC.GotoAndStopI(int(Rx_Weapon(prevWeapon).GetInventoryMovieGroup()));
+			//WeaponPrevMC.GotoAndStopI(int(Rx_Weapon(prevWeapon).GetInventoryMovieGroup()));
+			LoadTexture(Rx_Weapon(prevWeapon).WeaponIconTexture != none ? "img://" $ PathName(Rx_Weapon(prevWeapon).WeaponIconTexture) : PathName(Texture2D'RenxHud.T_WeaponIcon_MissingCameo'), WeaponPrevMC);
 		} else {
 			WeaponPrevMC.SetVisible(false);
 		}
@@ -864,7 +873,8 @@ function UpdateWeapon(UTWeapon weapon)
 
 		if(nextWeapon != none && Rx_Weapon(prevWeapon) != None) {
 			WeaponNextMC.SetVisible(true);
-			WeaponNextMC.GotoAndStopI(int(Rx_Weapon(nextWeapon).GetInventoryMovieGroup()));
+			//WeaponNextMC.GotoAndStopI(int(Rx_Weapon(nextWeapon).GetInventoryMovieGroup()));
+			LoadTexture(Rx_Weapon(nextWeapon).WeaponIconTexture != none ? "img://" $ PathName(Rx_Weapon(nextWeapon).WeaponIconTexture) : PathName(Texture2D'RenxHud.T_WeaponIcon_MissingCameo'), WeaponNextMC);
 		} else {
 			WeaponNextMC.SetVisible(false);
 		}
@@ -922,6 +932,10 @@ function UpdateWeapon(UTWeapon weapon)
 // 	}
 }
 
+function LoadTexture(string pathName, GFxObject widget) 
+{
+	widget.ActionScriptVoid("loadTexture");
+}
 
 function UpdateItems()
 {
@@ -977,7 +991,10 @@ function UpdateVehicleWeapon(Rx_Vehicle_Weapon weapon)
 
 	if(weapon != lastWeaponHeld) { //this is a new weapon
 		VehicleMC.SetVisible(true);
-		VehicleMC.GotoAndStopI(weapon.InventoryGroup);
+		
+		//VehicleMC.GotoAndStopI(weapon.InventoryGroup);
+		LoadTexture(Rx_Vehicle(weapon.MyVehicle).VehicleIconTexture != none ? "img://" $ PathName(Rx_Vehicle(weapon.MyVehicle).VehicleIconTexture) : PathName(Texture2D'RenxHud.T_VehicleIcon_MissingCameo'), VehicleMC);
+		
 
 		if(Rx_Vehicle_MultiWeapon(weapon) != none) {
 			WeaponBlock.GotoAndStopI(4);
@@ -1638,8 +1655,10 @@ function AddDeathMessage(string HTMLMessage, class<DamageType> Dmg, PlayerReplic
 	FadeScreenMC.SetVisible(true);
 	SubtitlesText.SetVisible(true);
 
-	SubtitlesText.SetString("htmlText", HTMLMessage 
-		$"\n<img src='" $ParseDamageType(Dmg, Killer ) $"'>");
+	SubtitlesText.SetString("htmlText", HTMLMessage  
+		$"\n<img src='" $ ParseDamageType(Dmg, Killer ) $"'>");
+
+
 }
 
 //function AddKillMessage(string msg, string msgColor, int iType)
@@ -1764,12 +1783,13 @@ function string ParseDamageType( class<DamageType> Dmg, optional PlayerReplicati
 		}
 	}
 	
-	if (class<Rx_DmgType>(Dmg) != None && class<Rx_DmgType>(Dmg).default.IconTextureName != "")
+	if (class<Rx_DmgType>(Dmg) != None && class<Rx_DmgType>(Dmg).default.IconTexture != None)
 	{
-		return class<Rx_DmgType>(Dmg).default.IconTextureName;
+		return "img://" $ PathName(class<Rx_DmgType>(Dmg).default.IconTexture);
 	}
 
-	weaponTexture = "T_DeathIcon_GenericSkull";
+
+	weaponTexture = "img://" $ PathName(Texture2D'RenX_AssetBase.DeathIcons.T_DeathIcon_GenericSkull');
 
 	switch (Dmg)
 	{

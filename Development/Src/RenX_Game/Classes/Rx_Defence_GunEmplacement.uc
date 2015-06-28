@@ -200,6 +200,9 @@ defaultproperties
 
 	DrawScale=1.0
 
+	VehicleIconTexture=Texture2D'RX_DEF_GunEmplacement.UI.T_VehicleIcon_GunEmplacement'
+	MinimapIconTexture=Texture2D'RX_DEF_GunEmplacement.UI.T_MinimapIcon_GunEmplacement'
+
 
 //========================================================\\
 //*********** Vehicle Seats & Weapon Properties **********\\

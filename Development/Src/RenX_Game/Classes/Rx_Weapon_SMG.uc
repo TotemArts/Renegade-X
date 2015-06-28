@@ -42,7 +42,7 @@ DefaultProperties
 	RecoilInterpSpeed = 40.0
 	RecoilDeclinePct = 0.25
 	RecoilDeclineSpeed = 4.0
-	MaxSpread = 0.125
+	MaxSpread = 0.1
 	RecoilSpreadIncreasePerShot = 0.003	
 	RecoilSpreadDeclineSpeed = 0.8
 	RecoilSpreadDecreaseDelay = 0.15
@@ -50,7 +50,7 @@ DefaultProperties
 
 	ShotCost(0)=1
 	ShotCost(1)=0
-	FireInterval(0)=+0.06
+	FireInterval(0)=+0.08
 	FireInterval(1)=+0.0
 	ReloadTime(0) = 3.0
 	ReloadTime(1) = 3.0
@@ -82,10 +82,10 @@ DefaultProperties
 //	WeaponProjectiles(0)=class'RenX_Game.Rx_Projectile_SMG'
 //	WeaponProjectiles(1)=class'RenX_Game.Rx_Projectile_SMG'
 
-	Spread(0)=0.004
+	Spread(0)=0.025
 	Spread(1)=0.0
 	
-	ClipSize = 40
+	ClipSize = 30
 	InitalNumClips = 7
 	MaxClips = 7
 	
@@ -146,6 +146,8 @@ DefaultProperties
 	
 	InventoryGroup=1
 	InventoryMovieGroup=26
+
+	WeaponIconTexture=Texture2D'RX_WP_Pistol.UI.T_WeaponIcon_SMG'
 	
 	// AI Hints:
 	//MaxDesireability=0.3

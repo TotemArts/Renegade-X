@@ -11,4 +11,5 @@ defaultproperties
     BuildingDamageScaling=0.1f
 
 	IconTextureName="T_WeaponIcon_A10"
+	IconTexture=Texture2D'RX_VH_A-10.UI.T_DeathIcon_A10'
 }

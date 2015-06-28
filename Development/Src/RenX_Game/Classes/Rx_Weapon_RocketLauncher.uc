@@ -111,6 +111,8 @@ DefaultProperties
 
 	InventoryGroup=2
 	InventoryMovieGroup=8
+
+	WeaponIconTexture=Texture2D'RX_WP_RocketLauncher.UI.T_WeaponIcon_RocketLauncher'
 	
 	// AI Hints:
 	//MaxDesireability=0.7

@@ -294,4 +294,6 @@ DefaultProperties
     
     FiringStopSound=SoundCue'RX_VH_A-10.Sounds.SC_A-10_Gun_End'
 
+	VehicleIconTexture=Texture2D'RX_VH_A-10.UI.T_VehicleIcon_A10'
+	MinimapIconTexture=Texture2D'RX_VH_A-10.UI.T_MinimapIcon_A10'
 }

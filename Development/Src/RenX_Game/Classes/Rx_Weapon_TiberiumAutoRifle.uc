@@ -122,6 +122,8 @@ defaultproperties
 	CrossHairCoordinates=(U=256,V=64,UL=64,VL=64)
 	IconCoordinates=(U=726,V=532,UL=165,VL=51)
 	InventoryMovieGroup=33
+
+	WeaponIconTexture=Texture2D'RX_WP_TiberiumAutoRifle.UI.T_WeaponIcon_TiberiumAutoRifle'
 	
 	//==========================================
 	// IRON SIGHT PROPERTIES

@@ -113,6 +113,8 @@ DefaultProperties
 	InventoryGroup=5
 	GroupWeight=1
 	InventoryMovieGroup=25
+
+	WeaponIconTexture=Texture2D'rx_wp_proxyc4.UI.T_WeaponIcon_ProximityC4'
 	
 	// AI Hints:
 	//MaxDesireability=0.7

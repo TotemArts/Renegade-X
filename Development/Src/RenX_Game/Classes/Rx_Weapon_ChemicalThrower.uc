@@ -121,6 +121,8 @@ DefaultProperties
     InventoryGroup=2.1
     GroupWeight=1
     InventoryMovieGroup=21
+
+	WeaponIconTexture=Texture2D'RX_WP_ChemicalThrower.UI.T_WeaponIcon_ChemicalThrower'
     
     // AI Hints:
     //MaxDesireability=0.7

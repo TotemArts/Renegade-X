@@ -24,4 +24,5 @@ defaultproperties
 	KDeathUpKick=100
 
 	IconTextureName="T_WeaponIcon_Railgun"
+	IconTexture=Texture2D'RX_WP_Railgun.UI.T_WeaponIcon_Railgun'
 }

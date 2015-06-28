@@ -1572,11 +1572,11 @@ function ChangeToSBH(bool sbh) {
 	}
 	else 
 	{
-		if(self.Pawn.class != class'Rx_Pawn' )
+		if(self.Pawn.class != Rx_Game(WorldInfo.Game).DefaultPawnClass )
 		{
 			UnPossess();
 			p.Destroy(); 
-			p = Spawn(class'Rx_Pawn', , ,l,r);
+			p = Spawn(Rx_Game(WorldInfo.Game).DefaultPawnClass, , ,l,r);
 		}
 		else
 		{

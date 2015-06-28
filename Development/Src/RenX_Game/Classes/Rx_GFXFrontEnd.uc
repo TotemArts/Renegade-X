@@ -32,7 +32,7 @@ var Rx_GFxFrontEnd_Skirmish SkirmishView;
 var Rx_GFxFrontEnd_Extras ExtrasView;
 
 var GFxClikWidget ProgressDialogInstance;
-
+var GFxClikWidget DownloadProgressDialogInstance;
 
 /** Called on start **/
 function bool Start (optional bool StartPaused = false)
@@ -53,6 +53,7 @@ function bool Start (optional bool StartPaused = false)
 	MenuSubTitleLabel.SetText(Caps("Welcome to Renegade-X"));
 
 	CheckForErrorMessages();
+	Rx_GameViewportClient(GetGameViewportClient()).FrontEnd = self;
 
 	return true;
 }
@@ -143,14 +144,13 @@ function RunOnce()
 		GetPC().SetAudioGroupVolume('Ambient', SystemSettingsHandler.AmbientVolume);
 		GetPC().SetAudioGroupVolume('UnGrouped', SystemSettingsHandler.UnGroupedVolume);
 
-
 		HasRunOnce = true;
+
 	}
 }
 
 function CheckForErrorMessages()
 {
-
 	local string frontEndErrorTitle, frontEndErrorMessage;
 	Registry = UIDataStore_Registry(class'UIRoot'.static.StaticResolveDataStore('Registry'));
 	Registry.GetData("FrontEndError_Message", frontEndErrorMessage);
@@ -380,6 +380,7 @@ function OpenFrontEndErrorAlertDialog(string title, string message) {
 	dialogInstance.SetString("message", message != "" ? message : "Unknown Error Occured");
 	dialogInstance.AddEventListener('CLIK_close', OnFrontEndErrorClose);
 }
+
 function OpenVersionOutOfDateDialog()
 {
 	local GFxClikWidget dialogInstance;
@@ -435,6 +436,46 @@ function OpenServerInfoDebugDialog()
 function CloseProgressDialog() {
 	CloseDialog();
 	ProgressDialogInstance = none;
+}
+
+function OpenShowDownloadProgressDialog(string title, string size) 
+{
+	//local GFxClikWidget progressBar;
+
+	if (DownloadProgressDialogInstance == none)
+	{
+		DownloadProgressDialogInstance = OpenDialog(DialogContainer, "RenXProgressDialog", none, true);
+		DownloadProgressDialogInstance.SetBool("topmostLevel", false);
+		DownloadProgressDialogInstance.SetString("_name", "ProgressDialog");
+		DownloadProgressDialogInstance.GetObject("drageBar").GetObject("textField").SetString("text", "Downloading");
+		DownloadProgressDialogInstance.SetString("message", title $ " - " $ size);
+
+		DownloadProgressDialogInstance.AddEventListener('CLIK_close', OnDownloadProgressClose);
+
+		GFxClikWidget(DownloadProgressDialogInstance.GetObject("cancelBtn", class'GFxClikWidget')).SetBool("disabled", true); //TODO: currently disable the manual cancellation
+	}
+}
+
+function UpdateDownloadProgressDialog(float loaded, float total) 
+{
+	DownloadProgressDialogInstance.GetObject("progressBarField", class'GFxObject').ActionScriptVoid("setProgress");
+}
+
+function UpdateDownloadProgressPercentage(string percentage) 
+{
+	DownloadProgressDialogInstance.GetObject("percentageField").SetString("text", percentage);
+}
+
+function CloseDownloadProgressDialog()
+{
+	CloseDialog();
+	DownloadProgressDialogInstance = none;
+}
+
+function OnDownloadProgressClose(GFxClikWidget.EventData ev)
+{
+	DownloadProgressDialogInstance = none;
+	ConsoleCommand("disconnect");
 }
 
 function GFxClikWidget OpenDialog(GFxObject Context, string Linkage, GFxObject Props, bool Modal)

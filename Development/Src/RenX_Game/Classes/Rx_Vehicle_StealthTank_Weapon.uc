@@ -16,7 +16,8 @@ class Rx_Vehicle_StealthTank_Weapon extends Rx_Vehicle_Weapon_Reloadable;
 
 
 var	SoundCue WeaponDistantFireSnd;	// A second firing sound to be played when weapon fires. (Used for distant sound)
-var int      MissileRecoilCount;
+//	var int      MissileRecoilCount;
+//	var int 	 i;
 
 
 simulated function FireAmmunition()
@@ -43,6 +44,7 @@ simulated function GetFireStartLocationAndRotation(out vector SocketLocation, ou
     }
 }
 
+/**
 simulated function SetWeaponRecoil() {
 	DeltaPitchX = 0.0;
 	if(recoiltime > 0) {
@@ -90,6 +92,35 @@ simulated function ProcessViewRotation( float DeltaTime, out rotator out_ViewRot
 	}
 }
 
+simulated function rotator AddSpread(rotator BaseAim)
+{
+	local vector X, Y, Z;
+	local float CurrentSpread, RandY, RandZ;
+
+	CurrentSpread = Spread[CurrentFireMode];
+	if (CurrentSpread == 0)
+	{
+		return BaseAim;
+	}
+	else
+	{
+		// Add in any spread.
+		GetAxes(BaseAim, X, Y, Z);
+		//RandY = FRand() - 0.5;
+		//RandZ = Sqrt(0.5 - Square(RandY)) * (FRand() - 0.5);
+		
+		if(i++ == 0)
+			RandY = -0.4;
+		else
+			RandY = 0.4;
+		if(i > 1)
+			i = 0;	
+		RandZ = 0.1;
+		return rotator(X + RandY * CurrentSpread * Y + RandZ * CurrentSpread * Z);
+	}
+}
+*/
+
 DefaultProperties
 {
     InventoryGroup=17
@@ -123,8 +154,8 @@ DefaultProperties
     FireInterval(1)=0.15
     bFastRepeater=true
 
-    Spread(0)=0.3
-    Spread(1)=0.3
+    Spread(0)=0.03
+    Spread(1)=0.03
 
     WeaponFireSnd(0)     = SoundCue'RX_VH_StealthTank.Sounds.SC_StealthTank_Fire'
     WeaponFireTypes(0)   = EWFT_Projectile

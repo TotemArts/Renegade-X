@@ -112,6 +112,11 @@ var bool bCanResetSlip;
 var Rx_Speaker Speaker;
 var bool bBlinkingName;
 
+
+/** reference to the texture to use for the Hud */
+var() Texture VehicleIconTexture;
+var() Texture MinimapIconTexture;
+
 replication
 {
 	if (bNetDirty && Role == ROLE_Authority )
@@ -491,6 +496,63 @@ simulated function vector GetCameraStart(int SeatIndex)
 	return Super.GetCameraStart(SeatIndex);
 }
 
+
+simulated function DrivingStatusChanged()
+{
+	// turn parking friction on or off
+	bUpdateWheelShapes = true;
+
+	// possibly use different physical material while being driven (to allow properties like friction to change).
+	if ( bDriving )
+	{
+		if(Role == ROLE_Authority && Rx_Vehicle_Treaded(self) != None)
+		{
+			SetTimer(0.05,true,'FrontalCollisionGripReductionTimer');
+		}
+		if ( DrivingPhysicalMaterial != None )
+		{
+			DrivingPhysicalMaterial.friction=0.7;
+			DrivingPhysicalMaterial.bEnableAnisotropicFriction=true;
+			DrivingPhysicalMaterial.AnisoFrictionDir=vect(1.0,1.0,1.0); 			
+			Mesh.SetPhysMaterialOverride(DrivingPhysicalMaterial);
+		}
+	}
+	else if ( DefaultPhysicalMaterial != None )
+	{
+		DefaultPhysicalMaterial.friction=0.7;
+		DefaultPhysicalMaterial.bEnableAnisotropicFriction=false;
+		DefaultPhysicalMaterial.AnisoFrictionDir=vect(0.0,0.0,0.0); 			
+		Mesh.SetPhysMaterialOverride(DefaultPhysicalMaterial);
+	}
+
+	if ( bDriving && !bIsDisabled )
+	{
+		VehiclePlayEnterSound();
+	}
+	else if ( Health > 0 )
+	{
+		VehiclePlayExitSound();
+	}
+
+	bBlocksNavigation = !bDriving;
+
+	if (!bDriving)
+	{
+		StopFiringWeapon();
+
+		SetMovementEffect(0, false);
+		SetTexturesToBeResident(false);
+		
+		if(Role == ROLE_Authority)
+		{
+			ClearTimer('FrontalCollisionGripReductionTimer');
+		}		
+	}
+
+	VehicleEvent(bDriving ? 'EngineStart' : 'EngineStop');
+}
+
+/**
 simulated function DrivingStatusChanged() 
 {
 
@@ -501,6 +563,13 @@ simulated function DrivingStatusChanged()
 		{
 			SetTimer(0.05,true,'FrontalCollisionGripReductionTimer');
 		}
+		if ( DrivingPhysicalMaterial != None )
+		{
+			DrivingPhysicalMaterial.friction=0.7;
+			DrivingPhysicalMaterial.bEnableAnisotropicFriction=true;
+			DrivingPhysicalMaterial.AnisoFrictionDir=vect(1.0,1.0,1.0); 
+			Mesh.SetPhysMaterialOverride(DrivingPhysicalMaterial);
+		}		
 	}
 	else 
 	{
@@ -510,6 +579,7 @@ simulated function DrivingStatusChanged()
 		}
 	}
 }
+*/
 
 function FrontalCollisionGripReductionTimer()
 {
@@ -2222,6 +2292,17 @@ function DisableBlinkingName()
 	bBlinkingName = false;	
 }
 
+simulated state DyingVehicle
+{
+
+	simulated function DoVehicleExplosion(bool bDoingSecondaryExplosion)
+	{
+		super.DoVehicleExplosion(bDoingSecondaryExplosion);
+		Mesh.SetHidden(true);
+		SetCollision(false,false); 
+	}
+}
+
 
 DefaultProperties
 {
@@ -2323,7 +2404,7 @@ DefaultProperties
 	SpawnInTime=1.0
 	SpawnRadius=200.0
 	BurnOutTime=0.0
-	DeadVehicleLifeSpan=0.1
+	DeadVehicleLifeSpan=1.0
 	BurnTimeParameterName=BurnTime
 
 	SpawnInSound = None
@@ -2366,7 +2447,9 @@ DefaultProperties
 	HeadLightParameterName=Headlights
 	
 	DrivingAnim=H_M_Seat_Apache
-	
+
+	VehicleIconTexture=Texture2D'RenxHud.T_VehicleIcon_MissingCameo'
+
 	// Seeking modifiers. Higher values mean seeking rockets can track this vehicle better
 	SeekAimAheadModifier = 0.0
 	SeekAccelrateModifier = 0.0

@@ -21,4 +21,5 @@ defaultproperties
 	KDeathUpKick=200
 
 	IconTextureName="T_WeaponIcon_Shotgun"
+	IconTexture=Texture2D'RX_WP_Shotgun.UI.T_WeaponIcon_Shotgun'
 }

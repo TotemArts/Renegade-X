@@ -45,15 +45,23 @@ simulated function PerformDeploy()
 	  
 	  if(WorldInfo.NetMode != NM_Client) 
       {
-		SetTimer(3.0, false, 'playApproachingSound');
-		SetTimer(TimeUntilExplosion - 31.0f, false, 'playCountInitiatedDownSound');
-		SetTimer(TimeUntilExplosion - 14.0f, false, 'PlayImminentSound');
-		SetTimer(TimeUntilExplosion - 11.0f, false, 'DeactivateHealingAbility');
+		if (TimeUntilExplosion > GdiApproachingSound.Duration && TimeUntilExplosion > NodApproachingSound.Duration)
+			SetTimer(3.0, false, 'playApproachingSound');
+		if (TimeUntilExplosion - 31.0f > 0)
+			SetTimer(TimeUntilExplosion - 31.0f, false, 'playCountInitiatedDownSound');
+		if (TimeUntilExplosion - 14.0f > 0)
+			SetTimer(TimeUntilExplosion - 14.0f, false, 'PlayImminentSound');
+		if (TimeUntilExplosion - 11.0f > 0)
+			SetTimer(TimeUntilExplosion - 11.0f, false, 'DeactivateHealingAbility');
       }
       if(WorldInfo.NetMode != NM_DedicatedServer)
       {
 		 CreateAudioComponent(BeepCue,true,true,true,,true);
-		 SetTimer(TimeUntilExplosion - 10.5f, false, 'CreateBuildUpAndExplosionSound');
+		 if (TimeUntilExplosion - 10.5f > 0)
+			SetTimer(TimeUntilExplosion - 10.5f, false, 'CreateBuildUpAndExplosionSound');
+		 else
+			PlayExplosionSound = true; // If there's not enough time to play the whole build up + explosion, play the explosion sound.
+
          SkeletalMeshComponent(Mesh).GetSocketWorldLocationAndRotation( 'BlinkingLightSocket', BlinkinglightSpawnLocation, BlinkinglightSpawnRotation );
          BlinkingLightComponent = WorldInfo.MyEmitterPool.SpawnEmitter(BlinkingLight, BlinkinglightSpawnLocation, BlinkinglightSpawnRotation,self);		
       }
@@ -133,6 +141,16 @@ simulated function PlayDisarmedEffect()
 
 }
 
+simulated function Destroyed()
+{
+	super.Destroyed();
+
+	if ( BlinkingLightComponent != none )
+	{
+		 BlinkingLightComponent.DeactivateSystem();
+	}
+}
+
 function BroadcastDisarmed(Controller Disarmer)
 {
 	if (InstigatorController != None && InstigatorController.PlayerReplicationInfo != None)
@@ -201,6 +219,7 @@ simulated function string GetTargetedDescription(PlayerController PlayerPerspect
 
 DefaultProperties
 {
+	PlayExplosionSound = false;
 	bBroadcastPlaced = true;
 	bBroadcastDisarmed = true;
 	bFullDamage = true; // do radius damage on pawns

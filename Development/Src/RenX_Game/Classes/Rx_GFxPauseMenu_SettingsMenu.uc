@@ -52,6 +52,7 @@ var GFxClikWidget DialogueVolumeLabel;
 var GFxClikWidget AnnouncerVolumeSlider;
 var GFxClikWidget AnnouncerVolumeLabel;
 var GFxClikWidget HardwareOpenALCheckBox;
+var GFxClikWidget AutoplayMusicCheckBox;
 
 var GFxClikWidget PlayerControlGroup;
 var GFxClikWidget PlayButton;
@@ -122,6 +123,7 @@ struct SettingsAudioOption
 	var float CharacterVolumeValue;
 	var float AnnouncerVolumeValue;
 	var bool bHardwareOpenAL;
+	var bool bAutostartMusic;
 };
 var SettingsAudioOption SettingsCurrentAudio;
 
@@ -547,6 +549,13 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			GetLastSelection(HardwareOpenALCheckBox);
 			HardwareOpenALCheckBox.AddEventListener('CLIK_select', OnHardwareOpenALCheckBoxSelect);
 			HardwareOpenALCheckBox.SetBool("disabled", true);
+			break;
+		case'AutoplayMusicCheckBox':
+			if (AutoplayMusicCheckBox == none || AutoplayMusicCheckBox != Widget) {
+				AutoplayMusicCheckBox = GFxClikWidget(Widget);
+			}
+			GetLastSelection(AutoplayMusicCheckBox);
+			AutoplayMusicCheckBox.AddEventListener('CLIK_select', OnAutoplayMusicCheckBoxSelect);
 			break;
 		case'PlayButton':
 			`log("PlayButton found");
@@ -1055,6 +1064,9 @@ function GetLastSelection(GFxClikWidget Widget)
 			case (HardwareOpenALCheckBox):
 				Widget.SetBool("selected", SettingsCurrentAudio.bHardwareOpenAL );
 				break;
+			case (AutoplayMusicCheckBox):
+				Widget.SetBool("selected", SettingsCurrentAudio.bAutostartMusic);
+				break;
 			case (PlayButton):
  				if (GetPC().WorldInfo.MusicComp.IsPlaying()) {
  					//lets check if we're playing our track
@@ -1224,7 +1236,8 @@ function ResetSettingsAudioOption()
 		: Rx_HUD(GetPC().myHUD).SystemSettingsHandler.SFXVolume;
 
 
-	SettingsCurrentAudio.bHardwareOpenAL = false;                                                                                               //TODO: Research Hardware AL Settings
+	SettingsCurrentAudio.bHardwareOpenAL = false;                                                                                               //TODO: Research Hardware AL Settings                                                 //TODO: Research Hardware AL Settings
+	SettingsCurrentAudio.bAutostartMusic = Rx_HUD(GetPC().myHUD).SystemSettingsHandler.bAutostartMusic;
 }
 
 function ResetSettingsInputOption()
@@ -1540,6 +1553,7 @@ function ApplyAudioSettings()
 	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.AnnouncerVolume = SettingsCurrentAudio.AnnouncerVolumeValue;
 	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.AmbientVolume = SettingsCurrentAudio.AmbianceVolumeValue;
 	//SettingsCurrentAudio.bHardwareOpenAL
+	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.bAutostartMusic = SettingsCurrentAudio.bAutostartMusic;
 
 	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.SaveConfig();
 	
@@ -1767,6 +1781,11 @@ function OnAnnouncerVolumeSliderChange(GFxClikWidget.EventData ev)
 function OnHardwareOpenALCheckBoxSelect(GFxClikWidget.EventData ev)
 {
 	SettingsCurrentAudio.bHardwareOpenAL = ev._this.GetBool("selected");
+}
+
+function OnAutoplayMusicCheckBoxSelect(GFxClikWidget.EventData ev)
+{
+	SettingsCurrentAudio.bAutostartMusic = ev._this.GetBool("selected");
 }
 
 function OnMusicTracklistItemClick(GFxClikWidget.EventData ev)
@@ -2229,6 +2248,8 @@ DefaultProperties
 	SubWidgetBindings.Add((WidgetName="AnnouncerVolumeSlider",WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="AnnouncerVolumeLabel",WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="HardwareOpenALCheckBox",WidgetClass=class'GFxClikWidget'))
+
+	SubWidgetBindings.Add((WidgetName="AutoplayMusicCheckBox",WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="SettingsAudioActionBar",WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="PlayButton",WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="StopButton",WidgetClass=class'GFxClikWidget'))

@@ -11,4 +11,5 @@ defaultproperties
     BuildingDamageScaling=1.32f
 
 	IconTextureName="T_DeathIcon_MediumTank"
+	IconTexture=Texture2D'RX_VH_MediumTank.UI.T_DeathIcon_MediumTank'
 }

@@ -27,8 +27,13 @@ function Broadcast( Actor Sender, coerce string Msg, optional name Type )
 	Msg = CleanMessage(Msg);
 	Msg = ApplyChatFilter(Msg);
 
-	if (Type == 'Say' && PRI != None)
-		`LogRx("CHAT"`s "Say;"`s `PlayerLog(PRI)`s "said:"`s Msg);
+	if (Type == 'Say')
+	{
+		if (PRI != None)
+			`LogRx("CHAT"`s "Say;"`s `PlayerLog(PRI)`s "said:"`s Msg);
+		else
+			`LogRx("CHAT" `s "HostSay;" `s "said:" `s Msg);
+	}
 	// EDIT END.
 
 	foreach WorldInfo.AllControllers(class'PlayerController', P)

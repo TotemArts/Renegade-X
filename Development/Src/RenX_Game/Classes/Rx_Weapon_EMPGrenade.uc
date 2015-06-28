@@ -49,6 +49,8 @@ DefaultProperties
 	
 	InventoryMovieGroup=36
 
+	WeaponIconTexture=Texture2D'RX_WP_EMPGrenade.UI.T_WeaponIcon_EMPGrenade'
+
 	ClipSize = 1
 	InitalNumClips = 1
 	MaxClips = 1

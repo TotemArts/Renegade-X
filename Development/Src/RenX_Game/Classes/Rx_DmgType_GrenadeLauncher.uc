@@ -24,4 +24,5 @@ defaultproperties
 	KDeathUpKick=2000
 
 	IconTextureName="T_WeaponIcon_GrenadeLauncher"
+	IconTexture=Texture2D'RX_WP_GrenadeLauncher.UI.T_WeaponIcon_GrenadeLauncher'
 }

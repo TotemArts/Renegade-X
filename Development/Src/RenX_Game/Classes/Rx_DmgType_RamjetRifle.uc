@@ -7,13 +7,13 @@ defaultproperties
     SuicideStatsName=SUICIDES_RAMJETRIFLE
 
     DamageWeaponFireMode=2
-    VehicleDamageScaling=0.083			// 15hp
+    VehicleDamageScaling=0.055			// 10hp
     NodeDamageScaling=0.5
     VehicleMomentumScaling=0.1
     bBulletHit=True
 
     CustomTauntIndex=10
-    lightArmorDmgScaling=0.25			// 45hp
+    lightArmorDmgScaling=0.25			// 45hp				0.33			// 60hp
     BuildingDamageScaling=0.009
 	MineDamageScaling=2.0
 	
@@ -21,4 +21,5 @@ defaultproperties
 	KDeathUpKick=100
 
 	IconTextureName="T_WeaponIcon_Ramjet"
+	IconTexture=Texture2D'RX_WP_Ramjet.UI.T_WeaponIcon_Ramjet'
 }

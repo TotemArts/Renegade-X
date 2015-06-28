@@ -16,7 +16,8 @@ function string trigger(string parameters)
 
 	if (Controller(PRI.Owner) != None)
 		foreach AllActors(class'Rx_Weapon_DeployedBeacon', beacon)
-			beacon.Destroy();
+			if (beacon.InstigatorController == Controller(PRI.Owner))
+				beacon.Destroy();
 
 	return "";
 }

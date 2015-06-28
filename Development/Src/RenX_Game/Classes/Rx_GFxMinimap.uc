@@ -24,6 +24,8 @@ var		 int                     MapTexSize;
 var		 GFxObject               DirCompassIcon;
 
 var		 GFxObject               player_icon;
+
+
 var		 GFxObject               compass;
 var		 GFxObject               icons_NavMarker;
 var		 GFxObject               icons_Neutral;
@@ -53,6 +55,9 @@ var		 int                     IconsVehicleNeutralCount;
 
 var		 float                   IconRotationOffset;
 
+/**Use this only for debugging blips*/
+var     Texture                 DebugBlipTexture;
+
 function init(Rx_GFxHud h)
 {
 	RxHUD                =  h;
@@ -63,6 +68,7 @@ function init(Rx_GFxHud h)
 	player_icon          =  GetObject("player");
 	DirCompassIcon       =  GetObject("dirCompass");
 	compass              =  GetObject("compass");
+
 
 	map = GetObject("map"); 
 	if (RxMapInfo.MapTexture != none) {
@@ -82,6 +88,11 @@ function init(Rx_GFxHud h)
 function LoadMapTexture(string mapPathName)
 {
 	map.ActionScriptVoid("loadMapTexture");
+}
+
+function LoadTexture(string pathName, GFxObject widget) 
+{
+	widget.ActionScriptVoid("loadTexture");
 }
 
 /**Updates the Minimap as well as the location of the blips.*/
@@ -183,18 +194,32 @@ function UpdateMap()
 		map.SetDisplayMatrix(Mtrx);
 	}
 }
+
+function uLog2(string s)
+{
+	loginternal(s);
+}
+
 function UpdatePlayerBlip()
 {
 	local ASDisplayInfo displayInfo;
-
 	if (Rx_Vehicle(RxPC.Pawn) != none) {
-		player_icon.GetObject("playerG").GotoAndStop (GetVehicleIconName(Rx_Vehicle(RxPC.Pawn)));
+		//player_icon.GetObject("playerG").GotoAndStop (GetVehicleIconName(Rx_Vehicle(RxPC.Pawn)));
+		if (Rx_Vehicle(RxPC.Pawn).MinimapIconTexture != none) {
+			LoadTexture("img://" $ PathName(Rx_Vehicle(RxPC.Pawn).MinimapIconTexture), player_icon.GetObject("playerG"));
+		} else {
+			LoadTexture("img://" $ PathName(Texture2D'RenxHud.T_Radar_Blip_Vehicle_Player'), player_icon.GetObject("playerG"));
+		}		
 	} else {
-		player_icon.GetObject("playerG").GotoAndStop ("Infrantry");
+		//player_icon.GetObject("playerG").GotoAndStop ("Infrantry");
+		LoadTexture("img://" $ PathName(Texture2D'RenxHud.T_Radar_Blip_Infantry_Player'), player_icon.GetObject("playerG"));
 	}
 	displayInfo.hasRotation = true;
-	displayInfo.Rotation = RxPC.Pawn.Rotation.Yaw * UnrRotToDeg + DirCompassIcon.GetDisplayInfo().Rotation + 180;//(Actors[i].Rotation.Yaw * UnrRotToDeg) + DirCompassIcon.GetDisplayInfo().Rotation + IconRotationOffset ;
+	displayInfo.Rotation = RxPC.Pawn.Rotation.Yaw * UnrRotToDeg + DirCompassIcon.GetDisplayInfo().Rotation + 0;
+
+	//player_icon.SetDisplayInfo(displayInfo);
 	player_icon.SetDisplayInfo(displayInfo);
+
 }
 
 function UpdateActorBlips()
@@ -261,7 +286,7 @@ function UpdateActorBlips()
 				}
 				break;
 		}	
-		IconRotationOffset = 180;
+		IconRotationOffset = 0;//180;
 	}
 
 	UpdateIcons(GDI, GDITeamIcons, TEAM_GDI, false);
@@ -427,8 +452,13 @@ function UpdateIcons(out array<Actor> Actors, out array<GFxObject> ActorIcons, T
 
 		//Change the vehicle blips to the actor's corresponding vehicles
 		if (Rx_Vehicle(Actors[i]) != none) {
-			ActorIcons[i].GetObject("vehicleG").GotoAndStop(GetVehicleIconName(Actors[i]));
-		}
+			//ActorIcons[i].GetObject("vehicleG").GotoAndStop(GetVehicleIconName(Actors[i]));
+			if (Rx_Vehicle(Actors[i]).MinimapIconTexture != none) {
+				LoadTexture("img://" $ PathName(Rx_Vehicle(Actors[i]).MinimapIconTexture), ActorIcons[i].GetObject("vehicleG"));
+			} else {
+				LoadTexture("img://" $ PathName(Texture2D'RenxHud.T_Radar_Blip_Vehicle_Neutral'), ActorIcons[i].GetObject("vehicleG"));
+			}	
+		} 
 
 		//@shahman: icon rotation = actor's rotation + compass's rotation + rotation offset
 		displayInfo.Rotation = (Actors[i].Rotation.Yaw * UnrRotToDeg) + DirCompassIcon.GetDisplayInfo().Rotation + IconRotationOffset ;
@@ -518,4 +548,6 @@ DefaultProperties
 	IconsVehicleEnemyCount = 0
 	IconsNeutralCount = 0;
 	IconsVehicleNeutralCount = 0;
+
+	DebugBlipTexture = Texture2D'RenxHud.T_Radar_Blip_Debug'
 }

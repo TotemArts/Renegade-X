@@ -127,6 +127,9 @@ DefaultProperties
 	InventoryGroup=3.1
 	GroupWeight=1
 	InventoryMovieGroup=23
+
+	WeaponIconTexture=Texture2D'RX_WP_TimedC4.UI.T_WeaponIcon_TimedC4'
+
 	//DroppedPickupClass = class'RxDroppedPickup_AutoRifle'
 
 	

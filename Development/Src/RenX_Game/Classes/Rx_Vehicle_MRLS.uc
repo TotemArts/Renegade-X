@@ -145,6 +145,8 @@ DefaultProperties
 	End Object
 	AntennaMeshR=SAntennaMeshR
 
+	VehicleIconTexture=Texture2D'RX_VH_MRLS.UI.T_VehicleIcon_MRLS'
+	MinimapIconTexture=Texture2D'RX_VH_MRLS.UI.T_MinimapIcon_MRLS'
 
 //========================================================\\
 //*********** Vehicle Seats & Weapon Properties **********\\
@@ -156,7 +158,7 @@ DefaultProperties
                 TurretControls=(TurretPitch,TurretRotate),
                 GunPivotPoints=(MainTurretYaw,MainTurretPitch),
                 CameraTag=CamView3P,
-                CameraBaseOffset=(Z=20),
+                CameraBaseOffset=(Z=40),
                 CameraOffset=-550,
                 SeatIconPos=(X=0.5,Y=0.33),
                 MuzzleFlashLightClass=class'Rx_Light_Tank_MuzzleFlash'
@@ -164,7 +166,7 @@ DefaultProperties
                 
     Seats(1)={(	CameraTag=CamView3P,
 				TurretVarPrefix="Passenger",
-                CameraBaseOffset=(Z=20),
+                CameraBaseOffset=(Z=40),
                 CameraOffset=-550,
                 )}
 

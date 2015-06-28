@@ -234,6 +234,8 @@ DefaultProperties
 
     DrawScale=1.0
 
+	VehicleIconTexture=Texture2D'RX_VH_APC_Nod.UI.T_VehicleIcon_APC_Nod'
+	MinimapIconTexture=Texture2D'RX_VH_APC_Nod.UI.T_MinimapIcon_APC_Nod'
 
 //========================================================\\
 //*********** Vehicle Seats & Weapon Properties **********\\

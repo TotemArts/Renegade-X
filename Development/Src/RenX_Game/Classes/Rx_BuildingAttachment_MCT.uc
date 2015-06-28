@@ -1,7 +1,32 @@
-class Rx_BuildingAttachment_MCT extends Rx_BuildingAttachment
+class Rx_BuildingAttachment_MCT extends Rx_BuildingAttachment implements (Rx_ObjectTooltipInterface)
     placeable;
     
 var StaticMeshComponent MCTSkeletalMesh;
+
+simulated function string GetTooltip(Rx_Controller PC)
+{
+	if (OwnerBuilding != None)
+	{
+		if (Rx_Building_TechBuilding_Internals(OwnerBuilding) != none)
+			return "Use the <font color='#ff0000' size='20'>Repair Gun</font> to capture.";
+
+		if (OwnerBuilding.TeamID != PC.GetTeamNum())
+			return "Plant <font color='#ff0000' size='20'>C4</font> on the MCT to destroy the building.";
+
+		//return "Use the <font color='#ff0000' size='20'>Repair Gun</font> to repair.";
+	}
+	return "";
+}
+
+simulated function bool IsTouchingOnly()
+{
+	return false;
+}
+
+simulated function bool IsBasicOnly()
+{
+	return true;
+}
 
 simulated event byte ScriptGetTeamNum()
 {

@@ -144,6 +144,8 @@ defaultproperties
     IconCoordinates=(U=726,V=532,UL=165,VL=51)
     InventoryMovieGroup=14
 
+	WeaponIconTexture=Texture2D'RX_WP_Ramjet.UI.T_WeaponIcon_Ramjet'
+
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_RamjetRifle'
 }

@@ -13,4 +13,5 @@ defaultproperties
 	AlwaysGibDamageThreshold=35
 
 	IconTextureName="T_DeathIcon_StealthTank"
+	IconTexture=Texture2D'RX_VH_StealthTank.UI.T_DeathIcon_StealthTank'
 }

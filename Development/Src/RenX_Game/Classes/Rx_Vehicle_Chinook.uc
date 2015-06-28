@@ -224,6 +224,9 @@ defaultproperties
 
     DrawScale=1.0
 
+	VehicleIconTexture=Texture2D'RX_VH_Chinook.UI.T_VehicleIcon_Chinook'
+	MinimapIconTexture=Texture2D'RX_VH_Chinook.UI.T_MinimapIcon_Chinook'
+
 //========================================================\\
 //********* Vehicle Material & Effect Properties *********\\
 //========================================================\\

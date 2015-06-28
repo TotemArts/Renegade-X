@@ -234,6 +234,9 @@ DefaultProperties
 	TowRingMeshBL=STowRingMeshBL
 
 
+	VehicleIconTexture=Texture2D'RX_VH_APC_GDI.UI.T_VehicleIcon_APC_GDI'
+	MinimapIconTexture=Texture2D'RX_VH_APC_GDI.UI.T_MinimapIcon_APC_GDI'
+
 //========================================================\\
 //*********** Vehicle Seats & Weapon Properties **********\\
 //========================================================\\

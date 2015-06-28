@@ -199,6 +199,8 @@ defaultproperties
 	CrossHairCoordinates=(U=256,V=64,UL=64,VL=64)
 	IconCoordinates=(U=726,V=532,UL=165,VL=51)
 	InventoryMovieGroup=28
+
+	WeaponIconTexture=Texture2D'RX_WP_SniperRifle.UI.T_WeaponIcon_MarksmanRifle'
 	
 	//==========================================
 	// IRON SIGHT PROPERTIES

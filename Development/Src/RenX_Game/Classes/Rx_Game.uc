@@ -84,6 +84,8 @@ var const float EndgameCamDelay, EndgameSoundDelay;
 var Rx_AuthenticationService authenticationService;
 var config bool bHostsAuthenticationService;
 
+/**Provides Map Information stored in the .ini file. (expensive to get, so cache here). */
+var array<Rx_UIDataProvider_MapInfo> MapDataProviderList;
 
 // Skirmish options:
 var int GDIBotCount;
@@ -145,6 +147,7 @@ var int curIndPinged;
 
 var Rx_Rcon Rcon;
 var Rx_Rcon_Commands_Container RconCommands;
+var Rx_Rcon_Out RconOut;
 
 var globalconfig bool bDisableDemoRequests;
 var bool ClientDemoInProgress;
@@ -215,6 +218,28 @@ function PreBeginPlay()
 	MaxMapVoteSize = Clamp(MaxMapVoteSize, 1, 9);
 	RecentMapsToExclude = Clamp(RecentMapsToExclude, 0, 8);
 	
+
+	//Get out map info here
+	SetupMapDataList();
+}
+
+function SetupMapDataList()
+{
+	local array<UDKUIResourceDataProvider> ProviderList; 
+	local int i;
+
+	// make sure default map exists
+	class'UTUIDataStore_MenuItems'.static.GetAllResourceDataProviders(class'Rx_UIDataProvider_MapInfo', ProviderList);
+	
+	//hack until we solve the sorting issue
+	for (i = ProviderList.length; i >= 0; i--)
+	{		
+		if (Rx_UIDataProvider_MapInfo(ProviderList[i]) == none) {
+			`log("NONE - ProviderList[i]? " $ Rx_UIDataProvider_MapInfo(ProviderList[i]).MapName);
+			continue;
+		}
+		MapDataProviderList.AddItem(Rx_UIDataProvider_MapInfo(ProviderList[i]));
+	} 
 }
 
 /** one1: added */
@@ -227,6 +252,11 @@ function PostBeginPlay()
 
 	if (WorldInfo.NetMode == NM_DedicatedServer)
 	{
+		if (RconOut == None)
+		{
+			RconOut = Spawn(class'Rx_Rcon_Out');
+			RconOut.connect();
+		}
 		if (class'Rx_Rcon'.default.bEnableRcon)
 		{
 			foreach DynamicActors(class'Rx_Rcon', r)
@@ -237,8 +267,6 @@ function PostBeginPlay()
 
 			if (Rcon == None)
 				Rcon = Spawn(class'Rx_Rcon');
-
-			RxLog("MAP"`s"Loaded;"`s GetPackageName() );
 		}
 		if (RconCommands == None)
 		{
@@ -288,6 +316,8 @@ function PostBeginPlay()
 		Rx_GRI(GameReplicationInfo).SetFixedNextMap(GetNextMapInRotationName());
 	else
 		Rx_GRI(GameReplicationInfo).SetupEndMapVote(BuildMapVoteList(), true);
+
+	RxLog("MAP"`s"Loaded;"`s GetPackageName() );
 }
 
 function ShuffleTeams()
@@ -640,6 +670,8 @@ function Array<string> BuildClientList(string seperator)
 function RxLog(string Msg)
 {
 	`log(Msg,true,'Rx');
+	if (RconOut != None)
+		RconOut.SendLog(Msg);
 	if (Rcon != None)
 		Rcon.SendLog(Msg);
 }
@@ -647,6 +679,8 @@ function RxLog(string Msg)
 function RxLogPub(string Msg)
 {
 	`log(Msg,true,'Rx');
+	if (RconOut != None)
+		RconOut.SendLog(Msg);
 	if (!bIsCompetitive && Rcon != None)
 		Rcon.SendLog(Msg);
 }
@@ -951,6 +985,97 @@ function String getPlayerStatsStringFromPri(Rx_Pri pri)
 	return ret;
 }
 
+/** Fetches a server variable by name. */
+function string GetGameProperty(string prop)
+{
+	switch(Caps(prop))
+	{
+		// ServerInfo defaults
+	case "PORT":
+		return string(Port);
+	case "NAME": // Alias
+	case "SERVERNAME":
+		return WorldInfo.GRI.ServerName;
+	case "LEVEL": // Alias
+	case "MAP": // Alias
+	case "PACKAGE": // Alias
+	case "PACKAGENAME": // Alias
+	case "GETPACKAGENAME": // Alias(Function)
+		return string(GetPackageName());
+	case "PLAYERS": // Alias
+	case "NUMPLAYERS":
+		return string(NumPlayers);
+	case "BOTS": // Alias
+	case "NUMBOTS":
+		return string(NumBots);
+
+		// GameInfo defaults
+	case "PLAYERLIMIT": // Alias
+	case "MAXPLAYERS":
+		return string(MaxPlayers);
+	case "VEHICLELIMIT":
+		return string(VehicleLimit);
+	case "MINELIMIT":
+		return string(MineLimit);
+	case "TIMELIMIT":
+		return string(TimeLimit);
+	case "BPASSWORDED": // Alias
+	case "REQUIRESPASSWORD": // Alias(Function)
+		return string(AccessControl.RequiresPassword());
+	case "BSTEAMREQUIRED": // Alias
+	case "BREQUIRESTREAM":
+		return string(Rx_AccessControl(AccessControl).bRequireSteam);
+	case "BPRIVATEMESSAGETEAMONLY":
+		return string(bPrivateMessageTeamOnly);
+	case "BALLOWPRIVATEMESSAGING":
+		return string(bAllowPrivateMessaging);
+	case "BAUTOBALANCETEAMS": // Alias
+	case "BAUTOSHUFFLEONNEWROUND":
+		return string(bAutoShuffleOnNewRound);
+	case "BSPAWNCRATES": // Alias
+	case "SPAWNCRATES":
+		return string(SpawnCrates);
+	case "CRATERESPAWNAFTERPICKUP":
+		return string(CrateRespawnAfterPickup);
+
+		// Some others in Rx_Game (hey, maybe somebody will want it -shrugs-)
+	case "BFIXEDMAPROTATION":
+		return string(bFixedMapRotation);
+	case "RECENTMAPSTOEXCLUDE":
+		return string(RecentMapsToExclude);
+	case "MAXMAPVOTESIZE":
+		return string(MaxMapVoteSize);
+	case "INITIALCREDITS":
+		return string(InitialCredits);
+	case "BBOTSDISABLED":
+		return string(bBotsDisabled);
+	case "DONATIONSDISABLEDTIME":
+		return string(DonationsDisabledTime);
+	case "BRESERVEVEHICLESTOBUYER":
+		return string(bReserveVehiclesToBuyer);
+	case "BALLOWWEAPONDROP":
+		return string(bAllowWeaponDrop);
+	case "BISCOMPETITIVE":
+		return string(bIsCompetitive);
+	case "BISCLANWARS":
+		return string(bIsClanwars);
+	case "BRANDOMTEAMSWAP":
+		return string(bRandomTeamSwap);
+	case "GAMEVERSION":
+		return GameVersion;
+	case "GAMEVERSIONNUMBER":
+		return string(GameVersionNumber);
+	case "BDISABLEDEMOREQUESTS":
+		return string(bDisableDemoRequests);
+	case "MAXSEAMLESSTRAVELSERVERTIME":
+		return string(MaxSeamlessTravelServerTime);
+
+		// Not found
+	default:
+		return "ERR_UNKNOWNVAR";
+	}
+}
+
 event GameEnding()
 {
 	
@@ -1002,6 +1127,17 @@ event InitGame( string Options, out string ErrorMessage )
 	MapIndex = class'Rx_Game'.default.MapSpecificMineAndVehLimit.Find('MapName', WorldInfo.GetPackageName());
 	MineLimit = class'Rx_Game'.default.MapSpecificMineAndVehLimit[MapIndex].MineLimit;
 	VehicleLimit = class'Rx_Game'.default.MapSpecificMineAndVehLimit[MapIndex].VehicleLimit;
+
+
+	//mapindex = -1;
+	//for (i=0; i < mapdataproviderlist.length; i++) {
+	//	if (mapdataproviderlist[i].mapname != string(worldinfo.getpackagename())) {
+	//		continue;
+	//	}
+	//	mapindex = i;
+	//}
+	//MineLimit = MapDataProviderList[MapIndex].MineLimit;
+	//VehicleLimit = MapDataProviderList[MapIndex].VehicleLimit;
 
 	InitialCredits = GetIntOption(Options, "StartingCredits", InitialCredits);
 	MineLimit = GetIntOption( Options, "MineLimit", MineLimit);
@@ -1329,7 +1465,7 @@ function CheckBuildingsDestroyed(Actor destroyedBuilding)
 				}
 			}
 			VehicleManager.bNodIsUsingAirdrops = true;
-			VehicleManager.NodAdditionalAirdropProductionDelay = 8.0;
+			VehicleManager.NodAdditionalAirdropProductionDelay = 20.0;
 		}
 		else if(Rx_Building_WeaponsFactory_Internals(destroyedBuilding) != None)
 		{
@@ -1342,7 +1478,7 @@ function CheckBuildingsDestroyed(Actor destroyedBuilding)
 				}
 			}
 			VehicleManager.bGDIIsUsingAirdrops = true;
-			VehicleManager.GDIAdditionalAirdropProductionDelay = 8.0;
+			VehicleManager.GDIAdditionalAirdropProductionDelay = 20.0;
 		}
 		
 	}
@@ -1478,6 +1614,8 @@ function StartMatch()
 	if(!WorldInfo.IsPlayInEditor() && InStr(string(WorldInfo.GetPackageName()), "CNC-") < 0)
 		return;
 	
+	RxLog("MAP" `s "Start;" `s GetPackageName());
+
 	super.StartMatch();
 	
 	if(TeamCredits[TEAM_GDI].PlayerRI.Length > 0) {
@@ -2000,9 +2138,13 @@ function RegisterPingFinished(delegate<NotifyPingFinished> MyNotifyDelegate)
 function bool FindInactivePRI(PlayerController PC)
 {
 	local bool ret;
+	local int oldId;
+	oldId = PC.PlayerReplicationInfo.PlayerID;
 	ret = super.FindInactivePRI(PC);
 	if(ret) {
 		TeamCredits[PC.GetTeamNum()].PlayerRI.AddItem(Rx_PRI(PC.PlayerReplicationInfo));
+		if (oldId != PC.PlayerReplicationInfo.PlayerID)
+			`LogRx("PLAYER" `s "ChangeID;" `s "to" `s PC.PlayerReplicationInfo.PlayerID `s "from" `s oldId);
 		//Rx_PRI(PC.PlayerReplicationInfo).SetCredits( Rx_Game(WorldInfo.Game).InitialCredits ); - Removed as Inactive PRIs now save credits.
 	}
 	return ret;

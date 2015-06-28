@@ -751,6 +751,9 @@ DefaultProperties
 	
 	SkeletalMeshForPT=SkeletalMesh'RX_VH_StealthTank.Mesh.SK_PTVH_StealthTank'
 
+	VehicleIconTexture=Texture2D'RX_VH_StealthTank.UI.T_VehicleIcon_StealthTank'
+	MinimapIconTexture=Texture2D'RX_VH_StealthTank.UI.T_MinimapIcon_StealthTank'
+
 
 //========================================================\\
 //*********** Vehicle Seats & Weapon Properties **********\\

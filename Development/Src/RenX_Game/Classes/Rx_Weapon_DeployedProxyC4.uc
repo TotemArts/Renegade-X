@@ -179,7 +179,7 @@ defaultproperties
 	EMPDisarmTime=10
 
 	Begin Object Name=DeployableMesh
-		SkeletalMesh=SkeletalMesh'rx_wp_proxyc4.Mesh.SK_WP_Proxy_3P'
+		SkeletalMesh=SkeletalMesh'rx_wp_proxyc4.Mesh.SK_WP_Proxy_Deployed'
 		PhysicsAsset=PhysicsAsset'rx_wp_proxyc4.Mesh.SK_WP_Proxy_3P_Physics'
 		Scale=1.0
 	End Object

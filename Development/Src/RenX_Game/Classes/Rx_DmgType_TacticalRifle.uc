@@ -27,4 +27,5 @@ defaultproperties
 	KDeathUpKick=200
 
 	IconTextureName="T_WeaponIcon_TacticalRifle";
+	IconTexture=Texture2D'RX_WP_TacticalRifle.UI.T_WeaponIcon_TacticalRifle'
 }

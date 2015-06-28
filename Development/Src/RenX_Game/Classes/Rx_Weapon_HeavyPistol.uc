@@ -141,6 +141,8 @@ DefaultProperties
 
 	InventoryGroup=1
 	InventoryMovieGroup=30
+
+	WeaponIconTexture=Texture2D'RX_WP_Pistol.UI.T_WeaponIcon_HeavyPistol'
 	
 	// AI Hints:
 	//MaxDesireability=0.3

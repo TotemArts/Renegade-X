@@ -638,6 +638,18 @@ simulated function GetSecondaryWeaponList(out array<Rx_Weapon> WeaponList, optio
 }
 
 
+simulated function bool IsAmmoFull()
+{
+	local Rx_Weapon Weap;
+
+	ForEach InventoryActors( class'Rx_Weapon', Weap )
+	{
+		if (!Weap.bHasInfiniteAmmo && Weap.AmmoCount < Weap.MaxAmmoCount)
+			return false;
+	}
+	return true;
+}
+
 simulated function PerformWeaponRefill()
 {
 	local Rx_Weapon Weap;

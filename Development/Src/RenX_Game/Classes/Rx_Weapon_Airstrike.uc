@@ -547,6 +547,9 @@ DefaultProperties
 	RespawnTime=1.0
 	InventoryGroup=6
 	InventoryMovieGroup=17
+
+	WeaponIconTexture=Texture2D'RX_WP_IonCannon.UI.T_WeaponIcon_IonCannonBeacon'
+
 	GroupWeight=1
 	
 	AmmoCount=1
