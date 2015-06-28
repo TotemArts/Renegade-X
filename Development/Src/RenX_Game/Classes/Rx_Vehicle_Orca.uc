@@ -396,6 +396,9 @@ defaultproperties
 	
 	SkeletalMeshForPT=SkeletalMesh'RX_VH_Orca.Mesh.SK_PTVH_Orca'
 
+	VehicleIconTexture=Texture2D'RX_VH_Orca.UI.T_VehicleIcon_Orca'
+	MinimapIconTexture=Texture2D'RX_VH_Orca.UI.T_MinimapIcon_Orca'
+
 
 //========================================================\\
 //*********** Vehicle Seats & Weapon Properties **********\\

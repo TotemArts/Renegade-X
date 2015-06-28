@@ -86,7 +86,7 @@ struct MapOption
     var string BaseDefences;
 	var string MapImage;
 };
-var config array<MapOption> GameplayMaps;
+//var config array<MapOption> GameplayMaps;
 
 var config array<int> TimeLimitPresets;
 var config array<int> MineLimitPresets;
@@ -144,10 +144,12 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			if (MapImageLoader == none || MapImageLoader != Widget) {
 				MapImageLoader = GFxClikWidget(Widget);
 			}
-			if (GameplayMaps[LastMapListItemPosition].MapImage != "") {
-				MapImageLoader.SetString("source", GameplayMaps[LastMapListItemPosition].MapImage);
+
+			if (Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList[LastMapListItemPosition].PreviewImageMarkup != "") {
+				MapImageLoader.SetString("source", "img://" $ Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList[LastMapListItemPosition].PreviewImageMarkup);
 			} else {
-				MapImageLoader.SetString("source", "Mockup_MissingCameo");
+				//MapImageLoader.SetString("source", "Mockup_MissingCameo");
+				MapImageLoader.SetString("source", "img://RenXFrontEnd.MapImage.___map-pic-missing-cameo");
 			}
 			break;
         case 'MapList':
@@ -162,7 +164,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			if (MapSizeLabel == none || MapSizeLabel != Widget) {
 				MapSizeLabel = GFxClikWidget(Widget);
 			}
-            MapSizeLabel.SetText("Size: " $GameplayMaps[LastMapListItemPosition].Size);
+            MapSizeLabel.SetText("Size: " $ Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList[LastMapListItemPosition].Size);
             break;
 			if (MapImageLoader == none || MapImageLoader != Widget) {
 				MapImageLoader = GFxClikWidget(Widget);
@@ -171,31 +173,31 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			if (MapStyleLabel == none || MapStyleLabel != Widget) {
 				MapStyleLabel = GFxClikWidget(Widget);
 			}
-            MapStyleLabel.SetText("Style: " $GameplayMaps[LastMapListItemPosition].Style);
+            MapStyleLabel.SetText("Style: " $ Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList[LastMapListItemPosition].Style);
             break;
         case 'MapPlayerCountLabel':
 			if (MapPlayerCountLabel == none || MapPlayerCountLabel != Widget) {
 				MapPlayerCountLabel = GFxClikWidget(Widget);
 			}
-            MapPlayerCountLabel.SetText("Recommended Players: " $GameplayMaps[LastMapListItemPosition].RecommendedPlayers);
+            MapPlayerCountLabel.SetText("Recommended Players: " $ Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList[LastMapListItemPosition].NumPlayers);
             break;
         case 'MapHasAirVehiclesLabel':
 			if (MapHasAirVehiclesLabel == none || MapHasAirVehiclesLabel != Widget) {
 				MapHasAirVehiclesLabel = GFxClikWidget(Widget);
 			}
-            MapHasAirVehiclesLabel.SetText("Air Vehicles: " $GameplayMaps[LastMapListItemPosition].AirVehicles);
+            MapHasAirVehiclesLabel.SetText("Air Vehicles: " $ Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList[LastMapListItemPosition].AirVehicles);
             break;
         case 'MapTechBuildingsLabel':
 			if (MapTechBuildingsLabel == none || MapTechBuildingsLabel != Widget) {
 				MapTechBuildingsLabel = GFxClikWidget(Widget);
 			}
-            MapTechBuildingsLabel.SetText("Tech Buildings: " $GameplayMaps[LastMapListItemPosition].TechBuildings);
+            MapTechBuildingsLabel.SetText("Tech Buildings: " $ Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList[LastMapListItemPosition].TechBuildings);
             break;
         case 'MapBaseDefencesLabel':
 			if (MapBaseDefencesLabel == none || MapBaseDefencesLabel != Widget) {
 				MapBaseDefencesLabel = GFxClikWidget(Widget);
 			}
-            MapBaseDefencesLabel.SetText("Base Defences: " $GameplayMaps[LastMapListItemPosition].BaseDefences);
+            MapBaseDefencesLabel.SetText("Base Defences: " $ Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList[LastMapListItemPosition].BaseDefences);
             break;
 
         case 'GDIBotDropDown':
@@ -376,6 +378,7 @@ function SetUpDataProvider(GFxClikWidget Widget)
 {
     local byte i;
     local GFxObject DataProvider;
+	local array<Rx_UIDataProvider_MapInfo> MapDataProviderList;
 
     DataProvider = CreateArray();
 	
@@ -397,23 +400,26 @@ function SetUpDataProvider(GFxClikWidget Widget)
 			Widget.SetInt("rowCount", 12);
             if (GameModeDropDown != none) {
                 if (LastGameModeItemPosition == 0) {
-                    for (i = 0; i < GameplayMaps.Length; i++) {
-                        DataProvider.SetElementString(i, GameplayMaps[i].Description);
+					MapDataProviderList = Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList;
+                    for (i = 0; i < Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList.Length; i++) {
+						
+						`log("Name - " $ MapDataProviderList[i].FriendlyName);
+                        DataProvider.SetElementString(i, MapDataProviderList[i].FriendlyName);
                     }
                 }
             } else {
                 if (LastGameModeItemPosition == 0) {
-                    for (i = 0; i < GameplayMaps.Length; i++) {
-                        DataProvider.SetElementString(i, GameplayMaps[i].Description);
+                    for (i = 0; i < MapDataProviderList.Length; i++) {
+                        DataProvider.SetElementString(i, MapDataProviderList[i].FriendlyName);
                     }
                 }
             }
-			if (GameplayMaps.Length > 12) {
+			if (MapDataProviderList.Length > 12) {
 				if (MapScrollBar != none) {
 					MapScrollBar.SetVisible(true);
 				}
 			} else {
-				Widget.SetInt("rowCount", GameplayMaps.Length);
+				Widget.SetInt("rowCount", MapDataProviderList.Length);
 			}
 
             break;
@@ -567,7 +573,7 @@ function LaunchSkirmishGame()
     local string SelectedMap;
 	local SkirmishOption CurrentSkirmishSetting;
 
-    SelectedMap = GameplayMaps[LastMapListItemPosition].Filename;
+    SelectedMap = Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList[LastMapListItemPosition].MapName;
 	CurrentSkirmishSetting = SkirmishMapSettings[LastMapListItemPosition];
 
 	if (CurrentSkirmishSetting.LastStartingTeamItemPosition == 2) {
@@ -630,16 +636,22 @@ function OnGameModeDropDownChange(GFxClikWidget.EventData ev)
 function OnMapListItemClick(GFxClikWidget.EventData ev)
 {
 
-    if (ev.index == Clamp(ev.index, 0, GameplayMaps.Length)) {	
-		MapImageLoader.SetString("source", GameplayMaps[ev.index].MapImage);
-        MapSizeLabel.SetText("Size: "$GameplayMaps[ev.index].Size);
-        MapStyleLabel.SetText("Style: "$GameplayMaps[ev.index].Style);
-        MapPlayerCountLabel.SetText("Recommended Players: "$GameplayMaps[ev.index].RecommendedPlayers);
-        MapHasAirVehiclesLabel.SetText("Air Vehicles: "$GameplayMaps[ev.index].AirVehicles);
-        MapTechBuildingsLabel.SetText("Tech Buildings: "$GameplayMaps[ev.index].TechBuildings);
-        MapBaseDefencesLabel.SetText("Base Defences: "$GameplayMaps[ev.index].BaseDefences);
+    if (ev.index == Clamp(ev.index, 0, Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList.Length)) {	
+		
+		if (Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList[ev.index].PreviewImageMarkup != "") {
+			MapImageLoader.SetString("source", "img://" $ Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList[ev.index].PreviewImageMarkup);
+		} else {
+			MapImageLoader.SetString("source", "img://RenXFrontEnd.MapImage.___map-pic-missing-cameo");
+		}
+        MapSizeLabel.SetText("Size: "$ Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList[ev.index].Size);
+        MapStyleLabel.SetText("Style: "$ Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList[ev.index].Style);
+        MapPlayerCountLabel.SetText("Recommended Players: "$ Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList[ev.index].NumPlayers);
+        MapHasAirVehiclesLabel.SetText("Air Vehicles: "$ Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList[ev.index].AirVehicles);
+        MapTechBuildingsLabel.SetText("Tech Buildings: "$ Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList[ev.index].TechBuildings);
+        MapBaseDefencesLabel.SetText("Base Defences: "$ Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList[ev.index].BaseDefences);
 	    LastMapListItemPosition = ev.index;
     } else {
+		MapImageLoader.SetString("source", "img://RenXFrontEnd.MapImage.___map-pic-missing-cameo");
         MapSizeLabel.SetText("Size: Unknown");
         MapStyleLabel.SetText("Style: Unknown");
         MapPlayerCountLabel.SetText("Recommended Players: Unknown");

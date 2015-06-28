@@ -29,4 +29,6 @@ defaultproperties
 	MotorDecayTime=1.0
 
 	IconTextureName="RenXHud_I112"
+	IconTexture=Texture2D'RX_WP_TiberiumFlechetteRifle.UI.T_WeaponIcon_TiberiumFlechetteRifle'
+	
 }

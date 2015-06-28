@@ -222,6 +222,8 @@ DefaultProperties
 	End Object
 	TowRingMeshBL=STowRingMeshBL
 
+	VehicleIconTexture=Texture2D'RX_VH_Humvee.UI.T_VehicleIcon_Humvee'
+	MinimapIconTexture=Texture2D'RX_VH_Humvee.UI.T_MinimapIcon_Humvee'
 
 //========================================================\\
 //*********** Vehicle Seats & Weapon Properties **********\\

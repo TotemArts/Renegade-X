@@ -204,6 +204,8 @@ DefaultProperties
 	End Object
 	AntennaMeshB=SAntennaMeshB
 
+	VehicleIconTexture=Texture2D'RX_VH_Buggy.UI.T_VehicleIcon_Buggy'
+	MinimapIconTexture=Texture2D'RX_VH_Buggy.UI.T_MinimapIcon_Buggy'
 
 //========================================================\\
 //*********** Vehicle Seats & Weapon Properties **********\\

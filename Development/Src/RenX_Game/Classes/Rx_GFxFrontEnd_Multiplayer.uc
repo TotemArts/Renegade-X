@@ -64,7 +64,7 @@ struct MapImageFile
 	var string mapAlias;
 	var string mapImageFilename;
 };
-var config array <MapImageFile> MapImageList;
+//var config array <MapImageFile> MapImageList;
 
 function OnViewLoaded(Rx_GFXFrontEnd FrontEnd)
 {
@@ -259,25 +259,25 @@ function string GetMapImageName (string mapFileName)
 {
 	local byte i;
 
-	for (i = 0; i < MapImageList.Length; i++) {
-		if (MapImageList[i].mapName != mapFileName) {
-			continue;
+	for (i = 0; i < Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList.Length; i++) {
+		if (Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList[i].MapName ~= mapFileName) {
+			return "img://" $ Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList[i].PreviewImageMarkup;
 		}
-		return MapImageList[i].mapImageFilename;
+		
 	}
 	return "img://RenXFrontEnd.MapImage.___map-pic-missing-cameo";
 }
 
 function string GetMapName (string mapFileName) {
 	local byte i;
+	//local int pos;
 
-	for (i = 0; i < MapImageList.Length; i++) {
-		if (MapImageList[i].mapName != mapFileName) {
-			continue;
+	for (i = 0; i < Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList.Length; i++) {
+		if (Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList[i].MapName ~= mapFileName) {
+			return Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList[i].FriendlyName;
 		}
-		return MapImageList[i].mapAlias;
 	}
-	return "";
+	return mapFileName;
 }
 
 function SetUpDataProvider(GFxClikWidget Widget)

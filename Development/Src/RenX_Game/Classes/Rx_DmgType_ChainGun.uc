@@ -21,4 +21,5 @@ DefaultProperties
 	KDeathUpKick=500
 
 	IconTextureName="T_WeaponIcon_Chaingun"
+	IconTexture=Texture2D'RX_WP_ChainGun.UI.T_WeaponIcon_Chaingun'
 }

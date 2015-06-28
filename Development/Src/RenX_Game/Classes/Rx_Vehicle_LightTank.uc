@@ -173,6 +173,8 @@ DefaultProperties
 	End Object
 	TowRingMeshD=STowRingMeshD
 
+	VehicleIconTexture=Texture2D'RX_VH_LightTank.UI.T_VehicleIcon_LightTank'
+	MinimapIconTexture=Texture2D'RX_VH_LightTank.UI.T_MinimapIcon_LightTank'
 
 //========================================================\\
 //*********** Vehicle Seats & Weapon Properties **********\\

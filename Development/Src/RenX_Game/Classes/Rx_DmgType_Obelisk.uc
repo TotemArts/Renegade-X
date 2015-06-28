@@ -13,4 +13,5 @@ defaultproperties
 	bNeverGibs=false
 
 	IconTextureName="T_DeathIcon_Obelisk"
+	IconTexture=Texture2D'RX_BU_Oblisk.UI.T_DeathIcon_Obelisk'
 }

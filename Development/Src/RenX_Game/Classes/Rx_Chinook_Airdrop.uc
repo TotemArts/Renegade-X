@@ -168,6 +168,7 @@ DefaultProperties
 	End Object
 	Mesh=WSkeletalMesh
 	Components.Add(WSkeletalMesh)
+
 		
 	Begin Object Class=SkeletalMeshComponent Name=VehMesh
 		CollideActors=false

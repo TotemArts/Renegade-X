@@ -144,6 +144,8 @@ DefaultProperties
 	End Object
 	AntennaMeshR=SAntennaMeshR
 
+	VehicleIconTexture=Texture2D'RX_VH_MediumTank.UI.T_VehicleIcon_MediumTank'
+	MinimapIconTexture=Texture2D'RX_VH_MediumTank.UI.T_MinimapIcon_MediumTank'
 
 //========================================================\\
 //*********** Vehicle Seats & Weapon Properties **********\\

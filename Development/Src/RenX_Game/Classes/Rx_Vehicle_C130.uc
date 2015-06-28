@@ -144,6 +144,8 @@ DefaultProperties
 
     DrawScale=1.0
 
+	VehicleIconTexture=Texture2D'RX_VH_C-130.UI.T_VehicleIcon_C130'
+	MinimapIconTexture=Texture2D'RX_VH_C-130.UI.T_MinimapIcon_C130'
 
 //========================================================\\
 //*********** Vehicle Seats & Weapon Properties **********\\

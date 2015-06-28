@@ -362,6 +362,8 @@ DefaultProperties
                 CameraOffset=-600,
                 )}
                 
+	VehicleIconTexture=Texture2D'RX_VH_Harvester.UI.T_VehicleIcon_Harvester'
+	MinimapIconTexture=Texture2D'RX_VH_Harvester.UI.T_MinimapIcon_Harvester'
             
 //========================================================\\
 //********* Vehicle Material & Effect Properties *********\\

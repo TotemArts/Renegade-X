@@ -58,16 +58,16 @@ DefaultProperties
    
     EquipTime=0.75
 	PutDownTime=0.5
-	
+/*	
 	WeaponRange=6000.0
 
 	WeaponFireTypes(0)=EWFT_InstantHit
 	WeaponFireTypes(1)=EWFT_None
 
-	InstantHitDamage(0)=12
-	InstantHitDamage(1)=12
+	InstantHitDamage(0)=8
+	InstantHitDamage(1)=8
 	
-	HeadShotDamageMult=2.5
+	HeadShotDamageMult=2.0
 
 	InstantHitDamageTypes(0)=class'Rx_DmgType_Chaingun'
 	InstantHitDamageTypes(1)=class'Rx_DmgType_Chaingun'
@@ -76,9 +76,9 @@ DefaultProperties
 	InstantHitMomentum(1)=10000
 	
 	bInstantHit=true
-
-//	WeaponFireTypes(0)=EWFT_Projectile
-//	WeaponFireTypes(1)=EWFT_None
+*/
+	WeaponFireTypes(0)=EWFT_Projectile
+	WeaponFireTypes(1)=EWFT_None
 
     Spread(0)=0.03
     Spread(1)=0.03
@@ -136,6 +136,8 @@ DefaultProperties
     InventoryGroup=2.1
     GroupWeight=1
     InventoryMovieGroup=4
+
+	WeaponIconTexture=Texture2D'RX_WP_ChainGun.UI.T_WeaponIcon_Chaingun'
 
     
     // AI Hints:

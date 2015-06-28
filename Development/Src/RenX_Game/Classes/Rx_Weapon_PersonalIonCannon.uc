@@ -153,6 +153,8 @@ DefaultProperties
     InventoryGroup=2.1
     GroupWeight=1
     InventoryMovieGroup=11
+
+	WeaponIconTexture=Texture2D'RX_WP_PersonalIonCannon.UI.T_WeaponIcon_PersonalIonCannon'
     
     // AI Hints:
     //MaxDesireability=0.7

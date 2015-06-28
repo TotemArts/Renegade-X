@@ -9,4 +9,5 @@ DefaultProperties
 	MineDamageScaling=1.0
 
 	IconTextureName="T_WeaponIcon_ATMine"
+	IconTexture=Texture2D'RX_WP_ATMine.UI.T_WeaponIcon_ATMine'
 }

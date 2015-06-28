@@ -202,6 +202,9 @@ DefaultProperties
 	InventoryGroup=2.1
 	GroupWeight=1
 	InventoryMovieGroup=2
+
+	WeaponIconTexture=Texture2D'RX_WP_AutoRifle.UI.T_WeaponIcon_AutoRifle'
+
 	// DroppedPickupClass = class'RxDroppedPickup_AutoRifle'
 	
 	// AI Hints:

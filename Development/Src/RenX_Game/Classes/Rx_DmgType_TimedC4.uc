@@ -23,4 +23,5 @@ defaultproperties
 	KDeathUpKick=2000
 
 	IconTextureName="T_WeaponIcon_TimedC4"
+	IconTexture=Texture2D'RX_WP_TimedC4.UI.T_WeaponIcon_TimedC4'
 }

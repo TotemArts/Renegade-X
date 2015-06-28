@@ -19,7 +19,8 @@ function string trigger(string parameters)
 
 	if (Controller(PRI.Owner) != None)
 		foreach AllActors(class'Rx_Weapon_DeployedC4', c4)
-			c4.Destroy();
+			if (c4.InstigatorController == Controller(PRI.Owner))
+				c4.Destroy();
 
 	return "";
 }

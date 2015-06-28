@@ -134,6 +134,75 @@ function SendMultiLine(string Header, string Content)
 		SendText(Header$Lines[i]);
 }
 
+function int SendText(coerce string txt)
+{
+	local string str;
+	local int size, index, value;
+	size = Len(txt);
+	for (index = 0; index != size; ++index)
+	{
+		value = Asc(Mid(txt, index, 1));
+		if (value > 255)
+			str $= "\\u" $ codepointToHex(value);
+		else if (value == Asc("\\"))
+			str $= "\\\\";
+		else
+			str $= Chr(value);
+	}
+	return super.SendText(str);
+}
+
+static function string quadToHex(byte in)
+{
+	switch (in & 0x0F)
+	{
+	case 0:
+		return "0";
+	case 1:
+		return "1";
+	case 2:
+		return "2";
+	case 3:
+		return "3";
+	case 4:
+		return "4";
+	case 5:
+		return "5";
+	case 6:
+		return "6";
+	case 7:
+		return "7";
+	case 8:
+		return "8";
+	case 9:
+		return "9";
+	case 10:
+		return "A";
+	case 11:
+		return "B";
+	case 12:
+		return "C";
+	case 13:
+		return "D";
+	case 14:
+		return "E";
+	case 15:
+		return "F";
+	default:
+		return "";
+	}
+}
+
+static function string byteToHex(byte in)
+{
+	return quadToHex(in >> 4) $ quadToHex(in);
+}
+
+static function string codepointToHex(int value)
+{
+	return byteToHex(value >> 8) $ byteToHex(value & 0xFF);
+}
+
 function AuthTimeout()
 {
 	`LogRx("RCON"`s "Dropped;" `s IPstring `s "reason"`s"(Auth Timeout)");

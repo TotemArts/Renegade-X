@@ -30,7 +30,7 @@ var Rx_Building_HandOfNod               HandOfNod;
 var array<Rx_Building_Silo >            Silos;
 
 var Rx_VehicleManager                   VehicleManager;
-var int 								AirdropCooldownTime;
+var config int 							AirdropCooldownTime;
 
 
 replication
@@ -256,7 +256,7 @@ simulated function int GetClassPrices(byte teamID, int charid)
 	}
 
 	if(AreHighTierPayClassesDisabled(TeamID))
-		Multiplier *= 1.5;
+		Multiplier *= 2.0;
 
 	if (teamID == TEAM_GDI)
 	{
@@ -412,7 +412,7 @@ simulated function int GetVehiclePrices(byte teamID, int VehicleID, bool bViaAir
 	}
 	
 	if(bViaAirdrop)
-		Multiplier *= 1.4;
+		Multiplier *= 2.0;
 
 	if (teamID == TEAM_GDI)
 	{
@@ -540,8 +540,6 @@ function class<Rx_FamilyInfo> GetRandomBotClass(byte TeamID)
 
 DefaultProperties
 {
-	AirdropCooldownTime = 270 // 4m and 30s
-	
 	GDIInfantryClasses[0]  = class'Rx_FamilyInfo_GDI_Soldier'	
 	GDIInfantryClasses[1]  = class'Rx_FamilyInfo_GDI_Shotgunner'
 	GDIInfantryClasses[2]  = class'Rx_FamilyInfo_GDI_Grenadier'

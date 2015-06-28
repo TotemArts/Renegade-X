@@ -24,4 +24,5 @@ defaultproperties
 	KDeathUpKick=100
 
 	IconTextureName="T_WeaponIcon_PersonalIonCannon"
+	IconTexture=Texture2D'RX_WP_PersonalIonCannon.UI.T_WeaponIcon_PersonalIonCannon'
 }

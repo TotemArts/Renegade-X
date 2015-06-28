@@ -251,6 +251,8 @@ DefaultProperties
 
 	InventoryGroup=3
 	InventoryMovieGroup=27
+
+	WeaponIconTexture=Texture2D'RX_WP_Grenade.UI.T_WeaponIcon_Grenade'
 	
 	// AI Hints:
 	// MaxDesireability=0.3

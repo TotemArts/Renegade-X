@@ -158,13 +158,11 @@ simulated function bool CanLockOnTo(Actor TA)
   */
 event Tick( FLOAT DeltaTime )
 {
-//	if ( bTargetLockingActive && bIronsightActivated && ( WorldInfo.TimeSeconds > LastTargetLockCheckTime + LockCheckTime ) )
-//	{
+	if ( bTargetLockingActive && ( WorldInfo.TimeSeconds > LastTargetLockCheckTime + LockCheckTime ) )
+	{
 		LastTargetLockCheckTime = WorldInfo.TimeSeconds;
 		CheckTargetLock();
-//	} else if(LockedTarget != None && !bIronsightActivated) {
-//		AdjustLockTarget(None);	
-//	}
+	}
 }
 
 
@@ -512,6 +510,8 @@ DefaultProperties
 
 	InventoryGroup=2
 	InventoryMovieGroup=16
+
+	WeaponIconTexture=Texture2D'RX_WP_MissileLauncher.UI.T_WeaponIcon_MissileLauncher'
 	
 	// AI Hints:
 	// MaxDesireability=0.7
@@ -531,11 +531,11 @@ DefaultProperties
 
 	SeekingRocketClass=class'Rx_Projectile_MissileLauncher'
 
-	ConsoleLockAim=0.992
-	LockRange=12500
-	LockAim=0.997
-	LockChecktime=0.5
-	LockAcquireTime=0.5
+	ConsoleLockAim=0.999999
+	LockRange=6000
+	LockAim=0.999999
+	LockChecktime=0.25
+	LockAcquireTime=1.0
 	LockTolerance=3.0   
     bTargetLockingActive = true
 

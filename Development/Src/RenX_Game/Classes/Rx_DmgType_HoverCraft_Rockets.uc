@@ -12,4 +12,5 @@ defaultproperties
 	MineDamageScaling=1.0
 
 	IconTextureName="T_DeathIcon_HoverCraft"
+	IconTexture=Texture2D'RX_VH_HoverCraft.UI.T_DeathIcon_HoverCraft'
 }

@@ -67,4 +67,5 @@ defaultproperties
 	PS_AttachToBody=ParticleSystem'RX_FX_Munitions.Beams.P_CharacterBurn_Electric'
 
 	IconTextureName="T_WeaponIcon_VoltAutoRifle"
+	IconTexture=Texture2D'RX_WP_VoltAutoRifle.UI.T_WeaponIcon_VoltAutoRifle'
 }

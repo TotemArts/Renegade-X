@@ -32,6 +32,12 @@ simulated function PostBeginPlay()
     SKMesh.AttachComponentToSocket(CoolingPSC,MuzzleFlashSocket);
 }
 
+// Volt Auto Rifle uses a different state for alt-fire, so can't use the super implementation which sends directly to fire.
+simulated function RestartWeaponFiringAfterReload()
+{
+    GotoState('Active');
+}
+
 /**
  * Take the projectile spawned and if it's the proper type, adjust it's strength and speed
  */
@@ -563,6 +569,9 @@ DefaultProperties
     IconCoordinates=(U=726,V=532,UL=165,VL=51)
 
     InventoryMovieGroup=13
+
+	WeaponIconTexture=Texture2D'RX_WP_VoltAutoRifle.UI.T_WeaponIcon_VoltAutoRifle'
+
 	bOkAgainstBuildings=true	
 	bOkAgainstVehicles=true	    
 	

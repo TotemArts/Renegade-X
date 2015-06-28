@@ -11,4 +11,6 @@ defaultproperties
     BuildingDamageScaling=1.36f
 
 	IconTextureName="T_DeathIcon_MammothTank"
+	IconTexture=Texture2D'RX_VH_MammothTank.UI.T_DeathIcon_MammothTank'
+	
 }

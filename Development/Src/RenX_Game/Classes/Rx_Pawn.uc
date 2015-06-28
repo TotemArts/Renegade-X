@@ -109,6 +109,7 @@ var bool        bWasInThirdPersonBeforeIronsight;
 var float		WalkingSpeed;
 var float		RunningSpeed;
 var float       IntendedGroundSpeed;
+var float       SpeedUpgradeMultiplier;
 
 var name 		DodgeForwardAnim;
 var name 		DodgeBackwardAnim;
@@ -141,6 +142,7 @@ var array<AnimNodeBlendList> RelaxedBlendLists;
 // realxded state.  weaponAimNode has all the aim profiles.
 var	AnimNodeAimOffset RelaxedAimNode;
 var	AnimNodeAimOffset WeaponAimNode;
+var AnimNodeBlendBySpeed RunSpeedAnimNode;
 
 //----------------------------------------------------------------------------
 // Armor Related
@@ -161,6 +163,10 @@ var bool bPTInitialized;
 /**Shahman: Variables when being being targetted*/
 var bool bTargetted;
 var bool bStartFirePressedButNoStopFireYet;
+
+/**Variables for anti cheat purposes*/
+var vector LastLocation;
+var float TempTime; 
 
 struct Bleed
 {
@@ -252,6 +258,19 @@ simulated function PostBeginPlay()
 	SetTimer( 0.5, false, 'RelaxTimer' );
 	SetHandIKEnabled(false);
 	ParachuteMesh.SetLightEnvironment(LightEnvironment);
+	if(WorldInfo.NetMode == NM_DedicatedServer)
+	{
+		SetTimer( 1.0, true, 'CheckLoc' );
+	}	
+}
+
+function CheckLoc()
+{
+	if(VSize(location - LastLocation) > 8)
+	{
+		TempTime = WorldInfo.TimeSeconds;
+	}
+	LastLocation = location;
 }
 
 simulated function ClientReStart()
@@ -569,6 +588,16 @@ function DoBleed()
 	}
 }
 
+function bool GiveArmor(int ArmorAmount)
+{
+	if (Armor < ArmorMax)
+	{
+		Armor = Min(ArmorMax, Armor + ArmorAmount);
+		return true;
+	}
+	return false;
+}
+
 event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)
 {
 	local int ActualDamage;
@@ -579,7 +608,11 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 	local Controller Killer;
 	local class<Rx_DmgType_Special> DmgType;
 	local float Scr;
-
+	
+		
+	if(!ValidRotation(EventInstigator, DamageCauser)) {
+		return;	
+	}
 	
 	if ( (Role < ROLE_Authority) || (Health <= 0) || GetRxFamilyInfo().static.IsImmuneTo(DamageType))
 	{
@@ -754,6 +787,43 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 	bHeadshot = false;
 }
 
+function bool ValidRotation(Controller EventInstigator, Actor DamageCauser)
+{
+	local rotator TempRotator;
+	local rotator TempRotator2;
+	
+	if(WorldInfo.NetMode == NM_DedicatedServer  
+		&& Rx_Controller(EventInstigator) != None 
+		&& Rx_Pawn(EventInstigator.Pawn) != None
+		&& (WorldInfo.TimeSeconds - Rx_Pawn(EventInstigator.Pawn).TempTime) > 10.0 
+		&& Rx_Pawn(EventInstigator.Pawn).health > 0)
+		{
+			TempRotator = rotator(self.location - EventInstigator.Pawn.location);		
+			TempRotator2 = EventInstigator.Pawn.rotation;
+			while ( abs(TempRotator.Yaw - TempRotator2.yaw) > 32768 ) {
+				if ( TempRotator.yaw > TempRotator2.yaw ) {
+					TempRotator.yaw = TempRotator.Yaw - 65536;
+				} else {
+					TempRotator.yaw = TempRotator.Yaw + 65536;
+				}
+			}
+			
+			if(Rx_Weapon(DamageCauser) != None 
+				&& Rx_Weapon(DamageCauser).bInstantHit
+				&& abs(TempRotator.Yaw - EventInstigator.Pawn.rotation.Yaw) > 1000)
+			{
+				return false;
+			}
+			else if(Rx_Weapon(DamageCauser) != None 
+				&& Rx_Weapon(DamageCauser).UsesClientSideProjectiles(0)
+				&& abs(TempRotator.Yaw - EventInstigator.Pawn.rotation.Yaw) > 3000)
+			{
+				return false;
+			}
+		}	
+	return true;
+}
+
 function bool Died(Controller Killer, class<DamageType> damageType, vector HitLocation)
 {
 	local Rx_Bot bot;
@@ -863,7 +933,7 @@ simulated function TakeRadiusDamage
 )
 {
 	if(InstigatedBy != None 
-			&& InstigatedBy.GetTeamNum() == GetTeamNum() 
+			&& (InstigatedBy.GetTeamNum() == GetTeamNum() && InstigatedBy != Controller) 
 			&& Rx_Weapon_DeployedActor(DamageCauser) == None) {
 		return;
 	}	
@@ -943,7 +1013,7 @@ simulated function SetGroundSpeed(optional float Speed) {
 	if (Speed != 0)
 		IntendedGroundSpeed = Speed;
 	Speed = FMax(IntendedGroundSpeed * CurrentHopStamina, WalkingSpeed);
-	GroundSpeed = Speed;
+	GroundSpeed = Speed * SpeedUpgradeMultiplier;
 	ServerSetGroundSpeed(Speed);
 }
 
@@ -954,7 +1024,15 @@ reliable server function ServerSetGroundSpeed(float Speed) {
 	} else {
 		bSprintingServer = false;
 	}
-	Groundspeed = Speed;
+	Groundspeed = Speed * SpeedUpgradeMultiplier;
+}
+
+function UpdateRunSpeedNode()
+{
+	RunSpeedAnimNode.Constraints[0] = 0;
+	RunSpeedAnimNode.Constraints[1] = WalkingSpeed * SpeedUpgradeMultiplier - 5;
+	RunSpeedAnimNode.Constraints[2] = RunningSpeed * SpeedUpgradeMultiplier - 5;
+	RunSpeedAnimNode.Constraints[3] = SprintSpeed * SpeedUpgradeMultiplier - 5;
 }
 
 /**
@@ -1223,6 +1301,9 @@ simulated event PostInitAnimTree(SkeletalMeshComponent SkelComp)
 
 	if (SkelComp == Mesh)
 	{
+		RunSpeedAnimNode = AnimNodeBlendBySpeed(Mesh.FindAnimNode('RunSpeedNode'));
+		UpdateRunSpeedNode();
+
 		LeftLegControl = SkelControlFootPlacement(Mesh.FindSkelControl(LeftFootControlName));
 		RightLegControl = SkelControlFootPlacement(Mesh.FindSkelControl(RightFootControlName));
 		FeignDeathBlend = AnimNodeBlend(Mesh.FindAnimNode('FeignDeathBlend'));
@@ -3121,6 +3202,12 @@ simulated function WeaponChanged(UTWeapon NewWeapon)
     }
 }
 
+simulated function UTPlayerReplicationInfo GetRxPlayerReplicationInfo()
+{
+	return Rx_PRI(GetUTPlayerReplicationInfo());
+}
+
+
 event EncroachedBy( actor Other )
 {
 	if ( Pawn(Other) != None && Vehicle(Other) == None && Rx_Pawn(Other) == None)
@@ -3310,7 +3397,7 @@ DefaultProperties
 	DodgeSpeedZ=300.0
 	DodgeDuration=0.75	// 1.0
 	bDodgeCapable=false;
-	AccelRate=800
+	AccelRate=1400
 	MaxLeanRoll=2500
 	JumpZ=325.0
 	VehicleCheckRadius=120
@@ -3384,6 +3471,7 @@ DefaultProperties
 	RunningSpeed=310	// 290
 	SprintSpeed=420.0	// 440.0 
 	LadderSpeed=85
+	SpeedUpgradeMultiplier=1
 
 	ExhaustionTime=3.0f			// Seconds
 	StaminaCooldownTime=2.0f	// Seconds

@@ -153,6 +153,8 @@ DefaultProperties
 	
 	SkeletalMeshForPT=SkeletalMesh'RX_VH_FlameTank.Mesh.SK_PTVH_FlameTank'
 
+	VehicleIconTexture=Texture2D'RX_VH_FlameTank.UI.T_VehicleIcon_FlameTank'
+	MinimapIconTexture=Texture2D'RX_VH_FlameTank.UI.T_MinimapIcon_FlameTank'
 
 //========================================================\\
 //*********** Vehicle Seats & Weapon Properties **********\\

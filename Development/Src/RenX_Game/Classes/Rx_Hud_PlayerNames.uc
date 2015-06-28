@@ -163,8 +163,10 @@ function DrawPlayerNames()
 	{
 		if (OtherPawn == None || OtherPawn.PlayerReplicationInfo == None || OtherPawn.Health <= 0)
 			continue;
-		if ((OtherPawn == ourPawn && !RenxHud.ShowOwnName) || IsStealthedEnemyUnit(OtherPawn) || OtherPawn.DrivenVehicle != None)
-			continue;	
+		if ((OtherPawn == ourPawn && !RenxHud.ShowOwnName) || OtherPawn.DrivenVehicle != None)
+			continue;
+		if (IsStealthedEnemyUnit(OtherPawn) || IsEnemySpy(OtherPawn))
+			continue;
 
 		if (OurPawn.DrivenVehicle != none) // If we are in a vehicle, check distancefrom the vehicle location
 			OtherPawnDistance = VSize(OurPawn.DrivenVehicle.Location-OtherPawn.location);

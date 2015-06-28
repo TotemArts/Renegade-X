@@ -7,4 +7,6 @@ DefaultProperties
 	WeaponRange=900.0
 	
 	InventoryMovieGroup=20
+
+	WeaponIconTexture=Texture2D'RX_WP_RepairGun.UI.T_WeaponIcon_RepairGunAdvanced'
 }

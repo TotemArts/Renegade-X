@@ -4,7 +4,11 @@ var float lightArmorDmgScaling;
 var float BuildingDamageScaling;
 var float MCTDamageScaling;
 var float MineDamageScaling;
+
+/**@Shahman: Deprecated. Please use IconTexture to load the DmgIcon*/
 var string IconTextureName;
+
+var Texture2D IconTexture;
 
 static function float VehicleDamageScalingFor(Vehicle V)
 {
@@ -48,4 +52,6 @@ defaultproperties
 	
 	KDamageImpulse=3000
 	KDeathUpKick=200
+
+	IconTexture=Texture2D'RenX_AssetBase.DeathIcons.T_DeathIcon_GenericSkull'
 } 

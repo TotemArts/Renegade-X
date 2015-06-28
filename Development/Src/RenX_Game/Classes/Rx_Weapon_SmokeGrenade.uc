@@ -49,6 +49,8 @@ DefaultProperties
 	
 	InventoryMovieGroup=38  // TODO
 
+	WeaponIconTexture=Texture2D'RX_WP_Grenade.UI.T_WeaponIcon_SmokeGrenade'
+
 	ClipSize = 1
 	InitalNumClips = 1
 	MaxClips = 1

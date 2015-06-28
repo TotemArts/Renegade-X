@@ -151,6 +151,8 @@ DefaultProperties
 	End Object
 	AntennaMesh=SAntennaMesh
 
+	VehicleIconTexture=Texture2D'RX_VH_Artillery.UI.T_VehicleIcon_Artillery'
+	MinimapIconTexture=Texture2D'RX_VH_Artillery.UI.T_MinimapIcon_Artillery'
 
 //========================================================\\
 //*********** Vehicle Seats & Weapon Properties **********\\

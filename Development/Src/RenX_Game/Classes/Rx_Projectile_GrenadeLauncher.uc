@@ -74,18 +74,18 @@ DefaultProperties
     
     Physics=PHYS_Falling
 	
-	CustomGravityScaling=1.5
+	CustomGravityScaling=0.75
     
     MyDamageType=class'Rx_DmgType_GrenadeLauncher'
     
     TossZ=100 	// 150.0
-    Speed=4000 	// 2000
-    MaxSpeed=4000
-	TerminalVelocity=4000.0
+    Speed=2000 	// 2000
+    MaxSpeed=2000
+	TerminalVelocity=2000.0
     AccelRate=0
-    LifeSpan=1.0
+    LifeSpan=2.0
     Damage=70
-    DamageRadius=250
+    DamageRadius=200
     MomentumTransfer=50000
 	HeadShotDamageMult=2.0
 

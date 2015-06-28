@@ -24,4 +24,5 @@ defaultproperties
 	KDeathUpKick=200
 
 	IconTextureName="T_DeathIcon_Chinook"
+	IconTexture=Texture2D'RX_VH_Chinook.UI.T_DeathIcon_Chinook'
 }

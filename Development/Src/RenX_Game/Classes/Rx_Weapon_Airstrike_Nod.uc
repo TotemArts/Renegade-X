@@ -19,4 +19,6 @@ DefaultProperties
 	End Object
 	
 	InventoryMovieGroup=32
+
+	WeaponIconTexture=Texture2D'RX_WP_Binoculars.UI.T_WeaponIcon_AC130'
 }

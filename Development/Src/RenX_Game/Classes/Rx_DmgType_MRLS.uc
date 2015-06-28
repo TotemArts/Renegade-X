@@ -12,4 +12,5 @@ defaultproperties
 	MineDamageScaling=2.0
 
 	IconTextureName="T_DeathIcon_MRLS"
+	IconTexture=Texture2D'RX_VH_MRLS.UI.T_DeathIcon_MRLS'
 }

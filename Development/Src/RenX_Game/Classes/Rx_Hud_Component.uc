@@ -60,6 +60,14 @@ function bool IsStealthedEnemyUnit(pawn inPawn)
 	return false;
 }
 
+function bool IsEnemySpy(Rx_Pawn inPawn)
+{
+	if (inPawn.isSpy() && GetStance(inPawn) == STANCE_ENEMY)
+		return true;
+	else
+		return false;
+}
+
 function float GetWeaponRange()
 {
 	return RenxHud.GetWeaponRange();
@@ -86,7 +94,9 @@ function bool IsBuildingComponent (actor a)
 
 function bool IsTechBuildingComponent (actor a)
 {
-	if (Rx_Building_TechBuilding_Internals(a) != none)
+	if(Rx_CapturableMCT(a) != None)
+		return false;
+	else if (Rx_Building_TechBuilding_Internals(a) != none)
 		return true;
 	else if ( Rx_Building_Techbuilding(a) != none )
 		return true;

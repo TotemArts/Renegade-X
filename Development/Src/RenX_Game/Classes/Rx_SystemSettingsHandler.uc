@@ -34,6 +34,8 @@ var config float OptionVoiceVolume;
 var config float MovieEffectsVolume;
 var config float AmbientVolume;
 var config float UnGroupedVolume;
+
+var config bool bAutostartMusic;
 /*
 ;Audio Settings here
 UIVolume = 1.0

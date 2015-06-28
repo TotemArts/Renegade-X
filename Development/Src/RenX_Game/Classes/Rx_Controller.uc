@@ -126,6 +126,11 @@ var bool bAuth;
 var bool bDisplayingAirdropReadyMsg;
 var int TempInt;
 
+// Vars used for anti cheat:
+var int LastClientpositionUpdates;
+var vector ClientLocTemp;
+var float ClientLocErrorDuration;
+
 replication
 {
 	// Things the server should send to the client.
@@ -141,7 +146,7 @@ simulated function PostBeginPlay()
 	super.PostBeginPlay();
 	if(Worldinfo.NetMode != NM_DedicatedServer) {
 		SetTimer(CPCheckTime,true,'CheckTouchingCapturePoints');
-	//	SetTimer(1.0,false,'CheckAuthentication');     
+		//SetTimer(1.0,false,'CheckAuthentication');     
 	}
 	SetTimer(15.0f,true,'resetRadioCommandCountTimer');  
 
@@ -182,6 +187,11 @@ event KickWarning()
 		ClientMessage("AFK WARNING - You are about to be kicked for being idle unless you show activity!");
 		LastKickWarningTime = WorldInfo.TimeSeconds;
 	}
+}
+
+reliable client function ClientWasKickedReason(string reason)
+{
+	ClientSetProgressMessage(PMT_ConnectionFailure, reason);
 }
 
 /** Modified version of PlayerController::CleanupPawn. Replaces 'self' and 'DmgType_Suicided' with 'None' and 'DamageType' so that death messages on disconnect get suppressed. */
@@ -1642,11 +1652,15 @@ function ChangeToSBH(bool sbh)
 	local pawn p;
 	local vector l;
 	local rotator r; 
+	local InventoryManager i;
 	
 	p = Pawn;
+	//store the inventory info if we were to transfer over to SBH or vice versa
+	i = p.InvManager;
 	l = Pawn.Location;
 	r = Pawn.Rotation; 
 	
+
 	if(sbh) 
 	{
 		if(self.Pawn.class != class'Rx_Pawn_SBH' )
@@ -1654,6 +1668,8 @@ function ChangeToSBH(bool sbh)
 			UnPossess();
 			p.Destroy(); 
 			p = Spawn(class'Rx_Pawn_SBH', , ,l,r);
+			//restore the inventory back
+			p.InvManager = i;
 		}
 		else
 		{
@@ -1662,11 +1678,13 @@ function ChangeToSBH(bool sbh)
 	}
 	else 
 	{
-		if(self.Pawn.class != class'Rx_Pawn' )
+		if(self.Pawn.class != Rx_Game(WorldInfo.Game).DefaultPawnClass )
 		{
 			UnPossess();
 			p.Destroy(); 
-			p = Spawn(class'Rx_Pawn', , ,l,r);
+			p = Spawn(Rx_Game(WorldInfo.Game).DefaultPawnClass, , ,l,r);
+			//restore the inventory back
+			p.InvManager = i;
 		}
 		else
 		{
@@ -1906,7 +1924,7 @@ function BroadcastBaseDefenseSpotMessages(Rx_Defence DefenceStructure)
 			msg = "Defence Structure"@DefenceStructure.GetHumanReadableName()@" needs repair!";
 			nr = 0;
 		} else {
-			msg = "Defence Structure"@DefenceStructure.GetHumanReadableName()@" needs repair immidiatly!";	
+			msg = "Defence Structure"@DefenceStructure.GetHumanReadableName()@" needs repair immediately!";	
 			nr = 0;
 		}	
 	} else {
@@ -2540,6 +2558,7 @@ event Possess(Pawn inPawn, bool bVehicleTransition)
 	if(WorldInfo.NetMode != NM_DedicatedServer) {
 		ResetRepGunEmitters();
 	}
+	LastClientpositionUpdates = 0; 
 }
 
 function ResetRepGunEmitters() {
@@ -2562,27 +2581,29 @@ function bool AttemptOpenPT()
 {
 	local Rx_BuildingAttachment_PT PT;
 	
-	
-	ForEach Pawn.TouchingActors(class'Rx_BuildingAttachment_PT', PT)
+	if (!bIsInPurchaseTerminal && bCanAccessPT)
 	{
-		if(!bIsInPurchaseTerminal && bCanAccessPT) {
+		ForEach Pawn.TouchingActors(class'Rx_BuildingAttachment_PT', PT)
+		{
+			if(PT.bAccessable)
+			{	
+				if ( !Rx_PlayerInput(PlayerInput).bNoGarbageCollectionOnOpeningPT && ((WorldInfo.NetMode == NM_Client) || (WorldInfo.NetMode == NM_Standalone)) )
+				{
+				    loginternal("starting gc on entering pt");
+					WorldInfo.ForceGarbageCollection();
+					loginternal("finished gc on entering pt");
+				}
 			
-			if ( !Rx_PlayerInput(PlayerInput).bNoGarbageCollectionOnOpeningPT && ((WorldInfo.NetMode == NM_Client) || (WorldInfo.NetMode == NM_Standalone)) )
-			{
-			    loginternal("starting gc on entering pt");
-				WorldInfo.ForceGarbageCollection();
-				loginternal("finished gc on entering pt");
+				if (GetTeamNum() == PT.GetTeamNum() && class'Rx_Utils'.static.OrientationToB(PT, pawn) > 0.1)
+				{
+					PTAccessDelay();
+					PlayerInput.ResetInput();
+					OpenPT(PT);
+					return true;
+				}
 			}
-			
-			if (GetTeamNum() == PT.GetTeamNum() && class'Rx_Utils'.static.OrientationToB(PT, pawn) > 0.1)
-			{
-				PTAccessDelay();
-				PlayerInput.ResetInput();
-				OpenPT(PT);
-				return true;
-			}
+			return false;
 		}
-		return false;
 	}
 	return false;
 }
@@ -2779,6 +2800,7 @@ unreliable server function BroadCastRadioCommand(int nr, String AdditionalText)
 		}
 		
 	FinalText = RadioCommandsText[nr]@AdditionalText;
+	`LogRx("CHAT" `s "Radio;" `s `PlayerLog(PlayerReplicationInfo) `s "said:" `s FinalText);
 	foreach WorldInfo.AllControllers(class'PlayerController', PC) {
 		if (PC.PlayerReplicationInfo.Team ==  PlayerReplicationInfo.Team) {
 			PC.ClientPlaySound(RadioCommands[nr]);
@@ -3731,6 +3753,42 @@ reliable server function ServerSetNetSpeed(int NewSpeed)
 	}
 	loginternal("New netspeed:"$NewSpeed);
 	SetNetSpeed(NewSpeed);
+}
+
+// =================================================================================================
+/** The following functions are for preventing a client/server desynchronisation exploit */
+// =================================================================================================
+
+function ServerMoveHandleClientError(float TimeStamp, vector Accel, vector ClientLoc)
+{
+	super(PlayerController).ServerMoveHandleClientError(TimeStamp,Accel,ClientLoc);
+	if(PendingAdjustment.bAckGoodMove == 0 && WorldInfo.TimeSeconds == LastUpdateTime)
+	{
+		LastClientpositionUpdates++;
+		if(!IsTimerActive('CheckClientpositionUpdates') && Pawn.Health > 0 
+			&& (WorldInfo.TimeSeconds - Pawn.SpawnTime) > 5)
+		{
+			SetTimer(0.5,false,'CheckClientpositionUpdates');
+		}
+	}
+	ClientLocTemp = ClientLoc;
+}
+
+function CheckClientpositionUpdates()
+{
+	if(LastClientpositionUpdates > 8 && VSize(Pawn.Location - ClientLocTemp) > 150 && ClientLocErrorDuration >= 2.0)
+	{	
+		Pawn.TakeDamage(15, none, Pawn.Location, vect(0,0,1), class'UTDmgType_LinkBeam');
+	}
+	else if(LastClientpositionUpdates > 8 && VSize(Pawn.Location - ClientLocTemp) > 150)
+	{
+		ClientLocErrorDuration += 0.5;
+	}
+	else
+	{
+		ClientLocErrorDuration = 0.0;
+	}
+	LastClientpositionUpdates = 0;
 }
 
 DefaultProperties

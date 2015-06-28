@@ -124,6 +124,8 @@ DefaultProperties
 	InventoryGroup=5
 	GroupWeight=1
 	InventoryMovieGroup=35
+
+	WeaponIconTexture=Texture2D'RX_WP_ATMine.UI.T_WeaponIcon_ATMine'
 	
 	// AI Hints:
 	//MaxDesireability=0.7

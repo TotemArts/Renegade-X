@@ -1,9 +1,28 @@
-class Rx_BuildingAttachment_PT extends Rx_BuildingAttachment
+class Rx_BuildingAttachment_PT extends Rx_BuildingAttachment implements (Rx_ObjectTooltipInterface)
 	abstract;
 
 var TEAM                    TeamNum;
 var CylinderComponent       CollisionCylinder;
 var StaticMeshComponent PTMesh;
+var bool bAccessable;
+var string tooltip;
+
+simulated function string GetTooltip(Rx_Controller PC)
+{
+	if (PC.GetTeamNum() == GetTeamNum() && class'Rx_Utils'.static.OrientationToB(self, PC.Pawn) > 0.1)
+		return Repl(tooltip, "{GBA_USE}", Caps(UDKPlayerInput(PC.PlayerInput).GetUDKBindNameFromCommand("GBA_Use")), true);
+	return "";
+}
+
+simulated function bool IsTouchingOnly()
+{
+	return true;
+}
+
+simulated function bool IsBasicOnly()
+{
+	return false;
+}
 
 simulated function string GetHumanReadableName()
 {
@@ -76,6 +95,8 @@ defaultproperties
 	RemoteRole          = ROLE_SimulatedProxy
 	CollisionType       = COLLIDE_TouchAllButWeapons
 	bCollideActors      = True
+	bAccessable = true;
+	tooltip = "Press <font color='#ff0000' size='20'>[ {GBA_USE} ]</font> to access the PURCHASE TERMINAL";
 
 	Begin Object Class=StaticMeshComponent Name=PTMeshCmp
 		StaticMesh                   = StaticMesh'rx_deco_terminal.Mesh.SM_BU_PT'

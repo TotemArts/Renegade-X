@@ -24,4 +24,5 @@ defaultproperties
 	KDeathUpKick=300
 
 	IconTextureName="T_DeathIcon_Apache"
+	IconTexture=Texture2D'RX_VH_Apache.UI.T_DeathIcon_Apache'
 }

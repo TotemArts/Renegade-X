@@ -91,9 +91,9 @@ DefaultProperties
 	RecoilSpreadCrosshairScaling = 1000;
 
     ShotCost(0)=1
-    ShotCost(1)=1
-    FireInterval(0)=+0.8
-    FireInterval(1)=+0.8
+    ShotCost(1)=2
+    FireInterval(0)=+0.9
+    FireInterval(1)=+0.9
     ReloadTime(0) = 3.0 //3.3667
     ReloadTime(1) = 3.0 //3.3667
     
@@ -155,6 +155,8 @@ DefaultProperties
 
     InventoryGroup=2
     InventoryMovieGroup=22
+
+	WeaponIconTexture=Texture2D'RX_WP_FlakCannon.UI.T_WeaponIcon_FlakCannon'
     
     // AI Hints:
     // MaxDesireability=0.7

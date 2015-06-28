@@ -107,6 +107,8 @@ var bool bChangedTo1stPersonOnce;
 var(Animations)	array<name>	WeaponADSFireAnim;
 var(Animations) array<name> ArmADSFireAnim;
 
+/** reference to the texture to use for the Hud */
+var() Texture WeaponIconTexture;
 
 function PreBeginPlay()
 {
@@ -1506,6 +1508,7 @@ DefaultProperties
 
 	InventoryMovieGroup=0
 	InventoryGroup=2
+	WeaponIconTexture = Texture2D'RenxHud.T_WeaponIcon_MissingCameo'
 	
 	//-------------- Recoil
 	RecoilDelay = 0.07

@@ -46,6 +46,8 @@ DefaultProperties
 	InventoryGroup=1
 	InventoryMovieGroup=37
 
+	WeaponIconTexture=Texture2D'RX_WP_RepairGun.UI.T_WeaponIcon_RepairTool'
+
 	MuzzleFlashSocket="MuzzleFlashSocket"
 	MuzzleFlashPSCTemplate=ParticleSystem'RX_WP_RepairGun.Effects.P_RepairGun_MuzzleFlash_1P_Small'
 	MuzzleFlashDuration=3.3667

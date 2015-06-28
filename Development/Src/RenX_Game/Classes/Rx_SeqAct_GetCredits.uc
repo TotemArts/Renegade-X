@@ -10,7 +10,7 @@ var int Credits;
 
 event Activated()
 {
-	local Actor A;
+	local Rx_Pawn A;
 
 	if (Targets.length == 0)
 	{
@@ -18,10 +18,10 @@ event Activated()
 	}
 	else
 	{
-		A = Actor(Targets[0]);
+		A = Rx_Pawn(Targets[0]); 
 	}
 
-	Credits = Rx_PRI(Rx_Controller(A).PlayerReplicationInfo).GetCredits(); 
+	Credits = Rx_PRI(A.PlayerReplicationInfo).GetCredits(); 
 }
 
 defaultproperties

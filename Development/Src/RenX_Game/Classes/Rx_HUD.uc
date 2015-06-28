@@ -318,11 +318,14 @@ simulated function PostBeginPlay()
 		JukeBox = new class'Rx_Jukebox';
 		JukeBox.Init();
 
+		`log ("<Rx_HUD log> SystemSettingsHandler.bAutostartMusic? " $ SystemSettingsHandler.bAutostartMusic);
 		//Disable this if we do not want to play on start.
-		if (JukeBox.bShuffled) {
-			JukeBox.Play(Rand(JukeBox.JukeBoxList.Length));
-		} else {
-			JukeBox.Play(0);
+		if (SystemSettingsHandler.bAutostartMusic) {
+			if (JukeBox.bShuffled) {
+				JukeBox.Play(Rand(JukeBox.JukeBoxList.Length));
+			} else {
+				JukeBox.Play(0);
+			}
 		}
 	}
 // 

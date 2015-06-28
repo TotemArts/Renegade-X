@@ -121,6 +121,8 @@ DefaultProperties
     InventoryGroup=2.1
     GroupWeight=1
     InventoryMovieGroup=6
+
+	WeaponIconTexture=Texture2D'RX_WP_FlameThrower.UI.T_WeaponIcon_FlameThrower'
     
     // AI Hints:
     //MaxDesireability=0.7

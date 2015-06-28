@@ -157,6 +157,8 @@ DefaultProperties
     InventoryGroup=2.1
     GroupWeight=1
     InventoryMovieGroup=12
+
+	WeaponIconTexture=Texture2D'RX_WP_Railgun.UI.T_WeaponIcon_Railgun'
     
     // AI Hints:
     // MaxDesireability=0.7

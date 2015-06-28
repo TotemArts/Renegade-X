@@ -176,6 +176,8 @@ DefaultProperties
     InventoryGroup=2.1
     GroupWeight=1
     InventoryMovieGroup=10
+
+	WeaponIconTexture=Texture2D'RX_WP_LaserRifle.UI.T_WeaponIcon_LaserRifle'
     
     // AI Hints:
     //MaxDesireability=0.7

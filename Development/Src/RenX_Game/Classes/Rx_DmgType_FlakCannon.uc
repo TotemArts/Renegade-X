@@ -23,4 +23,5 @@ defaultproperties
 	BleedCount=4
 
 	IconTextureName="T_WeaponIcon_FlakCannon"
+	IconTexture=Texture2D'RX_WP_FlakCannon.UI.T_WeaponIcon_FlakCannon'
 }

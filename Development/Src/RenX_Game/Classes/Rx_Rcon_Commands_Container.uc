@@ -16,6 +16,7 @@ function InitRconCommands()
 	SpawnCommand(class'Rx_Rcon_Command_HostPrivateSay');
 	SpawnCommand(class'Rx_Rcon_Command_Kick');
 	SpawnCommand(class'Rx_Rcon_Command_KickBan');
+	SpawnCommand(class'Rx_Rcon_Command_ForceKick');
 	SpawnCommand(class'Rx_Rcon_Command_TextMute');
 	SpawnCommand(class'Rx_Rcon_Command_TextUnMute');
 	SpawnCommand(class'Rx_Rcon_Command_ChangeMap');
@@ -43,6 +44,10 @@ function InitRconCommands()
 	SpawnCommand(class'Rx_Rcon_Command_Kill');
 	SpawnCommand(class'Rx_Rcon_Command_MineLimit');
 	SpawnCommand(class'Rx_Rcon_Command_VehicleLimit');
+	SpawnCommand(class'Rx_Rcon_Command_ChangeName');
+	SpawnCommand(class'Rx_Rcon_Command_ServerInfo');
+	SpawnCommand(class'Rx_Rcon_Command_GameInfo');
+	SpawnCommand(class'Rx_Rcon_Command_BuildingInfo');
 	//SpawnCommand(class'Rx_Rcon_Command_');
 	for (M = Rx_Game(WorldInfo.Game).GetBaseRxMutator(); M != None; M = M.GetNextRxMutator())
 		M.InitRconCommands();

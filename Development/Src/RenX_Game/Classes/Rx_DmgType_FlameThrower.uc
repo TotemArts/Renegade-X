@@ -33,4 +33,5 @@ defaultproperties
 	MotorDecayTime=1.0
 
 	IconTextureName="T_WeaponIcon_FlameThrower"
+	IconTexture=Texture2D'RX_WP_FlameThrower.UI.T_WeaponIcon_FlameThrower'
 }

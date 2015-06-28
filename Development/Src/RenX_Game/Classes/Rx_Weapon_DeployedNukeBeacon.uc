@@ -9,6 +9,7 @@ var SoundCue                  ExposionSound;
 var ParticleSystem            PartSysTemplate;
 var ParticleSystem            SecondaryExplosionEffect;
 var repnotify bool 		      bPlayNukeMissile;
+var float                     NukeParticleLength;
 
 
 
@@ -38,7 +39,7 @@ simulated function PerformDeploy()
    {
       if(WorldInfo.NetMode != NM_Client) 
       {            
-         SetTimer(TimeUntilExplosion - 10.0f, false, 'NukeMissile');
+         SetTimer(TimeUntilExplosion - NukeParticleLength, false, 'NukeMissile');
       }
    }
 }
@@ -127,6 +128,7 @@ defaultproperties
    // DisarmSounds(1) = SoundCue'RX_EVA_VoiceClips.gdi_eva.S_EVA_GDI_Beacon_NuclearStrikeDisarmed_Cue'
 
    PartSysTemplate=ParticleSystem'RX_WP_Nuke.Effects.P_Nuke_Falling'
+	NukeParticleLength = 10
    ExplosionEffect=ParticleSystem'RX_WP_Nuke.Effects.P_Nuke_Explosion'
    SecondaryExplosionEffect=ParticleSystem'RX_WP_Nuke.Effects.P_Explosion_Secondary'
    BlinkingLight=ParticleSystem'RX_WP_Nuke.Effects.P_NukeBeacon_BlinkingLight'

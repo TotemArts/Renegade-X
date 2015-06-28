@@ -24,4 +24,5 @@ defaultproperties
 	KDeathUpKick=500
 	
 	IconTextureName="T_DeathIcon_Orca"
+	IconTexture=Texture2D'RX_VH_Orca.UI.T_DeathIcon_Orca'
 }

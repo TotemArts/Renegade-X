@@ -10,4 +10,6 @@ DefaultProperties
 	TargetActorClass=class'Rx_AirstrikeTarget_A10'
 	
 	InventoryMovieGroup=31
+
+	WeaponIconTexture=Texture2D'RX_WP_Binoculars.UI.T_WeaponIcon_A10'
 }

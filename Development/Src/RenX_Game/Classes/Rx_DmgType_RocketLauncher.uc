@@ -7,13 +7,13 @@ defaultproperties
     SuicideStatsName=SUICIDES_ROCKETLAUNCHER
 
     DamageWeaponFireMode=2
-    VehicleDamageScaling=0.45
+    VehicleDamageScaling=0.75
     NodeDamageScaling=0.5
     VehicleMomentumScaling=0.025
 
     CustomTauntIndex=10
-    lightArmorDmgScaling=0.667
-    BuildingDamageScaling=0.72
+    lightArmorDmgScaling=1.0005
+    BuildingDamageScaling=1.225
 	MineDamageScaling=2.0
     AlwaysGibDamageThreshold=99
     bNeverGibs=false
@@ -22,4 +22,5 @@ defaultproperties
 	KDeathUpKick=1000
 
 	IconTextureName="T_WeaponIcon_RocketLauncher"
+	IconTexture=Texture2D'RX_WP_RocketLauncher.UI.T_WeaponIcon_RocketLauncher'
 }

@@ -90,10 +90,10 @@ defaultproperties
 
     ShotCost(0)=1
     ShotCost(1)=1
-    Spread(0)=0.2
+    Spread(0)=0.18
 //    Spread(1)=0.3
 
-	IronSightAndScopedSpread(0)= 0.1
+	IronSightAndScopedSpread(0)= 0.17
     
     EquipTime=0.55
 //	PutDownTime=0.4
@@ -103,7 +103,7 @@ defaultproperties
     InitalNumClips = 5
     MaxClips = 5
  
-    FireInterval(0)=1.1
+    FireInterval(0)=1.5
 //    FireInterval(1)=0.65
     
     WeaponFireAnim(0)=WeaponFire
@@ -113,7 +113,7 @@ defaultproperties
 
     WeaponFireTypes(0)=EWFT_Custom
     WeaponFireTypes(1)=EWFT_None
-    WeaponRange=1500.0
+    WeaponRange=800.0
 
     InstantHitDamage(0)=16
 //    InstantHitDamage(1)=16
@@ -171,6 +171,8 @@ defaultproperties
     InventoryGroup=2
     GroupWeight=3
     InventoryMovieGroup=7
+
+	WeaponIconTexture=Texture2D'RX_WP_Shotgun.UI.T_WeaponIcon_Shotgun'
     
     // AI Hints:
     // MaxDesireability=0.7

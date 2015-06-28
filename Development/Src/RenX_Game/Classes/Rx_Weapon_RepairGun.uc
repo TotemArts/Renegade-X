@@ -75,7 +75,11 @@ simulated function RepairBuilding(Rx_Building building, float DeltaTime)
 	}
 	else
 	{
-		bHealing = false;
+		if(Rx_CapturableMCT(building) != None
+				&& !(Rx_CapturableMCT(building).ScriptGetTeamNum() == Instigator.GetTeamNum() && building.GetHealth() >= building.GetMaxHealth()) )
+			Repair(building,DeltaTime);
+		else
+			bHealing = false;
 	}
 }
 
@@ -283,7 +287,7 @@ simulated state WeaponBeamFiring
 		else
 		{
 			bKeepFiring = false;
-			ClearPendingFire(1);		
+			//ClearPendingFire(1);		
 		}
 
 		WeaponPlaySound(StartAltFireSound);
@@ -348,7 +352,7 @@ simulated function bool ShouldRefire()
 
 simulated function BeginFire(Byte FireModeNum)
 {
-	ClearPendingFire(1);
+	//ClearPendingFire(1); 
 	if(FireModeNum == 1 && bKeepFiring && PendingFire(1))
 	{
 		bKeepFiring = false;
@@ -363,7 +367,7 @@ simulated function StopFire(byte FireModeNum)
 	if(FireModeNum == 1 && bKeepFiring)
 		return;
 	bKeepFiring = false;
-	ClearPendingFire(1);	
+	//ClearPendingFire(1);	
 	super.StopFire(FireModeNum);
 }
 
@@ -465,8 +469,8 @@ DefaultProperties
 	LockerRotation=(pitch=0,yaw=0,roll=-16384)
 
 	WeaponFireTypes(0)=EWFT_InstantHit
-	WeaponFireTypes(1)=EWFT_InstantHit
-	//WeaponFireTypes(1)=EWFT_None
+	//WeaponFireTypes(1)=EWFT_InstantHit
+	WeaponFireTypes(1)=EWFT_None
 
 	InstantHitDamage(0)=0
 	InstantHitDamage(1)=0
@@ -506,6 +510,8 @@ DefaultProperties
 
 	InventoryGroup=2
 	InventoryMovieGroup=19
+
+	WeaponIconTexture=Texture2D'RX_WP_RepairGun.UI.T_WeaponIcon_RepairGun'
 	
 	// AI Hints:
 	MaxDesireability=0.7

@@ -209,7 +209,7 @@ var float                                       LastCursorXPosition;
 var bool										bMainDrawerOpen, bClassDrawerOpen, bItemDrawerOpen, bWeaponDrawerOpen, bEquipmentDrawerOpen, bVehicleDrawerOpen;
 var bool                                        bIsInTransition;
 
-var private class<Rx_Weapon>                    OwnedSidearm, OwnedExplosive;//, OwnedItem;
+var private class<Rx_Weapon>                    OwnedSidearm, OwnedExplosive, OwnedItem;
 var private class<Rx_FamilyInfo>                OwnedFamilyInfo;
 
 
@@ -315,10 +315,9 @@ function Initialize(LocalPlayer player, Rx_BuildingAttachment_PT PTOwner)
 			OwnedExplosive      =   rxInv.ExplosiveWeapons[rxInv.ExplosiveWeapons.Length - 1];
 		}
 	}
-// 	if (rxInv.Items.Length > 0){
-// 		OwnedItem               =   rxPC.CurrentItem;//rxInv.GetAvailableItems;
-// 
-// 	}
+	if (rxInv.Items.Length > 0){
+		OwnedItem               =   rxInv.Items[rxInv.Items.Length - 1];
+	}
 
 
 
@@ -328,6 +327,7 @@ function Initialize(LocalPlayer player, Rx_BuildingAttachment_PT PTOwner)
 	`log("");
 	`log("<PT Log> OwnedSidearm= " $ OwnedSidearm);
 	`log("<PT Log> OwnedExplosive= " $ OwnedExplosive);
+	`log("<PT Log> OwnedItem= " $ OwnedItem);
 	`log("");
 
 
@@ -1824,7 +1824,7 @@ function SetSelectedButtonByIndex (int index, optional bool selected = true)
 		return;
 	}
 	if (bWeaponDrawerOpen) {
-		if (index < 6) {
+		if (index < 7) {
 			WeaponMenuGroup.ActionScriptVoid("setSelectedButtonByIndex");
 		}
 		return;
@@ -2709,7 +2709,7 @@ function ClosePTMenu(bool unload)
 	`log("<PT Log>");
 	`log("<PT Log> OwnedSidearm= " $ OwnedSidearm);
 	`log("<PT Log> OwnedExplosive= " $ OwnedExplosive);
-//	`log("<PT Log> OwnedItem= " $ OwnedItem);
+	`log("<PT Log> OwnedItem= " $ OwnedItem);
 	`log("<PT Log>");
 	`log("<PT Log> rxPC.CurrentExplosiveWeapon= "$ rxPC.CurrentExplosiveWeapon);
 	`log("<PT Log> rxPC.CurrentSidearmWeapon= "$ rxPC.CurrentSidearmWeapon);
@@ -2804,13 +2804,13 @@ bAutoPlay                       	=   false
 	GDIItemMenuData(6) 				= (BlockType=EPBT_ITEM, id=6, iconID=68, hotkey="7", title="MG SENTRY",	 	 	desc="<font size='8'>Requires Armory\n\n-Automated Sentry Turret\n-Anti-Infrantry\n-Limited Ammo\n-Can be picked up\n-Cannot refill</font>", 										cost="300",  type=1 , bEnable = false)
 	GDIItemMenuData(7) 				= (BlockType=EPBT_ITEM, id=7, iconID=69, hotkey="8", title="AT SENTRY",	 	 	desc="<font size='8'>Requires Armory\n\n-Automated Sentry Turret\n-Anti-Vehicle\n-Limited Ammo\n-Can be picked up\n-Cannot refill</font>", 											cost="300",  type=1 , bEnable = false)
 
-	GDIWeaponMenuData(0) 			= (BlockType=EPBT_WEAPON, id=0, iconID=36, hotkey="1", title="HEAVY PISTOL",	 		  desc="Good Vs:\n-Infantry\n-Light Armour Vehicles\n\nWeak Vs:\n-Buildings\n-Light Armour Vehicles",									 cost="75",  type=2, damage=4,range=2,rateOfFire=3,magCap=2)
-	GDIWeaponMenuData(1) 			= (BlockType=EPBT_WEAPON, id=1, iconID=72, hotkey="2", title="CARBINE",	 			      desc="Good Vs:\n-Infantry\n-Light Armour\n\nWeak Vs:\n-Heavy Armour\n-Buildings",														 cost="125", type=2, damage=3,range=3,rateOfFire=4,magCap=2)
-	GDIWeaponMenuData(2) 			= (BlockType=EPBT_WEAPON, id=2, iconID=57, hotkey="3", title="TIBERIUM FLECHETTE RIFLE",  desc="<font size='8'>[Requires Silo] \nGood Vs: \n-Infrantry\n-Light Armour\nWeak Vs:\n-Heavy Armour\n-Buildings</font>",				 cost="225", type=2, damage=2,range=3,rateOfFire=5,magCap=3, bSilo = true)
-	GDIWeaponMenuData(3) 			= (BlockType=EPBT_WEAPON, id=3, iconID=56, hotkey="4", title="TIBERIUM AUTO-RIFLE",		  desc="<font size='8'>[Requires Silo] \nGood Vs: \n-Infrantry\n-Light Armour\nWeak Vs:\n-Heavy Armour\n-Buildings</font>",				 cost="250", type=2, damage=4,range=3,rateOfFire=2,magCap=3, bSilo = true)
-	GDIWeaponMenuData(4) 			= (BlockType=EPBT_WEAPON, id=4, iconID=30, hotkey="5", title="EMP GREANDE",	 			  desc="<font size='8'>\nPros:\n-Disables vehicles\n-Disables target info\n\nCons:\n-Weapons remain active</font>", 					 cost="300", type=1)
+	GDIWeaponMenuData(0) 			= (BlockType=EPBT_WEAPON, id=0, iconID=36, hotkey="1", title="HEAVY PISTOL",	 		  desc="Good Vs:\n-Infantry\n-Light Armour Vehicles\n\nWeak Vs:\n-Buildings\n-Light Armour Vehicles",									 cost="100", type=2, damage=4,range=2,rateOfFire=3,magCap=2)
+	GDIWeaponMenuData(1) 			= (BlockType=EPBT_WEAPON, id=1, iconID=72, hotkey="2", title="CARBINE",	 			      desc="Good Vs:\n-Infantry\n-Light Armour\n\nWeak Vs:\n-Heavy Armour\n-Buildings",														 cost="250", type=2, damage=3,range=3,rateOfFire=4,magCap=2)
+	GDIWeaponMenuData(2) 			= (BlockType=EPBT_WEAPON, id=2, iconID=57, hotkey="3", title="TIBERIUM FLECHETTE RIFLE",  desc="<font size='8'>[Requires Silo] \nGood Vs: \n-Infrantry\n-Light Armour\nWeak Vs:\n-Heavy Armour\n-Buildings</font>",				 cost="400", type=2, damage=2,range=3,rateOfFire=5,magCap=3, bSilo = true)
+	GDIWeaponMenuData(3) 			= (BlockType=EPBT_WEAPON, id=3, iconID=56, hotkey="4", title="TIBERIUM AUTO-RIFLE",		  desc="<font size='8'>[Requires Silo] \nGood Vs: \n-Infrantry\n-Light Armour\nWeak Vs:\n-Heavy Armour\n-Buildings</font>",				 cost="400", type=2, damage=4,range=3,rateOfFire=2,magCap=3, bSilo = true)
+	GDIWeaponMenuData(4) 			= (BlockType=EPBT_WEAPON, id=4, iconID=30, hotkey="5", title="EMP GREANDE",	 			  desc="<font size='8'>\nPros:\n-Disables vehicles\n-Disarm mines\n\nCons:\n-Weapons remain active</font>", 					 		 cost="300", type=1)
 	GDIWeaponMenuData(5) 			= (BlockType=EPBT_WEAPON, id=5, iconID=26, hotkey="6", title="ANTI-TANK MINE",	 	 	  desc="<font size='8'>\nPros:\n-Heavy vehicle damage\n\nCons:\n-Can be destroyed\n-Limit 2 per person</font>",							 cost="250", type=1)
-	GDIWeaponMenuData(6) 			= (BlockType=EPBT_WEAPON, id=6, iconID=74, hotkey="7", title="SMOKE GRENADE",	 	      desc="<font size='8'>\nPros:\n-Reduces Visibility\n\n\nCons:\n-Weapons remain active</font>", 					                     cost="100", type=1)
+	GDIWeaponMenuData(6) 			= (BlockType=EPBT_WEAPON, id=6, iconID=74, hotkey="7", title="SMOKE GRENADE",	 	      desc="<font size='8'>\nPros:\n-Reduces Visibility\n-Disables Target Info\n\nCons:\n-Weapons remain active</font>", 					 cost="100", type=1)
 
 	GDIVehicleMenuData(0) 			= (BlockType=EPBT_VEHICLE, id=0, iconID=9,  hotkey="1",title="HUMVEE",								desc="<font size='10'>-.50 Calibre Machine Gun\n-Light Armour\n-Fast Attack Scout\n-Driver + Passenger</font>",				cost="350")
 	GDIVehicleMenuData(1) 			= (BlockType=EPBT_VEHICLE, id=1, iconID=7,  hotkey="2",title="ARMOURED PERSONNEL CARRIER",			desc="<font size='10'>-M134 Minigun\n-Heavy Armour\n-Troop Transport\n-Driver + 4 Passengers</font>",						cost="500")
@@ -2853,13 +2853,13 @@ bAutoPlay                       	=   false
 	NodItemMenuData(7)				= (BlockType=EPBT_ITEM, id=7, iconID=69, hotkey="8", title="AT SENTRY",	 		 desc="<font size='8'>Requires Armory\n\n-Automated Sentry Turret\n-Anti-Vehicle\n-Limited Ammo\n-Can be picked up\n-Cannot refill</font>", 										cost="300" , type=1, bEnable = false)
 
 
-	NodWeaponMenuData(0)			= (BlockType=EPBT_WEAPON, id=0, iconID=36, hotkey="1", title="HEAVY PISTOL",	 		  desc="Good Vs:\n-Infrantry\n-Light Armour Vehicles\n\nWeak Vs:\n-Buildings\n-Light Armour Vehicles", 									 cost="75",  type=2, damage=4,range=2,rateOfFire=3,magCap=2)
-	NodWeaponMenuData(1)			= (BlockType=EPBT_WEAPON, id=1, iconID=72, hotkey="2", title="CARBINE",	 			      desc="Good Vs:\n-Infantry\n-Light Armour\n\nWeak Vs:\n-Heavy Armour\n-Buildings",	 													 cost="125", type=2, damage=3,range=3,rateOfFire=4,magCap=2)
-	NodWeaponMenuData(2)			= (BlockType=EPBT_WEAPON, id=2, iconID=57, hotkey="3", title="TIBERIUM FLECHETTE RIFLE",  desc="<font size='8'>[Requires Silo] \nGood Vs: \n-Infrantry\n-Light Armour\nWeak Vs:\n-Heavy Armour\n-Buildings</font>",				 cost="225", type=2, damage=2,range=3,rateOfFire=5,magCap=3, bSilo = true)
-	NodWeaponMenuData(3)			= (BlockType=EPBT_WEAPON, id=3, iconID=56, hotkey="4", title="TIBERIUM AUTO-RIFLE",	 	  desc="<font size='8'>[Requires Silo] \nGood Vs: \n-Infrantry\n-Light Armour\nWeak Vs:\n-Heavy Armour\n-Buildings</font>",				 cost="250", type=2, damage=4,range=3,rateOfFire=2,magCap=3, bSilo = true)
-	NodWeaponMenuData(4)			= (BlockType=EPBT_WEAPON, id=4, iconID=30, hotkey="5", title="EMP GREANDE",	 			  desc="<font size='8'>\nPros:\n-Disables vehicles\n-Disables target info\n\nCons:\n-Weapons remain active</font>", 					 cost="300", type=1)
+	NodWeaponMenuData(0)			= (BlockType=EPBT_WEAPON, id=0, iconID=36, hotkey="1", title="HEAVY PISTOL",	 		  desc="Good Vs:\n-Infrantry\n-Light Armour Vehicles\n\nWeak Vs:\n-Buildings\n-Light Armour Vehicles", 									 cost="100", type=2, damage=4,range=2,rateOfFire=3,magCap=2)
+	NodWeaponMenuData(1)			= (BlockType=EPBT_WEAPON, id=1, iconID=72, hotkey="2", title="CARBINE",	 			      desc="Good Vs:\n-Infantry\n-Light Armour\n\nWeak Vs:\n-Heavy Armour\n-Buildings",	 													 cost="250", type=2, damage=3,range=3,rateOfFire=4,magCap=2)
+	NodWeaponMenuData(2)			= (BlockType=EPBT_WEAPON, id=2, iconID=57, hotkey="3", title="TIBERIUM FLECHETTE RIFLE",  desc="<font size='8'>[Requires Silo] \nGood Vs: \n-Infrantry\n-Light Armour\nWeak Vs:\n-Heavy Armour\n-Buildings</font>",				 cost="400", type=2, damage=2,range=3,rateOfFire=5,magCap=3, bSilo = true)
+	NodWeaponMenuData(3)			= (BlockType=EPBT_WEAPON, id=3, iconID=56, hotkey="4", title="TIBERIUM AUTO-RIFLE",	 	  desc="<font size='8'>[Requires Silo] \nGood Vs: \n-Infrantry\n-Light Armour\nWeak Vs:\n-Heavy Armour\n-Buildings</font>",				 cost="400", type=2, damage=4,range=3,rateOfFire=2,magCap=3, bSilo = true)
+	NodWeaponMenuData(4)			= (BlockType=EPBT_WEAPON, id=4, iconID=30, hotkey="5", title="EMP GREANDE",	 			  desc="<font size='8'>\nPros:\n-Disables vehicles\n-Disarm mines\n\nCons:\n-Weapons remain active</font>", 					 		 cost="300", type=1)
 	NodWeaponMenuData(5)			= (BlockType=EPBT_WEAPON, id=5, iconID=26, hotkey="6", title="ANTI-TANK MINE",	 		  desc="<font size='8'>\nPros:\n-Heavy vehicle damage\n\nCons:\n-Can be destroyed\n-Limit 2 per person</font>", 						 cost="250", type=1)
-	NodWeaponMenuData(6) 			= (BlockType=EPBT_WEAPON, id=6, iconID=74, hotkey="7", title="SMOKE GRENADE",	 	      desc="<font size='8'>\nPros:\n-Reduces Visibility\n\n\nCons:\n-Weapons remain active</font>", 					                     cost="100", type=1)
+	NodWeaponMenuData(6) 			= (BlockType=EPBT_WEAPON, id=6, iconID=74, hotkey="7", title="SMOKE GRENADE",	 	      desc="<font size='8'>\nPros:\n-Reduces Visibility\n-Disables Target Info\n\nCons:\n-Weapons remain active</font>", 					 cost="100", type=1)
 
 
 	NodVehicleMenuData(0)			= (BlockType=EPBT_VEHICLE, id=0, iconID=20, hotkey="1", title="BUGGY", 						desc="<font size='10'>-.50 Calibre Machine Gun\n-Light Armour\n-Fast Attack Scout\n-Driver + Passenger</font>", 		 cost="350")

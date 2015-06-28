@@ -11,4 +11,5 @@ defaultproperties
     BuildingDamageScaling=0.1f
 
 	IconTextureName="T_WeaponIcon_AC130"
+	IconTexture=Texture2D'RX_WP_Binoculars.UI.T_WeaponIcon_AC130'
 }

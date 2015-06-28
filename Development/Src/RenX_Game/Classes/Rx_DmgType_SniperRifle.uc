@@ -22,4 +22,6 @@ DefaultProperties
 	KDeathUpKick=200
 
 	IconTextureName="T_WeaponIcon_SniperRifle"
+	IconTexture=Texture2D'RX_WP_SniperRifle.UI.T_WeaponIcon_SniperRifle'
+	
 }
