@@ -62,4 +62,5 @@ DefaultProperties
 	Vehicles.Add(class'TS_Vehicle_HoverMRLS');
 	Vehicles.Add(class'TS_Vehicle_TickTank');
 	Vehicles.Add(class'TS_Vehicle_ReconBike');
+	Vehicles.Add(class'TS_Vehicle_Buggy');
 }

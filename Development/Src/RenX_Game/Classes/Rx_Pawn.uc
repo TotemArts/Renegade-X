@@ -82,6 +82,9 @@ var bool            bClimbDown;
 // Variables for Grenades
 var bool bThrowingGrenade;      // already throwing grenade yet?
 
+// Variable for vehicle entering (allows 
+var bool CanEnterVehicles;
+
 // Anti bunny hop
 var float MaxJumpZ;
 var float CurrentHopStamina;
@@ -3281,6 +3284,8 @@ DefaultProperties
 	ParachuteCamDistMod = 400.0
 	//ParachuteCamDistMod = 200.0
 	CurrentParachuteCamDistMod = 0
+
+	CanEnterVehicles = true;
 
 	CurrentHopStamina = 1.0
 	MinHopStamina = 0.40

@@ -53,7 +53,7 @@ DefaultProperties
 
     FireInterval(0)=0.15
     FireInterval(1)=0.15
-    bFastRepeater=true
+    bFastRepeater=false
 
     Spread(0)=0.35
     Spread(1)=0.35

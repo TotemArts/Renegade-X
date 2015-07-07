@@ -82,7 +82,7 @@ DefaultProperties
     MaxSpeed=1200
     HornIndex=1
     COMOffset=(x=20.0,y=0.0,z=-85.0)
-    bUsesBullets = true
+    bUsesBullets = false
     bOkAgainstBuildings=true
     bSecondaryFireTogglesFirstPerson=false
 	

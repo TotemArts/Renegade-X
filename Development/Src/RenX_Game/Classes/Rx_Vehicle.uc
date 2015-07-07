@@ -1199,6 +1199,9 @@ simulated function bool CanEnterVehicle(Pawn P)
 	local bool bSeatAvailable, bIsHuman;
 	local PlayerReplicationInfo SeatPRI;
 
+	if (Rx_Pawn(P) != None && !Rx_Pawn(P).CanEnterVehicles)
+		return false;
+
 	// Vehicle is locked after purchase
 	if(buyerPri != none)
 	{

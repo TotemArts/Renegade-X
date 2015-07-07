@@ -94,6 +94,7 @@ function SetTarget(Rx_Pawn NewTarget)
 	SetTimer(TimeUntilKillTarget,false,'KillTarget');
 
 	Target.CustomGravityScaling = -UpwardAcceleration;
+	Target.CanEnterVehicles = false;
 
 	TargetWasSet = true;
 }
