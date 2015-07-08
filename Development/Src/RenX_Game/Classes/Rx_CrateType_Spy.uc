@@ -48,7 +48,7 @@ function ExecuteCrateBehaviour(Rx_Pawn Recipient, Rx_PRI RecipientPRI, Rx_CrateP
 
 DefaultProperties
 {
-	BroadcastMessageIndex = 6
+	BroadcastMessageIndex = 8
 	BroadcastMessageAltIndex = 7
 	PickupSound = SoundCue'Rx_Pickups.Sounds.SC_Crate_Spy'
 }
