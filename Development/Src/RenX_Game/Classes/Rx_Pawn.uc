@@ -112,7 +112,7 @@ var bool        bWasInThirdPersonBeforeIronsight;
 var float		WalkingSpeed;
 var float		RunningSpeed;
 var float       IntendedGroundSpeed;
-var float       SpeedUpgradeMultiplier;
+var repnotify float       SpeedUpgradeMultiplier;
 
 var name 		DodgeForwardAnim;
 var name 		DodgeBackwardAnim;
@@ -229,7 +229,7 @@ var byte HitEnemyWithHeadshotForDemoRec;
 replication
 {
 	if ( bNetDirty)
-		Armor, ArmorMax, CurrentBackWeapons, AirstrikeLocation; 
+		Armor, ArmorMax, CurrentBackWeapons, AirstrikeLocation, SpeedUpgradeMultiplier; 
 	if ( bNetDirty && !bNetOwner)
 		DodgeAnim, ReloadAnim, BoltReloadAnim, ParachuteDeployed, bRepairing, bBeaconDeployAnimating, bBlinkingName, bSprintingServer;
 	// Only replicate if our current weapon is a shotgun. Otherwise this is irrelivant.
@@ -382,6 +382,8 @@ simulated event ReplicatedEvent(name VarName)
 				Rx_Attachment_Airstrike(CurrentWeaponAttachment).SpawnBeam(AirstrikeLocation);
 		}
 	}
+	else if (VarName == 'SpeedUpgradeMultiplier')
+		UpdateRunSpeedNode();
 	else
 	{
 		Super.ReplicatedEvent(VarName);
@@ -1030,7 +1032,7 @@ reliable server function ServerSetGroundSpeed(float Speed) {
 	Groundspeed = Speed * SpeedUpgradeMultiplier;
 }
 
-function UpdateRunSpeedNode()
+simulated function UpdateRunSpeedNode()
 {
 	RunSpeedAnimNode.Constraints[0] = 0;
 	RunSpeedAnimNode.Constraints[1] = WalkingSpeed * SpeedUpgradeMultiplier - 5;
