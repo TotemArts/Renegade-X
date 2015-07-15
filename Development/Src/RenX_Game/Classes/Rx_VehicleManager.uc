@@ -310,7 +310,7 @@ function Actor SpawnVehicle(VQueueElement VehToSpawn, optional byte TeamNum = -1
 		{
 			`LogRxPub("GAME" `s "Purchase;" `s "vehicle" `s VehToSpawn.VehClass.name `s "by" `s `PlayerLog(VehToSpawn.Buyer));
 			if (Rx_Controller(VehToSpawn.Buyer.Owner) != None)
-				Rx_Controller(VehToSpawn.Buyer.Owner).clientmessage("Your vehicle is beeing delivered!", 'Vehicle');
+				Rx_Controller(VehToSpawn.Buyer.Owner).clientmessage("Your vehicle is being delivered!", 'Vehicle');
 		}
 		else
 			`LogRxPub("GAME" `s "Spawn;" `s "vehicle" `s class'Rx_Game'.static.GetTeamName(TeamNum) $ "," $ VehToSpawn.VehClass.name);
