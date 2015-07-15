@@ -93,6 +93,8 @@ function Rx_CrateType DetermineCrateType(Rx_Pawn Recipient)
 			`log(InstancedCrateTypes[i] @ "probability:" @ probabilities[i]);
 			probabilitySum += probabilities[i];
 		}
+		else
+			probabilities.AddItem(0.0f);
 	}
 	`log("Probability Sum:" @ probabilitySum);
 
