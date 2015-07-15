@@ -4,6 +4,7 @@ class  Rx_CrateType extends Object
 	config(RenegadeX);
 
 var config float BaseProbability; // 1 = Average probability, 2 = twice average, 0.5 = half average, 0 = never
+var config int StartSpawnTime; // Time at which crate becomes possible in seconds
 
 var localized string PickupMessage;
 var int BroadcastMessageIndex;

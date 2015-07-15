@@ -87,9 +87,12 @@ function Rx_CrateType DetermineCrateType(Rx_Pawn Recipient)
 	// Get sum of probabilities, and cache values
 	for (i = 0; i < InstancedCrateTypes.Length; i++)
 	{
-		probabilities.AddItem(InstancedCrateTypes[i].GetProbabilityWeight(Recipient,self));
-		`log(InstancedCrateTypes[i] @ "probability:" @ probabilities[i]);
-		probabilitySum += probabilities[i];
+		if (WorldInfo.GRI.ElapsedTime >= InstancedCrateTypes[i].StartSpawnTime)
+		{
+			probabilities.AddItem(InstancedCrateTypes[i].GetProbabilityWeight(Recipient,self));
+			`log(InstancedCrateTypes[i] @ "probability:" @ probabilities[i]);
+			probabilitySum += probabilities[i];
+		}
 	}
 	`log("Probability Sum:" @ probabilitySum);
 
