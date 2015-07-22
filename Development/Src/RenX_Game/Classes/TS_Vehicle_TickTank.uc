@@ -27,7 +27,7 @@ state Deployed
 
 DefaultProperties
 {
-	TakeDamageMultiplier = 0.35;
+	TakeDamageMultiplier = 0.65;
 
 //========================================================\\
 //************** Vehicle Physics Properties **************\\
