@@ -611,6 +611,7 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 	local int BleedDamage;
 	local PlayerController PC;
 	local Controller Killer;
+	local Controller Killed;
 	local class<Rx_DmgType_Special> DmgType;
 	local float Scr;
 	
@@ -668,6 +669,9 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 	{
 		AdjustDamage(ActualDamage, Momentum, EventInstigator, HitLocation, DamageType, HitInfo, DamageCauser );
 	}
+
+	// Controller is set to None by Actor.TakeDamage
+	Killed = Controller;
 
 	// call Actor's version to handle any SeqEvent_TakeDamage for scripting
 	Super(Actor).TakeDamage(ActualDamage, EventInstigator, HitLocation, Momentum, DamageType, HitInfo, DamageCauser);
@@ -777,7 +781,7 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 				
 			Scr = ScoreDamage * class<Rx_FamilyInfo>(CurrCharClassInfo).default.DamagePointsMultiplier;							
 			
-			if (GetTeamNum() != EventInstigator.GetTeamNum() && Rx_PRI(EventInstigator.PlayerReplicationInfo) != None)
+			if (((Killed == None && GetTeamNum() != EventInstigator.GetTeamNum()) || Killed.GetTeamNum() != EventInstigator.GetTeamNum()) && Rx_PRI(EventInstigator.PlayerReplicationInfo) != None)
 			{
 				Rx_PRI(EventInstigator.PlayerReplicationInfo).AddScoreToPlayerAndTeam(Scr);
 			}
