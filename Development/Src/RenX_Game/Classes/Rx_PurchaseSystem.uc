@@ -369,9 +369,12 @@ simulated function string GetFactoryDescription(byte teamID, string menuName, Rx
 			factoryName = AirStrip != none ? Caps(AirStrip.GetHumanReadableName()) : "AIRSTRIP";
 		}
 		if (AreVehiclesDisabled(teamID, rxPC)) {
-			if (Rx_TeamInfo(WorldInfo.GRI.Teams[teamID]).IsAtVehicleLimit()) {
+			if (Rx_TeamInfo(WorldInfo.GRI.Teams[teamID]).IsAtVehicleLimit())
 				factoryStatus = "STATUS: FULL"; 
-			} else {
+			else if (default.AirdropCooldownTime < 0)
+				factoryStatus = "STATUS: DESTROYED";
+			else
+			{
 				AirdropTime = default.AirdropCooldownTime - (WorldInfo.TimeSeconds - Rx_PRi(rxPC.PlayerreplicationInfo).LastAirdropTime);
 				factoryStatus = "STATUS: AIRDROP PENDING("$AirdropTime$")";
 			}
@@ -484,6 +487,8 @@ simulated function bool AreVehiclesDisabled(byte teamID, Controller rxPC)
 simulated function bool AirdropAvailable(PlayerreplicationInfo pri)
 {
 	if(Rx_Pri(pri).LastAirdropTime == 0)
+		return false;
+	if (default.AirdropCooldownTime < 0)
 		return false;
 	return default.AirdropCooldownTime - (Worldinfo.TimeSeconds - Rx_Pri(pri).LastAirdropTime) <= 0;
 }
