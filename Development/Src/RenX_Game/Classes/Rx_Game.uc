@@ -114,6 +114,7 @@ var config bool bPrivateMessageTeamOnly;
 var config bool bAutoShuffleOnNewRound;
 
 var config bool bRandomTeamSwap;
+var config int buildingArmorPercentage;
 
 struct Server
 {

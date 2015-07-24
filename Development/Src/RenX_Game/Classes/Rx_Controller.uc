@@ -1938,7 +1938,7 @@ function BroadcastBuildingSpotMessages(Rx_Building Building)
 	local String msg;
 	local int nr;
 	if(Building.GetTeamNum() == GetTeamNum()) {
-		if(Building.GetHealth() == Building.GetMaxHealth()) { 
+		if((Building.GetHealth() + Building.GetArmor()) == Building.GetMaxHealth()) { 
 			msg = "Defend the"@Building.GetHumanReadableName()@"!";
 			if(Rx_Building_Refinery(Building) != None)
 				nr = 28;
@@ -1947,7 +1947,7 @@ function BroadcastBuildingSpotMessages(Rx_Building Building)
 			else
 				nr = 27;
 		}
-		else if(Building.GetHealth() > Building.GetMaxHealth()/3) {
+		else if((Building.GetHealth() + Building.GetArmor()) > Building.GetMaxHealth()/3) {
 			msg = "The"@Building.GetHumanReadableName()@"needs repair!";
 			nr = 0;
 		} else {

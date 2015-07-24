@@ -3,7 +3,7 @@ class Rx_CapturableMCT extends Rx_Building_Techbuilding
 
 simulated function String GetHumanReadableName()
 {
-	return "Master Control Terminal";
+	return "MCT";
 }
 
 defaultproperties

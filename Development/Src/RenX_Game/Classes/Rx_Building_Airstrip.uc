@@ -35,6 +35,16 @@ simulated function int GetMaxHealth()
 	return AirTowerInternals.GetMaxHealth();
 }
 
+simulated function int GetArmor() 
+{
+	return AirTowerInternals.GetArmor();		
+}
+
+simulated function int GetMaxArmor() 
+{
+	return AirTowerInternals.GetMaxArmor();
+}
+
 simulated function string GetBuildingName()
 {
 	return AirTowerInternals.GetBuildingName();

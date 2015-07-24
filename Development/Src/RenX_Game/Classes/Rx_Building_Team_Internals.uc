@@ -2,6 +2,7 @@ class Rx_Building_Team_Internals extends Rx_Building_Internals;
 
 var int                     Health;             // Current health of the building
 var int                     HealthMax;          // Maximum health of the building
+var int                     Armor;          	// Maximum health of the building
 var int                     LowHPWarnLevel;     // under this health-lvl lowHP warnings will be send (critical)
 var int                     RepairedHPLevel;    // Repaired message will not play if the building didn't fall below this level of health.
 var float                   SavedDmg;           // Since infantry weapons will do fractions of damage it is added here and once it is greater than 1 point of damage it is applied to health
@@ -42,7 +43,7 @@ replication
 	if( bNetInitial && Role == ROLE_Authority )
 		HealthMax;
 	if( bNetDirty && Role == ROLE_Authority )
-		Health, bDestroyed, DamageLodLevel, bNoPower;
+		Health, Armor, bDestroyed, DamageLodLevel, bNoPower;
 }
 
 simulated event ReplicatedEvent( name VarName )
@@ -66,8 +67,17 @@ simulated function Init( Rx_Building Visuals, bool isDebug )
 	// Martin P. (JeepRubi): Bugfix: Only do this on the server, it will be replicated to clients.
 	if (Role == ROLE_Authority)
 	{
-		Health = Visuals.HealthMax;
-		HealthMax = Visuals.HealthMax;
+		
+		if(Rx_Game(WorldInfo.Game).buildingArmorPercentage > 0 && Rx_Building_Techbuilding(Visuals) == None)
+		{
+			Armor = Visuals.HealthMax * Rx_Game(WorldInfo.Game).buildingArmorPercentage/100;
+			Health = Visuals.HealthMax - Armor;
+			HealthMax = Visuals.HealthMax;	
+		} 
+		else {		
+			Health = Visuals.HealthMax;
+			HealthMax = Visuals.HealthMax;		
+		}
 	}
 	
 	if (TeamID == TEAM_UNOWNED)
@@ -88,6 +98,16 @@ simulated function int GetHealth()
 simulated function int GetMaxHealth() 
 {
 	return HealthMax; 
+}
+
+simulated function int GetArmor() 
+{
+	return Armor; 
+}
+
+simulated function int GetMaxArmor() 
+{
+	return float(HealthMax) * float(Rx_GRI(WorldInfo.Gri).buildingArmorPercentage)/100.0f; 
 }
 
 simulated function bool IsDestroyed()
@@ -147,7 +167,18 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 	DamageAmount = Max(DamageAmount, 0);
 	//bForceNetUpdate = True;
 
-	Health = Max(Health - DamageAmount, 0);
+	if(Armor > 0)
+	{
+		if(DamageAmount - Armor > 0)
+		{
+			Health = Max(Health - (DamageAmount - Armor), 0);	 
+		}
+		Armor = Max(Armor - DamageAmount, 0);	
+	}
+	else
+	{
+		Health = Max(Health - DamageAmount, 0);
+	}
 
 	if (Health <= 0) 
 	{
@@ -195,16 +226,32 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
 	local int RealAmount;
 	local float Scr;
 	local int dmgLodLevel;
+	local int repairableHealth;
+	local int repairableMaxHealth;
+	local bool bRepairArmor;
+	
+	if(Rx_Building_TechBuilding_Internals(self) == None && Rx_Game(WorldInfo.Game).buildingArmorPercentage > 0)
+	{
+		bRepairArmor = true;
+		repairableHealth = Armor;
+		repairableMaxHealth = HealthMax * Rx_Game(WorldInfo.Game).buildingArmorPercentage/100;
+	}
+	else
+	{
+		repairableHealth = Health;
+		repairableMaxHealth = HealthMax;
+	}
+	
 
 	Amount = Amount*2;
-	if (Health > 0 && Health < HealthMax && Amount > 0 && Healer != None && Healer.GetTeamNum() == GetTeamNum() )
+	if ((bRepairArmor || repairableHealth > 0) && repairableHealth < repairableMaxHealth && Amount > 0 && Healer != None && Healer.GetTeamNum() == GetTeamNum() )
 	{
-		RealAmount = Min(Amount, HealthMax - Health);
+		RealAmount = Min(Amount, repairableMaxHealth - repairableHealth);
 
 		if (RealAmount > 0)
 		{
 
-			if (Health >= HealthMax && SavedDmg > 0.0f)
+			if (repairableHealth >= repairableMaxHealth && SavedDmg > 0.0f)
 			{
 				SavedDmg = FMax(0.0f, SavedDmg - Amount);
 				Scr = SavedDmg * HealPointsScale;
@@ -215,10 +262,18 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
 			Rx_PRI(Healer.PlayerReplicationInfo).AddScoreToPlayerAndTeam(Scr);
 		}
 
-
-		Health = Min(HealthMax, Health + Amount);
-
-		if ( Health >= HealthMax )
+		if(bRepairArmor)
+		{
+			Armor = Min(repairableMaxHealth, Armor + Amount);
+			repairableHealth = Armor;
+		}
+		else
+		{
+			Health = Min(repairableMaxHealth, Health + Amount);
+			repairableHealth = Health;
+		}
+		
+		if ( repairableHealth >= repairableMaxHealth )
 		{
 			if (RealAmount > 0 && (WorldInfo.TimeSeconds - LastBuildingRepairedMessageTime > 10) && bCanPlayRepaired )
 			{
@@ -244,12 +299,12 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
 function int GetBuildingHealthLod() {
 	
 	local int perc;
-	if(Health <= 0) {
+	if((Health+Armor) <= 0) {
 		return 4;
-	} else if(health == GetMaxHealth()) {
+	} else if((health+Armor) == GetMaxHealth()) {
 		return 1;	
 	}
-	perc = health/(GetMaxHealth()/100);
+	perc = (health+Armor)/(GetMaxHealth()/100);
 	if(perc > 66) {
 		if(DamageLodLevel == 2) {
 			if(perc >= 80) 
@@ -269,7 +324,7 @@ function int GetBuildingHealthLod() {
 	} else if(perc > 0) {
 		return 3;		
 	}
-	return health/400;						
+	return (health+Armor)/400;						
 }
 
 simulated function ChangeDamageLodLevel(int newDmgLodLevel) 

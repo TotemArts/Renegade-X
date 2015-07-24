@@ -46,6 +46,9 @@ var Box ActualBoundingBox;
 var String TargetName;
 var String TargetDescription;
 var float TargetHealthPercent;
+var float TargetHealthMaxPercent;
+var float TargetArmorPercent;
+var bool bHasArmor;
 var Vector2D TargetNameTextSize;
 var Vector2D TargetDescriptionTextSize;
 
@@ -217,6 +220,9 @@ function UpdateTargetHealthPercent ()
 		TargetHealthPercent = -1;
 		return;
 	}
+	
+	TargetArmorPercent = 0;
+	bHasArmor = false;
 
 	if (Rx_Pawn(TargetedActor) != none)
 	{
@@ -233,11 +239,33 @@ function UpdateTargetHealthPercent ()
 	else if (Rx_BuildingAttachment(TargetedActor) != none && Rx_BuildingAttachment_PT(TargetedActor) == none)
 	{
 		TargetHealthPercent = Rx_BuildingAttachment(TargetedActor).getBuildingHealthPct();
+		TargetHealthMaxPercent = Rx_BuildingAttachment(TargetedActor).getBuildingHealthMaxPct();
+		if(Rx_GRI(RenxHud.WorldInfo.Gri).buildingArmorPercentage > 0)
+		{		
+			TargetArmorPercent = Rx_BuildingAttachment(TargetedActor).getBuildingArmorPct();
+			bHasArmor = true;
+		}
 	}
 	else if (Rx_Building(TargetedActor) != none)
-		TargetHealthPercent = float(Rx_Building(TargetedActor).GetHealth()) / float(Rx_Building(TargetedActor).GetMaxHealth());
+	{
+		TargetHealthPercent = float(Rx_Building(TargetedActor).GetHealth()) / float(Rx_Building(TargetedActor).GetMaxHealth());		
+		TargetHealthMaxPercent = float(Rx_Building(TargetedActor).GetMaxHealth() - Rx_Building(TargetedActor).GetMaxArmor()) / float(Rx_Building(TargetedActor).GetMaxHealth()); 
+		if(Rx_GRI(RenxHud.WorldInfo.Gri).buildingArmorPercentage > 0)
+		{
+			TargetArmorPercent = float(Rx_Building(TargetedActor).GetArmor()) / float(Rx_Building(TargetedActor).GetMaxArmor());
+			bHasArmor = true;
+		}
+	}
 	else
 		TargetHealthPercent = -1;
+		
+	if(Rx_Building_Techbuilding(TargetedActor) != None || Rx_CapturableMCT(TargetedActor) != None
+		|| (Rx_BuildingAttachment(TargetedActor) != none 
+			&& (Rx_Building_Techbuilding(Rx_BuildingAttachment(TargetedActor).OwnerBuilding.BuildingVisuals) != None || Rx_CapturableMCT(Rx_BuildingAttachment(TargetedActor).OwnerBuilding.BuildingVisuals) != None)) )
+	{
+		bHasArmor = false;
+	}	
+		
 }
 
 function UpdateTargetName ()
@@ -498,57 +526,121 @@ private function DrawHealthBar()
 {
 	local int i;
 	local CanvasIcon HealthCell;
+	local int HealthBarsToDraw;
+	local int HealthFillupBarsToDraw;
+	local int ArmorBarsToDraw;
 	local int BarsToDraw;
 	local float X, Y;
+	local float ArmorHealthPercentTemp;
 	
 	if (TargetHealthPercent != -1)
 	{
-	
-		if (TargetHealthPercent < HealthBarRedThreshold)
-			HealthCell = HealthCellRed;
-		else if (TargetHealthPercent < HealthBarYellowThreshold)
-			HealthCell = HealthCellYellow;
-		else 
-			HealthCell = HealthCellGreen;
-
 		
-			BarsToDraw = RoundUp(TargetHealthPercent * float(HealthBarCells) );
+		if(bHasArmor)
+			ArmorHealthPercentTemp = Rx_GRI(RenxHud.WorldInfo.Gri).buildingArmorPercentage / 100.0;		
+		
+		if(ArmorHealthPercentTemp > 0)
+		{
+			
+			if (TargetHealthPercent < HealthBarRedThreshold*TargetHealthMaxPercent)
+				HealthCell = HealthCellRed;
+			else if (TargetHealthPercent < HealthBarYellowThreshold*TargetHealthMaxPercent)
+				HealthCell = HealthCellYellow;
+			else 
+				HealthCell = HealthCellGreen;
+			
+				HealthBarsToDraw = RoundUp(TargetHealthPercent * float(HealthBarCells) );
+				HealthFillupBarsToDraw = RoundUp(TargetHealthMaxPercent * float(HealthBarCells)) - HealthBarsToDraw; 
+				ArmorBarsToDraw = RoundUp(TargetArmorPercent*ArmorHealthPercentTemp * float(HealthBarCells) );
+		
+			X = VisualBoundsCenterX + HealthBarXOffset;
 	
-		X = VisualBoundsCenterX + HealthBarXOffset;
-
- 		if (AnchorInfoTop)
-			Y = VisualBoundingBox.Min.Y + HealthBarYOffset;
-		else
-			Y = VisualBoundingBox.Max.Y + HealthBarYOffset;
-
-		for (i = 0; i < BarsToDraw; i++)
+	 		if (AnchorInfoTop)
+				Y = VisualBoundingBox.Min.Y + HealthBarYOffset;
+			else
+				Y = VisualBoundingBox.Max.Y + HealthBarYOffset;
+	
+			for (i = 0; i < HealthBarsToDraw; i++)
+			{
+				Canvas.DrawIcon(HealthCell,X,Y);
+				X += HealthBarCellSpacing;
+			}
+			
+			Canvas.DrawColor = ColorGreyedOut;
+			for (i = 0; i < HealthFillupBarsToDraw; i++)
+			{
+				Canvas.DrawIcon(HealthCell,X,Y);
+				X += HealthBarCellSpacing;
+			}			
+			
+			Canvas.DrawColor = ColorWhite;
+			if(int(TargetArmorPercent*10) <= 2)
+				HealthCell = HealthCellRed;
+			else if(int(TargetArmorPercent*10) <= 5)
+				HealthCell = HealthCellYellow;	
+			else 
+				HealthCell = HealthCellGreen;			
+			for (i = 0; i < ArmorBarsToDraw; i++)
+			{
+				Canvas.DrawIcon(HealthCell,X,Y-1,1.4); 
+				X += HealthBarCellSpacing;
+			}
+			
+			Canvas.DrawColor = ColorGreyedOut;
+			for (i = 0; i < HealthBarCells - (HealthBarsToDraw + HealthFillupBarsToDraw + ArmorBarsToDraw); i++)
+			{
+				Canvas.DrawIcon(HealthCell,X,Y-1,1.4);
+				X += HealthBarCellSpacing;
+			}	
+		} else
 		{
-			Canvas.DrawIcon(HealthCell,X,Y);
-			X += HealthBarCellSpacing;
-		}
-
-		Canvas.DrawColor = ColorGreyedOut;
-		for (i = 0; i < HealthBarCells - BarsToDraw; i++)
-		{
-			Canvas.DrawIcon(HealthCell,X,Y);
-			X += HealthBarCellSpacing;
+			if (TargetHealthPercent < HealthBarRedThreshold)			
+				HealthCell = HealthCellRed;
+			else if (TargetHealthPercent < HealthBarYellowThreshold)
+				HealthCell = HealthCellYellow;
+			else 
+				HealthCell = HealthCellGreen;
+	
+			
+				BarsToDraw = RoundUp(TargetHealthPercent * float(HealthBarCells) );
+		
+			X = VisualBoundsCenterX + HealthBarXOffset;
+	
+	 		if (AnchorInfoTop)
+				Y = VisualBoundingBox.Min.Y + HealthBarYOffset;
+			else
+				Y = VisualBoundingBox.Max.Y + HealthBarYOffset;
+	
+			for (i = 0; i < BarsToDraw; i++)
+			{
+				Canvas.DrawIcon(HealthCell,X,Y);
+				X += HealthBarCellSpacing;
+			}
+	
+			Canvas.DrawColor = ColorGreyedOut;
+			for (i = 0; i < HealthBarCells - BarsToDraw; i++)
+			{
+				Canvas.DrawIcon(HealthCell,X,Y);
+				X += HealthBarCellSpacing;
+			}		
 		}
 
 		if (TargetHealthPercent <= 0)
 		{
-			Canvas.DrawColor = ColorRed;
+			Canvas.DrawColor = ColorGreen; 
 			X = VisualBoundsCenterX + LabelXOffset;
 			Canvas.Font = LabelFont;
 			Canvas.SetPos(X,Y,0);
 			Canvas.DrawText("(Destroyed)");
-		}
+		}	
+		
 	}
 
 }
 
 private function DrawHealthPercent()
 {
-	local float X,Y;
+	local float X,Y,f1,f2;
 	local int iHealthPercent;
 	
 	if(TargetHealthPercent <= 0)
@@ -562,6 +654,11 @@ private function DrawHealthPercent()
 	{
 		X = VisualBoundsCenterX + LabelXOffset + TargetNameTextSize.X + 5;
 	}
+	
+	if(TargetNameTextSize.X > 85) 
+	{
+		X += 10;
+	}
 
 
 	if (TargetHealthPercent != -1)
@@ -572,18 +669,67 @@ private function DrawHealthPercent()
 		else
 			Y = VisualBoundingBox.Max.Y + PercentYOffset;
 	
-		if (TargetHealthPercent < HealthBarRedThreshold)
-			Canvas.DrawColor = ColorRed;
-		else if (TargetHealthPercent < HealthBarYellowThreshold)
-			Canvas.DrawColor = ColorYellow;
-		else 
-			Canvas.DrawColor = ColorGreen;
-
-		iHealthPercent = int(TargetHealthPercent * 100);
-
-		Canvas.Font = PercentageFont;
-		Canvas.SetPos(X,Y,0);
-		Canvas.DrawText(iHealthPercent $ "%");
+			
+		if(bHasArmor)
+		{		
+			if (TargetHealthPercent < HealthBarRedThreshold*TargetHealthMaxPercent)
+				Canvas.DrawColor = ColorRed;
+			else if (TargetHealthPercent < HealthBarYellowThreshold*TargetHealthMaxPercent)
+				Canvas.DrawColor = ColorYellow;
+			else 
+				Canvas.DrawColor = ColorGreen;
+	
+			Canvas.Font = PercentageFont;
+			Canvas.SetPos(X-10,Y,0);
+			if(int((TargetHealthPercent/TargetHealthMaxPercent)*10) <= 2)
+				Canvas.DrawColor = ColorRed;
+			else if(int((TargetHealthPercent/TargetHealthMaxPercent)*10) <= 5)
+				Canvas.DrawColor = ColorYellow;	
+			else 
+				Canvas.DrawColor = ColorGreen;				
+			
+			Canvas.DrawText(int((TargetHealthPercent/TargetHealthMaxPercent)*100) $ "/");
+			
+			Canvas.StrLen(int((TargetHealthPercent/TargetHealthMaxPercent)*100) $ "/",f1,f2);
+			Canvas.SetPos(Canvas.CurX + f1,Y,0);
+			
+			if(int(TargetArmorPercent*10) <= 2)
+				Canvas.DrawColor = ColorRed;
+			else if(int(TargetArmorPercent*10) <= 5)
+				Canvas.DrawColor = ColorYellow;	
+			else 
+				Canvas.DrawColor = ColorGreen;			
+			Canvas.DrawText(int(TargetArmorPercent*100));
+		} 
+		else
+		{
+			if (TargetHealthPercent < HealthBarRedThreshold)
+				Canvas.DrawColor = ColorRed;
+			else if (TargetHealthPercent < HealthBarYellowThreshold)
+				Canvas.DrawColor = ColorYellow;
+			else 
+				Canvas.DrawColor = ColorGreen;
+	
+			iHealthPercent = int(TargetHealthPercent * 100);
+	
+			Canvas.Font = PercentageFont;
+			Canvas.SetPos(X,Y,0);
+			Canvas.DrawText(iHealthPercent $ "%");
+		}	
+		
+		/** Debug Info:
+		Canvas.SetPos(X,Y+20,0);
+		Canvas.DrawText(Rx_GRI(RenxHud.WorldInfo.Gri).buildingArmorPercentage $ "%");
+		Canvas.DrawText(TargetHealthPercent $ "%");
+		Canvas.DrawText(TargetHealthMaxPercent $ "%");
+		Canvas.DrawText(TargetArmorPercent $ "%");
+		Canvas.DrawText(ArmorHealthPercentTemp $ "%");
+		Canvas.DrawText(Rx_Building(TargetedActor).GetHealth());
+		Canvas.DrawText(Rx_Building(TargetedActor).GetMaxHealth());
+		Canvas.DrawText(Rx_Building(TargetedActor).GetArmor());
+		Canvas.DrawText(Rx_Building(TargetedActor).GetMaxArmor());
+		*/
+		
 	}
 }
 

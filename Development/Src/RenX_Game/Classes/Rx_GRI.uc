@@ -26,17 +26,18 @@ var Rx_PurchaseSystem PurchaseSystem;
 var int MapVotesSize;
 var float RenEndTime;
 var string NextMap;
+var int buildingArmorPercentage;
 
 replication
 {
 	if (bNetDirty)
-		WinnerTeamNum,WinnerReason,MapVotes,PurchaseSystem,MapVoteList,NextMap;
+		WinnerTeamNum,WinnerReason,MapVotes,PurchaseSystem,MapVoteList,NextMap,buildingArmorPercentage;
 }
 
 simulated event PostBeginPlay()
 {
 	super.PostBeginPlay();
-	if(WorldInfo.Netmode == NM_DedicatedServer)
+	if(WorldInfo.Netmode != NM_Client)
 		SetTimer(1.0f,false,'GetPurchaseSystem');
 }
 
@@ -83,6 +84,7 @@ function SetFixedNextMap(string MapName)
 function GetPurchaseSystem()
 {
 	PurchaseSystem = Rx_Game(WorldInfo.Game).GetPurchaseSystem();	
+	buildingArmorPercentage = Rx_Game(WorldInfo.Game).buildingArmorPercentage;
 }
 
 function VehChangedTeam(UTVehicle rxVehicle) {

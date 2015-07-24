@@ -221,6 +221,10 @@ simulated function int GetHealth();
 
 simulated function int GetMaxHealth();
 
+simulated function int GetArmor();
+
+simulated function int GetMaxArmor();
+
 simulated function string GetBuildingName()
 {
 	return BuildingName;

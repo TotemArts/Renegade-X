@@ -61,7 +61,7 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
 
 simulated function string GetHumanReadableName()
 {
-	return "Master Control Terminal";
+	return "MCT";
 }
 
 defaultproperties

@@ -65,11 +65,25 @@ simulated function RepairPawn(Rx_Pawn pawn, float DeltaTime)
 
 simulated function RepairBuilding(Rx_Building building, float DeltaTime)
 {
+	local int repairableHealth;
+	local int maxRepairableHealth;
+	
+	
+	if(Rx_GRI(WorldInfo.GRI).buildingArmorPercentage > 0 && (Rx_Building_Techbuilding(building) == None && Rx_CapturableMCT(building) == None))
+	{
+		repairableHealth = building.GetArmor();
+		maxRepairableHealth = building.GetMaxHealth() * Rx_GRI(WorldInfo.GRI).buildingArmorPercentage/100;
+	}
+	else
+	{
+		repairableHealth = building.GetHealth();
+		maxRepairableHealth = building.GetMaxHealth();
+	}
+	
 	if (!IsEnemy(building) &&
 		!building.IsDestroyed() &&
 		Rx_Building_Techbuilding(building) == none && // Do not repair tech building exteriors
-		building.GetHealth() > 0 &&
-		building.GetHealth() < building.GetMaxHealth()) 
+		repairableHealth < maxRepairableHealth) 
 	{
 		Repair(building,DeltaTime);
 	}
@@ -85,15 +99,28 @@ simulated function RepairBuilding(Rx_Building building, float DeltaTime)
 
 simulated function RepairBuildingAttachment(Rx_BuildingAttachment buildingAttachment, float DeltaTime)
 {
+	local int repairableHealth;
+	local int maxRepairableHealth;	
+	
+	if(Rx_GRI(WorldInfo.GRI).buildingArmorPercentage > 0 && (Rx_Building_Techbuilding(buildingAttachment.OwnerBuilding.BuildingVisuals) == None && Rx_CapturableMCT(buildingAttachment.OwnerBuilding.BuildingVisuals) == None))
+	{
+		repairableHealth = buildingAttachment.OwnerBuilding.BuildingVisuals.GetArmor();
+		maxRepairableHealth = buildingAttachment.OwnerBuilding.BuildingVisuals.GetMaxHealth() * Rx_GRI(WorldInfo.GRI).buildingArmorPercentage/100;
+	}
+	else
+	{
+		repairableHealth = buildingAttachment.OwnerBuilding.BuildingVisuals.GetHealth();
+		maxRepairableHealth = buildingAttachment.OwnerBuilding.BuildingVisuals.GetMaxHealth();
+	}	
+	
 	// Is a tech building MCT
 	if (Rx_BuildingAttachment_MCT(buildingAttachment) != None && Rx_Building_TechBuilding_Internals(buildingAttachment.OwnerBuilding) != None &&
 		!(Rx_BuildingAttachment_MCT(buildingAttachment).ScriptGetTeamNum() == Instigator.GetTeamNum() && buildingAttachment.OwnerBuilding.GetHealth() >= buildingAttachment.OwnerBuilding.GetMaxHealth() ) )
 	{
 		Repair(buildingAttachment,DeltaTime);
 	}
-	else if (!IsEnemy(buildingAttachment) && !buildingAttachment.OwnerBuilding.IsDestroyed() &&
-			buildingAttachment.OwnerBuilding.GetHealth() > 0 &&
-			buildingAttachment.OwnerBuilding.GetHealth() < buildingAttachment.OwnerBuilding.GetMaxHealth())
+	else if (!IsEnemy(buildingAttachment) && !buildingAttachment.OwnerBuilding.IsDestroyed() 
+				&& repairableHealth < maxRepairableHealth) 
 	{
 		Repair(buildingAttachment,DeltaTime);
 	}

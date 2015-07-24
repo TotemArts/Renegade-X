@@ -49,6 +49,24 @@ simulated function float getBuildingHealthPct()
 	else return -1;
 }
 
+simulated function float getBuildingHealthMaxPct()
+{
+	if (OwnerBuilding != none && OwnerBuilding.BuildingVisuals != none)
+	{
+		return float(OwnerBuilding.BuildingVisuals.GetMaxHealth() - OwnerBuilding.BuildingVisuals.GetMaxArmor()) / float(OwnerBuilding.BuildingVisuals.GetMaxHealth());		
+	}
+	else return -1;
+}
+
+simulated function float getBuildingArmorPct()
+{
+	if (OwnerBuilding != none && OwnerBuilding.BuildingVisuals != none)
+	{
+		return float(OwnerBuilding.BuildingVisuals.GetArmor()) / float(OwnerBuilding.BuildingVisuals.GetMaxArmor());
+	}
+	else return -1;
+}
+
 simulated function string GetHumanReadableName()
 {
 	if (OwnerBuilding != none && OwnerBuilding.BuildingVisuals != none)

@@ -48,7 +48,9 @@ simulated function Init(Rx_Building Visuals, bool isDebug )
 	//SetupCapturePoint();
 	MICFlag = BuildingSkeleton.CreateAndSetMaterialInstanceConstant(0);
 	FlagChanged();
+	Armor=0;
 }
+
 
 simulated function FlagChanged() 
 {

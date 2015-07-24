@@ -123,7 +123,20 @@ function Landed(vector HitNormal, Actor FloorActor)
       {
          LandEffects.SetActive(true);
       }
-   }    
+   } 
+   else 
+   {    
+		SetTimer(0.5,false,'ReplicatePositionAfterLanded');
+   }
+   
+}
+
+/** to make sure final location gets replicated */
+function ReplicatePositionAfterLanded()
+{
+	ForceNetRelevant();
+	bUpdateSimulatedPosition = true;
+	bNetDirty = true;   
 }
 
 event bool EncroachingOn(Actor Other)
