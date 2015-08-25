@@ -40,5 +40,5 @@ DefaultProperties
 	End Object
 
 	TeamID          = 255
-	CreditsGain 	= 1.0
+	CreditsGain 	= 0.5
 }

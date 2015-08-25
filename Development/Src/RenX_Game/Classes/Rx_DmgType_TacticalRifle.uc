@@ -14,6 +14,7 @@ defaultproperties
 
     CustomTauntIndex=10
     lightArmorDmgScaling=0.375
+	AircraftDamageScaling=0.5 //Better, but still just barely able to 1-clip an Apache... and the projectile is dodgeable. Patch can't be good at EVERYTHING
     BuildingDamageScaling=0.4
 	MineDamageScaling=2.0
 	

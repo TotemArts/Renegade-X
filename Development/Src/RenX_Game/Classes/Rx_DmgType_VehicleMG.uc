@@ -16,5 +16,6 @@ DefaultProperties
     bCausesBloodSplatterDecals=false
     CustomTauntIndex=10
     lightArmorDmgScaling=0.2
+	AircraftDamageScaling=0.33 //This is only used by a damage type if the value is greater than 0, otherwise it treats an aircraft like Light armour.
     BuildingDamageScaling=0.01
 }

@@ -35,25 +35,25 @@ DefaultProperties
 	
 	//-------------- Recoil
 	RecoilDelay = 0.02
-	MinRecoil = 50.0
-	MaxRecoil = 60.0
-	MaxTotalRecoil = 5000.0
-	RecoilYawModifier = 0.5 
-	RecoilInterpSpeed = 40.0
-	RecoilDeclinePct = 0.25
-	RecoilDeclineSpeed = 4.0
-	MaxSpread = 0.1
-	RecoilSpreadIncreasePerShot = 0.0005	
-	RecoilSpreadDeclineSpeed = 0.8
+	MinRecoil = 65.0						// 50.0			120
+	MaxRecoil = 70.0						// 45.0			150
+	MaxTotalRecoil = 5000.0					// 1000.0
+	RecoilYawModifier = 0.5 				// will be a random value between 0 and this value for every shot
+	RecoilInterpSpeed = 15.0				// 37.0			50
+	RecoilDeclinePct = 0.6
+	RecoilDeclineSpeed = 6.0				// 4.0
+	MaxSpread = 0.05						// 0.06			0.08
+	RecoilSpreadIncreasePerShot = 0.0015	// 0.002		0.006
+	RecoilSpreadDeclineSpeed = 0.2			// 0.1
 	RecoilSpreadDecreaseDelay = 0.15
-	RecoilSpreadCrosshairScaling = 1000;
+	RecoilSpreadCrosshairScaling = 3000;	// 2500
 	
 	CrosshairWidth = 210 	// 256
 	CrosshairHeight = 210 	// 256
 
 	ShotCost(0)=1
 	ShotCost(1)=0
-	FireInterval(0)=+0.1
+	FireInterval(0)=+0.10
 	FireInterval(1)=+0.0
 	ReloadTime(0) = 2.9
 	ReloadTime(1) = 2.9
@@ -63,7 +63,7 @@ DefaultProperties
 
     LockerRotation=(pitch=0,yaw=0,roll=-16384)
 	
-	WeaponRange=5000.0
+	WeaponRange=3600.0
 
 	WeaponFireTypes(0)=EWFT_InstantHit
 	WeaponFireTypes(1)=EWFT_None
@@ -87,12 +87,12 @@ DefaultProperties
 	WeaponProjectiles(0)=class'RenX_Game.Rx_Projectile_TiberiumFlechetteRifle'
 	WeaponProjectiles(1)=class'RenX_Game.Rx_Projectile_TiberiumFlechetteRifle'
 */
-	Spread(0)=0.003
+	Spread(0)=0.006
 	Spread(1)=0.0
 	
-	ClipSize = 50
-	InitalNumClips = 5
-	MaxClips = 5
+	ClipSize = 35
+	InitalNumClips = 7
+	MaxClips = 7
 	
 	FireDelayTime = 0.01
 	bCharge = true

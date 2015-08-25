@@ -22,6 +22,7 @@ class Rx_Vehicle extends UTVehicle
 
 var GameSkelCtrl_Recoil    Recoil;
 var bool bLightArmor;
+var bool bIsAircraft;
 var name RecoilTriggerTag; // call same as FireTriggerTags in Vehicle Weapon!
 var bool bUsesBullets;
 var Pawn PawnThatTrysToDrive;
@@ -1424,6 +1425,11 @@ function bool hasLightArmor()
 	return bLightArmor;
 }
 
+function bool hasAirCraftArmor()
+{
+	return bIsAircraft;
+}
+
 function bool TeamLink(int TeamNum)
 {
 	return (LinkHealMult > 0 && (Team == TeamNum || Team == 255) && Health > 0);
@@ -1714,12 +1720,25 @@ simulated function StartFire(byte FireModeNum)
  		}
  		return;
  	}
-
- 	if(Rx_Vehicle_Weapon(weapon) != None && Rx_Vehicle_Weapon(weapon).CurrentlyReloadingClientside)
- 	{
- 		return;
- 	}
- 			
+/////////////////////////EDITTED to include support for Multi-weapons and their Secondary reload variables that didn't originally exist. 8AUG2015
+ 	if(Rx_Vehicle_Weapon(weapon) != None) //Separated for Multi_weapons. If we make more of any kind of weapon, add it here as well.
+	{
+		//Reloadable weapons (Most of them)
+			if(Rx_Vehicle_Weapon_Reloadable(weapon) != none &&
+			Rx_Vehicle_Weapon_Reloadable(weapon).CurrentlyReloadingClientside)
+			
+			switch(FireModeNum)
+			{
+				case 0: //Primary Weapon trying to fire
+				if(Rx_Vehicle_Multiweapon(weapon) != none && Rx_Vehicle_Multiweapon(weapon).CurrentlyReloadingClientside) return;
+				break;
+				
+				case 1:
+				if(Rx_Vehicle_Multiweapon(weapon) != none && Rx_Vehicle_Multiweapon(weapon).CurrentlyReloadingSecondaryClientside) return;
+				break;
+			}			
+		
+ 	}		
  	if(Rx_Vehicle_Weapon_Reloadable(weapon) != None && Rx_Vehicle_Weapon_Reloadable(weapon).bCheckIfBarrelInsideWorldGeomBeforeFiring)
  	{
 	 	FireStartLoc = GetPhysicalFireStartLoc(UTVehicleWeapon(weapon));

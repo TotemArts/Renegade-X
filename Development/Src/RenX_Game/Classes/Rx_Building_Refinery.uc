@@ -67,8 +67,10 @@ simulated function TickBuilding(float DeltaTime)
 
 	if (CreditTickTimer <= 0)
 	{
-		if (!IsDestroyed())
-			GiveTeamCredits(CreditsPerTick);	
+		if (IsDestroyed())
+		GiveTeamCredits(CreditsPerTick/4);
+		else
+		GiveTeamCredits(CreditsPerTick);	
 		CreditTickTimer = CreditTickRate;
 	}
 	

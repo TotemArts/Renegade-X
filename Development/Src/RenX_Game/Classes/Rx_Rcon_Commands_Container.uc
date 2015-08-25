@@ -31,23 +31,27 @@ function InitRconCommands()
 	SpawnCommand(Class'Rx_Rcon_Command_HasCommand');
 	SpawnCommand(class'Rx_Rcon_Command_Map');
 	SpawnCommand(class'Rx_Rcon_Command_Ping');
-	SpawnCommand(class'Rx_Rcon_Command_GiveCredits');
 	SpawnCommand(class'Rx_Rcon_Command_Team');
 	SpawnCommand(class'Rx_Rcon_Command_Team2');
 	SpawnCommand(class'Rx_Rcon_Command_ClientVarList');
 	SpawnCommand(class'Rx_Rcon_Command_BotList');
 	SpawnCommand(class'Rx_Rcon_Command_BotVarList');
 	SpawnCommand(class'Rx_Rcon_Command_PlayerInfo');
-	SpawnCommand(class'Rx_Rcon_Command_Disarm');
-	SpawnCommand(class'Rx_Rcon_Command_DisarmBeacon');
-	SpawnCommand(class'Rx_Rcon_Command_DisarmC4');
-	SpawnCommand(class'Rx_Rcon_Command_Kill');
 	SpawnCommand(class'Rx_Rcon_Command_MineLimit');
 	SpawnCommand(class'Rx_Rcon_Command_VehicleLimit');
 	SpawnCommand(class'Rx_Rcon_Command_ChangeName');
 	SpawnCommand(class'Rx_Rcon_Command_ServerInfo');
 	SpawnCommand(class'Rx_Rcon_Command_GameInfo');
 	SpawnCommand(class'Rx_Rcon_Command_BuildingInfo');
+	SpawnCommand(class'Rx_Rcon_Command_Rotation');
+	if (!Rx_Game(WorldInfo.Game).bIsCompetitive)
+	{
+		SpawnCommand(class'Rx_Rcon_Command_Kill');
+		SpawnCommand(class'Rx_Rcon_Command_GiveCredits');
+		SpawnCommand(class'Rx_Rcon_Command_Disarm');
+		SpawnCommand(class'Rx_Rcon_Command_DisarmBeacon');
+		SpawnCommand(class'Rx_Rcon_Command_DisarmC4');
+	}
 	//SpawnCommand(class'Rx_Rcon_Command_');
 	for (M = Rx_Game(WorldInfo.Game).GetBaseRxMutator(); M != None; M = M.GetNextRxMutator())
 		M.InitRconCommands();

@@ -14,6 +14,7 @@ defaultproperties
     CustomTauntIndex=10
     lightArmorDmgScaling=1.0
     BuildingDamageScaling=1.0
+	AircraftDamageScaling=1.25 //Used so it will kill a 500hp Chinook
     MCTDamageScaling=4.0
 	MineDamageScaling=2.0
     AlwaysGibDamageThreshold=99

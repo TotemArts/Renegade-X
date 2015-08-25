@@ -2077,9 +2077,21 @@ exec function ReloadWeapon()
 	   		return;
 	   	if((Rx_Vehicle(Pawn) != none || Rx_Vehicle(Rx_VehicleSeatPawn(Pawn).MyVehicle) != none) && VehWeap != none && !VehWeap.bReloadAfterEveryShot && !VehWeap.IsInState('WeaponFiring')) 
 	   	{
-			 if(WorldInfo.NetMode == NM_Client) {
-			 	VehWeap.SetCurrentlyReloadingClientside(true);
-			 	VehWeap.SetTimer(Max(VehWeap.ReloadTime[0],VehWeap.ReloadTime[1]),false,'SetCurrentlyReloadingClientsideToFalseTimer');
+			  if(WorldInfo.NetMode == NM_Client) {
+			 	
+				//Added better support for Multi Weapons:8AUG2015
+			 	if(Rx_Vehicle_MultiWeapon(VehWeap) == none)
+				{
+				//`log("DID NORMAL RELOAD");
+				VehWeap.SetCurrentlyReloadingClientside(true);
+				VehWeap.SetTimer(Max(VehWeap.ReloadTime[0],VehWeap.ReloadTime[1]),false,'SetCurrentlyReloadingClientsideToFalseTimer');
+				}
+				else
+				{
+				//`log("DID CORRECT RELOAD For MultiWeapon ClientSide");
+				Rx_Vehicle_MultiWeapon(VehWeap).HandleClientReload(); 
+				}
+				
 			 }
 			 ServerDoReloadWeapon();
 		}
@@ -2153,18 +2165,21 @@ function eDoubleClickDir CheckForOneClickDodge()
 	return oneClickDodgeDirection;
 }
 
-reliable server function ServerDoReloadWeapon()
+reliable server function ServerDoReloadWeapon() //Log information for debugging reload bug (commented out)8AUG2015
 {
 	local Rx_Vehicle_Weapon_Reloadable vehWeapon;
 	if (Pawn != none && Pawn.Weapon != none && Rx_Weapon_Reloadable(Pawn.Weapon) != none) 
 	{
-		Rx_Weapon_Reloadable(Pawn.Weapon).ReloadWeapon();
+		Rx_Weapon_Reloadable(Pawn.Weapon).ReloadWeapon(); 
+		//`log("DID BAD RELOAD");
 	}
    	else if(Rx_Vehicle(Pawn) != none && Rx_Vehicle_Weapon_Reloadable(Rx_Vehicle(Pawn).Seats[0].Gun) != none) 
    	{
+		//`log("Problems may occur as this is not a reloadable weapon");
 		vehWeapon = Rx_Vehicle_Weapon_Reloadable(Rx_Vehicle(Pawn).Seats[0].Gun);
 		if(vehWeapon.IsReloading() == false) 
 		{
+			//`log("Did Reload for reloadable weapon");
    			vehWeapon.ReloadWeapon();
 		}
    	}
@@ -2173,11 +2188,13 @@ reliable server function ServerDoReloadWeapon()
 		vehWeapon = Rx_Vehicle_Weapon_Reloadable(Rx_VehicleSeatPawn(Pawn).MyVehicleWeapon);
 		if(vehWeapon.IsReloading() == false) 
 		{
+			//`log("DID BAD RELOAD");
    			vehWeapon.ReloadWeapon();
 		}
    	}
    	else if (Rx_Vehicle(Pawn) != none && Rx_Vehicle_MultiWeapon(Rx_Vehicle(Pawn).Seats[0].Gun) != none)
    	{
+		//`log("DID GOOD RELOAD ServerSide");
 		 Rx_Vehicle_MultiWeapon(Rx_Vehicle(Pawn).Seats[0].Gun).PlayerRelaod();
    	}
 }
@@ -2793,9 +2810,9 @@ unreliable server function BroadCastRadioCommand(int nr, String AdditionalText)
 			|| nr == 13 || nr == 14 || nr == 15 || nr == 16 || nr == 17 || nr == 18 || nr == 19 || nr == 20 || nr == 21 
 			|| nr == 22 || nr == 23 || nr == 24 || nr == 25 || nr == 26 || nr == 27 || nr == 28 || nr == 29)
 		{	
-			if(Rx_Pawn(Pawn) != None)
+			if (Rx_Pawn(Pawn) != None)
 				Rx_Pawn(Pawn).setBlinkingName();
-			else	
+			else if (Rx_Vehicle(Pawn) != None)
 				Rx_Vehicle(Pawn).setBlinkingName();		
 		}
 		

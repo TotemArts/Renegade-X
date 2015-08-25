@@ -55,7 +55,9 @@ enum PurchaseBlockType
 
 struct PTMenuBlock
 {
+	//id is obsolete now. use icon instead
 	var int 									id;
+	var Texture                                 PTIconTexture;
 	var PurchaseBlockType                       BlockType;
 	var string 									hotkey;
 	var string 									title;
@@ -72,20 +74,21 @@ struct PTMenuBlock
 	
 	StructDefaultProperties
 	{
-		id		    =	0
-		BlockType   =   EPBT_MENU
-		hotkey	    =	""
-		title	    =	""
-		cost	    =	""
-		type	    =	0
-		iconID	    =	0
-		desc	    =	""
-		damage	    =	0
-		range	    =	0
-		rateOfFire	=	0
-		magCap	    =	0
-		bEnable     =   true
-		bSilo       =   false
+		id		        =	0
+		PTIconTexture   =   Texture2D'RenXPurchaseMenu.T_WeaponIcon_MissingCameo'
+		BlockType       =   EPBT_MENU
+		hotkey	        =	""
+		title	        =	""
+		cost	        =	""
+		type	        =	0
+		iconID	        =	0
+		desc	        =	""
+		damage	        =	0
+		range	        =	0
+		rateOfFire	    =	0
+		magCap	        =	0
+		bEnable         =   true
+		bSilo           =   false
 	}
 };
 
@@ -93,6 +96,7 @@ struct PTMenuBlock
 struct PTVehicleBlock
 {
 	var int 									id;
+	var Texture                                 PTIconTexture;
 	var PurchaseBlockType                       BlockType;
 	var string 									hotkey;
 	var string 									title;
@@ -118,8 +122,10 @@ struct PTVehicleBlock
 struct PTEquipmentBlock
 {
 	var int 									id;
+	var Texture                                 PTIconTexture;
 	var string 									title;
 	var string 									desc;
+	//obsolete. please use icon instead
 	var int 									iconID;
 	var string 									hotkey;
 	//var array<>                                 BindingList;
@@ -655,7 +661,12 @@ function AssignButtonData(GFxClikWidget widget, PTMenuBlock menuData, byte i)
 		//[VEHICLE COUNT]
 		Type = widget.GetObject("type");
 		Type.GotoAndStopI(menuData.type);
-		Type.GetObject("icon").GotoAndStopI(menuData.iconID);
+		//Type.GetObject("icon").GotoAndStopI(menuData.iconID);
+
+		//the following is the test
+		LoadTexture("img://" $ PathName(menuData.PTIconTexture), Type.GetObject("icon"));
+		//end test
+
 		if (menuData.title == "VEHICLES" || menuData.title == "CHARACTERS") {
 			widget.SetString("sublabel", rxPurchaseSystem.GetFactoryDescription(TeamID, menuData.title, rxPC));
 			if (menuData.title == "VEHICLES") {
@@ -682,6 +693,16 @@ function AssignButtonData(GFxClikWidget widget, PTMenuBlock menuData, byte i)
 				widget.SetBool("enabled", false);
 			}
 		}
+}
+
+
+function uLog(string s)
+{
+	loginternal(s);
+}
+function LoadTexture(string pathName, GFxObject widget) 
+{
+	widget.ActionScriptVoid("loadTexture");
 }
 
 function AssignEquipmentData( GFxClikWidget widgetButton, GFxClikWidget widgetList, array<PTEquipmentBlock> equipmentData, array<class<Rx_Weapon> > PreviousPurchasedWeapons, class<Rx_Weapon> CurrentWeapon )
@@ -754,6 +775,9 @@ function UpdateEquipmentButton(GFxClikWidget widgetButton, PTEquipmentBlock equi
 	widgetButton.SetString("label", equipmentData.title);
 	widgetButton.SetString("sublabel", equipmentData.desc);
 	widgetButton.GetObject("icon").GotoAndStopI(equipmentData.iconID);
+	//the following is the test
+	LoadTexture("img://" $ PathName(equipmentData.PTIconTexture), widgetButton.GetObject("icon"));
+	//end test
 	widgetButton.SetString("hotkey", equipmentData.hotkey);
 }
 
@@ -771,6 +795,9 @@ function AssignVehicleData(GFxClikWidget widget, PTVehicleBlock menuData, byte i
 		}
 		widget.SetBool("toggle", true);
 		widget.GetObject("icon").GotoAndStopI(menuData.iconID);
+		//the following is the test
+		LoadTexture("img://" $ PathName(menuData.PTIconTexture), widget.GetObject("icon"));
+		//end test
 		widget.SetString("sublabel", menuData.desc);
 
 		widget.SetBool("enabled", menuData.bEnable);
@@ -823,6 +850,9 @@ function TickHUD()
 							continue;
 						}
 						VehicleInfoButton.GetObject("vehicleCount").GetObject("icon"$i).GotoAndStopI(GDIVehicleMenuData[j].iconID);
+						//the following is the test
+						LoadTexture("img://" $ PathName(GDIVehicleMenuData[j].PTIconTexture), VehicleInfoButton.GetObject("vehicleCount").GetObject("icon"$i));
+						//end test
 					}
 				} else if (TeamID == TEAM_NOD) {
 					for (j=0; j < rxPurchaseSystem.NodVehicleClasses.Length; j++) {
@@ -830,6 +860,9 @@ function TickHUD()
 							continue;
 						}
 						VehicleInfoButton.GetObject("vehicleCount").GetObject("icon"$i).GotoAndStopI(NodVehicleMenuData[j].iconID);
+						//the following is the test
+						LoadTexture("img://" $ PathName(NodVehicleMenuData[j].PTIconTexture), VehicleInfoButton.GetObject("vehicleCount").GetObject("icon"$i));
+						//end test
 					}
 				}
 				i++;
@@ -2773,136 +2806,136 @@ bAutoPlay                       	=   false
 	bVehicleDrawerOpen              =   false
 	
 
-	GDIMainMenuData(0) 				= (BlockType=EPBT_CLASS, id=0,  iconID=27, hotkey="1", title="SOLDIER",	    desc="Good Vs:\n-Infrantry\n-Light Armour Vehicles\n\nWeak Vs:\n-Buildings\n-Heavy Armour Vehicles\n",	cost="FREE", type=2, damage=1,range=3,rateOfFire=5,magCap=4)
-	GDIMainMenuData(1) 				= (BlockType=EPBT_CLASS, id=1,  iconID=52, hotkey="2", title="SHOTGUNNER",  desc="Good Vs:\n-Infrantry\n-Light Armour Vehicles\n\nWeak Vs:\n-Vehicles, Buildings\n-Heavy Armour",	cost="FREE", type=2, damage=3,range=1,rateOfFire=2,magCap=2)
-	GDIMainMenuData(2) 				= (BlockType=EPBT_CLASS, id=2,  iconID=34, hotkey="3", title="GRENADIER",   desc="Good Vs:\n-Light Armour\n-Heavy Armour\n-Buildings\n\nWeak Vs:\n-Infrantry",						cost="FREE", type=2, damage=3,range=4,rateOfFire=2,magCap=2)
-	GDIMainMenuData(3) 				= (BlockType=EPBT_CLASS, id=3,  iconID=41, hotkey="4", title="MARKSMAN",	desc="Good Vs:\n-Infrantry\n-Light Armour\n\nWeak Vs:\n-Vehicles, Buildings\n-Heavy Armour",			cost="FREE", type=2, damage=3,range=5,rateOfFire=3,magCap=2)
-	GDIMainMenuData(4) 				= (BlockType=EPBT_CLASS, id=4,  iconID=50, hotkey="5", title="ENGINEER",	desc="Pros:\n-Building Destruction\n-Repairing/Healing\n\nCons:\n-No Offensive Weapon\n-Short Ranged",	cost="FREE", type=2, damage=3,range=1,rateOfFire=6,magCap=6)
-	GDIMainMenuData(5) 				= (BlockType=EPBT_MENU,  id=-1, iconID=05, hotkey="R", title="REFILL",	    desc="\nRefill Health\nRefill Armour\nRefill Ammo\nRefill Stamina",										cost="MENU", type=1)
-	GDIMainMenuData(6) 				= (BlockType=EPBT_MENU,  id=-1, iconID=60, hotkey="W", title="WEAPONS",	    desc="\n\nSidearms\nGrenades\nSupport Weapons",															cost="MENU", type=1)
-	GDIMainMenuData(7) 				= (BlockType=EPBT_MENU,  id=-1, iconID=03, hotkey="Q", title="ITEM",		desc="\n\nSuperweapons\nEquipment\nDeployables",														cost="MENU", type=1)
-	GDIMainMenuData(8) 				= (BlockType=EPBT_MENU,  id=-1, iconID=02, hotkey="C", title="CHARACTERS",  desc="",																								cost="MENU", type=1)
-	GDIMainMenuData(9) 				= (BlockType=EPBT_MENU,  id=-1, iconID=25, hotkey="V", title="VEHICLES",	desc="",																								cost="MENU", type=1)
+	GDIMainMenuData(0) 				= (BlockType=EPBT_CLASS, id=0,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Autorifle',  iconID=27, hotkey="1", title="SOLDIER",	    desc="Good Vs:\n-Infrantry\n-Light Armour Vehicles\n\nWeak Vs:\n-Buildings\n-Heavy Armour Vehicles\n",	cost="FREE", type=2, damage=1,range=3,rateOfFire=5,magCap=4)
+	GDIMainMenuData(1) 				= (BlockType=EPBT_CLASS, id=1,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Shotgun', iconID=52, hotkey="2", title="SHOTGUNNER",  desc="Good Vs:\n-Infrantry\n-Light Armour Vehicles\n\nWeak Vs:\n-Vehicles, Buildings\n-Heavy Armour",	cost="FREE", type=2, damage=3,range=1,rateOfFire=2,magCap=2)
+	GDIMainMenuData(2) 				= (BlockType=EPBT_CLASS, id=2,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_GrenadeLauncher', iconID=34, hotkey="3", title="GRENADIER",   desc="Good Vs:\n-Light Armour\n-Heavy Armour\n-Buildings\n\nWeak Vs:\n-Infrantry",						cost="FREE", type=2, damage=3,range=4,rateOfFire=2,magCap=2)
+	GDIMainMenuData(3) 				= (BlockType=EPBT_CLASS, id=3,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_MarksmanRifle', iconID=41, hotkey="4", title="MARKSMAN",	desc="Good Vs:\n-Infrantry\n-Light Armour\n\nWeak Vs:\n-Vehicles, Buildings\n-Heavy Armour",			cost="FREE", type=2, damage=3,range=5,rateOfFire=3,magCap=2)
+	GDIMainMenuData(4) 				= (BlockType=EPBT_CLASS, id=4,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RepairGun', iconID=50, hotkey="5", title="ENGINEER",	desc="Pros:\n-Building Destruction\n-Repairing/Healing\n\nCons:\n-No Offensive Weapon\n-Short Ranged",	cost="FREE", type=2, damage=3,range=1,rateOfFire=6,magCap=6)
+	GDIMainMenuData(5) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Refill', iconID=05, hotkey="R", title="REFILL",	    desc="\nRefill Health\nRefill Armour\nRefill Ammo\nRefill Stamina",										cost="MENU", type=1)
+	GDIMainMenuData(6) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapons', iconID=60, hotkey="W", title="WEAPONS",	    desc="\n\nSidearms\nGrenades\nSupport Weapons",															cost="MENU", type=1)
+	GDIMainMenuData(7) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_ItemsGDI', iconID=03, hotkey="Q", title="ITEM",		desc="\n\nSuperweapons\nEquipment\nDeployables",														cost="MENU", type=1)
+	GDIMainMenuData(8) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Characters', iconID=02, hotkey="C", title="CHARACTERS",  desc="",																								cost="MENU", type=1)
+	GDIMainMenuData(9) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Vehicles_GDI', iconID=25, hotkey="V", title="VEHICLES",	desc="",																								cost="MENU", type=1)
 
-	GDIClassMenuData(0) 			= (BlockType=EPBT_CLASS, id=5,  iconID=28, hotkey="1", title="OFFICER"		 ,desc="Good Vs:\n-Infrantry\n-Light Armour Vehicles\n\nWeak Vs:\n-Buildings\n-Heavy Armour Vehicles",	cost="175", type=2,damage=1,range=3,rateOfFire=6,magCap=6)
-	GDIClassMenuData(1) 			= (BlockType=EPBT_CLASS, id=6,  iconID=42, hotkey="2", title="ROCKET SOLDIER",desc="Good Vs:\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Infratry\n-Buildings",						cost="225", type=2,damage=4,range=5,rateOfFire=1,magCap=1)
-	GDIClassMenuData(2) 			= (BlockType=EPBT_CLASS, id=7,  iconID=31, hotkey="3", title="MCFARLAND"	 ,desc="Good Vs:\n-Infratry\n-Light Armour\n\nWeak Vs:\n-Heavy Armour\n-Buildings",						cost="150", type=2,damage=3,range=1,rateOfFire=3,magCap=3)
-	GDIClassMenuData(3) 			= (BlockType=EPBT_CLASS, id=8,  iconID=54, hotkey="4", title="DEADEYE"		 ,desc="Good Vs:\n-Infrantry\n-Light Armour\n\nWeak Vs:\n-Heavy Armour\n-Buildings",					cost="500", type=2,damage=4,range=6,rateOfFire=1,magCap=2)
-	GDIClassMenuData(4) 			= (BlockType=EPBT_CLASS, id=9,  iconID=51, hotkey="5", title="GUNNER"		 ,desc="Good Vs:\n-Light Armour\n-Heavy Armour\n-Buildings\n\nWeak Vs:\n-Infrantry",					cost="400", type=2,damage=4,range=5,rateOfFire=3,magCap=2)
-	GDIClassMenuData(5) 			= (BlockType=EPBT_CLASS, id=10, iconID=55, hotkey="6", title="PATCH"		 ,desc="Good Vs:\n-Infratry\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Buildings",						cost="450", type=2,damage=3,range=4,rateOfFire=4,magCap=3)
-	GDIClassMenuData(6) 			= (BlockType=EPBT_CLASS, id=11, iconID=48, hotkey="7", title="HAVOC"		 ,desc="Good Vs:\n-Infrantry\n-Light Armour\n\nWeak Vs:\n-Heavy Armour\n-Buildings",					cost="1000",type=2,damage=5,range=6,rateOfFire=2,magCap=2)
-	GDIClassMenuData(7) 			= (BlockType=EPBT_CLASS, id=12, iconID=44, hotkey="8", title="SYDNEY"		 ,desc="Good Vs:\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Infrantry\n-Buildings",					cost="1000",type=2,damage=6,range=4,rateOfFire=1,magCap=2)
-	GDIClassMenuData(8) 			= (BlockType=EPBT_CLASS, id=13, iconID=59, hotkey="9", title="MOBIUS"		 ,desc="Good Vs:\n-Infrantry\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Buildings",					cost="1000",type=2,damage=3,range=3,rateOfFire=6,magCap=4)
-	GDIClassMenuData(9) 			= (BlockType=EPBT_CLASS, id=14, iconID=50, hotkey="0", title="HOTWIRE"		 ,desc="Pros:\n-Building Destruction\n-Repairing/Healing\n\nCons:\n-No Defensive Weapon\n-Short Range",	cost="350", type=2,damage=6,range=1,rateOfFire=6,magCap=6)
+	GDIClassMenuData(0) 			= (BlockType=EPBT_CLASS, id=5,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Chaingun', iconID=28, hotkey="1", title="OFFICER"		 ,desc="Good Vs:\n-Infrantry\n-Light Armour Vehicles\n\nWeak Vs:\n-Buildings\n-Heavy Armour Vehicles",	cost="175", type=2,damage=1,range=3,rateOfFire=6,magCap=6)
+	GDIClassMenuData(1) 			= (BlockType=EPBT_CLASS, id=6,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_MissileLauncher', iconID=42, hotkey="2", title="ROCKET SOLDIER",desc="Good Vs:\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Infratry\n-Buildings",						cost="225", type=2,damage=4,range=5,rateOfFire=1,magCap=1)
+	GDIClassMenuData(2) 			= (BlockType=EPBT_CLASS, id=7,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_FlakCannon', iconID=31, hotkey="3", title="MCFARLAND"	 ,desc="Good Vs:\n-Infratry\n-Light Armour\n\nWeak Vs:\n-Heavy Armour\n-Buildings",						cost="150", type=2,damage=3,range=1,rateOfFire=3,magCap=3)
+	GDIClassMenuData(3) 			= (BlockType=EPBT_CLASS, id=8,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_SniperRifle', iconID=54, hotkey="4", title="DEADEYE"		 ,desc="Good Vs:\n-Infrantry\n-Light Armour\n\nWeak Vs:\n-Heavy Armour\n-Buildings",					cost="500", type=2,damage=4,range=6,rateOfFire=1,magCap=2)
+	GDIClassMenuData(4) 			= (BlockType=EPBT_CLASS, id=9,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RocketLauncher', iconID=51, hotkey="5", title="GUNNER"		 ,desc="Good Vs:\n-Light Armour\n-Heavy Armour\n-Buildings\n\nWeak Vs:\n-Infrantry",					cost="400", type=2,damage=4,range=5,rateOfFire=3,magCap=2)
+	GDIClassMenuData(5) 			= (BlockType=EPBT_CLASS, id=10, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_TacticalRifle', iconID=55, hotkey="6", title="PATCH"		 ,desc="Good Vs:\n-Infratry\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Buildings",						cost="450", type=2,damage=3,range=4,rateOfFire=4,magCap=3)
+	GDIClassMenuData(6) 			= (BlockType=EPBT_CLASS, id=11, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RamjetRifle', iconID=48, hotkey="7", title="HAVOC"		 ,desc="Good Vs:\n-Infrantry\n-Light Armour\n\nWeak Vs:\n-Heavy Armour\n-Buildings",					cost="1000",type=2,damage=5,range=6,rateOfFire=2,magCap=2)
+	GDIClassMenuData(7) 			= (BlockType=EPBT_CLASS, id=12, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_PIC', iconID=44, hotkey="8", title="SYDNEY"		 ,desc="Good Vs:\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Infrantry\n-Buildings",					cost="1000",type=2,damage=6,range=4,rateOfFire=1,magCap=2)
+	GDIClassMenuData(8) 			= (BlockType=EPBT_CLASS, id=13, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_VoltAutoRifle', iconID=59, hotkey="9", title="MOBIUS"		 ,desc="Good Vs:\n-Infrantry\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Buildings",					cost="1000",type=2,damage=3,range=3,rateOfFire=6,magCap=4)
+	GDIClassMenuData(9) 			= (BlockType=EPBT_CLASS, id=14, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RepairGun', iconID=50, hotkey="0", title="HOTWIRE"		 ,desc="Pros:\n-Building Destruction\n-Repairing/Healing\n\nCons:\n-No Defensive Weapon\n-Short Range",	cost="350", type=2,damage=6,range=1,rateOfFire=6,magCap=6)
 
-	GDIItemMenuData(0) 				= (BlockType=EPBT_ITEM, id=0, iconID=70, hotkey="1", title="ION CANNON BEACON", desc="<font size='8'>Pros:\n-Instant Building Destruction\n-Large Blast Radius\n\nCons:\n-60 Seconds for impact(Dismantle)\n-5 seconds for deployment\n-Statitargets only</font>", 	cost="1000", type=1)
-	GDIItemMenuData(1) 				= (BlockType=EPBT_ITEM, id=1, iconID=62, hotkey="2", title="A-10 AIRSTRIKE",	desc="<font size='8'>Pros:\n-5 seconds to impact\n-Quick bombardment\n-Anti-Infrantry/Vehicle\n\nCons:\n-Weak Vs. Buildings</font>", 												cost="800",  type=1)
-	GDIItemMenuData(2) 				= (BlockType=EPBT_ITEM, id=2, iconID=66, hotkey="3", title="MEDICAL KIT",	 	desc="<font size='8'>Pros:\n-Heals near by infrantry\n-30 seconds before depletion\n\nCons:\n-Heals near by eenemies as well\n-Cannot refill</font>", 								cost="150",  type=1 , bEnable = false)
-	GDIItemMenuData(3) 				= (BlockType=EPBT_ITEM, id=3, iconID=64, hotkey="4", title="AMMUNITION KIT",	desc="<font size='8'>Pros:\n-Rearms near by infrantry\n-30 seconds before depletion\n\nCons:\n-Rearms near by enemies as well\n-Cannot refill</font>", 								cost="150",  type=1 , bEnable = false)
-	GDIItemMenuData(4) 				= (BlockType=EPBT_ITEM, id=4, iconID=65, hotkey="5", title="MECHANICAL KIT",	desc="<font size='8'>Pros:\n-Repairs near by vehicles\n-30 seconds before depletion\n\nCons:\n-Repairs near by enemies as well\n-Cannot refill</font>", 							cost="150",  type=1 , bEnable = false)
-	GDIItemMenuData(5) 				= (BlockType=EPBT_ITEM, id=5, iconID=67, hotkey="6", title="MOTION SENSOR",	 	desc="<font size='8'>Pros:\n-Relays enemy position in a radius\n-Detects mines and beacons\n\nCons:\n-Emits an audible sound\n-Cannot refill</font>", 								cost="200",  type=1 , bEnable = false)
-	GDIItemMenuData(6) 				= (BlockType=EPBT_ITEM, id=6, iconID=68, hotkey="7", title="MG SENTRY",	 	 	desc="<font size='8'>Requires Armory\n\n-Automated Sentry Turret\n-Anti-Infrantry\n-Limited Ammo\n-Can be picked up\n-Cannot refill</font>", 										cost="300",  type=1 , bEnable = false)
-	GDIItemMenuData(7) 				= (BlockType=EPBT_ITEM, id=7, iconID=69, hotkey="8", title="AT SENTRY",	 	 	desc="<font size='8'>Requires Armory\n\n-Automated Sentry Turret\n-Anti-Vehicle\n-Limited Ammo\n-Can be picked up\n-Cannot refill</font>", 											cost="300",  type=1 , bEnable = false)
+	GDIItemMenuData(0) 				= (BlockType=EPBT_ITEM, id=0, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_IonCannonBeacon', iconID=70, hotkey="1", title="ION CANNON BEACON", desc="<font size='8'>Pros:\n-Instant Building Destruction\n-Large Blast Radius\n\nCons:\n-60 Seconds for impact(Dismantle)\n-5 seconds for deployment\n-Statitargets only</font>", 	cost="1000", type=1)
+	GDIItemMenuData(1) 				= (BlockType=EPBT_ITEM, id=1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_Airstrike_A10', iconID=62, hotkey="2", title="A-10 AIRSTRIKE",	desc="<font size='8'>Pros:\n-5 seconds to impact\n-Quick bombardment\n-Anti-Infrantry/Vehicle\n\nCons:\n-Weak Vs. Buildings</font>", 												cost="800",  type=1)
+	GDIItemMenuData(2) 				= (BlockType=EPBT_ITEM, id=2, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_MedKit', iconID=66, hotkey="3", title="MEDICAL KIT",	 	desc="<font size='8'>Pros:\n-Heals near by infrantry\n-30 seconds before depletion\n\nCons:\n-Heals near by eenemies as well\n-Cannot refill</font>", 								cost="150",  type=1 , bEnable = false)
+	GDIItemMenuData(3) 				= (BlockType=EPBT_ITEM, id=3, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_AmmoKit', iconID=64, hotkey="4", title="AMMUNITION KIT",	desc="<font size='8'>Pros:\n-Rearms near by infrantry\n-30 seconds before depletion\n\nCons:\n-Rearms near by enemies as well\n-Cannot refill</font>", 								cost="150",  type=1 , bEnable = false)
+	GDIItemMenuData(4) 				= (BlockType=EPBT_ITEM, id=4, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_MechanicalKit', iconID=65, hotkey="5", title="MECHANICAL KIT",	desc="<font size='8'>Pros:\n-Repairs near by vehicles\n-30 seconds before depletion\n\nCons:\n-Repairs near by enemies as well\n-Cannot refill</font>", 							cost="150",  type=1 , bEnable = false)
+	GDIItemMenuData(5) 				= (BlockType=EPBT_ITEM, id=5, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_MotionSensor', iconID=67, hotkey="6", title="MOTION SENSOR",	 	desc="<font size='8'>Pros:\n-Relays enemy position in a radius\n-Detects mines and beacons\n\nCons:\n-Emits an audible sound\n-Cannot refill</font>", 								cost="200",  type=1 , bEnable = false)
+	GDIItemMenuData(6) 				= (BlockType=EPBT_ITEM, id=6, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_Sentry_MG', iconID=68, hotkey="7", title="MG SENTRY",	 	 	desc="<font size='8'>Requires Armory\n\n-Automated Sentry Turret\n-Anti-Infrantry\n-Limited Ammo\n-Can be picked up\n-Cannot refill</font>", 										cost="300",  type=1 , bEnable = false)
+	GDIItemMenuData(7) 				= (BlockType=EPBT_ITEM, id=7, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_Sentry_AT', iconID=69, hotkey="8", title="AT SENTRY",	 	 	desc="<font size='8'>Requires Armory\n\n-Automated Sentry Turret\n-Anti-Vehicle\n-Limited Ammo\n-Can be picked up\n-Cannot refill</font>", 											cost="300",  type=1 , bEnable = false)
 
-	GDIWeaponMenuData(0) 			= (BlockType=EPBT_WEAPON, id=0, iconID=36, hotkey="1", title="HEAVY PISTOL",	 		  desc="Good Vs:\n-Infantry\n-Light Armour Vehicles\n\nWeak Vs:\n-Buildings\n-Light Armour Vehicles",									 cost="100", type=2, damage=4,range=2,rateOfFire=3,magCap=2)
-	GDIWeaponMenuData(1) 			= (BlockType=EPBT_WEAPON, id=1, iconID=72, hotkey="2", title="CARBINE",	 			      desc="Good Vs:\n-Infantry\n-Light Armour\n\nWeak Vs:\n-Heavy Armour\n-Buildings",														 cost="250", type=2, damage=3,range=3,rateOfFire=4,magCap=2)
-	GDIWeaponMenuData(2) 			= (BlockType=EPBT_WEAPON, id=2, iconID=57, hotkey="3", title="TIBERIUM FLECHETTE RIFLE",  desc="<font size='8'>[Requires Silo] \nGood Vs: \n-Infrantry\n-Light Armour\nWeak Vs:\n-Heavy Armour\n-Buildings</font>",				 cost="400", type=2, damage=2,range=3,rateOfFire=5,magCap=3, bSilo = true)
-	GDIWeaponMenuData(3) 			= (BlockType=EPBT_WEAPON, id=3, iconID=56, hotkey="4", title="TIBERIUM AUTO-RIFLE",		  desc="<font size='8'>[Requires Silo] \nGood Vs: \n-Infrantry\n-Light Armour\nWeak Vs:\n-Heavy Armour\n-Buildings</font>",				 cost="400", type=2, damage=4,range=3,rateOfFire=2,magCap=3, bSilo = true)
-	GDIWeaponMenuData(4) 			= (BlockType=EPBT_WEAPON, id=4, iconID=30, hotkey="5", title="EMP GRENADE",	 			  desc="<font size='8'>\nPros:\n-Disables vehicles\n-Disarm mines\n\nCons:\n-Weapons remain active</font>", 					 		 cost="300", type=1)
-	GDIWeaponMenuData(5) 			= (BlockType=EPBT_WEAPON, id=5, iconID=26, hotkey="6", title="ANTI-TANK MINE",	 	 	  desc="<font size='8'>\nPros:\n-Heavy vehicle damage\n\nCons:\n-Can be destroyed\n-Limit 2 per person</font>",							 cost="250", type=1)
-	GDIWeaponMenuData(6) 			= (BlockType=EPBT_WEAPON, id=6, iconID=74, hotkey="7", title="SMOKE GRENADE",	 	      desc="<font size='8'>\nPros:\n-Reduces Visibility\n-Disables Target Info\n\nCons:\n-Weapons remain active</font>", 					 cost="100", type=1)
+	GDIWeaponMenuData(0) 			= (BlockType=EPBT_WEAPON, id=0, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_HeavyPistol', iconID=36, hotkey="1", title="HEAVY PISTOL",	 		  desc="Good Vs:\n-Infantry\n-Light Armour Vehicles\n\nWeak Vs:\n-Buildings\n-Light Armour Vehicles",									 cost="100", type=2, damage=4,range=2,rateOfFire=3,magCap=2)
+	GDIWeaponMenuData(1) 			= (BlockType=EPBT_WEAPON, id=1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Carbine', iconID=72, hotkey="2", title="CARBINE",	 			      desc="Good Vs:\n-Infantry\n-Light Armour\n\nWeak Vs:\n-Heavy Armour\n-Buildings",														 cost="250", type=2, damage=3,range=3,rateOfFire=4,magCap=2)
+	GDIWeaponMenuData(2) 			= (BlockType=EPBT_WEAPON, id=2, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_TibFlechetteRifle', iconID=57, hotkey="3", title="TIBERIUM FLECHETTE RIFLE",  desc="<font size='8'>[Requires Silo] \nGood Vs: \n-Infrantry\n-Light Armour\nWeak Vs:\n-Heavy Armour\n-Buildings</font>",				 cost="400", type=2, damage=2,range=3,rateOfFire=5,magCap=3, bSilo = true)
+	GDIWeaponMenuData(3) 			= (BlockType=EPBT_WEAPON, id=3, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_TibAutoRifle', iconID=56, hotkey="4", title="TIBERIUM AUTO-RIFLE",		  desc="<font size='8'>[Requires Silo] \nGood Vs: \n-Infrantry\n-Light Armour\nWeak Vs:\n-Heavy Armour\n-Buildings</font>",				 cost="400", type=2, damage=4,range=3,rateOfFire=2,magCap=3, bSilo = true)
+	GDIWeaponMenuData(4) 			= (BlockType=EPBT_WEAPON, id=4, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_EMPGrenade', iconID=30, hotkey="5", title="EMP GRENADE",	 			  desc="<font size='8'>\nPros:\n-Disables vehicles\n-Disarm mines\n\nCons:\n-Weapons remain active</font>", 					 		 cost="300", type=1)
+	GDIWeaponMenuData(5) 			= (BlockType=EPBT_WEAPON, id=5, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_ATMine', iconID=26, hotkey="6", title="ANTI-TANK MINE",	 	 	  desc="<font size='8'>\nPros:\n-Heavy vehicle damage\n\nCons:\n-Can be destroyed\n-Limit 2 per person</font>",							 cost="250", type=1)
+	GDIWeaponMenuData(6) 			= (BlockType=EPBT_WEAPON, id=6, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_SmokeGrenade', iconID=74, hotkey="7", title="SMOKE GRENADE",	 	      desc="<font size='8'>\nPros:\n-Reduces Visibility\n-Disables Target Info\n\nCons:\n-Weapons remain active</font>", 					 cost="100", type=1)
 
-	GDIVehicleMenuData(0) 			= (BlockType=EPBT_VEHICLE, id=0, iconID=9,  hotkey="1",title="HUMVEE",								desc="<font size='10'>-.50 Calibre Machine Gun\n-Light Armour\n-Fast Attack Scout\n-Driver + Passenger</font>",				cost="350")
-	GDIVehicleMenuData(1) 			= (BlockType=EPBT_VEHICLE, id=1, iconID=7,  hotkey="2",title="ARMOURED PERSONNEL CARRIER",			desc="<font size='10'>-M134 Minigun\n-Heavy Armour\n-Troop Transport\n-Driver + 4 Passengers</font>",						cost="500")
-	GDIVehicleMenuData(2) 			= (BlockType=EPBT_VEHICLE, id=2, iconID=12, hotkey="3",title="MOBILE ROCKET LAUNCHER SYSTEM",		desc="<font size='10'>-M269 Missiles\n-Light Armour\n-Long Range Ballistics\n-Driver + Passenger</font>",					cost="450")
-	GDIVehicleMenuData(3) 			= (BlockType=EPBT_VEHICLE, id=3, iconID=11, hotkey="4",title="MEDIUM TANK",							desc="<font size='10'>-105mm Cannon\n-Heavy Armour\n-Main Battle Tank\n-Driver + Passenger</font>",							cost="800")
-	GDIVehicleMenuData(4) 			= (BlockType=EPBT_VEHICLE, id=4, iconID=10, hotkey="5",title="MAMMOTH TANK",						desc="<font size='10'>-2x 120mm Cannons\n-4x Tusk Missiles\n-Heavy Armour\n-Heavy Battle Tank\n-Driver + Passenger</font>",	cost="1500")
-	GDIVehicleMenuData(5) 			= (BlockType=EPBT_VEHICLE, id=5, iconID=24, hotkey="7",title="TRANSPORT HELICOPTER",				desc="<font size='10'>-2x Gattling Guns\n-Light Armour\n-Troop Transport\n-Pilot + 4 Passengers</font>",					cost="700", bAircraft = true)
-	GDIVehicleMenuData(6) 			= (BlockType=EPBT_VEHICLE, id=6, iconID=13, hotkey="8",title="ORCA FIGHTER",						desc="<font size='10'>-Hellfire Missiles\n-.50 Calibre Machine Gun\n-Light Armour\n-Attack VTOL\n-Pilot Only</font>",		cost="900", bAircraft = true)
+	GDIVehicleMenuData(0) 			= (BlockType=EPBT_VEHICLE, id=0, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Veh_GDI_Humvee', iconID=9,  hotkey="1",title="HUMVEE",								desc="<font size='10'>-.50 Calibre Machine Gun\n-Light Armour\n-Fast Attack Scout\n-Driver + Passenger</font>",				cost="350")
+	GDIVehicleMenuData(1) 			= (BlockType=EPBT_VEHICLE, id=1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Veh_GDI_APC', iconID=7,  hotkey="2",title="ARMOURED PERSONNEL CARRIER",			desc="<font size='10'>-M134 Minigun\n-Heavy Armour\n-Troop Transport\n-Driver + 4 Passengers</font>",						cost="500")
+	GDIVehicleMenuData(2) 			= (BlockType=EPBT_VEHICLE, id=2, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Veh_GDI_MRLS', iconID=12, hotkey="3",title="MOBILE ROCKET LAUNCHER SYSTEM",		desc="<font size='10'>-M269 Missiles\n-Light Armour\n-Long Range Ballistics\n-Driver + Passenger</font>",					cost="450")
+	GDIVehicleMenuData(3) 			= (BlockType=EPBT_VEHICLE, id=3, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Veh_GDI_MediumTank', iconID=11, hotkey="4",title="MEDIUM TANK",							desc="<font size='10'>-105mm Cannon\n-Heavy Armour\n-Main Battle Tank\n-Driver + Passenger</font>",							cost="800")
+	GDIVehicleMenuData(4) 			= (BlockType=EPBT_VEHICLE, id=4, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Veh_GDI_MammothTank', iconID=10, hotkey="5",title="MAMMOTH TANK",						desc="<font size='10'>-2x 120mm Cannons\n-4x Tusk Missiles\n-Heavy Armour\n-Heavy Battle Tank\n-Driver + Passenger</font>",	cost="1500")
+	GDIVehicleMenuData(5) 			= (BlockType=EPBT_VEHICLE, id=5, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Veh_TransportHelicopter', iconID=24, hotkey="7",title="TRANSPORT HELICOPTER",				desc="<font size='10'>-2x Gattling Guns\n-Light Armour\n-Troop Transport\n-Pilot + 4 Passengers</font>",					cost="700", bAircraft = true)
+	GDIVehicleMenuData(6) 			= (BlockType=EPBT_VEHICLE, id=6, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Veh_GDI_Orca', iconID=13, hotkey="8",title="ORCA FIGHTER",						desc="<font size='10'>-Hellfire Missiles\n-.50 Calibre Machine Gun\n-Light Armour\n-Attack VTOL\n-Pilot Only</font>",		cost="900", bAircraft = true)
 
-	NodMainMenuData(0) 				= (BlockType=EPBT_CLASS, id=0,  iconID=27, hotkey="1", title="SOLDIER",	 	 desc="Good Vs:\n-Infrantry\n-Light Armour Vehicles\n\nWeak Vs:\n-Buildings\n-Heavy Armour Vehicles",	cost="FREE", type=2, damage=1, range=3, rateOfFire=5, magCap=4 )
-	NodMainMenuData(1) 				= (BlockType=EPBT_CLASS, id=1,  iconID=52, hotkey="2", title="SHOTGUNNER",	 desc="Good Vs:\n-Infrantry\n-Light Armour Vehicles\n\nWeak Vs:\n-Vehicles, Buildings\n-Heavy Armour",	cost="FREE", type=2, damage=3, range=1, rateOfFire=2, magCap=2 )
-	NodMainMenuData(2) 				= (BlockType=EPBT_CLASS, id=2,  iconID=32, hotkey="3", title="FLAMETHROWER", desc="Good Vs:\n-Infrantry\n-Light Armour\n-Buildings\n\nWeak Vs:\n-Heavy Armour",						cost="FREE", type=2, damage=2, range=1, rateOfFire=4, magCap=4 )
-	NodMainMenuData(3) 				= (BlockType=EPBT_CLASS, id=3,  iconID=41, hotkey="4", title="MARKSMAN",	 desc="Good Vs:\n-Infrantry\n-Light Armour\n\nWeak Vs:\n-Vehicles, Buildings\n-Heavy Armour",			cost="FREE", type=2, damage=3, range=5, rateOfFire=3, magCap=2 )
-	NodMainMenuData(4) 				= (BlockType=EPBT_CLASS, id=4,  iconID=50, hotkey="5", title="ENGINEER",	 desc="Pros:\n-Building Destruction\n-Repairing/Healing\n\nCons:\n-No Offensive Weapon\n-Short Ranged",	cost="FREE", type=2, damage=3, range=1, rateOfFire=6, magCap=6 )
-	NodMainMenuData(5) 				= (BlockType=EPBT_MENU,  id=-1, iconID=05, hotkey="R", title="REFILL",	 	 desc="\nRefill Health\nRefill Armour\nRefill Ammo\nRefill Stamina",									cost="MENU", type=1 )
-	NodMainMenuData(6) 				= (BlockType=EPBT_MENU,  id=-1, iconID=60, hotkey="W", title="WEAPONS",	 	 desc="\n\nSidearms\nGrenades\nSupport Weapons",														cost="MENU", type=1 )
-	NodMainMenuData(7) 				= (BlockType=EPBT_MENU,  id=-1, iconID=04, hotkey="Q", title="ITEM",		 desc="\n\nSuperweapons\nEquipment\nDeployables",														cost="MENU", type=1 )
-	NodMainMenuData(8) 				= (BlockType=EPBT_MENU,  id=-1, iconID=02, hotkey="C", title="CHARACTERS",	 desc="",																								cost="MENU", type=1 )
-	NodMainMenuData(9) 				= (BlockType=EPBT_MENU,  id=-1, iconID=61, hotkey="V", title="VEHICLES",	 desc="",																								cost="MENU", type=1 )
+	NodMainMenuData(0) 				= (BlockType=EPBT_CLASS, id=0,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Autorifle', iconID=27, hotkey="1", title="SOLDIER",	 	 desc="Good Vs:\n-Infrantry\n-Light Armour Vehicles\n\nWeak Vs:\n-Buildings\n-Heavy Armour Vehicles",	cost="FREE", type=2, damage=1, range=3, rateOfFire=5, magCap=4 )
+	NodMainMenuData(1) 				= (BlockType=EPBT_CLASS, id=1,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Shotgun', iconID=52, hotkey="2", title="SHOTGUNNER",	 desc="Good Vs:\n-Infrantry\n-Light Armour Vehicles\n\nWeak Vs:\n-Vehicles, Buildings\n-Heavy Armour",	cost="FREE", type=2, damage=3, range=1, rateOfFire=2, magCap=2 )
+	NodMainMenuData(2) 				= (BlockType=EPBT_CLASS, id=2,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_FlameThrower', iconID=32, hotkey="3", title="FLAMETHROWER", desc="Good Vs:\n-Infrantry\n-Light Armour\n-Buildings\n\nWeak Vs:\n-Heavy Armour",						cost="FREE", type=2, damage=2, range=1, rateOfFire=4, magCap=4 )
+	NodMainMenuData(3) 				= (BlockType=EPBT_CLASS, id=3,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_MarksmanRifle', iconID=41, hotkey="4", title="MARKSMAN",	 desc="Good Vs:\n-Infrantry\n-Light Armour\n\nWeak Vs:\n-Vehicles, Buildings\n-Heavy Armour",			cost="FREE", type=2, damage=3, range=5, rateOfFire=3, magCap=2 )
+	NodMainMenuData(4) 				= (BlockType=EPBT_CLASS, id=4,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RepairGun', iconID=50, hotkey="5", title="ENGINEER",	 desc="Pros:\n-Building Destruction\n-Repairing/Healing\n\nCons:\n-No Offensive Weapon\n-Short Ranged",	cost="FREE", type=2, damage=3, range=1, rateOfFire=6, magCap=6 )
+	NodMainMenuData(5) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Refill', iconID=05, hotkey="R", title="REFILL",	 	 desc="\nRefill Health\nRefill Armour\nRefill Ammo\nRefill Stamina",									cost="MENU", type=1 )
+	NodMainMenuData(6) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapons', iconID=60, hotkey="W", title="WEAPONS",	 	 desc="\n\nSidearms\nGrenades\nSupport Weapons",														cost="MENU", type=1 )
+	NodMainMenuData(7) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_ItemsNod', iconID=04, hotkey="Q", title="ITEM",		 desc="\n\nSuperweapons\nEquipment\nDeployables",														cost="MENU", type=1 )
+	NodMainMenuData(8) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Characters', iconID=02, hotkey="C", title="CHARACTERS",	 desc="",																								cost="MENU", type=1 )
+	NodMainMenuData(9) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Vehicles_Nod', iconID=61, hotkey="V", title="VEHICLES",	 desc="",																								cost="MENU", type=1 )
 
-	NodClassMenuData(0)				= (BlockType=EPBT_CLASS, id=5,  iconID=28, hotkey="1", title="OFFICER",				desc="Good Vs:\n-Infrantry\n-Light Armour Vehicles\n\nWeak Vs:\n-Buildings\n-Heavy Armour Vehicles",	cost="175",  type=2, damage=1, range=3, rateOfFire=6, magCap=6)
-	NodClassMenuData(1)				= (BlockType=EPBT_CLASS, id=6,  iconID=42, hotkey="2", title="ROCKET SOLDIER",		desc="Good Vs:\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Infratry\n-Buildings",						cost="225",  type=2, damage=4, range=5, rateOfFire=1, magCap=1)
-	NodClassMenuData(2)				= (BlockType=EPBT_CLASS, id=7,  iconID=29, hotkey="3", title="CHEMICAL TROOPER",	desc="Good Vs:\n-Infratry\n-Light Armour\n-Buildings\n\nWeak Vs:\n-Heavy Armour",						cost="150",  type=2, damage=3, range=1, rateOfFire=4, magCap=4)
-	NodClassMenuData(3)				= (BlockType=EPBT_CLASS, id=8,  iconID=54, hotkey="4", title="BLACK HAND SNIPER",	desc="Good Vs:\n-Infrantry\n-Light Armour\n\nWeak Vs:\n-Heavy Armour\n-Buildings",						cost="500",  type=2, damage=4, range=6, rateOfFire=1, magCap=2)
-	NodClassMenuData(4)				= (BlockType=EPBT_CLASS, id=9,  iconID=39, hotkey="5", title="STEALTH BLACK HAND",	desc="Good Vs:\n-Infrantry\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Buildings",						cost="400",  type=2, damage=3, range=4, rateOfFire=4, magCap=3)
-	NodClassMenuData(5)				= (BlockType=EPBT_CLASS, id=10, iconID=38, hotkey="6", title="LASER CHAINGUNNER",	desc="Good Vs:\n-Infratry\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Buildings",						cost="450",  type=2, damage=3, range=3, rateOfFire=5, magCap=5)
-	NodClassMenuData(6)				= (BlockType=EPBT_CLASS, id=11, iconID=48, hotkey="7", title="SAKURA",				desc="Good Vs:\n-Infrantry\n-Light Armour\n\nWeak Vs:\n-Heavy Armour\n-Buildings",						cost="1000", type=2, damage=5, range=6, rateOfFire=2, magCap=2)
-	NodClassMenuData(7)				= (BlockType=EPBT_CLASS, id=12, iconID=47, hotkey="8", title="RAVESHAW",			desc="Good Vs:\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Infrantry\n-Buildings",						cost="1000", type=2, damage=6, range=4, rateOfFire=1, magCap=2)
-	NodClassMenuData(8)				= (BlockType=EPBT_CLASS, id=13, iconID=59, hotkey="9", title="MENDOZA",				desc="Good Vs:\n-Infrantry\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Buildings",						cost="1000", type=2, damage=3, range=3, rateOfFire=6, magCap=4)
-	NodClassMenuData(9)				= (BlockType=EPBT_CLASS, id=14, iconID=50, hotkey="0", title="TECHNICIAN",			desc="Pros:\n-Building Destruction\n-Repairing/Healing\n\nCons:\n-No Defensive Weapon\n-Short Range",	cost="350",  type=2, damage=6, range=1, rateOfFire=6, magCap=6)
-
-
-	NodItemMenuData(0)				= (BlockType=EPBT_ITEM, id=0, iconID=71, hotkey="1", title="NUKE STRIKE BEACON", desc="<font size='8'>Pros:\n-Instant Building Destruction\n-Large Blast Radius\n\nCons:\n-60 Seconds for impact(Dismantle)\n-5 seconds for deployment\n-Statitargets only</font>", cost="1000", type=1)
-	NodItemMenuData(1)				= (BlockType=EPBT_ITEM, id=1, iconID=63, hotkey="2", title="AC-130 AIRSTRIKE",	 desc="<font size='8'>Pros:\n-5 seconds to impact\n-Quick bombardment\n-Anti-Infrantry/Vehicle\n\nCons:\n-Weak Vs. Buildings</font>", 												cost="800" , type=1)
-	NodItemMenuData(2)				= (BlockType=EPBT_ITEM, id=2, iconID=66, hotkey="3", title="MEDICAL KIT",	 	 desc="<font size='8'>Pros:\n-Heals near by infrantry\n-30 seconds before depletion\n\nCons:\n-Heals near by eenemies as well\n-Cannot refill</font>", 								cost="150" , type=1, bEnable = false)
-	NodItemMenuData(3)				= (BlockType=EPBT_ITEM, id=3, iconID=64, hotkey="4", title="AMMUNITION KIT",	 desc="<font size='8'>Pros:\n-Rearms near by infrantry\n-30 seconds before depletion\n\nCons:\n-Rearms near by enemies as well\n-Cannot refill</font>", 							cost="150" , type=1, bEnable = false)
-	NodItemMenuData(4)				= (BlockType=EPBT_ITEM, id=4, iconID=65, hotkey="5", title="MECHANICAL KIT",	 desc="<font size='8'>Pros:\n-Repairs near by vehicles\n-30 seconds before depletion\n\nCons:\n-Repairs near by enemies as well\n-Cannot refill</font>", 							cost="150" , type=1, bEnable = false)
-	NodItemMenuData(5)				= (BlockType=EPBT_ITEM, id=5, iconID=67, hotkey="6", title="MOTION SENSOR",	 	 desc="<font size='8'>Pros:\n-Relays enemy position in a radius\n-Detects mines and beacons\n\nCons:\n-Emits an audible sound\n-Cannot refill</font>", 								cost="200" , type=1, bEnable = false)
-	NodItemMenuData(6)				= (BlockType=EPBT_ITEM, id=6, iconID=68, hotkey="7", title="MG SENTRY",	 		 desc="<font size='8'>Requires Armory\n\n-Automated Sentry Turret\n-Anti-Infrantry\n-Limited Ammo\n-Can be picked up\n-Cannot refill</font>", 										cost="300" , type=1, bEnable = false)
-	NodItemMenuData(7)				= (BlockType=EPBT_ITEM, id=7, iconID=69, hotkey="8", title="AT SENTRY",	 		 desc="<font size='8'>Requires Armory\n\n-Automated Sentry Turret\n-Anti-Vehicle\n-Limited Ammo\n-Can be picked up\n-Cannot refill</font>", 										cost="300" , type=1, bEnable = false)
+	NodClassMenuData(0)				= (BlockType=EPBT_CLASS, id=5,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Chaingun', iconID=28, hotkey="1", title="OFFICER",				desc="Good Vs:\n-Infrantry\n-Light Armour Vehicles\n\nWeak Vs:\n-Buildings\n-Heavy Armour Vehicles",	cost="175",  type=2, damage=1, range=3, rateOfFire=6, magCap=6)
+	NodClassMenuData(1)				= (BlockType=EPBT_CLASS, id=6,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_MissileLauncher', iconID=42, hotkey="2", title="ROCKET SOLDIER",		desc="Good Vs:\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Infratry\n-Buildings",						cost="225",  type=2, damage=4, range=5, rateOfFire=1, magCap=1)
+	NodClassMenuData(2)				= (BlockType=EPBT_CLASS, id=7,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_ChemicalThrower', iconID=29, hotkey="3", title="CHEMICAL TROOPER",	desc="Good Vs:\n-Infratry\n-Light Armour\n-Buildings\n\nWeak Vs:\n-Heavy Armour",						cost="150",  type=2, damage=3, range=1, rateOfFire=4, magCap=4)
+	NodClassMenuData(3)				= (BlockType=EPBT_CLASS, id=8,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_SniperRifle', iconID=54, hotkey="4", title="BLACK HAND SNIPER",	desc="Good Vs:\n-Infrantry\n-Light Armour\n\nWeak Vs:\n-Heavy Armour\n-Buildings",						cost="500",  type=2, damage=4, range=6, rateOfFire=1, magCap=2)
+	NodClassMenuData(4)				= (BlockType=EPBT_CLASS, id=9,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_LaserRifle', iconID=39, hotkey="5", title="STEALTH BLACK HAND",	desc="Good Vs:\n-Infrantry\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Buildings",						cost="400",  type=2, damage=3, range=4, rateOfFire=4, magCap=3)
+	NodClassMenuData(5)				= (BlockType=EPBT_CLASS, id=10, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_LaserChaingun', iconID=38, hotkey="6", title="LASER CHAINGUNNER",	desc="Good Vs:\n-Infratry\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Buildings",						cost="450",  type=2, damage=3, range=3, rateOfFire=5, magCap=5)
+	NodClassMenuData(6)				= (BlockType=EPBT_CLASS, id=11, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RamjetRifle', iconID=48, hotkey="7", title="SAKURA",				desc="Good Vs:\n-Infrantry\n-Light Armour\n\nWeak Vs:\n-Heavy Armour\n-Buildings",						cost="1000", type=2, damage=5, range=6, rateOfFire=2, magCap=2)
+	NodClassMenuData(7)				= (BlockType=EPBT_CLASS, id=12, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Railgun', iconID=47, hotkey="8", title="RAVESHAW",			desc="Good Vs:\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Infrantry\n-Buildings",						cost="1000", type=2, damage=6, range=4, rateOfFire=1, magCap=2)
+	NodClassMenuData(8)				= (BlockType=EPBT_CLASS, id=13, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_VoltAutoRifle', iconID=59, hotkey="9", title="MENDOZA",				desc="Good Vs:\n-Infrantry\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Buildings",						cost="1000", type=2, damage=3, range=3, rateOfFire=6, magCap=4)
+	NodClassMenuData(9)				= (BlockType=EPBT_CLASS, id=14, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RepairGun', iconID=50, hotkey="0", title="TECHNICIAN",			desc="Pros:\n-Building Destruction\n-Repairing/Healing\n\nCons:\n-No Defensive Weapon\n-Short Range",	cost="350",  type=2, damage=6, range=1, rateOfFire=6, magCap=6)
 
 
-	NodWeaponMenuData(0)			= (BlockType=EPBT_WEAPON, id=0, iconID=36, hotkey="1", title="HEAVY PISTOL",	 		  desc="Good Vs:\n-Infrantry\n-Light Armour Vehicles\n\nWeak Vs:\n-Buildings\n-Light Armour Vehicles", 									 cost="100", type=2, damage=4,range=2,rateOfFire=3,magCap=2)
-	NodWeaponMenuData(1)			= (BlockType=EPBT_WEAPON, id=1, iconID=72, hotkey="2", title="CARBINE",	 			      desc="Good Vs:\n-Infantry\n-Light Armour\n\nWeak Vs:\n-Heavy Armour\n-Buildings",	 													 cost="250", type=2, damage=3,range=3,rateOfFire=4,magCap=2)
-	NodWeaponMenuData(2)			= (BlockType=EPBT_WEAPON, id=2, iconID=57, hotkey="3", title="TIBERIUM FLECHETTE RIFLE",  desc="<font size='8'>[Requires Silo] \nGood Vs: \n-Infrantry\n-Light Armour\nWeak Vs:\n-Heavy Armour\n-Buildings</font>",				 cost="400", type=2, damage=2,range=3,rateOfFire=5,magCap=3, bSilo = true)
-	NodWeaponMenuData(3)			= (BlockType=EPBT_WEAPON, id=3, iconID=56, hotkey="4", title="TIBERIUM AUTO-RIFLE",	 	  desc="<font size='8'>[Requires Silo] \nGood Vs: \n-Infrantry\n-Light Armour\nWeak Vs:\n-Heavy Armour\n-Buildings</font>",				 cost="400", type=2, damage=4,range=3,rateOfFire=2,magCap=3, bSilo = true)
-	NodWeaponMenuData(4)			= (BlockType=EPBT_WEAPON, id=4, iconID=30, hotkey="5", title="EMP GRENADE",	 			  desc="<font size='8'>\nPros:\n-Disables vehicles\n-Disarm mines\n\nCons:\n-Weapons remain active</font>", 					 		 cost="300", type=1)
-	NodWeaponMenuData(5)			= (BlockType=EPBT_WEAPON, id=5, iconID=26, hotkey="6", title="ANTI-TANK MINE",	 		  desc="<font size='8'>\nPros:\n-Heavy vehicle damage\n\nCons:\n-Can be destroyed\n-Limit 2 per person</font>", 						 cost="250", type=1)
-	NodWeaponMenuData(6) 			= (BlockType=EPBT_WEAPON, id=6, iconID=74, hotkey="7", title="SMOKE GRENADE",	 	      desc="<font size='8'>\nPros:\n-Reduces Visibility\n-Disables Target Info\n\nCons:\n-Weapons remain active</font>", 					 cost="100", type=1)
+	NodItemMenuData(0)				= (BlockType=EPBT_ITEM, id=0, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_NukeBeacon', iconID=71, hotkey="1", title="NUKE STRIKE BEACON", desc="<font size='8'>Pros:\n-Instant Building Destruction\n-Large Blast Radius\n\nCons:\n-60 Seconds for impact(Dismantle)\n-5 seconds for deployment\n-Statitargets only</font>", cost="1000", type=1)
+	NodItemMenuData(1)				= (BlockType=EPBT_ITEM, id=1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_Airstrike_AC130', iconID=63, hotkey="2", title="AC-130 AIRSTRIKE",	 desc="<font size='8'>Pros:\n-5 seconds to impact\n-Quick bombardment\n-Anti-Infrantry/Vehicle\n\nCons:\n-Weak Vs. Buildings</font>", 												cost="800" , type=1)
+	NodItemMenuData(2)				= (BlockType=EPBT_ITEM, id=2, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_MedKit', iconID=66, hotkey="3", title="MEDICAL KIT",	 	 desc="<font size='8'>Pros:\n-Heals near by infrantry\n-30 seconds before depletion\n\nCons:\n-Heals near by eenemies as well\n-Cannot refill</font>", 								cost="150" , type=1, bEnable = false)
+	NodItemMenuData(3)				= (BlockType=EPBT_ITEM, id=3, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_AmmoKit', iconID=64, hotkey="4", title="AMMUNITION KIT",	 desc="<font size='8'>Pros:\n-Rearms near by infrantry\n-30 seconds before depletion\n\nCons:\n-Rearms near by enemies as well\n-Cannot refill</font>", 							cost="150" , type=1, bEnable = false)
+	NodItemMenuData(4)				= (BlockType=EPBT_ITEM, id=4, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_MechanicalKit', iconID=65, hotkey="5", title="MECHANICAL KIT",	 desc="<font size='8'>Pros:\n-Repairs near by vehicles\n-30 seconds before depletion\n\nCons:\n-Repairs near by enemies as well\n-Cannot refill</font>", 							cost="150" , type=1, bEnable = false)
+	NodItemMenuData(5)				= (BlockType=EPBT_ITEM, id=5, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_MotionSensor', iconID=67, hotkey="6", title="MOTION SENSOR",	 	 desc="<font size='8'>Pros:\n-Relays enemy position in a radius\n-Detects mines and beacons\n\nCons:\n-Emits an audible sound\n-Cannot refill</font>", 								cost="200" , type=1, bEnable = false)
+	NodItemMenuData(6)				= (BlockType=EPBT_ITEM, id=6, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_Sentry_MG', iconID=68, hotkey="7", title="MG SENTRY",	 		 desc="<font size='8'>Requires Armory\n\n-Automated Sentry Turret\n-Anti-Infrantry\n-Limited Ammo\n-Can be picked up\n-Cannot refill</font>", 										cost="300" , type=1, bEnable = false)
+	NodItemMenuData(7)				= (BlockType=EPBT_ITEM, id=7, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_Sentry_AT', iconID=69, hotkey="8", title="AT SENTRY",	 		 desc="<font size='8'>Requires Armory\n\n-Automated Sentry Turret\n-Anti-Vehicle\n-Limited Ammo\n-Can be picked up\n-Cannot refill</font>", 										cost="300" , type=1, bEnable = false)
 
 
-	NodVehicleMenuData(0)			= (BlockType=EPBT_VEHICLE, id=0, iconID=20, hotkey="1", title="BUGGY", 						desc="<font size='10'>-.50 Calibre Machine Gun\n-Light Armour\n-Fast Attack Scout\n-Driver + Passenger</font>", 		 cost="350")
-	NodVehicleMenuData(1)			= (BlockType=EPBT_VEHICLE, id=1, iconID=18, hotkey="2", title="ARMOURED PERSONNEL CARRIER", desc="<font size='10'>-M134 Minigun\n-Heavy Armour\n-Troop Transport\n-Driver + 4 Passengers</font>", 					 cost="500")
-	NodVehicleMenuData(2)			= (BlockType=EPBT_VEHICLE, id=2, iconID=19, hotkey="3", title="MOBILE ARTILLERY", 			desc="<font size='10'>\n-155mm Howitzer\n-Light Armour\n-Long Range Ballistics\n-Driver + Passenger</font>", 			 cost="450")
-	NodVehicleMenuData(3)			= (BlockType=EPBT_VEHICLE, id=3, iconID=21, hotkey="4", title="FLAME TANK", 				desc="<font size='10'>\n-2x Flame Throwers\n-Heavy Armour\n-Close Range Suppressor\n-Driver + Passenger</font>", 		 cost="800")
-	NodVehicleMenuData(4)			= (BlockType=EPBT_VEHICLE, id=4, iconID=22, hotkey="5", title="LIGHT TANK", 				desc="<font size='10'>\n-75mm Cannon\n-Heavy Armour\n-Main Battle Tank\n-Driver + Passenger</font>", 					 cost="600")
-	NodVehicleMenuData(5)			= (BlockType=EPBT_VEHICLE, id=5, iconID=23, hotkey="6", title="STEALTH TANK", 				desc="<font size='10'>-2x TOW Missiles\n-Heavy Armour\n-Guerilla Combat Vehicle\n-Active Camouflage\n-DriveOnly</font>", cost="900")
-	NodVehicleMenuData(6)			= (BlockType=EPBT_VEHICLE, id=6, iconID=24, hotkey="7", title="TRANSPORT HELICOPTER", 		desc="<font size='10'>\n-2x Gattling Guns\n-Light Armour\n-Troop Transport\n-Pilot + 4 Passengers</font>", 				 cost="700", bAircraft = true)
-	NodVehicleMenuData(7)			= (BlockType=EPBT_VEHICLE, id=7, iconID=17, hotkey="8", title="APACHE", 					desc="<font size='10'>-30mm Auto-Cannon\n-Hydra-70 Rockets\n-Light Armour\n-Attack Helocopter\n-Pilot Only</font>", 	 cost="900", bAircraft = true)
+	NodWeaponMenuData(0)			= (BlockType=EPBT_WEAPON, id=0, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_HeavyPistol', iconID=36, hotkey="1", title="HEAVY PISTOL",	 		  desc="Good Vs:\n-Infrantry\n-Light Armour Vehicles\n\nWeak Vs:\n-Buildings\n-Light Armour Vehicles", 									 cost="100", type=2, damage=4,range=2,rateOfFire=3,magCap=2)
+	NodWeaponMenuData(1)			= (BlockType=EPBT_WEAPON, id=1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Carbine', iconID=72, hotkey="2", title="CARBINE",	 			      desc="Good Vs:\n-Infantry\n-Light Armour\n\nWeak Vs:\n-Heavy Armour\n-Buildings",	 													 cost="250", type=2, damage=3,range=3,rateOfFire=4,magCap=2)
+	NodWeaponMenuData(2)			= (BlockType=EPBT_WEAPON, id=2, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_TibFlechetteRifle', iconID=57, hotkey="3", title="TIBERIUM FLECHETTE RIFLE",  desc="<font size='8'>[Requires Silo] \nGood Vs: \n-Infrantry\n-Light Armour\nWeak Vs:\n-Heavy Armour\n-Buildings</font>",				 cost="400", type=2, damage=2,range=3,rateOfFire=5,magCap=3, bSilo = true)
+	NodWeaponMenuData(3)			= (BlockType=EPBT_WEAPON, id=3, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_TibAutoRifle', iconID=56, hotkey="4", title="TIBERIUM AUTO-RIFLE",	 	  desc="<font size='8'>[Requires Silo] \nGood Vs: \n-Infrantry\n-Light Armour\nWeak Vs:\n-Heavy Armour\n-Buildings</font>",				 cost="400", type=2, damage=4,range=3,rateOfFire=2,magCap=3, bSilo = true)
+	NodWeaponMenuData(4)			= (BlockType=EPBT_WEAPON, id=4, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_EMPGrenade', iconID=30, hotkey="5", title="EMP GRENADE",	 			  desc="<font size='8'>\nPros:\n-Disables vehicles\n-Disarm mines\n\nCons:\n-Weapons remain active</font>", 					 		 cost="300", type=1)
+	NodWeaponMenuData(5)			= (BlockType=EPBT_WEAPON, id=5, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_ATMine', iconID=26, hotkey="6", title="ANTI-TANK MINE",	 		  desc="<font size='8'>\nPros:\n-Heavy vehicle damage\n\nCons:\n-Can be destroyed\n-Limit 2 per person</font>", 						 cost="250", type=1)
+	NodWeaponMenuData(6) 			= (BlockType=EPBT_WEAPON, id=6, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_SmokeGrenade', iconID=74, hotkey="7", title="SMOKE GRENADE",	 	      desc="<font size='8'>\nPros:\n-Reduces Visibility\n-Disables Target Info\n\nCons:\n-Weapons remain active</font>", 					 cost="100", type=1)
 
 
-	GDIEquipmentSideArmData(0) 		= (id=0, iconID=45, hotkey="[F1]", title="Silenced Pistol",  desc="Sidearm", 	WeaponClass = class'Rx_Weapon_Pistol',      bFree=true);
-	GDIEquipmentSideArmData(1) 		= (id=1, iconID=40, hotkey="[F1]", title="Machine Pistol",   desc="Sidearm", 	WeaponClass = class'Rx_Weapon_SMG_GDI',     bFree=true);
-	GDIEquipmentSideArmData(2) 		= (id=2, iconID=73, hotkey="[F1]", title="Repair Tool",      desc="Sidearm", 	WeaponClass = class'Rx_Weapon_RepairTool',  bFree=true, bEnable=false);
-	GDIEquipmentSideArmData(3) 		= (id=3, iconID=36, hotkey="[F1]", title="Heavy Pistol",     desc="Sidearm", 	WeaponClass = class'Rx_Weapon_HeavyPistol');
-	GDIEquipmentSideArmData(4) 		= (id=4, iconID=72, hotkey="[F1]", title="Carbine",          desc="Sidearm", 	WeaponClass = class'Rx_Weapon_Carbine');
-	GDIEquipmentSideArmData(5) 		= (id=5, iconID=57, hotkey="[F1]", title="Flechette Rifle",  desc="Sidearm", 	WeaponClass = class'Rx_Weapon_TiberiumFlechetteRifle');
-	GDIEquipmentSideArmData(6) 		= (id=6, iconID=56, hotkey="[F1]", title="Auto-Rifle",       desc="Sidearm", 	WeaponClass = class'Rx_Weapon_TiberiumAutoRifle');
+	NodVehicleMenuData(0)			= (BlockType=EPBT_VEHICLE, id=0, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Veh_Nod_Buggy', iconID=20, hotkey="1", title="BUGGY", 						desc="<font size='10'>-.50 Calibre Machine Gun\n-Light Armour\n-Fast Attack Scout\n-Driver + Passenger</font>", 		 cost="350")
+	NodVehicleMenuData(1)			= (BlockType=EPBT_VEHICLE, id=1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Veh_Nod_APC', iconID=18, hotkey="2", title="ARMOURED PERSONNEL CARRIER", desc="<font size='10'>-M134 Minigun\n-Heavy Armour\n-Troop Transport\n-Driver + 4 Passengers</font>", 					 cost="500")
+	NodVehicleMenuData(2)			= (BlockType=EPBT_VEHICLE, id=2, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Veh_Nod_Artillery', iconID=19, hotkey="3", title="MOBILE ARTILLERY", 			desc="<font size='10'>\n-155mm Howitzer\n-Light Armour\n-Long Range Ballistics\n-Driver + Passenger</font>", 			 cost="450")
+	NodVehicleMenuData(3)			= (BlockType=EPBT_VEHICLE, id=3, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Veh_Nod_FlameTank', iconID=21, hotkey="4", title="FLAME TANK", 				desc="<font size='10'>\n-2x Flame Throwers\n-Heavy Armour\n-Close Range Suppressor\n-Driver + Passenger</font>", 		 cost="800")
+	NodVehicleMenuData(4)			= (BlockType=EPBT_VEHICLE, id=4, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Veh_Nod_LightTank', iconID=22, hotkey="5", title="LIGHT TANK", 				desc="<font size='10'>\n-75mm Cannon\n-Heavy Armour\n-Main Battle Tank\n-Driver + Passenger</font>", 					 cost="600")
+	NodVehicleMenuData(5)			= (BlockType=EPBT_VEHICLE, id=5, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Veh_Nod_StealthTank', iconID=23, hotkey="6", title="STEALTH TANK", 				desc="<font size='10'>-2x TOW Missiles\n-Heavy Armour\n-Guerilla Combat Vehicle\n-Active Camouflage\n-DriveOnly</font>", cost="900")
+	NodVehicleMenuData(6)			= (BlockType=EPBT_VEHICLE, id=6, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Veh_TransportHelicopter', iconID=24, hotkey="7", title="TRANSPORT HELICOPTER", 		desc="<font size='10'>\n-2x Gattling Guns\n-Light Armour\n-Troop Transport\n-Pilot + 4 Passengers</font>", 				 cost="700", bAircraft = true)
+	NodVehicleMenuData(7)			= (BlockType=EPBT_VEHICLE, id=7, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Veh_Nod_Apache', iconID=17, hotkey="8", title="APACHE", 					desc="<font size='10'>-30mm Auto-Cannon\n-Hydra-70 Rockets\n-Light Armour\n-Attack Helocopter\n-Pilot Only</font>", 	 cost="900", bAircraft = true)
 
-	GDIEquipmentExplosiveData(0) 	= (id=0, iconID=58, hotkey="[F2]", title="Timed C4", 		 desc="Explosives", WeaponClass = class'Rx_Weapon_TimedC4',     bFree=true);
-	GDIEquipmentExplosiveData(1) 	= (id=1, iconID=33, hotkey="[F2]", title="Grenades", 		 desc="Explosives", WeaponClass = class'Rx_Weapon_Grenade',     bFree=true);
-	GDIEquipmentExplosiveData(2) 	= (id=3, iconID=74, hotkey="[F2]", title="Smoke Grenade", 	 desc="Explosives", WeaponClass = class'Rx_Weapon_SmokeGrenade');
-	GDIEquipmentExplosiveData(3) 	= (id=4, iconID=30, hotkey="[F2]", title="EMP Grenade", 	 desc="Explosives", WeaponClass = class'Rx_Weapon_EMPGrenade');
-	GDIEquipmentExplosiveData(4) 	= (id=5, iconID=26, hotkey="[F2]", title="Anti-Tank Mine", 	 desc="Explosives", WeaponClass = class'Rx_Weapon_ATMine');
-	GDIEquipmentExplosiveData(5) 	= (id=0, iconID=46, hotkey="[F2]", title="Proximity C4", 	 desc="Explosives", WeaponClass = class'Rx_Weapon_ProxyC4');
-	GDIEquipmentExplosiveData(6) 	= (id=0, iconID=49, hotkey="[F2]", title="Remote C4", 	     desc="Explosives", WeaponClass = class'Rx_Weapon_RemoteC4');
 
-	NodEquipmentSideArmData(0) 		= (id=0, iconID=45, hotkey="[F1]", title="Silenced Pistol",  desc="Sidearm", 	WeaponClass = class'Rx_Weapon_Pistol',      bFree=true);
-	NodEquipmentSideArmData(1) 		= (id=1, iconID=40, hotkey="[F1]", title="Machine Pistol",   desc="Sidearm", 	WeaponClass = class'Rx_Weapon_SMG_Nod',     bFree=true);
-	NodEquipmentSideArmData(2) 		= (id=2, iconID=73, hotkey="[F1]", title="Repair Tool",      desc="Sidearm", 	WeaponClass = class'Rx_Weapon_RepairTool',  bFree=true, bEnable=false);
-	NodEquipmentSideArmData(3) 		= (id=3, iconID=36, hotkey="[F1]", title="Heavy Pistol",     desc="Sidearm", 	WeaponClass = class'Rx_Weapon_HeavyPistol');
-	NodEquipmentSideArmData(4) 		= (id=4, iconID=72, hotkey="[F1]", title="Carbine",          desc="Sidearm", 	WeaponClass = class'Rx_Weapon_Carbine');
-	NodEquipmentSideArmData(5) 		= (id=5, iconID=57, hotkey="[F1]", title="Flechette Rifle",  desc="Sidearm", 	WeaponClass = class'Rx_Weapon_TiberiumFlechetteRifle');
-	NodEquipmentSideArmData(6) 		= (id=6, iconID=56, hotkey="[F1]", title="Auto-Rifle",       desc="Sidearm", 	WeaponClass = class'Rx_Weapon_TiberiumAutoRifle');
+	GDIEquipmentSideArmData(0) 		= (id=0, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Pistol', iconID=45, hotkey="[F1]", title="Silenced Pistol",  desc="Sidearm", 	WeaponClass = class'Rx_Weapon_Pistol',      bFree=true);
+	GDIEquipmentSideArmData(1) 		= (id=1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_MachinePistol', iconID=40, hotkey="[F1]", title="Machine Pistol",   desc="Sidearm", 	WeaponClass = class'Rx_Weapon_SMG_GDI',     bFree=true);
+	GDIEquipmentSideArmData(2) 		= (id=2, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RepairTool', iconID=73, hotkey="[F1]", title="Repair Tool",      desc="Sidearm", 	WeaponClass = class'Rx_Weapon_RepairTool',  bFree=true, bEnable=false);
+	GDIEquipmentSideArmData(3) 		= (id=3, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_HeavyPistol', iconID=36, hotkey="[F1]", title="Heavy Pistol",     desc="Sidearm", 	WeaponClass = class'Rx_Weapon_HeavyPistol');
+	GDIEquipmentSideArmData(4) 		= (id=4, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Carbine', iconID=72, hotkey="[F1]", title="Carbine",          desc="Sidearm", 	WeaponClass = class'Rx_Weapon_Carbine');
+	GDIEquipmentSideArmData(5) 		= (id=5, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_TibFlechetteRifle', iconID=57, hotkey="[F1]", title="Flechette Rifle",  desc="Sidearm", 	WeaponClass = class'Rx_Weapon_TiberiumFlechetteRifle');
+	GDIEquipmentSideArmData(6) 		= (id=6, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_TibAutoRifle', iconID=56, hotkey="[F1]", title="Auto-Rifle",       desc="Sidearm", 	WeaponClass = class'Rx_Weapon_TiberiumAutoRifle');
 
-	NodEquipmentExplosiveData(0)	= (id=0, iconID=58, hotkey="[F2]", title="Timed C4", 		 desc="Explosives", WeaponClass = class'Rx_Weapon_TimedC4',      bFree=true);
-	NodEquipmentExplosiveData(1) 	= (id=1, iconID=33, hotkey="[F2]", title="Grenades", 		 desc="Explosives", WeaponClass = class'Rx_Weapon_Grenade',      bFree=true);
-	NodEquipmentExplosiveData(2) 	= (id=3, iconID=74, hotkey="[F2]", title="Smoke Grenade", 	 desc="Explosives", WeaponClass = class'Rx_Weapon_SmokeGrenade');
-	NodEquipmentExplosiveData(3) 	= (id=3, iconID=30, hotkey="[F2]", title="EMP Grenade", 	 desc="Explosives", WeaponClass = class'Rx_Weapon_EMPGrenade');
-	NodEquipmentExplosiveData(4) 	= (id=4, iconID=26, hotkey="[F2]", title="Anti-Tank Mine", 	 desc="Explosives", WeaponClass = class'Rx_Weapon_ATMine');
-	NodEquipmentExplosiveData(5) 	= (id=0, iconID=46, hotkey="[F2]", title="Proximity C4", 	 desc="Explosives", WeaponClass = class'Rx_Weapon_ProxyC4');
-	NodEquipmentExplosiveData(6) 	= (id=0, iconID=49, hotkey="[F2]", title="Remote C4", 	     desc="Explosives", WeaponClass = class'Rx_Weapon_RemoteC4');
+	GDIEquipmentExplosiveData(0) 	= (id=0, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_TimedC4', iconID=58, hotkey="[F2]", title="Timed C4", 		 desc="Explosives", WeaponClass = class'Rx_Weapon_TimedC4',     bFree=true);
+	GDIEquipmentExplosiveData(1) 	= (id=1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_FragGrenade', iconID=33, hotkey="[F2]", title="Grenades", 		 desc="Explosives", WeaponClass = class'Rx_Weapon_Grenade',     bFree=true);
+	GDIEquipmentExplosiveData(2) 	= (id=3, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_SmokeGrenade', iconID=74, hotkey="[F2]", title="Smoke Grenade", 	 desc="Explosives", WeaponClass = class'Rx_Weapon_SmokeGrenade');
+	GDIEquipmentExplosiveData(3) 	= (id=4, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_EMPGrenade', iconID=30, hotkey="[F2]", title="EMP Grenade", 	 desc="Explosives", WeaponClass = class'Rx_Weapon_EMPGrenade');
+	GDIEquipmentExplosiveData(4) 	= (id=5, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_ATMine', iconID=26, hotkey="[F2]", title="Anti-Tank Mine", 	 desc="Explosives", WeaponClass = class'Rx_Weapon_ATMine');
+	GDIEquipmentExplosiveData(5) 	= (id=0, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_ProxyC4', iconID=46, hotkey="[F2]", title="Proximity C4", 	 desc="Explosives", WeaponClass = class'Rx_Weapon_ProxyC4');
+	GDIEquipmentExplosiveData(6) 	= (id=0, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RemoteC4', iconID=49, hotkey="[F2]", title="Remote C4", 	     desc="Explosives", WeaponClass = class'Rx_Weapon_RemoteC4');
+
+	NodEquipmentSideArmData(0) 		= (id=0, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Pistol', iconID=45, hotkey="[F1]", title="Silenced Pistol",  desc="Sidearm", 	WeaponClass = class'Rx_Weapon_Pistol',      bFree=true);
+	NodEquipmentSideArmData(1) 		= (id=1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_MachinePistol', iconID=40, hotkey="[F1]", title="Machine Pistol",   desc="Sidearm", 	WeaponClass = class'Rx_Weapon_SMG_Nod',     bFree=true);
+	NodEquipmentSideArmData(2) 		= (id=2, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RepairTool', iconID=73, hotkey="[F1]", title="Repair Tool",      desc="Sidearm", 	WeaponClass = class'Rx_Weapon_RepairTool',  bFree=true, bEnable=false);
+	NodEquipmentSideArmData(3) 		= (id=3, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_HeavyPistol', iconID=36, hotkey="[F1]", title="Heavy Pistol",     desc="Sidearm", 	WeaponClass = class'Rx_Weapon_HeavyPistol');
+	NodEquipmentSideArmData(4) 		= (id=4, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Carbine', iconID=72, hotkey="[F1]", title="Carbine",          desc="Sidearm", 	WeaponClass = class'Rx_Weapon_Carbine');
+	NodEquipmentSideArmData(5) 		= (id=5, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_TibFlechetteRifle', iconID=57, hotkey="[F1]", title="Flechette Rifle",  desc="Sidearm", 	WeaponClass = class'Rx_Weapon_TiberiumFlechetteRifle');
+	NodEquipmentSideArmData(6) 		= (id=6, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_TibAutoRifle', iconID=56, hotkey="[F1]", title="Auto-Rifle",       desc="Sidearm", 	WeaponClass = class'Rx_Weapon_TiberiumAutoRifle');
+
+	NodEquipmentExplosiveData(0)	= (id=0, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_TimedC4', iconID=58, hotkey="[F2]", title="Timed C4", 		 desc="Explosives", WeaponClass = class'Rx_Weapon_TimedC4',      bFree=true);
+	NodEquipmentExplosiveData(1) 	= (id=1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_FragGrenade', iconID=33, hotkey="[F2]", title="Grenades", 		 desc="Explosives", WeaponClass = class'Rx_Weapon_Grenade',      bFree=true);
+	NodEquipmentExplosiveData(2) 	= (id=3, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_SmokeGrenade', iconID=74, hotkey="[F2]", title="Smoke Grenade", 	 desc="Explosives", WeaponClass = class'Rx_Weapon_SmokeGrenade');
+	NodEquipmentExplosiveData(3) 	= (id=3, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_EMPGrenade', iconID=30, hotkey="[F2]", title="EMP Grenade", 	 desc="Explosives", WeaponClass = class'Rx_Weapon_EMPGrenade');
+	NodEquipmentExplosiveData(4) 	= (id=4, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_ATMine', iconID=26, hotkey="[F2]", title="Anti-Tank Mine", 	 desc="Explosives", WeaponClass = class'Rx_Weapon_ATMine');
+	NodEquipmentExplosiveData(5) 	= (id=0, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_ProxyC4', iconID=46, hotkey="[F2]", title="Proximity C4", 	 desc="Explosives", WeaponClass = class'Rx_Weapon_ProxyC4');
+	NodEquipmentExplosiveData(6) 	= (id=0, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RemoteC4', iconID=49, hotkey="[F2]", title="Remote C4", 	     desc="Explosives", WeaponClass = class'Rx_Weapon_RemoteC4');
 	
 	 /** one1: Added. */
 	 RotationIncrement 				= 1000

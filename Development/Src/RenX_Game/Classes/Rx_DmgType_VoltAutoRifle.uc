@@ -54,6 +54,7 @@ defaultproperties
 
     CustomTauntIndex=10
     lightArmorDmgScaling=0.4
+	AircraftDamageScaling=0.6 //Low flying aircraft be damned. 
     BuildingDamageScaling=0.4
 	MineDamageScaling=1.0
 	

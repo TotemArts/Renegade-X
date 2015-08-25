@@ -14,6 +14,7 @@ defaultproperties
 
     CustomTauntIndex=10
     lightArmorDmgScaling=0.52
+	AircraftDamageScaling=0.55 //Ummm, Laser Rifle is OP as crap already vs. light vehicles. Seriously, how does Nod EVER lose the field when the SBH is this powerful?? Ignorant SBHs... that's how.
     BuildingDamageScaling=0.38
 	MineDamageScaling=2.0
 	

@@ -64,8 +64,11 @@ function Initialize(GameInfo Game, UTTeamInfo GdiTeamInfo, UTTeamInfo NodTeamInf
 				WeaponsFactory = build;
 			} 
 		}
-	}  
- 
+	}
+	if (RGame.TeamCredits[TEAM_GDI].Refinery == None)
+		bGDIRefDestroyed = true;
+	if (RGame.TeamCredits[TEAM_NOD].Refinery == None)
+		bNodRefDestroyed = true;
 }
 
 function SpawnInitialHarvesters()

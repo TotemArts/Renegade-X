@@ -67,8 +67,8 @@ DefaultProperties
     bCanFlip=False
     bTurnInPlace=True
     bSeparateTurretFocus=True
-    CameraLag=0.15 //0.4
-    LookForwardDist=350
+    CameraLag=0.5
+    LookForwardDist=0
     GroundSpeed=300
     MaxSpeed=500
     LeftStickDirDeadZone=0.1
@@ -155,7 +155,7 @@ DefaultProperties
                 TurretControls=(TurretPitch,TurretRotate),
                 GunPivotPoints=(b_Turret_Yaw,b_Turret_Pitch),
                 CameraTag=CamView3P,
-                CameraBaseOffset=(X=230,Z=-65),
+                CameraBaseOffset=(X=230,Z=-0),
                 CameraOffset=-1040,
                 SeatIconPos=(X=0.5,Y=0.33),
                 MuzzleFlashLightClass=class'Rx_Light_Tank_MuzzleFlash'
@@ -164,7 +164,7 @@ DefaultProperties
 	Seats(1)={( GunClass=none,
 				TurretVarPrefix="Passenger",
 				CameraTag=CamView3P,
-				CameraBaseOffset=(X=230,Z=-65),
+				CameraBaseOffset=(X=230,Z=-0),
                 CameraOffset=-1040,
 				)}
 

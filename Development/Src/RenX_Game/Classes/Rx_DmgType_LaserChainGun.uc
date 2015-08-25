@@ -9,11 +9,13 @@ defaultproperties
 //    DamageWeaponClass=class'Rx_Weapon_LaserRifle'
     DamageWeaponFireMode=2
     VehicleDamageScaling=0.1875
+	
     NodeDamageScaling=0.5
     VehicleMomentumScaling=0.1
 
     CustomTauntIndex=10
     lightArmorDmgScaling=0.1875
+	AircraftDamageScaling=0.3 //This is only used by a damage type if the value is greater than 0, otherwise it treats an aircraft like Light armour. Can just barely 1-clip an Orca if you land everything
     BuildingDamageScaling=0.25
 	MineDamageScaling=2.0
 	

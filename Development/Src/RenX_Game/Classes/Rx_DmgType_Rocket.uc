@@ -14,6 +14,7 @@ defaultproperties
     NodeDamageScaling=1.1
     bThrowRagdoll=true
     CustomTauntIndex=7
+	
     bBulletHit=false
     bCausesBloodSplatterDecals=false
     AlwaysGibDamageThreshold=99

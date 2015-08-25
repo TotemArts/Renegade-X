@@ -532,10 +532,10 @@ DefaultProperties
 	SeekingRocketClass=class'Rx_Projectile_MissileLauncher'
 
 	ConsoleLockAim=0.999999
-	LockRange=6000
+	LockRange=7500
 	LockAim=0.999999
 	LockChecktime=0.25
-	LockAcquireTime=1.0
+	LockAcquireTime=0.75
 	LockTolerance=3.0   
     bTargetLockingActive = true
 

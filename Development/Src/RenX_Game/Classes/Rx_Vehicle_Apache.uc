@@ -232,7 +232,8 @@ defaultproperties
     Components.Add(SimObject)
 
     Health=400
-    bLightArmor=true
+    bLightArmor=false
+	bisAirCraft=true
     bFollowLookDir=false
 
     COMOffset=(X=40,Z=0.0)

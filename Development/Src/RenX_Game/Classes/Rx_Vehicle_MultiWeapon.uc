@@ -1,6 +1,6 @@
-
 class Rx_Vehicle_MultiWeapon extends Rx_Vehicle_Weapon
 	abstract;
+//8AUG2015: Added SecondaryReloadTimer and ClientSide reloading of the secondary to fix reload bug.
 
 var	localized string	AltItemName;
 
@@ -17,6 +17,8 @@ var float primaryReloadBeginTime;
 var float currentPrimaryReloadTime;
 var float secondaryReloadBeginTime;
 var float currentSecondaryReloadTime;
+
+var bool CurrentlyReloadingSecondaryClientside; //////////////ADDED TO DIFFERENTIATE WEAPONS (Also edited in RX_Controller so that pressing R to reload did not completely bone both weapons)
 
 
 
@@ -35,10 +37,12 @@ simulated event ReplicatedEvent( name VarName )
 		if(PrimaryReloading)
 		{
 			primaryReloadBeginTime = WorldInfo.TimeSeconds;
+			//`log("Set Primary to Reload" @ primaryReloadBeginTime);
 		}
 		else
 		{
 			CurrentAmmoInClipClientside[0] = ClipSize[0];
+			//`log("Set Current Ammo in Clip" @ CurrentAmmoInClipClientside[0]);
 		}
 	}
 	else if ( VarName == 'SecondaryReloading' )
@@ -46,10 +50,12 @@ simulated event ReplicatedEvent( name VarName )
 		if(SecondaryReloading)
 		{
 			secondaryReloadBeginTime = WorldInfo.TimeSeconds;
+			//`log("Set Secondary Reload" @ secondaryReloadBeginTime);
 		}
 		else
 		{
 			CurrentAmmoInClipClientside[1] = ClipSize[1];
+			//`log("Set Secondary ClipSize" @ CurrentAmmoInClipClientside[1]);
 		}
 	} 
 	else if (VarName == 'CurrentAmmoInClip')
@@ -57,10 +63,12 @@ simulated event ReplicatedEvent( name VarName )
 		if(CurrentAmmoInClip[0] == ClipSize[0])
 		{
 			CurrentAmmoInClipClientside[0] = ClipSize[0];	
+			//`log("Set Primary ClipSize after Ammo in Clip Replicated:" @ CurrentAmmoInClipClientside[0]);
 		}
 		if(CurrentAmmoInClip[1] == ClipSize[1])
 		{
 			CurrentAmmoInClipClientside[1] = ClipSize[1];
+			//`log("Set Secondary ClipSize after Ammo in Clip Replicated:" @ CurrentAmmoInClipClientside[1]);
 		}
     }
 	else
@@ -96,10 +104,12 @@ simulated function Activate()
 simulated function int GetUseableAmmo()
 {
 	return CurrentAmmoInClip[0];
+	//`log("GetUsableAmmo Called: " @ CurrentAmmoInClip[0]);
 }
 simulated function int GetAltUseableAmmo()
 {
 	return CurrentAmmoInClip[1];
+	//`log("GetAltUsableAmmo Called: " @ CurrentAmmoInClip[1]);
 }
 simulated function int GetMaxAmmoInClip()
 {
@@ -116,13 +126,14 @@ function ConsumeAmmo( byte FireModeNum )
 	// ammo must get remmoved from clip and it doesnt change weither 
 	// or not it is primary or secondary fire
 	CurrentAmmoInClip[FireModeNum] -= ShotCost[FireModeNum];
-	if(CurrentAmmoInClip[FireModeNum] < 0)
-		`log("---");
+	//if(CurrentAmmoInClip[FireModeNum] < 0)
+		//`log("Ammo Removed from FireModeNum" @ FireModeNum);
 }
 
 simulated function ConsumeClientsideAmmo( byte FireModeNum )
 {
 	CurrentAmmoInClipClientside[FireModeNum] -= ShotCost[FireModeNum];
+	//`log(" (Client)Ammo Removed from FireModeNum" @ FireModeNum);
 }
 
 // if this gun has any ammo in current firemode clip it will return true.
@@ -131,14 +142,21 @@ simulated function bool HasAmmo( byte FireModeNum, optional int Amount = 0 )
 	if( Amount==0 )
 	{
 		if (CurrentAmmoInClip[FireModeNum] < ShotCost[FireModeNum] || CurrentAmmoInClipClientside[FireModeNum] < ShotCost[FireModeNum])
+		{
+			//`log("No Ammo to Fire");
 			return false;
+		}
 		else
 			return true;
 	}
 	else
 	{
 		if (CurrentAmmoInClip[FireModeNum] < Amount || CurrentAmmoInClipClientside[FireModeNum] < Amount)
-			return false;
+			
+			{
+				return false;
+				//`log("No special ammo");
+			}
 		else
 			return true;
 	}
@@ -150,6 +168,7 @@ simulated function bool HasAnyAmmoOfType( byte FireModeNum )
 	if( ( FireModeNum == 0 &&  CurrentAmmoInClip[0] > 0 ) ||
 		( FireModeNum == 1 &&  CurrentAmmoInClip[1] > 0 ) )
 	{
+		//`log("Has ammo in something");
 		return true;
 	}
 	return false;
@@ -164,7 +183,7 @@ simulated state Active
 		super.BeginState(PreviousState);
 		if (bDebugWeapon)
 		{
-			`log("---"@self$" Coming from state"@PreviousState@"to state"@GetStateName());
+			//`log("---"@self$" Coming from state"@PreviousState@"to state"@GetStateName());
 		}
 
 	}
@@ -175,14 +194,18 @@ simulated state Active
 		super.EndState(NextState);
 		if (bDebugWeapon)
 		{
-			`log("---"@self$" Goint to state"@NextState@"From state"@GetStateName());
+			//`log("---"@self$" Goint to state"@NextState@"From state"@GetStateName());
 		}
 	}
 
 	// make sure that one weapon isnt reloading
 	simulated function bool bReadyToFire()
 	{
-		return (!PrimaryReloading || !SecondaryReloading);
+		//`log("ReadyToFire Called");
+		//`log("Primary Reloading" @ PrimaryReloading);
+		//`log("Secondary Reloading" @ SecondaryReloading);
+		return true;
+		//(!PrimaryReloading || !SecondaryReloading);
 	}
 
 		/** Override BeginFire so that it will enter the firing state right away. */
@@ -220,6 +243,7 @@ simulated state Active
 simulated function FireAmmunition()
 {
 	if(IsReloading(CurrentFireMode)) {
+		//`log("Is Reloading Firemode" @ CurrentFireMode);
 		return;
 	}
 	super.FireAmmunition();
@@ -233,7 +257,7 @@ simulated state WeaponFiring
 	{
 		if (bDebugWeapon)
 		{
-			`log("---"@self$" Coming from state"@PreviousState@"to state"@GetStateName());
+			//`log("---"@self$" Coming from state"@PreviousState@"to state"@GetStateName());
 		}
 
 		super.BeginState(PreviousState);
@@ -243,7 +267,7 @@ simulated state WeaponFiring
 	{
 		if (bDebugWeapon)
 		{
-			`log("---"@self$" Goint to state"@NextState@"From state"@GetStateName());
+			//`log("---"@self$" Goint to state"@NextState@"From state"@GetStateName());
 		}
 		
 		super.EndState(NextState);
@@ -256,6 +280,7 @@ simulated state WeaponFiring
 	{
 		if ( CheckZoom(FireModeNum) )
 		{
+			//`log("Weapon Zoomed");
 			return;
 		}
 
@@ -264,6 +289,7 @@ simulated state WeaponFiring
 		// No Ammo, then do a quick exit.
 		if( !HasAnyAmmoOfType(FireModeNum) )
 		{
+			//`log("Weapon empty" @ FireModeNum);
 			WeaponEmpty();
 			return;
 		}
@@ -279,6 +305,7 @@ simulated state WeaponFiring
 		// if switching to another weapon, abort firing and put down right away
 		if( bWeaponPutDown )
 		{
+			//`log("Weapon Being Put down");
 			PutDownWeapon();
 			return;
 		}
@@ -286,6 +313,7 @@ simulated state WeaponFiring
 		// If weapon should keep on firing, then do not leave state and fire again.
 		if( ShouldRefire() )
 		{
+			//`log("Weapon Should Be Refiring");
 			FireAmmunition();
 			return;
 		}
@@ -296,11 +324,13 @@ simulated state WeaponFiring
 			// Go to reload for Primary
 			if( CurrentFireMode == 0 && !PrimaryReloading )
 			{
+				//`log("Reloading Primary");
 				PrimaryReload();
 			}
 			// Go to Reload for Secondary
 			else if( CurrentFireMode == 1 && !SecondaryReloading )
 			{
+				//`log("Reloading Secondary");
 				SecondaryReload();
 			}
 		}
@@ -310,17 +340,56 @@ simulated state WeaponFiring
 	}
 }
 
+simulated function HandleClientReload()
+{
+	//`log("Handle Client Reload Called");
+	if (!IsReloading(0) && NeedsReload(0))
+	{
+		CurrentlyReloadingClientside=true;
+		if(!IsTimerActive('SetCurrentlyReloadingClientsideToFalseTimer')) SetTimer(ReloadTime[0],false,'SetCurrentlyReloadingClientsideToFalseTimer');
+		
+	}
+	
+	if (!IsReloading(1) && NeedsReload(1))
+	{
+		CurrentlyReloadingSecondaryClientside=true;
+		if(!IsTimerActive('SetCurrentlyReloadingSecondaryClientsideToFalseTimer')) SetTimer(ReloadTime[1],false,'SetCurrentlyReloadingSecondaryClientsideToFalseTimer');
+		
+	}
+	
+	
+}
+
+
 simulated function bool IsReloading( byte FireMode )
 {
-	if(CurrentlyReloadingClientside) 
-		return true;
-		
+	
+	
 	if( FireMode == 0 )
 	{
+		
+		if(CurrentlyReloadingClientside) //Already reloading, back out.
+		{
+		//`log("Primary Reloading ClientSide");
+		return true;
+		} 	
+		
+		//`log("Reloading Primary" @ PrimaryReloading);
+		
 		return PrimaryReloading;
 	}
+	
 	else if( FireMode == 1 )
+	
 	{
+			if(CurrentlyReloadingSecondaryClientside) //Already reloading secondary, back out.
+		{
+		//`log("Secondary Reloading ClientSide");
+		return true;
+		} 	
+		
+		
+		//`log("Reloading Secondary" @ SecondaryReloading);
 		return SecondaryReloading;
 	}
 }
@@ -331,6 +400,7 @@ simulated function bool NeedsReload( byte FireMode )
 	{
 		if( CurrentAmmoInClip[0] < ClipSize[0] )
 		{
+			//`log("Primary Needs Reload" @ CurrentAmmoInClip[0] $ "/" $ ClipSize[0]);
 			return true;
 		}
 		return false;
@@ -339,34 +409,46 @@ simulated function bool NeedsReload( byte FireMode )
 	{
 		if( CurrentAmmoInClip[1] < ClipSize[1] )
 		{
+			//`log("Secondary Needs Reload" @ CurrentAmmoInClip[1] $ "/" $ ClipSize[1]);
 			return true;
 		}
 		return false;
 	}
+	else
+	return false; 
 }
 // a reload caused by the player pushing the reload key
 simulated function PlayerRelaod()
 {
 	if (!IsReloading(0) && NeedsReload(0) )
 	{
+		//`log("Pushed Primary Reload" @ NeedsReload(0) @ IsReloading(0));
+		
 		PrimaryReload();
 	}
 	if (!IsReloading(1) && NeedsReload(1))
 	{
+		//`log("Pushed Secondary Reload" @ NeedsReload(1) @ IsReloading(1));
+		
 		SecondaryReload();
 	}
+	//`log("Primary ReloadingV: " @ PrimaryReloading);
+	//`log("Secondary ReloadingV: " @ SecondaryReloading);
 }
 
 simulated function PrimaryReload()
 {
+	//`log("Called For PrimaryReload");
 	PrimaryReloading = true;
 	primaryReloadBeginTime = WorldInfo.TimeSeconds;
 	currentPrimaryReloadTime = ReloadTime[0];
 	SetTimer(ReloadTime[0],false,'PrimaryReloadTimer' );
+	
 }
 
 simulated function SecondaryReload()
 {
+	//`log("Called For SecondaryReload");
 	SecondaryReloading = true;
 	secondaryReloadBeginTime = WorldInfo.TimeSeconds;
 	currentSecondaryReloadTime = ReloadTime[1];
@@ -376,13 +458,14 @@ simulated function SecondaryReload()
 simulated function PrimaryReloadTimer()
 {
 	ReloadWeapon(0);
+	//`log("Primary Reloaded");
 }
 
 simulated function SecondaryReloadTimer()
 {
 	ReloadWeapon(1);
+	//`log("Secondary Reloaded");
 }
-
 simulated function ReloadWeapon( byte FireMode )
 {
 
@@ -400,12 +483,50 @@ simulated function ReloadWeapon( byte FireMode )
 	if( PendingFire(FireMode) ) 
 	{
 		SetCurrentFireMode(FireMode);
+		//`log("Held mouse button detected: fire mode is" @ FireMode);
 		GotoState('WeaponFiring');	
 	}
 	else if(!PrimaryReloading && !SecondaryReloading)
 	{
+		//`log("No Weapons are reloading");
 		GotoState('Active');
 	}
+	
+	//`log("Completed Manual Reload");
+}
+
+//EDIT: ShouldRefire() was never edited to question just WHICH weapon was reloading. Fixed (OR  broken... 'cuz Yosh breaks lots of things in the name of fixing.)
+simulated function bool ShouldRefire()
+{
+ 	local vector FireStartLoc;
+ 	local Rx_Vehicle veh;
+ 	
+ 	if(CurrentlyReloadingClientside && CurrentlyReloadingSecondaryClientside)
+ 	{
+		//`log("Both Weapons Reloading: Doing nothing");
+ 		return false;
+ 	}
+ 		
+ 	if(bCheckIfBarrelInsideWorldGeomBeforeFiring) {
+	 	FireStartLoc = MyVehicle.GetEffectLocation(SeatIndex);
+	 	if(!FastTrace(FireStartLoc,MyVehicle.location)) {
+			ClearPendingFire(CurrentFireMode);
+			return false;
+		}
+	} 
+	
+ 	if(bCheckIfFireStartLocInsideOtherVehicle)
+ 	{
+ 	    foreach CollidingActors(class'Rx_Vehicle', veh, 3, Owner.location, true)
+   		{
+			if(veh == Pawn(Owner))
+				continue;
+			ClearPendingFire(CurrentFireMode);
+			return false;
+		}
+	} 	
+	
+	return super.ShouldRefire();
 }
 
 simulated function SetCurrentFireMode(byte FiringModeNum)
@@ -413,6 +534,11 @@ simulated function SetCurrentFireMode(byte FiringModeNum)
 	super.SetCurrentFireMode(FiringModeNum);
 }
 
+simulated function SetCurrentlyReloadingSecondaryClientsideToFalseTimer()
+{
+	//`log("Secondary Client-side reload set to FALSE");
+	CurrentlyReloadingSecondaryClientside = false;	
+}
 
 DefaultProperties
 {

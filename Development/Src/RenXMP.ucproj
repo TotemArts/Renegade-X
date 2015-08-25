@@ -1626,6 +1626,11 @@
     <Compile Include="RenX_ExampleMutators\Classes\Rx_Mutator_GiveSniper.uc" />
     <Compile Include="RenX_ExampleMutators\Classes\Rx_Mutator_SBHSniper.uc" />
     <Compile Include="RenX_Game\Classes\AimingWeaponClass.uc" />
+    <Compile Include="RenX_Game\Classes\APB_Light_TeslaTank_MuzzleFlash.uc" />
+    <Compile Include="RenX_Game\Classes\APB_VehicleFactory_TeslaTank.uc" />
+    <Compile Include="RenX_Game\Classes\APB_Vehicle_TeslaTank.uc" />
+    <Compile Include="RenX_Game\Classes\APB_Vehicle_TeslaTank_Weapon.uc" />
+    <Compile Include="RenX_Game\Classes\APB_Vehicle_TeslaTank_Wheel.uc" />
     <Compile Include="RenX_Game\Classes\GeminiLinkClient.uc" />
     <Compile Include="RenX_Game\Classes\GeminiOnlineService.uc" />
     <Compile Include="RenX_Game\Classes\RxIfc_Capturable.uc" />
@@ -2102,6 +2107,8 @@
     <Compile Include="RenX_Game\Classes\Rx_Light_Tank_Shell.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Light_TiberiumFlechetteRifle_MuzzleFlash.uc" />
     <Compile Include="RenX_Game\Classes\Rx_MapInfo.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_MapList.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_MapListManager.uc" />
     <Compile Include="RenX_Game\Classes\Rx_MatchInfo.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Message_Buildings.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Message_Crates.uc" />
@@ -2212,6 +2219,7 @@
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_Ping.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_PlayerInfo.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_RecordDemo.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_Rotation.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_ServerInfo.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_SwapTeams.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_Team.uc" />
@@ -2348,6 +2356,7 @@
     <Compile Include="RenX_Game\Classes\Rx_Vehicle_Chinook_Weapon_Nod_Left.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Vehicle_Chinook_Weapon_Nod_Right.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Vehicle_Chinook_Weapon_Right.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Vehicle_Deployable.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Vehicle_FlameTank.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Vehicle_FlameTank_Projectile.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Vehicle_FlameTank_Weapon.uc" />
@@ -2419,6 +2428,7 @@
     <Compile Include="RenX_Game\Classes\Rx_VoteMenuChoice_RemoveBots.uc" />
     <Compile Include="RenX_Game\Classes\Rx_VoteMenuChoice_RestartMap.uc" />
     <Compile Include="RenX_Game\Classes\Rx_VoteMenuChoice_StartMatch.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_VoteMenuChoice_Surrender.uc" />
     <Compile Include="RenX_Game\Classes\Rx_VoteMenuChoice_Survey.uc" />
     <Compile Include="RenX_Game\Classes\Rx_VoteMenuHandler.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Weapon.uc" />
@@ -2491,6 +2501,41 @@
     <Compile Include="RenX_Game\Classes\Rx_Weapon_VoltAutoRifle.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Weapon_VoltAutoRifle_GDI.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Weapon_VoltAutoRifle_Nod.uc" />
+    <Compile Include="RenX_Game\Classes\TS_VehicleFactory_Buggy.uc" />
+    <Compile Include="RenX_Game\Classes\TS_VehicleFactory_HoverMRLS.uc" />
+    <Compile Include="RenX_Game\Classes\TS_VehicleFactory_ReconBike.uc" />
+    <Compile Include="RenX_Game\Classes\TS_VehicleFactory_TickTank.uc" />
+    <Compile Include="RenX_Game\Classes\TS_VehicleFactory_Titan.uc" />
+    <Compile Include="RenX_Game\Classes\TS_VehicleFactory_Wolverine.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_Buggy.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_Buggy_DmgType.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_Buggy_Gun.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_Buggy_Weapon.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_Buggy_Wheel.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_HoverMRLS.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_HoverMRLS_DmgType.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_HoverMRLS_Projectile.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_HoverMRLS_Weapon.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_ReconBike.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_ReconBike_DmgType.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_ReconBike_Projectile.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_ReconBike_Weapon.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_ReconBike_Wheel.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_TickTank.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_TickTank_Bullet.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_TickTank_Bullet_DmgType.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_TickTank_Cannon.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_TickTank_DmgType.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_TickTank_Weapon.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_Titan.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_Titan_Cannon.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_Titan_DmgType.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_Titan_Weapon.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_Wolverine.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_Wolverine_DmgType.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_Wolverine_GDI_Weapon.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_Wolverine_MG.uc" />
+    <Compile Include="RenX_Game\Classes\TS_Vehicle_Wolverine_Weapon.uc" />
     <Compile Include="RenX_Game\Classes\VaultActor.uc" />
     <Compile Include="RenX_RCam\Classes\CamControl.uc" />
     <Compile Include="RenX_RCam\Classes\drawkey.uc" />
@@ -3344,6 +3389,9 @@
     </Config>
     <Config Include="..\..\UDKGame\Config\DefaultMapDataInfo.ini">
       <Link>Config\DefaultMapDataInfo.ini</Link>
+    </Config>
+    <Config Include="..\..\UDKGame\Config\DefaultMapList.ini">
+      <Link>Config\DefaultMapList.ini</Link>
     </Config>
     <Config Include="..\..\UDKGame\Config\DefaultMenu.ini">
       <Link>Config\Default*.ini</Link>

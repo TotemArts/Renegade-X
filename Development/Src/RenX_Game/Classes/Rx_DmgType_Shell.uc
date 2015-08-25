@@ -8,6 +8,7 @@ defaultproperties
     VehicleMomentumScaling=0.025
     VehicleDamageScaling=0.83		// 0.85
 	lightArmorDmgScaling=0.83		// 0.85
+	AircraftDamageScaling=1.4 		//This is only used by a damage type if the value is greater than 0, otherwise it treats an aircraft like Light armour.
     BuildingDamageScaling=1.66		// 0.85
 	MineDamageScaling=2.0
 	

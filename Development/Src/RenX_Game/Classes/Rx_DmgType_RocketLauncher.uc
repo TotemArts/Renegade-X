@@ -13,6 +13,7 @@ defaultproperties
 
     CustomTauntIndex=10
     lightArmorDmgScaling=1.0005
+	AircraftDamageScaling=1.5 //This is only used by a damage type if the value is greater than 0, otherwise it treats an aircraft like Light armour./Again, weapons that are actually difficult to hit with should see the larger bonuses, as opposed to giving huge bonuses to weapons that are hit-scan
     BuildingDamageScaling=1.225
 	MineDamageScaling=2.0
     AlwaysGibDamageThreshold=99

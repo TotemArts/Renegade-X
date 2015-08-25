@@ -28,7 +28,7 @@ function string trigger(string parameters)
 
 function string getHelp(string parameters)
 {
-	return "Fetches some information out the server." @ getSyntax();
+	return "Fetches some information about the server." @ getSyntax();
 }
 
 DefaultProperties

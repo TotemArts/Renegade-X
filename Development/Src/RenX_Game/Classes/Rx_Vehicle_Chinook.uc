@@ -173,8 +173,9 @@ defaultproperties
     SimObj=SimObject
     Components.Add(SimObject)
 
-    Health=400
-    bLightArmor=true
+    Health=500
+    bLightArmor=false
+	bisAirCraft=true
     
 	MaxDesireability = 0.0 // todo: reactivate when flying AI is fixed     
 

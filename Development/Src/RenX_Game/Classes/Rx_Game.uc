@@ -87,6 +87,10 @@ var config bool bHostsAuthenticationService;
 /**Provides Map Information stored in the .ini file. (expensive to get, so cache here). */
 var array<Rx_UIDataProvider_MapInfo> MapDataProviderList;
 
+/** Name of the class that manages maplists and map cycles */
+var globalconfig string MapListManagerClassName;
+var Rx_MapListManager MapListManager;
+
 // Skirmish options:
 var int GDIBotCount;
 var int NODBotCount;
@@ -155,6 +159,7 @@ var bool ClientDemoInProgress;
 
 var globalconfig float MaxSeamlessTravelServerTime; // If the server has been up longer than this amount, then force a non-seamless travel.
 var bool bForceNonSeamless;
+
 
 enum BuildingCheck
 {
@@ -241,6 +246,14 @@ function SetupMapDataList()
 		}
 		MapDataProviderList.AddItem(Rx_UIDataProvider_MapInfo(ProviderList[i]));
 	} 
+	if (MapDataProviderList.Length > 0) {
+		MapDataProviderList.Sort(MapListSort);
+	}
+}
+
+delegate int MapListSort(Rx_UIDataProvider_MapInfo A, Rx_UIDataProvider_MapInfo B) 
+{
+	return A.FriendlyName < B.FriendlyName ? 0 : -1;
 }
 
 /** one1: added */
@@ -1150,8 +1163,33 @@ event InitGame( string Options, out string ErrorMessage )
 	Port = `GamePort;
 	//GamePassword = ParseOption( Options, "GamePassword");
 	
-}
 
+	// Initialize the maplist manager
+	InitializeMapListManager();
+}
+function InitializeMapListManager(optional string MLMOverrideClass)
+{
+	local class<Rx_MapListManager> MapListManagerClass;
+
+	if (MLMOverrideClass == "")
+		MLMOverrideClass = MapListManagerClassName;
+
+	if (MLMOverrideClass != "")
+		MapListManagerClass = Class<Rx_MapListManager>(DynamicLoadObject(MLMOverrideClass, Class'Class'));
+
+	if (MapListManagerClass == none)
+		MapListManagerClass = Class'Rx_MapListManager';
+
+	MapListManager = Spawn(MapListManagerClass);
+
+	if (MapListManager == none && MapListManagerClass != Class'Rx_MapListManager')
+	{
+		`log("Unable to spawn maplist manager of class '"$MLMOverrideClass$"', loading the default maplist manager");
+		MapListManager = Spawn(Class'Rx_MapListManager');
+	}
+
+	MapListManager.Initialize();
+}
 function int InitBotDifficultyFromBaseDifficulty(int Difficulty)
 {
 	local int ret;
@@ -1668,7 +1706,8 @@ function EndRxGame(string Reason, byte WinningTeamNum )
 	
 	
 	// Make sure end game is a valid reason, and then verify the game is over.
-	if ( ((Reason ~= "Buildings") || (Reason ~= "TimeLimit") || (Reason ~= "triggered")) && !bGameEnded) {
+	//Yosh: Added Surrender on the off chance we can get that built into the flash for the end-game screen
+	if ( ((Reason ~= "Buildings") || (Reason ~= "TimeLimit") || (Reason ~= "triggered") || (Reason ~="Surrender")) && !bGameEnded) {
 		// From super(), manualy integrated.
 		bGameEnded = true;
 		//EndTime = WorldInfo.RealTimeSeconds + EndTimeDelay;
@@ -1690,7 +1729,7 @@ function EndRxGame(string Reason, byte WinningTeamNum )
 
 		if(Reason ~= "TimeLimit")
 			Rx_GRI(WorldInfo.GRI).WinnerReason = "By Points";
-		else if(Reason ~= "Buildings")
+		else if(Reason ~= "Buildings" || Reason ~= "Surrender")
 			Rx_GRI(WorldInfo.GRI).WinnerReason = "By Base Destruction";
 		else 
 			Rx_GRI(WorldInfo.GRI).WinnerReason = "triggered";
@@ -2264,6 +2303,14 @@ function string GetNextMap()
 {
 	local int GameIndex;
 
+	/** Yosh: Had to comment this out for the sake of getting patch 5003 out in a timely manner. 
+	From what I could tell by looking at it quickly, the game never sets an active map list for the manager, so you just get thrown back on the same map.
+	if (MapListManager != none) {
+		//return MapListManager.GetNextMap();
+	}
+	*/
+	
+	
 	if (bFixedMapRotation)
 	{
 		GameIndex = class'UTGame'.default.GameSpecificMapCycles.Find('GameClassName', Class.Name);

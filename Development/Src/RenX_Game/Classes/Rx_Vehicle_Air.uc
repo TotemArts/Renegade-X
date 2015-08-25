@@ -211,6 +211,8 @@ defaultproperties
 	RollTorqueStrafeFactor=0.25
 	PitchTorqueFactor=1.3
 	
+	bisAircraft=true
+	
 	MinSprintSpeedMultiplier=1.0
 	MaxSprintSpeedMultiplier=1.25
 	SprintTimeInterval=1.0

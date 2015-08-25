@@ -41,6 +41,36 @@ simulated event PostBeginPlay()
 		SetTimer(1.0f,false,'GetPurchaseSystem');
 }
 
+simulated function array<Rx_UIDataProvider_MapInfo> GetMapDataProviderList()
+{
+	local array<UDKUIResourceDataProvider> ProviderList; 
+	local array<Rx_UIDataProvider_MapInfo> MapDataList;
+	local int i;
+
+	// make sure default map exists
+	class'UTUIDataStore_MenuItems'.static.GetAllResourceDataProviders(class'Rx_UIDataProvider_MapInfo', ProviderList);
+	
+	//hack until we solve the sorting issue
+	for (i = ProviderList.length - 1; i >= 0; i--)
+	{		
+		if (Rx_UIDataProvider_MapInfo(ProviderList[i]) == none) {
+			`log("NONE - ProviderList[i]? " $ Rx_UIDataProvider_MapInfo(ProviderList[i]).MapName);
+			continue;
+		}
+		MapDataList.AddItem(Rx_UIDataProvider_MapInfo(ProviderList[i]));
+	} 
+	if (MapDataList.Length > 0) {
+		MapDataList.Sort(MapListSort);
+	} 
+	return MapDataList;
+
+}
+
+delegate int MapListSort(Rx_UIDataProvider_MapInfo A, Rx_UIDataProvider_MapInfo B) 
+{
+	return A.FriendlyName < B.FriendlyName ? 0 : -1;
+}
+
 function SetupEndMapVote(array<string> MapList, bool bScramble)
 {
 	local int i, random;

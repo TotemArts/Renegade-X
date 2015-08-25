@@ -34,6 +34,8 @@ var bool bHasFadeIn;
 var bool bMapVoteInitialized;
 var bool bChatInitialized;
 
+var array<Rx_UIDataProvider_MapInfo> MapDataProviderList;
+
 function bool Start(optional bool StartPaused = false)
 {
     super.Start();
@@ -444,50 +446,80 @@ function int GetBuildingPicIndex(Rx_Building B)
 /** Helper function for converting a MapName to a label for list. Copied from GFxUDKFrontEnd_MapSelect */
 function string GetMapFriendlyName(string Map)
 {
-	local int p;
 
-	
+	local int p, i;
 
-	switch (Map) {
-		case "CNC-Field":
-			return "Field";
-		case "CNC-Walls_Flying":
-			return "Walls";
-		case "CNC-GoldRush":
-			return "GoldRush";
-		case "CNC-Whiteout":
-			return "Whiteout";
-		case "CNC-Islands":
-			return "Islands";
-		case "CNC-LakeSide":
-			return "LakeSide";
-		case "CNC-Mesa_ii":
-			return "Mesa II";
-		case "CNC-Volcano":
-			return "Volcano";
-		case "CNC-Xmountain":
-			return "XMountain";
-		case "CNC-Complex":
-			return "Complex";
-		case "CNC-Canyon":
-			return "Canyon";
-		case "CNC-UnderRedux":
-			return "Under";
-		default:
-			GetPC().ClientMessage("WARN: Map not registered yet: " $ Map);
-			`warn("WARN: Map not registered yet: " $ Map);
-			// just strip the prefix
-			p = InStr(Map,"-");
-			if (P > INDEX_NONE)
-			{
-				Map = Right(Map, Len(Map) - P - 1);
-			}
-			if (Repl(Map, "_", " ") != "") {
-				Map = Repl(Map, "_", " ");
-			}
-			
-			return Map;
+	if (MapDataProviderList.Length <= 0) {
+		if (GetPC().WorldInfo.Game != none) {
+			MapDataProviderList = Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList;
+		} else {
+			MapDataProviderList = Rx_GRI(GetPC().WorldInfo.GRI).GetMapDataProviderList();
+		}
 	}
+
+	for (i = 0; i < MapDataProviderList.Length; i++) {
+		if (Map ~= MapDataProviderList[i].MapName) {
+			return MapDataProviderList[i].FriendlyName;
+		}
+	}
+	GetPC().ClientMessage("WARN: Map not registered yet: " $ Map);
+	`warn("WARN: Map not registered yet: " $ Map);
+	// just strip the prefix
+	p = InStr(Map,"-");
+	if (P > INDEX_NONE)
+	{
+		Map = Right(Map, Len(Map) - P - 1);
+	}
+	if (Repl(Map, "_", " ") != "") {
+		Map = Repl(Map, "_", " ");
+	}
+
+	return Map;
+// 	switch (Map) {
+// 		case "CNC-Field":
+// 			return "Field";
+// 		case "CNC-Walls_Flying":
+// 			return "Walls";
+// 		case "CNC-GoldRush":
+// 			return "GoldRush";
+// 		case "CNC-Whiteout":
+// 			return "Whiteout";
+// 		case "CNC-Islands":
+// 			return "Islands";
+// 		case "CNC-LakeSide":
+// 			return "LakeSide";
+// 		case "CNC-Mesa_ii":
+// 			return "Mesa II";
+// 		case "CNC-Volcano":
+// 			return "Volcano";
+// 		case "CNC-Xmountain":
+// 			return "XMountain";
+// 		case "CNC-Complex":
+// 			return "Complex";
+// 		case "CNC-Canyon":
+// 			return "Canyon";
+// 		case "CNC-UnderRedux":
+// 			return "Under";
+//		case "CNC-Valley":
+//			return "Valley";
+//		case "CNC-TrainingYard":
+//			return "Training_Yard";
+//		case "CNC-Eyes":
+//			return "Eyes";
+// 		default:
+// 			GetPC().ClientMessage("WARN: Map not registered yet: " $ Map);
+// 			`warn("WARN: Map not registered yet: " $ Map);
+// 			// just strip the prefix
+// 			p = InStr(Map,"-");
+// 			if (P > INDEX_NONE)
+// 			{
+// 				Map = Right(Map, Len(Map) - P - 1);
+// 			}
+// 			if (Repl(Map, "_", " ") != "") {
+// 				Map = Repl(Map, "_", " ");
+// 			}
+// 			
+// 			return Map;
 }
 
 function SetBuildingGfxObjects()

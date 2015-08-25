@@ -28,7 +28,7 @@ function string trigger(string parameters)
 
 function string getHelp(string parameters)
 {
-	return "Fetches some information out the game in progress." @ getSyntax();
+	return "Fetches some information about the game in progress." @ getSyntax();
 }
 
 DefaultProperties

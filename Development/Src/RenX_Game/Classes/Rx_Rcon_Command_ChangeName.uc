@@ -37,7 +37,7 @@ function string trigger(string parameters)
 
 function string getHelp(string parameters)
 {
-	return "Sends a message as the Host." @ getSyntax();
+	return "Changes a player's name." @ getSyntax();
 }
 
 DefaultProperties

@@ -9,6 +9,7 @@ defaultproperties
     VehicleDamageScaling=0.75
 	lightArmorDmgScaling=0.75
     BuildingDamageScaling=1.5f
+	AircraftDamageScaling=-1 //Ummm, Laser Rifle is OP as crap already vs. light vehicles. Seriously, how does Nod EVER lose the field when the SBH is this powerful?? Ignorant SBHs... that's how.
 	MineDamageScaling=1.0
 
 	IconTextureName="T_DeathIcon_MammothTank"

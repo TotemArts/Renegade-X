@@ -3,7 +3,7 @@ class Rx_Rcon_Command_KickBan extends Rx_Rcon_Command;
 function string trigger(string parameters)
 {
 	local int pos;
-	local Rx_Controller player;
+	local Controller player;
 
 	if (parameters == "")
 		return "Error: Too few parameters." @ getSyntax();
@@ -11,18 +11,38 @@ function string trigger(string parameters)
 	pos = InStr(parameters," ",,true);
 	if (pos != -1)
 	{
-		player = Rx_Controller(WorldInfo.Game.AccessControl.GetControllerFromString(Left(parameters,pos)));
+		player = WorldInfo.Game.AccessControl.GetControllerFromString(Left(parameters,pos));
 		if (player == None)
 			return "Error: Player not found.";
+
+		if (UTBot(player) != None)
+		{
+			UTGame(WorldInfo.Game).DesiredPlayerCount = WorldInfo.Game.NumPlayers + WorldInfo.Game.NumBots - 1;
+			UTGame(WorldInfo.Game).KillBot(UTBot(player));
+			return "";
+		}
+		if (PlayerController(player) == None)
+			return "Error: Player not found. (Non-PlayerController returned)";
+
 		parameters = Mid(parameters, pos+1);
-		Rx_AccessControl(WorldInfo.Game.AccessControl).KickBanPlayer(player, parameters);
+		Rx_AccessControl(WorldInfo.Game.AccessControl).KickBanPlayer(PlayerController(player), parameters);
 	}
 	else
 	{
-		player = Rx_Controller(WorldInfo.Game.AccessControl.GetControllerFromString(parameters));
+		player = WorldInfo.Game.AccessControl.GetControllerFromString(parameters);
 		if (player == None)
 			return "Error: Player not found.";
-		Rx_AccessControl(WorldInfo.Game.AccessControl).KickBanPlayer(player, WorldInfo.Game.AccessControl.DefaultKickReason);
+
+		if (UTBot(player) != None)
+		{
+			UTGame(WorldInfo.Game).DesiredPlayerCount = WorldInfo.Game.NumPlayers + WorldInfo.Game.NumBots - 1;
+			UTGame(WorldInfo.Game).KillBot(UTBot(player));
+			return "";
+		}
+		if (PlayerController(player) == None)
+			return "Error: Player not found. (Non-PlayerController returned)";
+
+		Rx_AccessControl(WorldInfo.Game.AccessControl).KickBanPlayer(PlayerController(player), WorldInfo.Game.AccessControl.DefaultKickReason);
 	}
 
 	return "";
