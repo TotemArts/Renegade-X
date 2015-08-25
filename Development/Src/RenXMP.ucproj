@@ -2224,6 +2224,7 @@
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_SwapTeams.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_Team.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_Team2.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_TeamInfo.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_TextMute.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_TextUnmute.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_UnloadMutator.uc" />

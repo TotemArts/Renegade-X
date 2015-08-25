@@ -12,10 +12,10 @@ function string trigger(string parameters)
 			if (pos == -1)
 			{
 				// last word
-				Rx_Game(WorldInfo.Game).GetGameProperty(parameters);
+				ret $= Rx_Game(WorldInfo.Game).GetGameProperty(parameters);
 				break;
 			}
-			ret $= Rx_Game(WorldInfo.Game).GetGameProperty(Left(parameters, pos));
+			ret $= Rx_Game(WorldInfo.Game).GetGameProperty(Left(parameters, pos)) $ `nbsp;
 			parameters = Mid(parameters, pos + 1);
 		}
 		return ret;

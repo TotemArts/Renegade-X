@@ -44,6 +44,7 @@ function InitRconCommands()
 	SpawnCommand(class'Rx_Rcon_Command_GameInfo');
 	SpawnCommand(class'Rx_Rcon_Command_BuildingInfo');
 	SpawnCommand(class'Rx_Rcon_Command_Rotation');
+	SpawnCommand(class'Rx_Rcon_command_TeamInfo');
 	if (!Rx_Game(WorldInfo.Game).bIsCompetitive)
 	{
 		SpawnCommand(class'Rx_Rcon_Command_Kill');
