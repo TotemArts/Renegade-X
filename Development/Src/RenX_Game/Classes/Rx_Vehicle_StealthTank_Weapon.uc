@@ -15,6 +15,7 @@
 class Rx_Vehicle_StealthTank_Weapon extends Rx_Vehicle_Weapon_Reloadable;
 
 
+var float Target_Distance; //Delete after debugging
 var	SoundCue WeaponDistantFireSnd;	// A second firing sound to be played when weapon fires. (Used for distant sound)
 //	var int      MissileRecoilCount;
 //	var int 	 i;
@@ -43,6 +44,72 @@ simulated function GetFireStartLocationAndRotation(out vector SocketLocation, ou
         }
     }
 }
+
+
+simulated function DrawCrosshair( Hud HUD )
+{
+	local vector2d CrosshairSize;
+	local float x,y;	
+	local UTHUDBase H;
+	local Pawn MyPawnOwner;
+	local actor TargetActor;
+	local int targetTeam, rectColor;	
+	
+	H = UTHUDBase(HUD);
+	if ( H == None )
+		return;
+
+ 	CrosshairSize.Y = CrosshairHeight;
+	CrosshairSize.X = CrosshairWidth;
+
+	X = H.Canvas.ClipX * 0.5 - (CrosshairSize.X * 0.5);
+	Y = H.Canvas.ClipY * 0.5 - (CrosshairSize.Y * 0.5);
+
+	
+	MyPawnOwner = Pawn(Owner);
+
+	//determines what we are looking at and what color we should use based on that.
+	if (MyPawnOwner != None)
+	{
+		TargetActor = Rx_Hud(HUD).GetActorWeaponIsAimingAt();
+		
+		if(TargetActor != None)
+		{
+			targetTeam = TargetActor.GetTeamNum();
+			
+			if (targetTeam == 0 || targetTeam == 1) //has to be gdi or nod player
+			{
+				if (targetTeam != MyPawnOwner.GetTeamNum())
+				{
+					if (!TargetActor.IsInState('Stealthed') && !TargetActor.IsInState('BeenShot'))
+						rectColor = 1; //enemy, go red, except if stealthed (else would be cheating ;] )
+				}
+				else
+					rectColor = 2; //Friendly
+			}
+		}
+	}
+	
+	if (!HasAnyAmmo()) //no ammo, go yellow
+		rectColor = 3;
+
+	CrosshairMIC2.SetScalarParameterValue('ReticleColourSwitcher', rectColor);
+	if ( CrosshairMIC2 != none )
+	{
+		//H.Canvas.SetPos( X+1, Y+1 );
+		H.Canvas.SetPos( X, Y );
+		H.Canvas.DrawMaterialTile(CrosshairMIC2,CrosshairSize.X, CrosshairSize.Y,0.0,0.0,1.0,1.0);
+		DrawHitIndicator(H,x,y);
+	}
+	if(bDebugWeapon)
+	{
+		UpdateRange(); 
+		
+	H.Canvas.DrawText("Range" @ Target_Distance ,true,1,1);
+	}
+	
+} 
+
 
 /**
 simulated function SetWeaponRecoil() {
@@ -121,6 +188,36 @@ simulated function rotator AddSpread(rotator BaseAim)
 }
 */
 
+simulated function UpdateRange()
+{
+	
+	local vector startL, normthing, endL;
+	local rotator ADir					;
+	local Actor Actor_Discard			;
+	// get aiming direction from our instigator (Assume this is the pawn from what I've read.)
+	 ADir = Instigator.GetBaseAimRotation();
+	
+	startL=InstantFireStartTrace(); //Using function out of Rx_weapon to find the end of our weapon, or just our own location
+	
+	//.......... Yosh need learn math. Working in 3D space is making me twitchy X.x
+	
+	Actor_Discard=Trace(endL, normthing, startL + vector(Adir) * 20000, startL, true) ;
+	
+	if(Actor_Discard == none) 
+	{
+	Target_Distance = 0 ; 	
+	return;	
+	}
+	
+	Target_Distance = round(VSize(endL-startL) ) ; // /52.5) ; 
+	
+	//NULL_Target = Actor_Discard;	
+	
+}
+
+
+
+
 DefaultProperties
 {
     InventoryGroup=17
@@ -148,6 +245,8 @@ DefaultProperties
     FireTriggerTags(1) = "TurretFireLeft"
     AltFireTriggerTags(0) = "TurretFireRight"
     AltFireTriggerTags(1) = "TurretFireLeft"
+	
+	
     VehicleClass=Class'RenX_Game.Rx_Vehicle_StealthTank'
 
     FireInterval(0)=0.15
@@ -182,13 +281,17 @@ DefaultProperties
 
     LockTolerance		 = 0.2 			// 0.5		// How many seconds to stay locked
 
-    LockRange            = 4500
+    LockRange            = 5200 //4500
     ConsoleLockAim       = 0.997			// 0.997000
     LockAim              = 0.997			// 0.998000
     LockCheckTime        = 0.1			// 0.1
     LockAcquireTime      = 0.5 			// 0.7
     StayLocked           = 0.1 			// 0.1		// This does nothing
 
+	TossZ_Mod = 2000
+	TrackingMod=20.0
+	bDropOnTarget=false
+	
     bTargetLockingActive = true
     bHasRecoil = true
     bIgnoreDownwardPitch = true

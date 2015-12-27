@@ -129,7 +129,10 @@ simulated function bool CanSetAirstrike()
 	local Actor hit;
 	local float sangle;
 	local Rx_Weapon_DeployedBeacon beacon;
-
+	
+	local color MyColor;
+	MyColor=MakeColor(10,255,10,255); 
+	
 	// get aiming direction
 	aimdir = Instigator.GetBaseAimRotation();
 
@@ -146,7 +149,8 @@ simulated function bool CanSetAirstrike()
 	if(Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime > 0 
 				&& (WorldInfo.Timeseconds - Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime < default.AirstrikeCooldown)) 
 	{
-		Rx_Controller(Instigator.Controller).ClientMessage("Next Airstrike available in "$int(default.AirstrikeCooldown - (WorldInfo.Timeseconds - Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime))$" seconds");
+				Rx_Controller(Instigator.Controller).CTextMessage("GDI",45, "Next Airstrike available in "$int(default.AirstrikeCooldown - (WorldInfo.Timeseconds - Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime))$" seconds",MyColor,255, 255, false, 1, 0.75);
+		//Rx_Controller(Instigator.Controller).ClientMessage("Next Airstrike available in "$int(default.AirstrikeCooldown - (WorldInfo.Timeseconds - Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime))$" seconds");
 		return false; 
 	}
 	
@@ -435,12 +439,15 @@ reliable server function ServerDeploymentStarted(vector loc)
 reliable server function ServerDeploy(rotator rot)
 {
 	local Rx_Airstrike as;
-
+	local color MyColor;
+	
+	MyColor=MakeColor(10,255,10,255); 
 
 	if(Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime > 0 
 				&& (WorldInfo.Timeseconds - Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime < default.AirstrikeCooldown)) 
 	{
-		Rx_Controller(Instigator.Controller).ClientMessage("Next Airstrike available in "$int(default.AirstrikeCooldown - (WorldInfo.Timeseconds - Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime))$" seconds");
+		Rx_Controller(Instigator.Controller).CTextMessage("GDI",45, "Next Airstrike available in "$int(default.AirstrikeCooldown - (WorldInfo.Timeseconds - Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime))$" seconds",MyColor,255, 255, false, 1, 0.75);
+		//Rx_Controller(Instigator.Controller).ClientMessage("Next Airstrike available in "$int(default.AirstrikeCooldown - (WorldInfo.Timeseconds - Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime))$" seconds");
 		return; 
 	}	
 
@@ -467,30 +474,43 @@ simulated function ActiveRenderOverlays( HUD H )
    local Canvas C;
    local float PanX, PanY, PosX, PosY;
 
+   local Rx_Hud RxH;
+   local Rx_GFxHud HudMovie;
+
    super.ActiveRenderOverlays(H);
    C = H.Canvas;
+   RxH = Rx_Hud(H);
+   HudMovie = RxH.HudMovie;
 
-   if (!bShowLoadPanel || C == none)
-      return;
+   if (!bShowLoadPanel || C == none) {
+		if (HudMovie != none) {
+			HudMovie.HideLoadingBar();
+		}
+   		return;
+   }
 
-   // get the draw values
-   PanX = C.SizeX * PanelWidth;
-   PanY = C.SizeY * PanelHeight;
+   if (HudMovie != none) {
+   		HudMovie.ShowLoadingBar((CurrentProgress / DeploymentTime * 0.025f), "Airstrike in progress ...");
+   } else {
+		// get the draw values
+		PanX = C.SizeX * PanelWidth;
+		PanY = C.SizeY * PanelHeight;
 
-   C.SetDrawColor(255,64,64,255);
-   PosX = C.SizeX * 0.5f - PanX * 0.5f;
-   PosY = C.SizeY - PanY - 200;
-   C.SetPos(PosX, PosY);
-   C.DrawBox(PanX, PanY);
-   // draw the text
-   C.SetPos(PosX+3, PosY+3);
+		C.SetDrawColor(255,64,64,255);
+		PosX = C.SizeX * 0.5f - PanX * 0.5f;
+		PosY = C.SizeY - PanY - 200;
+		C.SetPos(PosX, PosY);
+		C.DrawBox(PanX, PanY);
+		// draw the text
+		C.SetPos(PosX+3, PosY+3);
 
-   C.DrawText("Airstrike in progress ...");
+		C.DrawText("Airstrike in progress ...");
 
-   // draw the loadpanel anim
-   C.DrawColor.A = 50;
-   C.SetPos(PosX + 1, PosY + 1);
-   C.DrawRect(PanX * (CurrentProgress / DeploymentTime * 0.025f), PanY - 2);
+		// draw the loadpanel anim
+		C.DrawColor.A = 50;
+		C.SetPos(PosX + 1, PosY + 1);
+		C.DrawRect(PanX * (CurrentProgress / DeploymentTime * 0.025f), PanY - 2);
+   }
 }
 
 simulated function float GetWeaponRating()

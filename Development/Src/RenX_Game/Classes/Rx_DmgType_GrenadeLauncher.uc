@@ -1,4 +1,4 @@
-class Rx_DmgType_GrenadeLauncher extends Rx_DmgType;
+class Rx_DmgType_GrenadeLauncher extends Rx_DmgType_Explosive;
 
 defaultproperties
 {
@@ -16,7 +16,10 @@ defaultproperties
     CustomTauntIndex=7
     lightArmorDmgScaling=0.36
     BuildingDamageScaling=0.8
+	MCTDamageScaling=2.5
 	MineDamageScaling=2.0
+	
+	
     AlwaysGibDamageThreshold=99
     bNeverGibs=false
 	

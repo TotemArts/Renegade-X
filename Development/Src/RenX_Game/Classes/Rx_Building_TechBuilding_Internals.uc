@@ -52,6 +52,12 @@ simulated function Init(Rx_Building Visuals, bool isDebug )
 }
 
 
+simulated function int GetTrueMaxHealth() 
+{
+	return HealthMax; 
+}
+
+
 simulated function FlagChanged() 
 {
  	if(FlagTeam == TEAM_NOD)

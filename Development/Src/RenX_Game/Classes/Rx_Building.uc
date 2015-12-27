@@ -168,6 +168,15 @@ simulated function int GetMaxHealth()
 		return HealthMax;	
 }
 
+simulated function int GetTrueMaxHealth() 
+{
+	if(BuildingInternals != None)
+		return BuildingInternals.GetTrueMaxHealth(); 
+	else 
+		return HealthMax;	
+}
+
+
 simulated function int GetArmor() 
 {
 	if(BuildingInternals != None)
@@ -183,6 +192,7 @@ simulated function int GetMaxArmor()
 	else 
 		return 0;	
 }
+
 
 simulated function string GetBuildingName()
 {	

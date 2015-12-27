@@ -1,8 +1,11 @@
 class Rx_Projectile_EMPGrenade extends Rx_Projectile_Grenade;
 
+var float Init_MineDamage ; //Initial damage done to proximity mines when this explodes. 
+
 simulated function Explode(vector HitLocation, vector HitNormal)
 {
 	if (WorldInfo.NetMode != NM_Client)
+	//	ReplicatePositionAfterLanded(); 
 		Spawn(class'Rx_EMPField',self,,HitLocation,,,);
 	super.Explode(HitLocation, HitNormal);
 }
@@ -104,10 +107,12 @@ DefaultProperties
 	CustomGravityScaling=1.0
     
     MyDamageType=class'Rx_DmgType_EMPGrenade'
-    
+    Init_MineDamage=50 //25%
+	
+	
 	BounceDamping=0.3
 	BounceDampingZ=0.4
-	ArmTime=6.0
+	ArmTime=4.0
     TossZ=50
     Speed=1500
     MaxSpeed=1500

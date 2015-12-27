@@ -6,7 +6,7 @@ function SetMineLimit(int amount)
 	local Rx_Weapon_DeployedC4 mine, oldestMine;
 	local int index;
 
-	if (amount < 0)
+	if (amount > 0)
 		amount = 0;
 
 	Rx_Game(WorldInfo.Game).MineLimit = amount;
@@ -41,9 +41,6 @@ function string trigger(string parameters)
 {
 	local int index;
 
-	if (parameters != "")
-		SetMineLimit(int(parameters));
-
 	parameters = string(Rx_Game(WorldInfo.Game).MineLimit);
 	for (index = 0; index != ArrayCount(Rx_Game(WorldInfo.Game).Teams); index++)
 		parameters $= `nbsp $ class'Rx_Game'.static.GetTeamName(index) `s Rx_TeamInfo(Rx_Game(WorldInfo.Game).Teams[index]).MineLimit;
@@ -59,5 +56,5 @@ DefaultProperties
 {
 	triggers.Add("minelimit");
 	triggers.Add("mlimit");
-	Syntax="Syntax: MineLimit Amount[Int]";
+	Syntax="Syntax: MineLimit ";
 }

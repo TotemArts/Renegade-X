@@ -2,12 +2,17 @@ class Rx_Building_Team_Internals extends Rx_Building_Internals;
 
 var int                     Health;             // Current health of the building
 var int                     HealthMax;          // Maximum health of the building
+var int 					BA_HealthMax;		//Changes to this as max health when building armour is enabled. 
+var int						TrueHealthMax;		// Max Health minus Armor value
 var int                     Armor;          	// Maximum health of the building
 var int                     LowHPWarnLevel;     // under this health-lvl lowHP warnings will be send (critical)
 var int                     RepairedHPLevel;    // Repaired message will not play if the building didn't fall below this level of health.
+var int 					RepairedArmorLevel; //Same but for armour.  
 var float                   SavedDmg;           // Since infantry weapons will do fractions of damage it is added here and once it is greater than 1 point of damage it is applied to health
 var const float             HealPointsScale;    // How many points per healed HP
 var const float             DamagePointsScale;  // How many points per damaged HP 
+var const float				Destroyed_Score	;	//Total points given when the building is destroyed. 1/2 is given to the player that destroyed it, whilst the other is just added to the team score. 
+
 
 var repnotify bool          bDestroyed;	        // true if Building is destroyed
 var protected int           DestroyerID;        // PlayerID of the player destroyed this building
@@ -41,9 +46,9 @@ var const SoundNodeWave     EnemyBuildingSounds[BuildingAlarm.BuildingAlarm_MAX]
 replication
 {
 	if( bNetInitial && Role == ROLE_Authority )
-		HealthMax;
+		HealthMax, TrueHealthMax;
 	if( bNetDirty && Role == ROLE_Authority )
-		Health, Armor, bDestroyed, DamageLodLevel, bNoPower;
+		Health, Armor, bDestroyed, DamageLodLevel, bNoPower; 
 }
 
 simulated event ReplicatedEvent( name VarName )
@@ -68,15 +73,19 @@ simulated function Init( Rx_Building Visuals, bool isDebug )
 	if (Role == ROLE_Authority)
 	{
 		
-		if(Rx_Game(WorldInfo.Game).buildingArmorPercentage > 0 && Rx_Building_Techbuilding(Visuals) == None)
+		if(Rx_Building_Techbuilding(Visuals) == None)
 		{
-			Armor = Visuals.HealthMax * Rx_Game(WorldInfo.Game).buildingArmorPercentage/100;
-			Health = Visuals.HealthMax - Armor;
-			HealthMax = Visuals.HealthMax;	
+			Visuals.HealthMax = BA_HealthMax; 
+			
+			Armor = BA_HealthMax * Rx_Game(WorldInfo.Game).buildingArmorPercentage/100;
+			Health = BA_HealthMax - Armor;
+			HealthMax = BA_HealthMax ;	
+			TrueHealthMax = BA_HealthMax - Armor; //Factor in armor for the true max health. Everything that relies on the default Healthmax uses default.maxhealth to draw things accurately.
 		} 
 		else {		
 			Health = Visuals.HealthMax;
-			HealthMax = Visuals.HealthMax;		
+			HealthMax = Visuals.HealthMax;	
+			TrueHealthMax = Visuals.HealthMax;	
 		}
 	}
 	
@@ -100,6 +109,12 @@ simulated function int GetMaxHealth()
 	return HealthMax; 
 }
 
+simulated function int GetTrueMaxHealth() 
+{
+	return TrueHealthMax; 
+}
+
+
 simulated function int GetArmor() 
 {
 	return Armor; 
@@ -107,8 +122,9 @@ simulated function int GetArmor()
 
 simulated function int GetMaxArmor() 
 {
-	return float(HealthMax) * float(Rx_GRI(WorldInfo.Gri).buildingArmorPercentage)/100.0f; 
+	return float(HealthMax) * float(Rx_GRI(WorldInfo.Gri).buildingArmorPercentage)/100.0f;
 }
+
 
 simulated function bool IsDestroyed()
 {
@@ -122,7 +138,15 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 	local int TempDmg;
 	local float Scr;
 	local int dmgLodLevel;
+	local Rx_Controller PC,StarPC; //Let's rub it in their faces, gents!
+	local color C_GREEN, C_RED;
+	
+	C_Green=MakeColor(10,255,0,255); 
+	C_Red=MakeColor(255,0,10,255); 
 
+	`log("Building Took damage " @ DamageAmount);
+	
+	StarPC=Rx_Controller(EventInstigator);
 	if ( GetTeamNum() == EventInstigator.GetTeamNum() || bDestroyed || Role < ROLE_Authority || Health <= 0 || DamageAmount <= 0 )
 		return;
 
@@ -155,7 +179,10 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 		    }			
 			
 		}
+		if(CurDmg > float(Health+Armor)) Scr = float(Health+Armor)*DamagePointsScale; //Don't give ridiculously high points for putting an ion on a building. 
+		else
 		Scr = CurDmg * DamagePointsScale;
+		
 		// add score (or sub, if bIsFriendlyFire is on)
 		if (GetTeamNum() != EventInstigator.GetTeamNum() && Rx_PRI(EventInstigator.PlayerReplicationInfo) != None)
 		{
@@ -185,6 +212,21 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 		bDestroyed = True;
 		Destroyer = EventInstigator.PlayerReplicationInfo;
 		BroadcastLocalizedMessage(MessageClass,BuildingDestroyed,EventInstigator.PlayerReplicationInfo,,self);
+		
+		Rx_PRI(Destroyer).AddScoreToPlayerAndTeam(Destroyed_Score/2); //875 to the destroyer of buildings. 
+		Rx_TeamInfo(Destroyer.Team).AddRenScore(Destroyed_Score/2); //And another 875 to the team score
+
+/*Show message where people will actually see it -Yosh (Remember the outrage when destruction and beacon messages were moved to the middle left? Yeah.. neither do the people that ranted about it.)*/
+	foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
+   {
+	  if(StarPC == none) PC.CTextMessage("GDI",180, Caps("The"@BuildingVisuals.GetHumanReadableName()@ "was destroyed!"),C_RED,255, 255, false, 1);
+	  else
+     if(PC.GetTeamNum() == StarPC.GetTeamNum()) PC.CTextMessage("GDI",180, Caps("The"@BuildingVisuals.GetHumanReadableName()@ "was destroyed!"),C_GREEN,255, 255, false, 1);
+	 else
+	PC.CTextMessage("GDI",180, Caps("The"@BuildingVisuals.GetHumanReadableName()@ "was destroyed!"),C_RED,255, 255, false, 1);
+   }
+//End show message where people will actually look at it.
+
 		Rx_Game(WorldInfo.Game).LogBuildingDestroyed(Destroyer, self, DamageType);
 
 		PlayDestructionAnimation();
@@ -195,9 +237,10 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 		TriggerBuildingUnderAttackMessage(EventInstigator);
 	}
 
-	if (!bCanPlayRepaired && Health <= RepairedHPLevel)
+	if (!bCanPlayRepaired && Armor <= RepairedArmorLevel)
 		bCanPlayRepaired = true;
-	
+
+
 	dmgLodLevel = GetBuildingHealthLod();
 	if(dmgLodLevel != DamageLodLevel) {
 		DamageLodLevel = dmgLodLevel;
@@ -230,7 +273,7 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
 	local int repairableMaxHealth;
 	local bool bRepairArmor;
 	
-	if(Rx_Building_TechBuilding_Internals(self) == None && Rx_Game(WorldInfo.Game).buildingArmorPercentage > 0)
+	if(Rx_Building_TechBuilding_Internals(self) == None)
 	{
 		bRepairArmor = true;
 		repairableHealth = Armor;
@@ -593,13 +636,16 @@ DefaultProperties
 	/***************************************************/
 	/*               Building Variables                */
 	/***************************************************/	
-	DamagePointsScale       = 0.15f
-	HealPointsScale         = 0.10f
-
+	DamagePointsScale       = 0.10f
+	HealPointsScale         = 0.06f
+	Destroyed_Score			= 1750 //Poll on the forums saw a near tie between 1500 and 2000, so just split the difference. Gives us a +875 points to the destroyer of the building. 
+	
 	HealthMax               = 4000
+	BA_HealthMax			= 4800 //Slightly more health for building armour, but obviously with half of it being unrepairable. 
 	DestructionAnimName     = "BuildingDeath"
 	LowHPWarnLevel          = 200 // critical Health level
 	RepairedHPLevel         = 3400 // 85%
+	RepairedArmorLevel		= 1200 
 	bBuildingRecoverable    = false
 	TeamID                  = 255
 	MessageClass            = class'Rx_Message_Buildings'

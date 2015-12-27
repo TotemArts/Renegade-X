@@ -86,6 +86,10 @@ var GFxObject StaminaBar;
 var GFxObject AmmoInClipN, AmmoBar, AmmoReserveN, AltAmmoInClipN, AltAmmoBar, InfinitAmmo, AltInfinitAmmo, WeaponBlock, VAltWeaponBlock;
 var GFxObject WeaponMC, WeaponPrevMC, WeaponNextMC, VBackdrop, WeaponName, AltWeaponName;
 
+//Experimental Progress bar
+var GFXObject LoadingMeterMC[2], LoadingText[2];
+var GFxClikWidget LoadingBarWidget[2];
+
 //
 var GFxObject GrenadeN, GrenadeMC, TimedC4MC, RemoteC4MC, ProxyC4MC, BeaconMC;
 var GFxObject HitLocMC[8];
@@ -627,6 +631,16 @@ function UpdateHUDVars()
 	VehicleCount    = GetVariableObject("_root.BottomInfo.Stats.Vehicles");
 	MineCount    	= GetVariableObject("_root.BottomInfo.Stats.Mines");
 
+	//Progress Bar
+	
+		LoadingMeterMC[0] = GetVariableObject("_root.loadingMeterGDI");
+		LoadingText[0] = GetVariableObject("_root.loadingMeterGDI.loadingText");
+		LoadingBarWidget[0] = GFxClikWidget(GetVariableObject("_root.loadingMeterGDI.bar", class'GFxClikWidget'));
+		LoadingMeterMC[1] = GetVariableObject("_root.loadingMeterNod");
+		LoadingText[1] = GetVariableObject("_root.loadingMeterNod.loadingText");
+		LoadingBarWidget[1] = GFxClikWidget(GetVariableObject("_root.loadingMeterNod.bar", class'GFxClikWidget'));
+
+	HideLoadingBar();
 //---------------------------------------------------
 	//Radar implementation
 	if (Minimap == none)
@@ -650,6 +664,40 @@ function UpdateHUDVars()
 	if(ProxyC4MC != None)
 		ProxyC4MC.GotoAndStopI(2);
 	HideBuildingIcons();
+}
+
+function HideLoadingBar()
+{
+	local byte i;
+	i = GetPC().PlayerReplicationInfo.GetTeamNum();
+
+	if (LoadingBarWidget[i] != none) {
+		LoadingBarWidget[i].SetInt("value", 0);
+	}
+	if (LoadingText[i] != none) {
+		LoadingText[i].SetText("");
+	}
+	if (LoadingMeterMC[i] != none) {
+		LoadingMeterMC[i].SetVisible(false);
+	}
+}
+function ShowLoadingBar(float value, optional string message)
+{
+	local byte i;
+	i = GetPC().PlayerReplicationInfo.GetTeamNum();
+
+	if (LoadingMeterMC[i] != none && !LoadingMeterMC[i].GetBool("visible")) {
+		LoadingMeterMC[i].SetVisible(true);
+	}
+
+	//testBar maximum is 100 so it is (0-100%). our value is 0.0-1.0
+	if (LoadingBarWidget[i] != none) {
+		LoadingBarWidget[i].SetInt("value", int(value * 100.0f));
+	}
+
+	if (message != "" && LoadingText[i] != none && LoadingText[i].GetText() != Caps(message)) {
+		LoadingText[i].SetText(Caps(message));
+	}
 }
 
 /**
@@ -1084,8 +1132,11 @@ function UpdateBuildings()
 
 				if( BuildingActor.IsDestroyed() )
 					BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(3);
-				else if( BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4))
-					BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(2);
+				/*If not using armour, just say if the health is really low. If using armour, go red when the building is taking true damage*/
+				else 
+					if( BuildingActor.GetMaxArmor() <= 0 && BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4)) BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(2); //No armour
+				else
+					if( BuildingActor.GetMaxArmor() > 0 && BuildingActor.GetArmor() <= 240) BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(2); // armour
 				else
 					BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(1);
 			}
@@ -1098,8 +1149,11 @@ function UpdateBuildings()
 
 				if( BuildingActor.IsDestroyed() )
 					BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(3);
-				else if( BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4))
-					BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(2);
+				/*If not using armour, just say if the health is really low. If using armour, go red when the building is taking true damage*/
+				else 
+					if( BuildingActor.GetMaxArmor() <= 0 && BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4)) BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(2); //No armour
+				else
+					if( BuildingActor.GetMaxArmor() > 0 && BuildingActor.GetArmor() <= 240) BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(2); // armour
 				else
 					BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(1);
 			}
@@ -1112,8 +1166,11 @@ function UpdateBuildings()
 
 				if( BuildingActor.IsDestroyed() )
 					BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(3);
-				else if( BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4))
-					BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(2);
+				/*If not using armour, just say if the health is really low. If using armour, go red when the building is taking true damage*/
+				else 
+					if( BuildingActor.GetMaxArmor() <= 0 && BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4)) BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(2); //No armour
+				else
+					if( BuildingActor.GetMaxArmor() > 0 && BuildingActor.GetArmor() <= 240) BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(2); // armour
 				else
 					BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(1);
 			}
@@ -1126,8 +1183,11 @@ function UpdateBuildings()
 
 				if( BuildingActor.IsDestroyed() )
 					BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(3);
-				else if( BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4))
-					BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(2);
+				/*If not using armour, just say if the health is really low. If using armour, go red when the building is taking true damage*/
+				else 
+					if( BuildingActor.GetMaxArmor() <= 0 && BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4)) BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(2); //No armour
+				else
+					if( BuildingActor.GetMaxArmor() > 0 && BuildingActor.GetArmor() <= 240) BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(2); // armour
 				else
 					BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(1);
 			}
@@ -1140,8 +1200,11 @@ function UpdateBuildings()
 
 				if( BuildingActor.IsDestroyed() )
 					BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(3);
-				else if( BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4))
-					BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(2);
+				/*If not using armour, just say if the health is really low. If using armour, go red when the building is taking true damage*/
+				else 
+					if( BuildingActor.GetMaxArmor() <= 0 && BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4)) BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(2); //No armour
+				else
+					if( BuildingActor.GetMaxArmor() > 0 && BuildingActor.GetArmor() <= 240) BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(2); // armour
 				else
 					BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(1);
 			}
@@ -1157,8 +1220,11 @@ function UpdateBuildings()
 
 				if( BuildingActor.IsDestroyed() )
 					BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(3);
-				else if( BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4))
-					BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(2);
+				/*If not using armour, just say if the health is really low. If using armour, go red when the building is taking true damage*/
+				else 
+					if( BuildingActor.GetMaxArmor() <= 0 && BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4)) BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(2); //No armour
+				else
+					if( BuildingActor.GetMaxArmor() > 0 && BuildingActor.GetArmor() <= 240) BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(2); // armour
 				else
 					BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(1);
 			}
@@ -1171,8 +1237,11 @@ function UpdateBuildings()
 
 				if( BuildingActor.IsDestroyed() )
 					BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(3);
-				else if( BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4))
-					BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(2);
+				/*If not using armour, just say if the health is really low. If using armour, go red when the building is taking true damage*/
+				else 
+					if( BuildingActor.GetMaxArmor() <= 0 && BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4)) BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(2); //No armour
+				else
+					if( BuildingActor.GetMaxArmor() > 0 && BuildingActor.GetArmor() <= 240) BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(2); // armour
 				else
 					BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(1);
 			}
@@ -1185,8 +1254,11 @@ function UpdateBuildings()
 
 				if( BuildingActor.IsDestroyed() )
 					BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(3);
-				else if( BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4))
-					BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(2);
+				/*If not using armour, just say if the health is really low. If using armour, go red when the building is taking true damage*/
+				else 
+					if( BuildingActor.GetMaxArmor() <= 0 && BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4)) BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(2); //No armour
+				else
+					if( BuildingActor.GetMaxArmor() > 0 && BuildingActor.GetArmor() <= 240) BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(2); // armour
 				else
 					BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(1);
 			}
@@ -1199,8 +1271,11 @@ function UpdateBuildings()
 
 				if( BuildingActor.IsDestroyed() )
 					BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(3);
-				else if( BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4))
-					BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(2);
+				/*If not using armour, just say if the health is really low. If using armour, go red when the building is taking true damage*/
+				else 
+					if( BuildingActor.GetMaxArmor() <= 0 && BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4)) BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(2); //No armour
+				else
+					if( BuildingActor.GetMaxArmor() > 0 && BuildingActor.GetArmor() <= 240) BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(2); // armour
 				else
 					BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(1);
 			}
@@ -1213,8 +1288,11 @@ function UpdateBuildings()
 
 				if( BuildingActor.IsDestroyed() )
 					BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(3);
-				else if( BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4))
-					BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(2);
+				/*If not using armour, just say if the health is really low. If using armour, go red when the building is taking true damage*/
+				else 
+					if( BuildingActor.GetMaxArmor() <= 0 && BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4)) BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(2); //No armour
+				else
+					if( BuildingActor.GetMaxArmor() > 0 && BuildingActor.GetArmor() <= 240) BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(2); // armour
 				else
 					BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(1);
 			}
@@ -1555,6 +1633,11 @@ function DisableHUDItems()
 	GameplayTipsText = GetVariableObject("_root.Cinema.Tips.Textfield");
 	WeaponPickup = GetVariableObject("_root.WeaponPickup");
 
+	if (GetPC().PlayerReplicationInfo.GetTeamNum() == TEAM_GDI) {
+		LoadingMeterMC[1].SetVisible(false);
+	} else if (GetPC().PlayerReplicationInfo.GetTeamNum() == TEAM_NOD) {
+		LoadingMeterMC[0].SetVisible(false);
+	}
 	ObjectiveMC.SetVisible(false);
 	ObjectiveText.SetVisible(false);
 	TimerMC.SetVisible(false);

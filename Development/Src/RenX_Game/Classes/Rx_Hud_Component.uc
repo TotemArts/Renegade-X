@@ -10,6 +10,7 @@ var protected const Color ColorYellow;
 var protected const Color ColorGreen;
 var protected const Color ColorBlue;
 var protected const Color ColorBlue2;
+var protected const Color ColorBlue3;
 
 enum STANCE
 {
@@ -173,4 +174,5 @@ DefaultProperties
 	ColorGreen = (R = 93, G = 255, B = 0, A = 255)
 	ColorBlue = (R = 167, G = 227, B = 255, A = 255)
 	ColorBlue2 = (R = 50, G = 50, B = 255, A = 150)
+	ColorBlue3 = (R = 50, G = 255, B = 255, A = 255) //Used on armour bar/text for targeting box.
 }

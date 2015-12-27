@@ -65,6 +65,7 @@ var config bool	                        SpawnCrates; // whether or not to spawn 
 var config float                        CrateRespawnAfterPickup; // interval for crate respawn (after pickup)
 var config bool                         bBotsDisabled;
 var config int                          DonationsDisabledTime;
+var 	  int 							SurrenderDisabledTime; 
 var config bool                         bReserveVehiclesToBuyer;
 var config bool                         bAllowWeaponDrop;
 
@@ -118,7 +119,9 @@ var config bool bPrivateMessageTeamOnly;
 var config bool bAutoShuffleOnNewRound;
 
 var config bool bRandomTeamSwap;
-var config int buildingArmorPercentage;
+var int buildingArmorPercentage; //Always 50 if enabled 
+
+var config bool bUnlisted;
 
 struct Server
 {
@@ -195,7 +198,7 @@ function PreBeginPlay()
 		authenticationService = Spawn(class'Rx_AuthenticationService');
 	}
 	
-	if(ServiceBrowser == None && (WorldInfo.NetMode == NM_StandAlone || WorldInfo.NetMode == NM_DedicatedServer))
+	if(ServiceBrowser == None && (WorldInfo.NetMode == NM_StandAlone || WorldInfo.NetMode == NM_DedicatedServer) && !bUnlisted)
 	{
 		ServiceBrowser = Spawn(class'GeminiOnlineService');
 		ServiceBrowser.Initialize(self, none);
@@ -254,6 +257,11 @@ function SetupMapDataList()
 delegate int MapListSort(Rx_UIDataProvider_MapInfo A, Rx_UIDataProvider_MapInfo B) 
 {
 	return A.FriendlyName < B.FriendlyName ? 0 : -1;
+}
+
+event exec viewmode (string VM)
+{
+	return; 
 }
 
 /** one1: added */
@@ -941,11 +949,36 @@ event PostLogin( PlayerController NewPlayer )
 				
 	Rx_Pri(NewPlayer.PlayerReplicationInfo).ReplicatedNetworkAddress = NewPlayer.PlayerReplicationInfo.SavedNetworkAddress;	
 	
+	
+	
 	if(ServiceBrowser != None && WorldInfo.NetMode == NM_DedicatedServer)
 		ServiceBrowser.GetServiceCheckIp(NewPlayer.PlayerReplicationInfo.SavedNetworkAddress, SteamID, false);
 		
 	if(bDelayedStart) // we want bDelayedStart, but still want players to spawn immediatly upon connect
 		RestartPlayer(newPlayer);		
+	
+/**Needed anything that happened when a player first joined. If the team is using airdrops, it'll update them correctly **/
+
+//Nods (Could probably make this cleaner looking, but at the moment I'm just making sure it works)
+	if(Rx_Pri(NewPlayer.PlayerReplicationInfo) != None && (Rx_Pri(NewPlayer.PlayerReplicationInfo).GetTeamNum() == TEAM_NOD) && VehicleManager.bNodIsUsingAirdrops)
+				{
+					if(Rx_Pri(NewPlayer.PlayerReplicationInfo).AirdropCounter == 0)
+					{
+					Rx_Pri(NewPlayer.PlayerReplicationInfo).AirdropCounter++;
+					//Rx_Pri(NewPlayer.PlayerReplicationInfo).LastAirdropTime=WorldInfo.TimeSeconds;
+					}
+				}
+				
+//GDI 
+	if(Rx_Pri(NewPlayer.PlayerReplicationInfo) != None && (Rx_Pri(NewPlayer.PlayerReplicationInfo).GetTeamNum() == TEAM_GDI) && VehicleManager.bGDIIsUsingAirdrops)
+				{
+					if(Rx_Pri(NewPlayer.PlayerReplicationInfo).AirdropCounter == 0)
+					{
+					Rx_Pri(NewPlayer.PlayerReplicationInfo).AirdropCounter++;
+					//Rx_Pri(NewPlayer.PlayerReplicationInfo).LastAirdropTime=WorldInfo.TimeSeconds;
+					}
+				}
+	
 }
 
 function Logout( Controller Exiting )
@@ -1104,7 +1137,7 @@ event GameEnding()
 
 event InitGame( string Options, out string ErrorMessage )
 {	
-	local int MapIndex;
+	//local int MapIndex;
 	
 	if(Rx_MapInfo(WorldInfo.GetMapInfo()).bIsDeathmatchMap)
 	{
@@ -1138,9 +1171,13 @@ event InitGame( string Options, out string ErrorMessage )
 	NODDifficulty += 3;
 	
 	
-	MapIndex = class'Rx_Game'.default.MapSpecificMineAndVehLimit.Find('MapName', WorldInfo.GetPackageName());
+	/**MapIndex = class'Rx_Game'.default.MapSpecificMineAndVehLimit.Find('MapName', WorldInfo.GetPackageName());
 	MineLimit = class'Rx_Game'.default.MapSpecificMineAndVehLimit[MapIndex].MineLimit;
 	VehicleLimit = class'Rx_Game'.default.MapSpecificMineAndVehLimit[MapIndex].VehicleLimit;
+	**/
+	
+	MineLimit = GetMapMineLimit( string(WorldInfo.GetPackageName()) ) ;
+	VehicleLimit= GetMapVehicleLimit( string(WorldInfo.GetPackageName()) ) ; 
 
 
 	//mapindex = -1;
@@ -1167,6 +1204,8 @@ event InitGame( string Options, out string ErrorMessage )
 	// Initialize the maplist manager
 	InitializeMapListManager();
 }
+
+
 function InitializeMapListManager(optional string MLMOverrideClass)
 {
 	local class<Rx_MapListManager> MapListManagerClass;
@@ -1727,12 +1766,18 @@ function EndRxGame(string Reason, byte WinningTeamNum )
 		else
 			GameReplicationInfo.Winner = none;
 
-		if(Reason ~= "TimeLimit")
+		if(Reason ~= "TimeLimit") {
 			Rx_GRI(WorldInfo.GRI).WinnerReason = "By Points";
-		else if(Reason ~= "Buildings" || Reason ~= "Surrender")
+		} else if(Reason ~= "Buildings") {
 			Rx_GRI(WorldInfo.GRI).WinnerReason = "By Base Destruction";
-		else 
+		} else if (Reason ~= "Surrender") {
+			Rx_GRI(WorldInfo.GRI).WinnerReason = "By Surrender";
+			Rx_GRI(WorldInfo.GRI).WinBySurrender=true;
+			if(GameSpeed != 1) SetTimer(0.75f,false, 'ResetGameSpeed'); //IF it was by surrender, it may have very well changed the game speed. 
+		} else {
 			Rx_GRI(WorldInfo.GRI).WinnerReason = "triggered";
+		}
+			
 
 		// Set everyone's camera focus
 		SetTimer(EndgameCamDelay,false,nameof(SetEndgameCam));
@@ -1802,6 +1847,100 @@ function SetRxEndGameFocus(Actor Focus)
 	GotoState('MatchOver');
 	
 }
+
+
+/**Special case to end game via surrender:
+1st play the surrender message across all controllers via CText
+then play the surrender announcement (as they sound weird coming after the screen fades)
+then wait a second or two before ending the game
+**/
+
+function BeginSurrender(int TeamI)
+{
+	local Rx_Controller P;
+	local color MyColor; 
+	local string HR_Team;
+	MyColor = MakeColor(255,255,255, 255); 
+	
+	switch (TeamI) 
+	{
+		case 0:
+		HR_Team = "Nod" ;
+		break;
+		
+		case 1:
+		HR_Team = "GDI" ;
+		break;
+		
+	}
+	
+	Rx_GRI(WorldInfo.GRI).WinnerReason = "By Surrender";
+	Rx_GRI(WorldInfo.GRI).WinBySurrender=true;
+	
+	foreach WorldInfo.AllControllers(class'Rx_Controller', P)
+	{
+		P.CTextMessage("GDI",120, HR_Team @ "TEAM SURRENDERED!",MyColor,255,255, false,1,1) ;
+	}
+	SetGameSpeed(0.5);//fancy... but we'll see how it holds up online
+	/*Both of these play the appropriate surrender Announcement AND start the small countdown to end the game. The delay for sounds make it a bit more obvious a team surrendered. */
+	if(TeamI==1) SetTimer(0.75, false, 'PlayGDISurrender');
+	else
+	SetTimer(0.75, false, 'PlayNodSurrender'); //Account for time increase (1 second)
+}
+
+function PlayGDISurrender() 
+{
+local Rx_Controller PC;
+
+	foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
+	{
+PC.ClientPlayAnnouncement(VictoryMessageClass, 5);
+	}
+SetTimer(0.75, false, 'FinishGDISurrender') ;
+	
+}
+
+function PlayNodSurrender() 
+{
+local Rx_Controller PC;
+
+	foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
+	{
+PC.ClientPlayAnnouncement(VictoryMessageClass, 4);
+	}
+SetTimer(0.75, false, 'FinishNodSurrender') ;
+	
+}
+
+
+function FinishGDISurrender()
+{
+	if(Rx_GRI(WorldInfo.GRI).WinnerReason ~= "By Surrender")
+	{
+	`log("Ended game with GDI Surrender");
+	EndRxGame("Surrender", 1);
+	}
+	
+}
+
+function FinishNodSurrender()
+{
+	if(Rx_GRI(WorldInfo.GRI).WinnerReason ~= "By Surrender")
+	{
+	`log("Ended game with Nod Surrender");
+	EndRxGame("Surrender", 0);
+	}
+	
+}
+
+function ResetGameSpeed()
+{
+SetGameSpeed(1); 
+}
+
+/*Surrender functions over*/
+
+
 private function SetMatchOverState()
 {
 	GotoState('MatchOver');
@@ -1929,25 +2068,41 @@ function PlayEndOfMatchMessage()
 		{
 			if ( PC.GetTeamNum() == 0 )
 			{
-				PC.ClientPlayAnnouncement(VictoryMessageClass, 0); // GDI Win
+				if(!WasSurrenderWin()) PC.ClientPlayAnnouncement(VictoryMessageClass, 0); // GDI Win
+				//else
+				//PC.ClientPlayAnnouncement(VictoryMessageClass, 4); 
 			}
 			else
 			{
-				PC.ClientPlayAnnouncement(VictoryMessageClass, 1); // Nod Win
+				if(!WasSurrenderWin()) PC.ClientPlayAnnouncement(VictoryMessageClass, 1); // Nod Win
+				//else
+				//PC.ClientPlayAnnouncement(VictoryMessageClass, 5); // Nod Win through GDI Surrender
 			}
 		}
 		else
 		{
 			if ( PC.GetTeamNum() == 0 )
 			{
-				PC.ClientPlayAnnouncement(VictoryMessageClass, 2); // GDI Defeat
+			if(!WasSurrenderWin())	PC.ClientPlayAnnouncement(VictoryMessageClass, 2); // GDI Defeat
+			//else
+			//PC.ClientPlayAnnouncement(VictoryMessageClass, 5); // Nod Win through GDI Surrender
 			}
 			else
 			{
-				PC.ClientPlayAnnouncement(VictoryMessageClass, 3); // Nod Defeat
+				if(!WasSurrenderWin()) PC.ClientPlayAnnouncement(VictoryMessageClass, 3); // Nod Defeat
+				//else
+				//PC.ClientPlayAnnouncement(VictoryMessageClass, 4); // GDI Win through Nod Surrender
+
 			}
 		}
 	}
+}
+
+simulated function bool WasSurrenderWin()
+{
+	
+	return Rx_Gri(GameReplicationInfo).WinBySurrender;
+	
 }
 
 simulated function int getVehicleLimit()
@@ -2290,7 +2445,7 @@ function RestartPlayer(Controller NewPlayer)
 		if (WorldInfo.NetMode != NM_DedicatedServer && RxHUD != None)
 			RxHUD.ClearPlayAreaAnnouncement();
 		else
-			Rx_Pawn(NewPlayer.Pawn).ClearPlayAreaAnnouncementClient();
+			Rx_Controller(NewPlayer).ClearPlayAreaAnnouncementClient();
 	}
 	if(TeamCredits[NewPlayer.GetTeamNum()].PlayerRI.Find(Rx_PRI(NewPlayer.PlayerReplicationInfo)) < 0) {
 		TeamCredits[NewPlayer.GetTeamNum()].PlayerRI.AddItem(Rx_PRI(NewPlayer.PlayerReplicationInfo));
@@ -2306,7 +2461,8 @@ function string GetNextMap()
 	/** Yosh: Had to comment this out for the sake of getting patch 5003 out in a timely manner. 
 	From what I could tell by looking at it quickly, the game never sets an active map list for the manager, so you just get thrown back on the same map.
 	if (MapListManager != none) {
-		//return MapListManager.GetNextMap();
+		`log(MapListManager.GetNextMap());
+		return MapListManager.GetNextMap();
 	}
 	*/
 	
@@ -2317,6 +2473,7 @@ function string GetNextMap()
 		if (GameIndex != INDEX_NONE)
 		{
 			MapCycleIndex = GetNextMapInRotationIndex();
+			//TODO: Add to fixed map rotation to cycle between day/night maps. 
 			class'UTGame'.default.MapCycleIndex = MapCycleIndex;
 			class'UTGame'.static.StaticSaveConfig();
 
@@ -2325,6 +2482,9 @@ function string GetNextMap()
 	}
 	else
 	{
+		`log("NExt Map IS: " @ Rx_Gri(GameReplicationInfo).GetMapVoteName()  );
+			
+			
 		return Rx_Gri(GameReplicationInfo).GetMapVoteName();
 	}
 
@@ -2557,11 +2717,198 @@ function string RconCommand(string CommandLine)
 	return "Non-existent RconCommand - executed as ConsoleCommand";
 }
 
+function bool MapPackageHasDayNight (string ThePackage)
+{
+	`log("Package: " @ caps(ThePackage));
+	return 
+	caps(ThePackage) == "CNC-MESA_II" ||
+	caps(ThePackage) == "CNC-FIELD"   ||
+	caps(ThePackage) == "CNC-CANYON" ;
+	//ThePackage == "CnC-Canyon"	||
+	
+}
+
+//Establish static minelimits per map. Default will be 50 for any map not recognized.
+//Sure it's ugly, but I like switch statements.  
+function int GetMapMineLimit (string MapName)
+
+{
+local string CappedName; 
+
+CappedName=Caps(MapName);
+
+//If it's a Day or Night map, named correctly, then strip the day or Night suffix
+if(right(CappedName, 6) ~= "_NIGHT") CappedName = Left(CappedName, Len(CappedName)-6);   
+
+if(right(CappedName, 4) ~= "_DAY") CappedName = Left(CappedName, Len(CappedName)-4);  
+	
+switch (CappedName)
+	{
+	case "CNC-CANYON" :
+	return 40;
+	break;
+	
+	case "CNC-COMPLEX" :
+	return 40;
+	break;
+	
+	case "CNC-DECK":
+	return 10;
+	break;
+	
+	case "CNC-EYES":
+	return 55;
+	break;
+	
+	case "CNC-FIELD":
+	return 35;
+	break;
+	
+	case "CNC-GOLDRUSH":
+	return 50;
+	break;
+	
+	case "CNC-ISLANDS":
+	return 40;
+	break;
+	
+	case "CNC-LAKESIDE":
+	return 50;
+	break;
+	
+	case "CNC-MESA_II":
+	return 45;
+	break;
+	
+	case "CNC-TRAININGYARD":
+	return 45;
+	break;
+	
+	case "CNC-UNDERREDUX":
+	return 45;
+	break;
+	
+	case "CNC-VALLEY":
+	return 20;
+	break;
+	
+	case "CNC-VOLCANO":
+	return 50;
+	break;
+	
+	case "CNC-WALLS_FLYING":
+	return 55;
+	break;
+	
+	case "CNC-WHITEOUT":
+	return 60;
+	break;
+	
+	case "CNC-XMOUNTAIN":
+	return 50;
+	break;
+	
+	default: 
+	`log("Map not recognized: setting mine limit to default 50");
+	return 50; 
+	break; 
+	}
+	
+}
+
+function int GetMapVehicleLimit (string MapName)
+
+{
+local string CappedName; 
+
+CappedName=Caps(MapName);
+
+//If it's a Day or Night map, named correctly, then strip the day or Night suffix
+if(right(CappedName, 6) ~= "_NIGHT") CappedName = Left(CappedName, Len(CappedName)-6);   
+
+if(right(CappedName, 4) ~= "_DAY") CappedName = Left(CappedName, Len(CappedName)-4);  
+	
+switch (CappedName)
+	{
+	case "CNC-CANYON" :
+	return 8;
+	break;
+	
+	case "CNC-COMPLEX" :
+	return 8;
+	break;
+	
+	case "CNC-DECK":
+	return 93;
+	break;
+	
+	case "CNC-EYES":
+	return 10;
+	break;
+	
+	case "CNC-FIELD":
+	return 8;
+	break;
+	
+	case "CNC-GOLDRUSH":
+	return 8;
+	break;
+	
+	case "CNC-ISLANDS":
+	return 8;
+	break;
+	
+	case "CNC-LAKESIDE":
+	return 10;
+	break;
+	
+	case "CNC-MESA_II":
+	return 10;
+	break;
+	
+	case "CNC-TRAININGYARD":
+	return 7;
+	break;
+	
+	case "CNC-UNDERREDUX":
+	return 10;
+	break;
+	
+	case "CNC-VALLEY":
+	return 31;
+	break;
+	
+	case "CNC-VOLCANO":
+	return 8;
+	break;
+	
+	case "CNC-WALLS_FLYING":
+	return 8;
+	break;
+	
+	case "CNC-WHITEOUT":
+	return 8;
+	break;
+	
+	case "CNC-XMOUNTAIN":
+	return 10;
+	break;
+	
+	default: 
+	`log("Map not recognized: setting Vehicle limit to 8");
+	return 8; 
+	break; 
+	}
+	
+}
+
 DefaultProperties
 {	
 	EndgameCamDelay = 1.0f
 	EndgameSoundDelay = 1.0f
 
+	buildingArmorPercentage = 50 
+	
 	bUseSeamlessTravel = true
 
 	MaxPlayerNameLength        = 20
@@ -2623,6 +2970,7 @@ DefaultProperties
 	MapHistoryMax                 = 10       
 	VotePersonalCooldown          = 60
 
+	SurrenderDisabledTime		= 900
 	/**
 	GameVersion = "Open Beta 1 RC" -> its in the config now
 	*/

@@ -53,6 +53,7 @@ function Initialize()
 	if (bInitialized)
 		return;
 
+	`log("MAP LIST WAS INITIALIZED" @ self);
 
 	if (AutoLoadPrefixes != "")
 	{
@@ -65,6 +66,7 @@ function Initialize()
 			PrefixList[i] = TrimWhitespace(PrefixList[i]);
 
 		Class'Rx_MapListManager'.static.PopulateMapListByPrefix(Self, PrefixList, True);
+		`log("MAp List is ME: " @ self);
 		bSaveConfig = True;
 	}
 

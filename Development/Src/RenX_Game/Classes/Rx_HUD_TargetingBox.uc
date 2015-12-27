@@ -25,16 +25,28 @@ var private CanvasIcon BoundingBoxNeutralBottomRight;
 var private CanvasIcon InfoBackdropFriendly;
 var private CanvasIcon InfoBackdropEnemy;
 var private CanvasIcon InfoBackdropNeutral;
+var private CanvasIcon BA_InfoBackdropFriendly;
+var private CanvasIcon BA_InfoBackdropEnemy;
 
 var CanvasIcon GDIEnemyIcon;
 var CanvasIcon GDIFriendlyIcon;
 var CanvasIcon NodEnemyIcon;
 var CanvasIcon NodFriendlyIcon;
 var CanvasIcon NeutralIcon;
+var CanvasIcon BA_BuildingIcon_GDI_Friendly;
+var CanvasIcon BA_BuildingIcon_Nod_Friendly;
+var CanvasIcon BA_BuildingIcon_GDI_Enemy;
+var CanvasIcon BA_BuildingIcon_Nod_Enemy;
 
 var private CanvasIcon HealthCellGreen;
 var private CanvasIcon HealthCellYellow;
 var private CanvasIcon HealthCellRed;
+var private CanvasIcon ArmorCellBlue;
+var private CanvasIcon BA_HealthCellIcon; //Building Armour specific health bar.
+var private CanvasIcon BA_ArmourCellIcon; //Building Armour specific Armour bar.
+var private CanvasIcon BA_HealthIcon;
+var private CanvasIcon BA_ArmourIcon;
+
 
 var private CanvasIcon Interact;
 var private float InteractIconBobAmplitude;
@@ -67,6 +79,7 @@ var private float InteractYOffset;
 var private float HealthBarXOffset;
 var private float HealthBarYOffset;
 var private float HealthBarCellSpacing;
+var private float Armor_YOffset;
 var private int HealthBarCells;
 var private float HealthBarRedThreshold;
 var private float HealthBarYellowThreshold;
@@ -78,6 +91,34 @@ var private float DescriptionXOffset;
 var private float DescriptionYOffset;
 var float DescriptionXScale;
 var float DescriptionYScale;
+var private float BA_ArmourIconYOffset;
+var private float BA_HealthIconYOffset;
+
+/*Building Armour specific setup for boxes. Will incorporate into code once I don't need to edit them in-game*/
+var private float BA_HealthBarXOffset ;
+var private float BA_HealthBarYOffset;
+var private float BA_ArmourBarXOffset;
+var private float BA_ArmourBarYOffset;
+var private float BA_LabelXOffset ;
+var private float BA_LabelYOffset;
+var private float BA_IconsXOffset;
+var private float BA_IconsYOffset;	
+var private float BA_PercentXOffset;		// 55		// -15
+var private float BA_PercentYOffset;		// -35		// -15
+// Offset for target's description
+var private float BA_DescriptionXOffset;
+var private float BA_DescriptionYOffset;
+var private float BA_BackgroundXOffset;
+var private float BA_BackgroundYOffset;
+// Offset of team logo
+var private float BA_LogoXOffset;
+var private float BA_LogoYOffset;
+var private float BA_HealthBarCellSpacing;
+var private float BA_IconToPercentSpacing;
+var private float BA_ArmourPercentYOffset;
+
+
+
 
 var private Box VisualBoundingBox;
 var private float VisualBoundsCenterX;
@@ -215,14 +256,16 @@ function Actor GetActorAtScreenCentre()
 
 function UpdateTargetHealthPercent ()
 {
+	TargetArmorPercent = 0;
+	bHasArmor = false;
+	
 	if (IsTechBuildingComponent(TargetedActor) && !IsPTorMCT(TargetedActor))
 	{
 		TargetHealthPercent = -1;
 		return;
 	}
 	
-	TargetArmorPercent = 0;
-	bHasArmor = false;
+	
 
 	if (Rx_Pawn(TargetedActor) != none)
 	{
@@ -239,22 +282,17 @@ function UpdateTargetHealthPercent ()
 	else if (Rx_BuildingAttachment(TargetedActor) != none && Rx_BuildingAttachment_PT(TargetedActor) == none)
 	{
 		TargetHealthPercent = Rx_BuildingAttachment(TargetedActor).getBuildingHealthPct();
-		TargetHealthMaxPercent = Rx_BuildingAttachment(TargetedActor).getBuildingHealthMaxPct();
-		if(Rx_GRI(RenxHud.WorldInfo.Gri).buildingArmorPercentage > 0)
-		{		
-			TargetArmorPercent = Rx_BuildingAttachment(TargetedActor).getBuildingArmorPct();
-			bHasArmor = true;
-		}
+		TargetHealthMaxPercent = Rx_BuildingAttachment(TargetedActor).getBuildingHealthMaxPct();		
+		TargetArmorPercent = Rx_BuildingAttachment(TargetedActor).getBuildingArmorPct();
+		bHasArmor = true;
 	}
 	else if (Rx_Building(TargetedActor) != none)
 	{
-		TargetHealthPercent = float(Rx_Building(TargetedActor).GetHealth()) / float(Rx_Building(TargetedActor).GetMaxHealth());		
-		TargetHealthMaxPercent = float(Rx_Building(TargetedActor).GetMaxHealth() - Rx_Building(TargetedActor).GetMaxArmor()) / float(Rx_Building(TargetedActor).GetMaxHealth()); 
-		if(Rx_GRI(RenxHud.WorldInfo.Gri).buildingArmorPercentage > 0)
-		{
-			TargetArmorPercent = float(Rx_Building(TargetedActor).GetArmor()) / float(Rx_Building(TargetedActor).GetMaxArmor());
-			bHasArmor = true;
-		}
+		TargetArmorPercent = float(Rx_Building(TargetedActor).GetArmor()) / float(Rx_Building(TargetedActor).GetMaxArmor());
+		TargetHealthPercent = float(Rx_Building(TargetedActor).GetHealth()) / float(Rx_Building(TargetedActor).GetTrueMaxHealth());		
+		TargetHealthMaxPercent = 1.0f; //This may need to look at TrueMaxHealth somewhere.. we'll see after testing. 
+		
+		bHasArmor = true;
 	}
 	else
 		TargetHealthPercent = -1;
@@ -526,6 +564,7 @@ private function DrawHealthBar()
 {
 	local int i;
 	local CanvasIcon HealthCell;
+	local color HealthBlendColour;
 	local int HealthBarsToDraw;
 	local int HealthFillupBarsToDraw;
 	local int ArmorBarsToDraw;
@@ -539,59 +578,79 @@ private function DrawHealthBar()
 		if(bHasArmor)
 			ArmorHealthPercentTemp = Rx_GRI(RenxHud.WorldInfo.Gri).buildingArmorPercentage / 100.0;		
 		
-		if(ArmorHealthPercentTemp > 0)
+		if(ArmorHealthPercentTemp > 0) //We have armour enabled
 		{
-			
+			HealthCell = BA_HealthCellIcon;
 			if (TargetHealthPercent < HealthBarRedThreshold*TargetHealthMaxPercent)
-				HealthCell = HealthCellRed;
+				HealthBlendColour = ColorRed; //Go full red...tard. 
+		//HealthCell = HealthCellRed;
 			else if (TargetHealthPercent < HealthBarYellowThreshold*TargetHealthMaxPercent)
-				HealthCell = HealthCellYellow;
+					HealthBlendColour = ColorYellow; //Go yeller
+			//HealthCell = HealthCellYellow;
 			else 
-				HealthCell = HealthCellGreen;
+			HealthBlendColour = ColorGreen; //Go environmentally friendly. 	
+			//HealthCell = HealthCellGreen;
 			
-				HealthBarsToDraw = RoundUp(TargetHealthPercent * float(HealthBarCells) );
-				HealthFillupBarsToDraw = RoundUp(TargetHealthMaxPercent * float(HealthBarCells)) - HealthBarsToDraw; 
-				ArmorBarsToDraw = RoundUp(TargetArmorPercent*ArmorHealthPercentTemp * float(HealthBarCells) );
+				
+					HealthBarsToDraw = RoundUp(TargetHealthPercent * float(HealthBarCells) );
+					ArmorBarsToDraw = RoundUp(TargetArmorPercent * float(HealthBarCells) );//ArmorBarsToDraw = RoundUp(TargetArmorPercent*ArmorHealthPercentTemp * float(HealthBarCells) );
+					HealthFillupBarsToDraw = RoundUp(TargetHealthMaxPercent * float(HealthBarCells)) - HealthBarsToDraw; 
+					 
+			
+				X = VisualBoundsCenterX + BA_HealthBarXOffset + BA_IconsXOffset;
 		
-			X = VisualBoundsCenterX + HealthBarXOffset;
-	
-	 		if (AnchorInfoTop)
-				Y = VisualBoundingBox.Min.Y + HealthBarYOffset;
-			else
-				Y = VisualBoundingBox.Max.Y + HealthBarYOffset;
-	
-			for (i = 0; i < HealthBarsToDraw; i++)
+				if (AnchorInfoTop)
+					Y = VisualBoundingBox.Min.Y + BA_HealthBarYOffset;
+				else
+					Y = VisualBoundingBox.Max.Y + BA_HealthBarYOffset;
+			
+			if (TargetHealthPercent > 0) //Don't bother drawing anything if it's already dead  
 			{
-				Canvas.DrawIcon(HealthCell,X,Y);
-				X += HealthBarCellSpacing;
+				
+			 
+				//Draw Armour Over Health... maybe ? 
+				
+				
+				
+				Canvas.DrawColor = ColorBlue3 ;//ColorWhite;
+				//Canvas.DrawColor.A=210; //Let health show through armour bar slightly so we can still see if it is red/green health
+					HealthCell = BA_ArmourCellIcon;			
+				for (i = 0; i < ArmorBarsToDraw; i++)
+				{
+					Canvas.DrawIcon(HealthCell,X,Y); 
+					X += BA_HealthBarCellSpacing;
+				}
+				
+				Canvas.DrawColor = ColorGreyedOut;
+				for (i = 0; i < HealthBarCells - (HealthBarsToDraw + HealthFillupBarsToDraw + ArmorBarsToDraw); i++)
+				{
+					Canvas.DrawIcon(HealthCell,X,Y,1.4);
+					X += BA_HealthBarCellSpacing;
+				}	
+				
+				//DRaw health under armour 
+				//Again, Health Offsets are now used for Armour, and vice versa!!!!!!!!!
+				
+				X = VisualBoundsCenterX + BA_HealthBarXOffset;
+				Y+=BA_ArmourBarYOffset;
+				
+				for (i = 0; i < HealthBarsToDraw; i++)
+				{
+					Canvas.DrawColor=HealthBlendColour;
+					Canvas.DrawIcon(HealthCell,X,Y+BA_ArmourBarYOffset);
+					X += BA_HealthBarCellSpacing;
+				}
+				
+				Canvas.DrawColor = ColorGreyedOut;
+				for (i = 0; i < HealthFillupBarsToDraw; i++)
+				{
+					Canvas.DrawIcon(HealthCell,X,Y+BA_ArmourBarYOffset);
+					X += BA_HealthBarCellSpacing;
+				}			
+				
+				
+				
 			}
-			
-			Canvas.DrawColor = ColorGreyedOut;
-			for (i = 0; i < HealthFillupBarsToDraw; i++)
-			{
-				Canvas.DrawIcon(HealthCell,X,Y);
-				X += HealthBarCellSpacing;
-			}			
-			
-			Canvas.DrawColor = ColorWhite;
-			if(int(TargetArmorPercent*10) <= 2)
-				HealthCell = HealthCellRed;
-			else if(int(TargetArmorPercent*10) <= 5)
-				HealthCell = HealthCellYellow;	
-			else 
-				HealthCell = HealthCellGreen;			
-			for (i = 0; i < ArmorBarsToDraw; i++)
-			{
-				Canvas.DrawIcon(HealthCell,X,Y-1,1.4); 
-				X += HealthBarCellSpacing;
-			}
-			
-			Canvas.DrawColor = ColorGreyedOut;
-			for (i = 0; i < HealthBarCells - (HealthBarsToDraw + HealthFillupBarsToDraw + ArmorBarsToDraw); i++)
-			{
-				Canvas.DrawIcon(HealthCell,X,Y-1,1.4);
-				X += HealthBarCellSpacing;
-			}	
 		} else
 		{
 			if (TargetHealthPercent < HealthBarRedThreshold)			
@@ -610,25 +669,29 @@ private function DrawHealthBar()
 				Y = VisualBoundingBox.Min.Y + HealthBarYOffset;
 			else
 				Y = VisualBoundingBox.Max.Y + HealthBarYOffset;
-	
-			for (i = 0; i < BarsToDraw; i++)
+	if (TargetHealthPercent > 0) //Don't bother drawing anything if it's already dead  
 			{
-				Canvas.DrawIcon(HealthCell,X,Y);
-				X += HealthBarCellSpacing;
+				for (i = 0; i < BarsToDraw; i++)
+				{
+					Canvas.DrawIcon(HealthCell,X,Y);
+					X += HealthBarCellSpacing;
+				}
+		
+				Canvas.DrawColor = ColorGreyedOut;
+				for (i = 0; i < HealthBarCells - BarsToDraw; i++)
+				{
+					Canvas.DrawIcon(HealthCell,X,Y);
+					X += HealthBarCellSpacing;
+				}
 			}
-	
-			Canvas.DrawColor = ColorGreyedOut;
-			for (i = 0; i < HealthBarCells - BarsToDraw; i++)
-			{
-				Canvas.DrawIcon(HealthCell,X,Y);
-				X += HealthBarCellSpacing;
-			}		
 		}
 
 		if (TargetHealthPercent <= 0)
 		{
 			Canvas.DrawColor = ColorGreen; 
-			X = VisualBoundsCenterX + LabelXOffset;
+		if(ArmorHealthPercentTemp > 0)	X = VisualBoundsCenterX + BA_LabelXOffset;
+		else
+		X = VisualBoundsCenterX + LabelXOffset;
 			Canvas.Font = LabelFont;
 			Canvas.SetPos(X,Y,0);
 			Canvas.DrawText("(Destroyed)");
@@ -640,25 +703,29 @@ private function DrawHealthBar()
 
 private function DrawHealthPercent()
 {
-	local float X,Y,f1,f2;
+	local float X,Y; //,f1,f2;
 	local int iHealthPercent;
+	
+	//Also draws the health / armour icon if building armour is enabled.
 	
 	if(TargetHealthPercent <= 0)
 		return;
 	
-	if (TargetNameTextSize.X - 5 < PercentXOffset)
-	{
-		X = VisualBoundsCenterX + LabelXOffset + PercentXOffset;
-	}
-	else
-	{
-		X = VisualBoundsCenterX + LabelXOffset + TargetNameTextSize.X + 5;
-	}
 	
-	if(TargetNameTextSize.X > 85) 
-	{
-		X += 10;
-	}
+		if (TargetNameTextSize.X - 5 < PercentXOffset)
+		{
+			X = VisualBoundsCenterX + LabelXOffset + PercentXOffset;
+		}
+		else
+		{
+			X = VisualBoundsCenterX + LabelXOffset + TargetNameTextSize.X + 5;
+		}
+		
+		if(TargetNameTextSize.X > 85) 
+		{
+			X += 10;
+		}
+	
 
 
 	if (TargetHealthPercent != -1)
@@ -671,35 +738,69 @@ private function DrawHealthPercent()
 	
 			
 		if(bHasArmor)
-		{		
+		{	
+	
+		//Begin Align for building with armour 
+		
+			X = VisualBoundsCenterX + BA_PercentXOffset; //Screw what you were doing... we are here. 
+		
+		if (AnchorInfoTop)
+			Y = VisualBoundingBox.Min.Y + BA_PercentYOffset;
+		else
+			Y = VisualBoundingBox.Max.Y + BA_PercentYOffset;
+		
+		//End align for building with armour
+		
+			
+			Canvas.DrawColor = ColorBlue;	 
+			Canvas.Font = PercentageFont;
+			Canvas.SetPos(X-12,Y,0);
+			
+			Canvas.DrawColor = ColorWhite;	 //don't blend
+			Canvas.DrawIcon(BA_ArmourIcon,X,Y+BA_HealthIconYOffset); //Draw armour icon, remember all Armour/Health Offsets are swapped
+	
+			X+=BA_IconToPercentSpacing; 
+			
+			Canvas.SetPos(X,Y,0);
+			
+					
+			Canvas.DrawText(int(TargetArmorPercent*100) );// $ "%");
+			
+			//Canvas.StrLen(int((TargetHealthPercent/TargetHealthMaxPercent)*100) $ "%",f1,f2);
+			//Canvas.SetPos(Canvas.CurX + f1,Y,0);
+			
+			/**if(int(TargetArmorPercent*10) <= 2)
+				Canvas.DrawColor = ColorRed;
+			else if(int(TargetArmorPercent*10) <= 5)
+				Canvas.DrawColor = ColorYellow;	
+			else */
+			
+			
+			//Health under armour
+			
 			if (TargetHealthPercent < HealthBarRedThreshold*TargetHealthMaxPercent)
 				Canvas.DrawColor = ColorRed;
 			else if (TargetHealthPercent < HealthBarYellowThreshold*TargetHealthMaxPercent)
 				Canvas.DrawColor = ColorYellow;
 			else 
 				Canvas.DrawColor = ColorGreen;
-	
-			Canvas.Font = PercentageFont;
-			Canvas.SetPos(X-10,Y,0);
+			
+			Canvas.DrawIcon(BA_HealthIcon,X-BA_IconToPercentSpacing,Y+BA_ArmourIconYOffset);
+			
+			
 			if(int((TargetHealthPercent/TargetHealthMaxPercent)*10) <= 2)
 				Canvas.DrawColor = ColorRed;
 			else if(int((TargetHealthPercent/TargetHealthMaxPercent)*10) <= 5)
 				Canvas.DrawColor = ColorYellow;	
 			else 
-				Canvas.DrawColor = ColorGreen;				
+				Canvas.DrawColor = ColorGreen;		
 			
-			Canvas.DrawText(int((TargetHealthPercent/TargetHealthMaxPercent)*100) $ "/");
+			Canvas.SetPos(X,Y+BA_ArmourBarYOffset+BA_ArmourPercentYOffset,0);
 			
-			Canvas.StrLen(int((TargetHealthPercent/TargetHealthMaxPercent)*100) $ "/",f1,f2);
-			Canvas.SetPos(Canvas.CurX + f1,Y,0);
 			
-			if(int(TargetArmorPercent*10) <= 2)
-				Canvas.DrawColor = ColorRed;
-			else if(int(TargetArmorPercent*10) <= 5)
-				Canvas.DrawColor = ColorYellow;	
-			else 
-				Canvas.DrawColor = ColorGreen;			
-			Canvas.DrawText(int(TargetArmorPercent*100));
+			Canvas.DrawText(int((TargetHealthPercent/TargetHealthMaxPercent)*100)); //$ "%");
+			
+			
 		} 
 		else
 		{
@@ -748,13 +849,27 @@ private function int RoundUp(float f)
 private function DrawTargetName()
 {
 	local float X,Y;
-	X = VisualBoundsCenterX + LabelXOffset;
-
+	if(!bHasArmor)
+	{
+		X = VisualBoundsCenterX + LabelXOffset;
+	
+	
 	if (AnchorInfoTop)
 		Y = VisualBoundingBox.Min.Y + LabelYOffset;
-	else
+		else
 		Y = VisualBoundingBox.Max.Y + LabelYOffset;
-
+	
+	}
+	else if(bHasArmor)
+		{
+			X = VisualBoundsCenterX + BA_LabelXOffset;
+			
+			if (AnchorInfoTop)
+		Y = VisualBoundingBox.Min.Y + BA_LabelYOffset;
+		else
+		Y = VisualBoundingBox.Max.Y + BA_LabelYOffset;
+		}
+		
 	if (TargetStance == STANCE_NEUTRAL)
 		Canvas.DrawColor = ColorBlue;
 	else if (TargetStance == STANCE_FRIENDLY)
@@ -772,11 +887,24 @@ private function DrawTargetDescription()
 	local float X,Y;
 	//X = VisualBoundsCenterX + DescriptionXOffset;
 
+	if(!bHasArmor)
+	{
 	if (AnchorInfoTop)
 		Y = VisualBoundingBox.Min.Y + DescriptionYOffset;
 	else
 		Y = VisualBoundingBox.Max.Y + DescriptionYOffset;
-
+	}
+	else if(bHasArmor)
+	{
+	if (AnchorInfoTop)
+		Y = VisualBoundingBox.Min.Y + BA_DescriptionYOffset;
+	else
+		Y = VisualBoundingBox.Max.Y + BA_DescriptionYOffset;	
+		
+	}
+	
+	
+	
 	if (TargetStance == STANCE_NEUTRAL)
 		Canvas.DrawColor = ColorBlue;
 	else if (TargetStance == STANCE_FRIENDLY)
@@ -793,47 +921,96 @@ private function DrawTargetDescription()
 private function DrawTeamLogo()
 {
 	local float X,Y;
-	X = VisualBoundsCenterX + LogoXOffset - NeutralIcon.UL;
-
-	if (AnchorInfoTop)
-		Y = VisualBoundingBox.Min.Y + LogoYOffset;
-	else
-		Y = VisualBoundingBox.Max.Y + LogoYOffset;
-
-	if (TargetStance == STANCE_ENEMY && TargetedActor.GetTeamNum() == TEAM_NOD)
-		Canvas.DrawIcon(NodEnemyIcon,X,Y);
-	else if (TargetStance == STANCE_ENEMY && TargetedActor.GetTeamNum() == TEAM_GDI)
-		Canvas.DrawIcon(GDIEnemyIcon,X,Y);
-	else if (TargetStance == STANCE_FRIENDLY && TargetedActor.GetTeamNum() == TEAM_NOD)
+	
+	
+	
+	if(bHasArmor)
 	{
-		// spy addition, spy should have same boundingbox+icon
-		if (Rx_Pawn(TargetedActor) != none && Rx_Pawn(TargetedActor).isSpy())
+			
+			X = VisualBoundsCenterX + LogoXOffset - BA_BuildingIcon_GDI_Friendly.UL;
+			
+		if (AnchorInfoTop)
+			Y = VisualBoundingBox.Min.Y + BA_LogoYOffset;
+		else
+			Y = VisualBoundingBox.Max.Y + BA_LogoYOffset;
+Canvas.DrawColor.A=200;
+		if (TargetStance == STANCE_ENEMY && TargetedActor.GetTeamNum() == TEAM_NOD)
+			Canvas.DrawIcon(BA_BuildingIcon_Nod_Enemy,X,Y);
+		else if (TargetStance == STANCE_ENEMY && TargetedActor.GetTeamNum() == TEAM_GDI)
+			Canvas.DrawIcon(BA_BuildingIcon_GDI_Enemy,X,Y);
+		else if (TargetStance == STANCE_FRIENDLY && TargetedActor.GetTeamNum() == TEAM_NOD)
 		{
-			if(TargetedActor.GetTeamNum() == RenxHud.PlayerOwner.GetTeamNum())
+			// spy addition, spy should have same boundingbox+icon
+			if (Rx_Pawn(TargetedActor) != none && Rx_Pawn(TargetedActor).isSpy())
+			{
+				if(TargetedActor.GetTeamNum() == RenxHud.PlayerOwner.GetTeamNum())
+					Canvas.DrawIcon(BA_BuildingIcon_Nod_Friendly,X,Y);
+				else
+					Canvas.DrawIcon(BA_BuildingIcon_GDI_Friendly,X,Y);
+			}
+			else
+				Canvas.DrawIcon(BA_BuildingIcon_Nod_Friendly,X,Y);
+		}
+		
+		else if (TargetStance == STANCE_FRIENDLY && TargetedActor.GetTeamNum() == TEAM_GDI)
+		
+		{
+			// spy addition, spy should have same boundingbox+icon
+			if (Rx_Pawn(TargetedActor) != none && Rx_Pawn(TargetedActor).isSpy())
+			{
+				if(TargetedActor.GetTeamNum() == RenxHud.PlayerOwner.GetTeamNum())
+					Canvas.DrawIcon(GDIFriendlyIcon,X,Y);
+				else
+					Canvas.DrawIcon(NodFriendlyIcon,X,Y);
+			}
+			else
+				Canvas.DrawIcon(BA_BuildingIcon_GDI_Friendly,X,Y);	
+		}
+	}
+	else if(!bHasArmor)
+	{
+		X = VisualBoundsCenterX + LogoXOffset - NeutralIcon.UL;
+		if (AnchorInfoTop)
+			Y = VisualBoundingBox.Min.Y + LogoYOffset;
+		else
+			Y = VisualBoundingBox.Max.Y + LogoYOffset;
+
+		if (TargetStance == STANCE_ENEMY && TargetedActor.GetTeamNum() == TEAM_NOD)
+			Canvas.DrawIcon(NodEnemyIcon,X,Y);
+		else if (TargetStance == STANCE_ENEMY && TargetedActor.GetTeamNum() == TEAM_GDI)
+			Canvas.DrawIcon(GDIEnemyIcon,X,Y);
+		else if (TargetStance == STANCE_FRIENDLY && TargetedActor.GetTeamNum() == TEAM_NOD)
+		{
+			// spy addition, spy should have same boundingbox+icon
+			if (Rx_Pawn(TargetedActor) != none && Rx_Pawn(TargetedActor).isSpy())
+			{
+				if(TargetedActor.GetTeamNum() == RenxHud.PlayerOwner.GetTeamNum())
+					Canvas.DrawIcon(NodFriendlyIcon,X,Y);
+				else
+					Canvas.DrawIcon(GDIFriendlyIcon,X,Y);
+			}
+			else
 				Canvas.DrawIcon(NodFriendlyIcon,X,Y);
+		}
+		else if (TargetStance == STANCE_FRIENDLY && TargetedActor.GetTeamNum() == TEAM_GDI)
+		{
+			// spy addition, spy should have same boundingbox+icon
+			if (Rx_Pawn(TargetedActor) != none && Rx_Pawn(TargetedActor).isSpy())
+			{
+				if(TargetedActor.GetTeamNum() == RenxHud.PlayerOwner.GetTeamNum())
+					Canvas.DrawIcon(GDIFriendlyIcon,X,Y);
+				else
+					Canvas.DrawIcon(NodFriendlyIcon,X,Y);
+			}
 			else
 				Canvas.DrawIcon(GDIFriendlyIcon,X,Y);
 		}
 		else
-			Canvas.DrawIcon(NodFriendlyIcon,X,Y);
-	}
-	else if (TargetStance == STANCE_FRIENDLY && TargetedActor.GetTeamNum() == TEAM_GDI)
-	{
-		// spy addition, spy should have same boundingbox+icon
-		if (Rx_Pawn(TargetedActor) != none && Rx_Pawn(TargetedActor).isSpy())
-		{
-			if(TargetedActor.GetTeamNum() == RenxHud.PlayerOwner.GetTeamNum())
-				Canvas.DrawIcon(GDIFriendlyIcon,X,Y);
-			else
-				Canvas.DrawIcon(NodFriendlyIcon,X,Y);
-		}
-		else
-			Canvas.DrawIcon(GDIFriendlyIcon,X,Y);
-	}
-	else
-		Canvas.DrawIcon(NeutralIcon,X,Y);
+			Canvas.DrawIcon(NeutralIcon,X,Y);
+		
+		//Building Armour enabled, and building targeted. 
+	}	
 }
-
 private function DrawInfoBackground()
 {
 	local float X,Y;
@@ -846,13 +1023,29 @@ private function DrawInfoBackground()
 	else
 		Y = VisualBoundingBox.Max.Y + BackgroundYOffset;
 
+	if(!bHasArmor)
+	{
 	if (TargetStance == STANCE_NEUTRAL)
 		Icon = InfoBackdropNeutral;
 	else if (TargetStance == STANCE_FRIENDLY)
 		Icon = InfoBackdropFriendly;
 	else
 		Icon = InfoBackdropEnemy;
-
+	}
+	
+	else if(bHasArmor)
+	
+	{
+		
+	if (TargetStance == STANCE_NEUTRAL)
+		Icon = BA_InfoBackdropFriendly;
+	else if (TargetStance == STANCE_FRIENDLY)
+		Icon = BA_InfoBackdropFriendly;
+	else
+		Icon = BA_InfoBackdropEnemy;
+		
+	}
+	
 	if (TargetDescription == "")
 		Canvas.DrawIcon(Icon,X,Y);
 	else
@@ -958,9 +1151,54 @@ DefaultProperties
 	HealthCellGreen = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_HealthBar_Single_Green', U= 0, V = 0, UL = 16, VL = 16)
 	HealthCellYellow = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_HealthBar_Single_Yellow', U= 0, V = 0, UL = 16, VL = 16)
 	HealthCellRed = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_HealthBar_Single_Red', U= 0, V = 0, UL = 16, VL = 16)
-
+	ArmorCellBlue = (Texture = Texture2D'renxtargetsystem.T_TargetSystem_ArmorBar_Single_Blue', U= 0, V = 0, UL = 16, VL = 16)
 	Interact = (Texture = Texture2D'renxtargetsystem.T_TargetSystem_Interact', U= 0, V = 0, UL = 32, VL = 64)
+	
+//Building Armour specific Icons (If it really doesn't look right with the larger health cells.)
+BA_HealthCellIcon = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Bar_Health', U= 0, V = 0, UL = 16, VL = 16)
+BA_ArmourCellIcon = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Bar_Armour', U= 0, V = 0, UL = 16, VL = 16)
+BA_HealthIcon = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Icon_Health', U= 0, V = 0, UL = 32, VL = 32)
+BA_ArmourIcon = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Icon_Armour', U= 0, V = 0, UL = 32, VL = 32)	
 
+BA_BuildingIcon_GDI_Friendly = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Logo_GDI_Friendly', U= 0, V = 0, UL = 64, VL = 64)	
+BA_BuildingIcon_Nod_Friendly = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Logo_Nod_Friendly', U= 0, V = 0, UL = 64, VL = 64)	
+
+BA_BuildingIcon_GDI_Enemy = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Logo_GDI_Enemy', U= 0, V = 0, UL = 64, VL = 64)	
+BA_BuildingIcon_Nod_Enemy = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Logo_Nod_Enemy', U= 0, V = 0, UL = 64, VL = 64)	
+
+BA_InfoBackdropFriendly = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Backdrop_Friendly', U= 0, V = 0, UL = 256, VL = 64)
+BA_InfoBackdropEnemy    = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Backdrop_Enemy', U= 0, V = 0, UL = 256, VL = 64)
+
+
+//IMPORTANT!!! SWAP ALL "HEALTH" AND "ARMOUR" OFFSETS. Armour was originally drawn beneath health. 
+
+BA_HealthBarXOffset = -32
+BA_HealthBarYOffset = -32
+
+BA_ArmourBarXOffset= -64
+BA_ArmourBarYOffset = 5
+
+BA_LabelXOffset = -50
+BA_LabelYOffset = -46
+BA_IconsXOffset = 0
+BA_IconsYOffset = 0 	
+BA_PercentXOffset = -64		// 55		// -15
+BA_PercentYOffset = -34		// -35		// -15
+// Offset for target's description
+BA_DescriptionXOffset = -58
+BA_DescriptionYOffset = -12
+
+BA_BackgroundXOffset = -3
+BA_BackgroundYOffset = -55
+// Offset of team logo
+BA_LogoXOffset = -41
+BA_LogoYOffset = -55
+BA_HealthBarCellSpacing = 4
+BA_IconToPercentSpacing = 20
+BA_ArmourIconYOffset = 4
+BA_HealthIconYOffset = -7 
+BA_ArmourPercentYOffset = 8
+//End Building armour specific variables. Will likely undo these once it is confirmed that nothing needs to be moved around anymore
 	InteractFont = Font'RenXHud.Font.PlayerName'
 
 	InteractIconBobAmplitude = 5.0f;

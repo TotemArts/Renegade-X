@@ -9,8 +9,11 @@ DefaultProperties
 
 	DamagePointsMultiplier  = 0.12667f
 	HealPointsMultiplier    = 0.02533f
-	PointsForKill           = 0.0f
-	MaxHealth               = 200
+	PointsForKill           = 20.0f
+	MaxHealth               = 100
+	MaxArmor               	= 200
+	Armor_Type 				= A_FLAK
+	SpeedMultiplier			= 0.9
 
 	CharacterMesh=SkeletalMesh'RX_CH_GDI_Gunner.Mesh.SK_CH_Gunner_NewRig'
 	

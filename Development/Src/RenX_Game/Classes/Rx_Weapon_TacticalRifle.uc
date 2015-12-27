@@ -145,7 +145,7 @@ defaultproperties
 	InstantHitMomentum(0)=20000
 	InstantHitMomentum(1)=20000
 	
-	bInstantHit=true
+	bInstantHit=false
 */
 	WeaponFireTypes(0)=EWFT_Projectile
 	
@@ -155,8 +155,8 @@ defaultproperties
 
 
 	ClipSize = 50
-	InitalNumClips = 5
-	MaxClips = 5
+	InitalNumClips = 8
+	MaxClips = 8
 	
 	FireDelayTime = 0.01
     bCharge = true

@@ -7,8 +7,11 @@ DefaultProperties
 
 	DamagePointsMultiplier  = 0.03f
 	HealPointsMultiplier    = 0.006f
-	PointsForKill           = 0.0f
+	PointsForKill           = 5.0f
 	MaxHealth               = 100
+	MaxArmor               	= 50
+	Armor_Type 				= A_FLAK
+	SpeedMultiplier			= 0.85
 
 	CharacterMesh=SkeletalMesh'rx_ch_engineer.Mesh.SK_CH_Engineer_Nod'
 	

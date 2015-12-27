@@ -44,6 +44,12 @@ simulated function PerformDeploy()
     }
     */	
 }
+//Dont stick to walls. 
+event HitWall( vector HitNormal, actor Wall, PrimitiveComponent WallComp)
+{
+   	Super(Actor).HitWall (HitNormal, Wall, WallComp);
+}
+
 
 // Remove on death removal.
 function Landed(vector HitNormal, Actor FloorActor)
@@ -56,7 +62,7 @@ function CheckProxy()
 	local Rx_Pawn P;
 	local Rx_Vehicle V;
 	
-	ForEach CollidingActors(class'Rx_Pawn', P, TriggerRadius,, true)
+	ForEach VisibleCollidingActors(class'Rx_Pawn', P, TriggerRadius,, true)
 	{
       if ((GetTeamNum() != P.GetTeamNum()) && (P.Health > 0) && bDeployed) {
       	Activator = P;
@@ -117,9 +123,18 @@ simulated function bool IsEffectedByEMP()
 
 function bool EMPHit(Controller InstigatedByController, Actor EMPCausingActor)
 {
+	if(Rx_Projectile_EMPGrenade(EMPCausingActor) != EMPActor && InstigatedByController.GetTeamNum() != GetTeamNum())
+		{
+		TakeDamage(Rx_Projectile_EMPGrenade(EMPCausingActor).Init_MineDamage, InstigatedByController, Location, Vect(0,0,0), class'Rx_DmgType_EMP',,EMPCausingActor); //Check 1st if we've already taken this hit. Keeps the grenade from hitting mine it collides with twice. 
+		if(EMPTicks > 0) EMPActor=EMPCausingActor; /*Prevent EMP Mine damage from doubling up when the mine is already suffering from EMP effect. */
+		
+		}
+	
+	
+	
 	if (InstigatedByController.GetTeamNum() == GetTeamNum() || EMPTicks > 0)
 		return false;
-	EMPTicks = EMPDisarmTime;
+	EMPTicks = EMPDisarmTime; //EMP mines are finicky... and they have a tendency to screw up decimal places apparently, so it was just easier to tell it to tick two extra times instead of possibly stopping at 2%
 	EMPInstigator = InstigatedByController;
 	EMPActor = EMPCausingActor;
 	SetTimer(1.0, true, 'EMPDisarmTick');
@@ -129,13 +144,55 @@ function bool EMPHit(Controller InstigatedByController, Actor EMPCausingActor)
 
 function EMPDisarmTick()
 {
-	TakeDamage(float(default.HP/EMPDisarmTime), EMPInstigator, Location, Vect(0,0,0), class'Rx_DmgType_EMP',,EMPActor);
+	//`log("DisarmTick");
+	 TakeDamage(float(default.HP/EMPDisarmTime), EMPInstigator, Location, Vect(0,0,0), class'Rx_DmgType_EMP',,EMPActor);
+	
+		//TakeDamage(float(200/EMPDisarmTime), EMPInstigator, Location, Vect(0,0,0), class'Rx_DmgType_EMP');
+
 	if (--EMPTicks <= 0)
+	{
 		ClearTimer('EMPDisarmTick');
+	}
+	
+		}
+
+		/**Take damage needs to account for the fact the EMP grenades EXPLODE.. and are destroyed. Sometimes mines won't update and will still have a reference to the grenade all the way through disarming.. other times EMPActor gets set to 'none' and 'none' can not disarm the mine.*/
+function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)
+{
+	if (!CanDisarmMe(DamageCauser) && DamageType != class'Rx_DmgType_EMP') //If it's EMP damage just roll with the punches.
+	{
+		return;
+	}
+	
+	//Don't use the Rx_Weapon_DeployedActor TakeDamage(), as then HP gets subtracted twice. 
+	super(Actor).TakeDamage(DamageAmount,EventInstigator,HitLocation,Momentum,DamageType,HitInfo,DamageCauser);
+
+	if (DamageAmount <= 0 || HP <= 0 || bDisarmed )
+      return;
+
+	HP -= DamageAmount;
+//	`log("Damage=" @ DamageAmount);
+	if (HP <= 0)
+	{
+		BroadcastDisarmed(EventInstigator);
+		if (WorldInfo.NetMode == NM_DedicatedServer || WorldInfo.NetMode == NM_ListenServer) // trigger client replication
+			bDisarmed = true;
+		if (WorldInfo.NetMode != NM_DedicatedServer)
+			PlayDisarmedEffect();      
+			ClearTimer('Explosion');
+
+		
+		if (EventInstigator.PlayerReplicationInfo != none && EventInstigator.PlayerReplicationInfo.GetTeamNum() != TeamNum)
+		{
+			Rx_Pri(EventInstigator.PlayerReplicationInfo).AddScoreToPlayerAndTeam(DisarmScoreReward,true);
+		}
+		
+		SetTimer(0.1, false, 'DestroyMe'); // delay it a bit so disappearing blends a littlebit better with the disarmed effects
+	}
 }
-
-function EnteredEMPField(Rx_EMPField EMPField);
-
+		
+		
+function EnteredEMPField(Rx_EMPField EMPField); // Figured this would be where I'd start for burst damage.. but guess not. 
 function LeftEMPField(Rx_EMPField EMPField);
 
 simulated function string GetTargetedDescription(PlayerController PlayerPerspective)
@@ -176,7 +233,7 @@ defaultproperties
 	OuterExplosionShakeRadius=400.0	
 
 	DisarmScoreReward = 20
-	EMPDisarmTime=10
+	EMPDisarmTime=13.33 //Counteracts 25% burst damage from initial mine explosion. Keeps disarm time roughly the same
 
 	Begin Object Name=DeployableMesh
 		SkeletalMesh=SkeletalMesh'rx_wp_proxyc4.Mesh.SK_WP_Proxy_Deployed'

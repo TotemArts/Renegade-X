@@ -1,4 +1,4 @@
-class Rx_DmgType_Pistol extends Rx_DmgType;
+class Rx_DmgType_Pistol extends Rx_DmgType_Bullet;
 
 defaultproperties
 {
@@ -15,6 +15,7 @@ defaultproperties
     CustomTauntIndex=10
     lightArmorDmgScaling=0.16
     BuildingDamageScaling=0.002
+	MCTDamageScaling=100.0
 	
 	KDamageImpulse=1000
 	KDeathUpKick=200

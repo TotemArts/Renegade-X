@@ -71,7 +71,7 @@ simulated function ThirdPersonFireEffects(vector HitLocation)
 DefaultProperties
 {
 	Begin Object Name=SkeletalMeshComponent0
-		SkeletalMesh=SkeletalMesh'RX_WP_Carbine.Mesh.SK_Carbine_3P'
+		SkeletalMesh=SkeletalMesh'RX_WP_Carbine.Mesh.SK_Carbine_3P_NoSilencer'
 		Scale=1.0
 	End Object
 	
@@ -100,7 +100,7 @@ DefaultProperties
 
 	
 	BulletWhip=SoundCue'RX_SoundEffects.Bullet_WhizBy.SC_Bullet_WhizBy'
-	BeamTemplate=ParticleSystem'RX_FX_Munitions.Beams.P_InstantHit_Tracer'
+	BeamTemplate=ParticleSystem'RX_FX_Munitions.Beams.P_InstantHit_Tracer_GDI'
 
 
 	WeaponClass = class'Rx_Weapon_Carbine'

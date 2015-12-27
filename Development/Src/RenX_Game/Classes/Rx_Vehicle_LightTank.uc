@@ -113,10 +113,10 @@ DefaultProperties
         StopThreshold=20
         EngineDamping=4.0
         InsideTrackTorqueFactor=0.375
-        TurnInPlaceThrottle=0.225
+        TurnInPlaceThrottle=0.285 //0.225
         TurnMaxGripReduction=0.995 //0.980
         TurnGripScaleRate=0.8
-        MaxEngineTorque=15000
+        MaxEngineTorque=16500 //15000
     End Object
     SimObj=SimObject
     Components.Add(SimObject)

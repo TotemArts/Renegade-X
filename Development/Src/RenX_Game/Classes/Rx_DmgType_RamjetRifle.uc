@@ -13,8 +13,9 @@ defaultproperties
     bBulletHit=True
 
     CustomTauntIndex=10
-    lightArmorDmgScaling=0.25			// 45hp				0.33			// 60hp
+    lightArmorDmgScaling=0.30 //0.25			// 45hp				0.33			// 60hp
     BuildingDamageScaling=0.009
+	MCTDamageScaling=100.0
 	MineDamageScaling=2.0
 	
 	KDamageImpulse=20000

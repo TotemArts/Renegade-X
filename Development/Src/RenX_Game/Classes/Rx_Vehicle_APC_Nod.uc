@@ -127,7 +127,7 @@ DefaultProperties
     bOkAgainstBuildings=false
     bSecondaryFireTogglesFirstPerson=true
 	
-	CustomGravityScaling=0.6
+	CustomGravityScaling=1.0
 
     Begin Object Class=UDKVehicleSimCar Name=SimObject
         WheelSuspensionStiffness=50

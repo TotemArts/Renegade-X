@@ -15,6 +15,7 @@ defaultproperties
     CustomTauntIndex=10
     lightArmorDmgScaling=0.5
     BuildingDamageScaling=0.4
+	MCTDamageScaling=6.0
 	MineDamageScaling=2.0
 	
 	BleedDamageFactor=0.01

@@ -1,4 +1,4 @@
-class Rx_DmgType_Apache_Gun extends Rx_DmgType;
+class Rx_DmgType_Apache_Gun extends Rx_DmgType; //Explodes... but also is supposed to be good vs. infantry
 
 defaultproperties
 {
@@ -10,11 +10,15 @@ defaultproperties
     VehicleDamageScaling=0.17
     NodeDamageScaling=0.5
     VehicleMomentumScaling=0.1
-    bBulletHit=True
 
+	bBulletHit=True
+
+	
+	
     CustomTauntIndex=10
     lightArmorDmgScaling=0.17
     BuildingDamageScaling=0.34
+	MCTDamageScaling=3.0
 	MineDamageScaling=1.0
 	
     AlwaysGibDamageThreshold=19

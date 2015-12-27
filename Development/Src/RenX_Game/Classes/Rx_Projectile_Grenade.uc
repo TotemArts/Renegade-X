@@ -24,11 +24,22 @@ function Init(vector Direction)
     Acceleration = AccelRate * Normal(Velocity);
 }
 
+/** to make sure final location gets replicated : Testing to see if there is indeed a disconnect here that is the reason EMP nades don't always hit mines.
+function ReplicatePositionAfterLanded()
+{
+	ForceNetRelevant();
+	bUpdateSimulatedPosition = true;
+	bNetDirty = true;   
+}
+*/
+
 /**
  * Explode
  */
 simulated function Timer()
 {
+	//ReplicatePositionAfterLanded();
+	
     Explode(Location, vect(0,0,1));
 }
 
@@ -63,6 +74,7 @@ simulated event HitWall(vector HitNormal, Actor Wall, PrimitiveComponent WallCom
 
     if ( bExplodeOnPawnImpact && Pawn(Wall) != none && Wall != Instigator )
     {
+		
 		Explode(Location, HitNormal);
     }
 	else
@@ -132,11 +144,12 @@ simulated function bool HurtRadius
 }
 
 // Uncomment this if we don't want to projectile translate the hurt origin seeing as it hits thru walls.
-/*simulated function bool ProjectileHurtRadius( vector HurtOrigin, vector HitNormal)
+/*
+simulated function bool ProjectileHurtRadius( vector HurtOrigin, vector HitNormal)
 {
 	return HurtRadius(Damage, DamageRadius, MyDamageType, MomentumTransfer, AltOrigin);
-}*/
-
+}
+*/
 
 DefaultProperties
 {
@@ -172,21 +185,21 @@ DefaultProperties
     
     Physics=PHYS_Falling
 	
-	CustomGravityScaling=1.25
+	CustomGravityScaling=1.0
     
     MyDamageType=class'Rx_DmgType_Grenade'
     
 	bExplodeOnPawnImpact=false
 	ArmTime=1.5
-	BounceDamping=0.75
-	BounceDampingZ=0.55
+	BounceDamping=0.35
+	BounceDampingZ=0.15
     TossZ=50
     Speed=1500
     MaxSpeed=1500
     AccelRate=0
     LifeSpan=2.0
-    Damage=180
-    DamageRadius=400
+    Damage=200
+    DamageRadius=750
     MomentumTransfer=50000
 
     bCollideComplex=true

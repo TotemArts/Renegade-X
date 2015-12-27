@@ -66,6 +66,7 @@ DefaultProperties
     Damage=110
     DamageRadius=600
     MomentumTransfer=100000.000000
+	HeadShotDamageMult=10.0 // 5.0
 
     MyDamageType=Class'Rx_DmgType_Artillery'
 

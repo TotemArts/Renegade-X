@@ -41,7 +41,7 @@ DefaultProperties
     Speed=2000
     MaxSpeed=2000
     AccelRate=0
-    LifeSpan=1.0
+    LifeSpan=0.80
     Damage=12.0
     DamageRadius=100
 	HeadShotDamageMult=1.3

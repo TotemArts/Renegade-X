@@ -126,18 +126,20 @@ DefaultProperties
 	ShotCost(1)=1
 	FireInterval(0)=+1.0
 	FireInterval(1)=+0.0
-	ReloadTime(0) = 3.5
-	ReloadTime(1) = 3.5
+	ReloadTime(0) = 4.0
+	ReloadTime(1) = 4.0
 	
 	EquipTime=0.75
 //	PutDownTime=0.5
 	
-	Spread(0)=0.015
+	Spread(0)=0.0
 	IronSightAndScopedSpread(0)= 0.0
 	
 	InstantHitDamage(0)=100
 	InstantHitDamage(1)=0
 	InstantHitMomentum(0)=10000.0
+	
+	HeadShotDamageMult=3.0
 
 //	BotDamagePercentage = 0.4;
 
@@ -154,8 +156,8 @@ DefaultProperties
 	
 	bAutoFire = false
 	BoltActionReload=true
-	BoltReloadTime(0) = 1.3f
-	BoltReloadTime(1) = 1.3f
+	BoltReloadTime(0) = 2.0f
+	BoltReloadTime(1) = 2.0f
 
 	ReloadAnimName(0) = "weaponreload"
 	ReloadAnimName(1) = "weaponreload"

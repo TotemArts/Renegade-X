@@ -7,8 +7,11 @@ DefaultProperties
 
 	DamagePointsMultiplier  = 0.157142f
 	HealPointsMultiplier    = 0.031428
-	PointsForKill           = 0.0f
-	MaxHealth               = 250
+	PointsForKill           = 30.0f
+	MaxHealth               = 100
+	MaxArmor               	= 250
+	Armor_Type 				= A_FLAK
+	SpeedMultiplier			= 0.9
 	bFemale					= true; //halo2pac
 
 	CharacterMesh=SkeletalMesh'rx_ch_gdi_sydney.Mesh.SK_CH_Sydney'

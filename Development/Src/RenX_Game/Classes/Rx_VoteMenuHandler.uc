@@ -65,12 +65,24 @@ function Display(Canvas c, float HUDCanvasScale, float ConsoleMessagePosX, float
 
 function KeyPress(byte T)
 {
+	local color MyColor;
+	
+	MyColor = MakeColor(255,200,120, 255);
+	
 	if (VoteChoice == none)
 	{
 		// select vote submenu first
 		
 		if (T - 1 >= VoteChoiceClasses.Length) return; // wrong key
-
+		
+		if(T-1 >= 0 && T-1 < 3) 
+		{
+			if(!PlayerOwner.CanVoteMapChange() )  
+			{
+			PlayerOwner.CTextMessage("GDI",90, "You have entered a ChangeMap/Surrender Vote too recently",MyColor,255,255, false,1,0.6);
+			return;
+			}
+		}
 		VoteChoice = new (self) VoteChoiceClasses[T - 1];
 		VoteChoice.Handler = self;
 		VoteChoice.Init();
@@ -140,7 +152,8 @@ DefaultProperties
 	VoteChoiceClasses(4) = class'Rx_VoteMenuChoice_RemoveBots'
 	VoteChoiceClasses(5) = class'Rx_VoteMenuChoice_Kick'
 	VoteChoiceClasses(6) = class'Rx_VoteMenuChoice_Survey'
-
+	VoteChoiceClasses(7) = class'Rx_VoteMenuChoice_MineBan'
+	
 	ExitString = "Exit"
 	BackString = "Back"
 }

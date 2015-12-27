@@ -43,16 +43,38 @@ simulated event ReplicatedEvent(name VarName)
 simulated function PlayASSound()
 {
 	local PlayerController pc;
-
+	local Rx_Controller IPC; 
+	local color CGreen, CRed; //colours to use for air strike messages
+	
+	CGreen=MakeColor(10,255,0,255); 
+	CRed=MakeColor(255,0,10,255); 
+	
 	if (WorldInfo.NetMode == NM_DedicatedServer) return; // quit here if we are dedicated server
 
 	foreach WorldInfo.AllControllers(class'PlayerController', pc)
 	{
-		if (pc.IsLocalController()) // play on local players only
+		IPC = Rx_Controller(pc);
+		
+	if (pc.IsLocalController()) // play on local players only
 									// in case we are NM_ListenServer,
 									// without this check, it would replicate
 									// sound playing two times
 			pc.PlaySound(ASType.default.ApproachingSound);
+			
+	if(IPC.GetTeamNum() == 0)
+	{	
+	if(ASType==class'Rx_Airstrike_A10')	IPC.CTextMessage("GDI",90, "!!!Friendly Airstrike Inbound!!!",CGreen,255, 255, false, 1);
+	else
+	IPC.CTextMessage("GDI",90, "!!!Enemy Airstrike Inbound!!!",CRed,255, 255, false, 0.6);
+	}
+	else	
+	{	
+	if(ASType==class'Rx_Airstrike_AC130')	IPC.CTextMessage("GDI",90, "!!!Friendly Airstrike Inbound!!!",CGreen,255, 255, false, 1);
+	else
+	IPC.CTextMessage("GDI",90, "!!!Enemy Airstrike Inbound!!!",CRed,255, 255, false);
+	}
+		
+			
 	}
 }
 

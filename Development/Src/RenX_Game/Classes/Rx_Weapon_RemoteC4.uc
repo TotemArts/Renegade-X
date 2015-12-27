@@ -99,13 +99,16 @@ simulated function FireAmmunition()
 simulated function WeaponEmpty()
 {
 	if(bDetonatedRemotes && AmmoCount == 0) {
-		super.WeaponEmpty();
-			Rx_InventoryManager(Instigator.InvManager).RemoveWeaponOfClass(self.Class);
+		`log("DetRemotes=" @ bDetonatedRemotes);
+		super.WeaponEmpty(); 
+			//Rx_InventoryManager(Instigator.InvManager).RemoveWeaponOfClass(self.Class);
 // 		if (Rx_Controller(Instigator.Controller).PreviousExplosiveTransactionRecords.Find(self.Class) > -1) {
 // 			Rx_Controller(Instigator.Controller).PreviousExplosiveTransactionRecords.RemoveItem(self.Class);
 // 		}
 		if (Rx_Controller(Instigator.Controller).CurrentExplosiveWeapon == self.Class) {
 			Rx_Controller(Instigator.Controller).CurrentExplosiveWeapon = none;
+			
+			
 		}
 		
 	} else {

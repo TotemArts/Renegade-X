@@ -65,10 +65,10 @@ DefaultProperties
 	WeaponFireTypes(0)=EWFT_InstantHit
 	WeaponFireTypes(1)=EWFT_None
 
-	InstantHitDamage(0)=20
+	InstantHitDamage(0)=10
 	InstantHitDamage(1)=0
 	
-	HeadShotDamageMult=1.75
+	HeadShotDamageMult=2.5
 
 	InstantHitDamageTypes(0)=class'Rx_DmgType_Pistol'
 	InstantHitDamageTypes(1)=None

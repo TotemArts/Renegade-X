@@ -196,6 +196,9 @@ function bool PurchaseVehicle(Rx_PRI Buyer, int TeamID, int VehicleID )
 
 	if (FFloor(Buyer.GetCredits()) >= GetVehiclePrices(TeamID,VehicleID,AirdropAvailable(Buyer)) && !AreVehiclesDisabled(TeamID, Controller(Buyer.Owner)) )
 	{
+		
+		if(AreHighTierVehiclesDisabled(TeamID) && VehicleID > 1) return false; //Limit airdrops to APCs and Humvees/Buggies. 
+		
 		if(VehicleManager.QueueVehicle(GetVehicleClass(TeamID,VehicleID),Buyer,VehicleID))
 		{
 			Buyer.RemoveCredits(GetVehiclePrices(TeamID,VehicleID,AirdropAvailable(Buyer)));
@@ -411,7 +414,7 @@ simulated function int GetVehiclePrices(byte teamID, int VehicleID, bool bViaAir
 	
 	if (PowerPlants[teamID] != None && PowerPlants[teamID].IsDestroyed()) 
 	{
-		Multiplier = 1.5; // if powerplant is dead then everything costs 2 times as much
+		Multiplier = 1.5; // if powerplant is dead then everything costs [REDACTED] 1 and a half times as much
 	}
 	
 	if(bViaAirdrop)
@@ -484,11 +487,42 @@ simulated function bool AreVehiclesDisabled(byte teamID, Controller rxPC)
 	return true;
 }
 
+simulated function bool AreHighTierVehiclesDisabled (byte TeamID)
+{
+	if (WeaponsFactory == none || AirTower == none) {
+		return true;
+	}
+	
+	if (teamID == TEAM_GDI)
+	{
+		
+		if(WeaponsFactory.IsDestroyed())
+		{
+			return true;		
+		}
+		
+		return false;
+	}
+	else if (teamID == TEAM_NOD)
+	{
+		if(AirTower.IsDestroyed())
+		{
+				return true;				
+		}		
+		
+		return false;
+	}
+	
+	return true;
+}
+	
+
+
 simulated function bool AirdropAvailable(PlayerreplicationInfo pri)
 {
-	if(Rx_Pri(pri).LastAirdropTime == 0)
+	if(Rx_Pri(pri).LastAirdropTime == 0 && Rx_Pri(pri).AirdropCounter == 0) /*This didn't take into account whether or not the Airdrop counter was active or not. If WorldTime was 0 (like when a player joins), it just said screw your airdrops forever n00b. FIXED -Yosh */ 
 		return false;
-	if (default.AirdropCooldownTime < 0)
+	if (default.AirdropCooldownTime < 0) 
 		return false;
 	return default.AirdropCooldownTime - (Worldinfo.TimeSeconds - Rx_Pri(pri).LastAirdropTime) <= 0;
 }
@@ -580,7 +614,7 @@ DefaultProperties
 
 	GDIItemClasses[0]  = class'Rx_Weapon_IonCannonBeacon'
 	GDIItemClasses[1]  = class'Rx_Weapon_Airstrike_GDI'
-
+	GDIItemClasses[2]  = class'Rx_Weapon_RepairTool'
 
 	NodInfantryClasses[0]  = class'Rx_FamilyInfo_Nod_Soldier'
 	NodInfantryClasses[1]  = class'Rx_FamilyInfo_Nod_Shotgunner'
@@ -617,4 +651,5 @@ DefaultProperties
 
 	NodItemClasses[0]  = class'Rx_Weapon_NukeBeacon'
 	NodItemClasses[1]  = class'Rx_Weapon_Airstrike_Nod'
+	NodItemClasses[2]  = class'Rx_Weapon_RepairTool'
 }

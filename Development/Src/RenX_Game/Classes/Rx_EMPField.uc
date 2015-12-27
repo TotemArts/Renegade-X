@@ -1,12 +1,16 @@
 class Rx_EMPField extends Rx_ParticleField;
 
+var float InitialDamage; //initial damage done to proximity mines
+
 event Touch( Actor Other, PrimitiveComponent OtherComp, vector HitLocation, vector HitNormal )
 {
 	if (WorldInfo.NetMode == NM_Client)
 		return;
 
 	if (RxIfc_EMPable(Other) != None)
+	{
 		RxIfc_EMPable(Other).EnteredEMPField(self);
+	}	
 }
 
 event UnTouch( Actor Other )
@@ -39,6 +43,8 @@ DefaultProperties
 
 	ParticlesTemplate=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_EMPField'
 
+	InitialDamage=68
+	
 	StopParticlesTime=0.25
 	LifeSpan=+12.0
 }

@@ -1,4 +1,4 @@
-class Rx_Projectile_RocketLauncher extends Rx_Projectile_Rocket;
+class Rx_Projectile_RocketLauncher extends Rx_Projectile;//_Rocket;
 
 simulated function SetExplosionEffectParameters(ParticleSystemComponent ProjExplosion)
 {
@@ -46,7 +46,7 @@ DefaultProperties
     AccelRate=0
     LifeSpan=5.0
     Damage=60
-    DamageRadius=125
+    DamageRadius=200
     HeadShotDamageMult=5.0
     MomentumTransfer=100000
     bWaitForEffects=true

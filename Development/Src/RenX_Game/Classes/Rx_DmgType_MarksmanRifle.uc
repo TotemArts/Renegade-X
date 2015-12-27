@@ -1,4 +1,4 @@
-class Rx_DmgType_MarksmanRifle extends Rx_DmgType;
+class Rx_DmgType_MarksmanRifle extends Rx_DmgType_Bullet;
 
 defaultproperties
 {
@@ -14,6 +14,8 @@ defaultproperties
     CustomTauntIndex=10
     lightArmorDmgScaling=0.15
     BuildingDamageScaling=0.0035
+	MCTDamageScaling=150.0
+	
 	
 	DeathAnim=H_M_Death_CrotchShot
 	KDamageImpulse=3000

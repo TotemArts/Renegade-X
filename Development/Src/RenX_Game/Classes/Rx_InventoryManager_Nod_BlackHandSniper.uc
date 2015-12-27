@@ -2,5 +2,9 @@ class Rx_InventoryManager_Nod_BlackHandSniper extends Rx_InventoryManager_Adv_NO
 
 DefaultProperties
 {
-	PrimaryWeapons[0] = class'Rx_Weapon_SniperRifle_Nod'	
+	PrimaryWeapons[0] = class'Rx_Weapon_SniperRifle_Nod' //2
+	PrimaryWeapons[1] = class'Rx_Weapon_SmokeGrenade_Rechargeable' //5
+	SidearmWeapons[0] = class'Rx_Weapon_HeavyPistol' //1
+	
+	AvailableSidearmWeapons(0) = class'Rx_Weapon_HeavyPistol'
 }

@@ -65,7 +65,8 @@ DefaultProperties
 	LockWarningInterval			= 1.5
 	BaseTrackingStrength		= 2.5 		// 0.7
 	HomingTrackingStrength		= 6.0 		// 0.7
-
+	HeadShotDamageMult=10.0 // 5.0
+	
 	MyDamageType=Class'Rx_DmgType_MRLS'
 
 	bCheckProjectileLight=true

@@ -1,4 +1,4 @@
-class Rx_DmgType_Chinook extends Rx_DmgType;
+class Rx_DmgType_Chinook extends Rx_DmgType_Bullet;
 
 defaultproperties
 {
@@ -10,11 +10,13 @@ defaultproperties
     VehicleDamageScaling=0.17
     NodeDamageScaling=0.5
     VehicleMomentumScaling=0.1
-    bBulletHit=True
+    
+	bBulletHit=True
 
     CustomTauntIndex=10
     lightArmorDmgScaling=0.17
     BuildingDamageScaling=0.34
+	MCTDamageScaling=3.0
 	MineDamageScaling=2.0
 	
     AlwaysGibDamageThreshold=19

@@ -5,6 +5,10 @@ var float BuildingDamageScaling;
 var float AircraftDamageScaling;
 var float MCTDamageScaling;
 var float MineDamageScaling;
+var float Inf_FLAKDamageScaling;
+var float Inf_KevlarDamageScaling;
+var float Inf_LazarusDamageScaling;
+
 
 /**@Shahman: Deprecated. Please use IconTexture to load the DmgIcon*/
 var string IconTextureName;
@@ -50,6 +54,21 @@ static function float MineDamageScalingFor()
 	return Default.MineDamageScaling;
 }
 
+/////////Infantry Armor/////////
+static function float KevlarDamageScalingFor() //Damage mod for infantry with kevlar armor -Yosh 
+{
+	return Default.Inf_KevlarDamageScaling;
+}
+
+static function float FLAKDamageScalingFor() //Damage mod for infantry with FLAK armor -Yosh  
+{
+	return Default.Inf_FLAKDamageScaling;
+}
+
+static function float LazarusDamageScalingFor() ////Damage mod for infantry with Lazarus armor (the SBH) -Yosh  
+{
+	return Default.Inf_LazarusDamageScaling;
+}
 defaultproperties
 {
 	MCTDamageScaling=2.0 // stacks with BuildingDamageScaling
@@ -58,6 +77,12 @@ defaultproperties
     lightArmorDmgScaling=1.0
     VehicleDamageScaling=1.0
 	AircraftDamageScaling=-1.0 //This is only used by a damage type if the value is greater than 0, otherwise it treats an aircraft like Light armour.
+	
+	////Infantry Armour Types//////
+	Inf_FLAKDamageScaling = 1.0     //FLAK infantry armour (Standard rule is splash damage does  30% less, while gun damage does 30% more)
+	Inf_KevlarDamageScaling = 1.0	//Kevlar (General rule is 15% less damage from direct hits/bullets, but no penalties) - EDIT: 20%
+	Inf_LazarusDamageScaling = 1.0  // Lazarus SBH armour, standard rule is +40% to Electrical damage but likely no other damage modifiers.
+	
     GibPerterbation=0.15
     AlwaysGibDamageThreshold=0
 	RewardAnnouncementSwitch=0

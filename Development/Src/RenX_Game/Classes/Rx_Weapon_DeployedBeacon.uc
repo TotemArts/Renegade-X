@@ -100,10 +100,30 @@ simulated function PlayImminentSound()
       }
 }
 
-function BroadcastPlaced()
+/**function BroadcastPlaced()
 {
 	`LogRx("GAME"`s "Deployed;" `s self.Class `s "by" `s `PlayerLog(InstigatorController.PlayerReplicationInfo) );
 	BroadcastLocalizedMessage(class'Rx_Message_Deployed',-1,InstigatorController.PlayerReplicationInfo,,self.Class);
+}
+*/
+
+function BroadcastPlaced() {
+   local Rx_Controller PC, IPC;
+   local color C_Red, C_Green;
+   
+   C_Red=MakeColor(255,20,20,255);
+   C_Green=MakeColor(20,255,20,255);
+   
+   IPC=Rx_Controller(InstigatorController);
+   
+   `LogRx("GAME"`s "Deployed;" `s self.Class `s "by" `s `PlayerLog(InstigatorController.PlayerReplicationInfo) );
+   BroadcastLocalizedMessage(class'Rx_Message_Deployed',-1,InstigatorController.PlayerReplicationInfo,,self.Class);
+   foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
+   {
+     if(PC.GetTeamNum() == IPC.GetTeamNum()) PC.CTextMessage("GDI",150, "Friendly" @ DeployableName @ "placed!",C_Green,255, 255, false, 1, 0.75);
+	 else
+	PC.CTextMessage("GDI",150, "Enemy" @ DeployableName @ "placed!",C_Red,255, 255, false, 0.75);
+   }
 }
 
 simulated function playCountInitiatedDownSound()
@@ -153,12 +173,30 @@ simulated function Destroyed()
 
 function BroadcastDisarmed(Controller Disarmer)
 {
+	local Rx_Controller PC, IPC ;
+	local color C_Red, C_Green;
+   
+   C_Red=MakeColor(255,20,20,255);
+   C_Green=MakeColor(20,255,20,255);
+	
+	IPC=Rx_Controller(InstigatorController);
+	
 	if (InstigatorController != None && InstigatorController.PlayerReplicationInfo != None)
 		`LogRx("GAME" `s "Disarmed;" `s self.Class `s "by" `s `PlayerLog(Disarmer.PlayerReplicationInfo) `s "owned by" `s `PlayerLog(InstigatorController.PlayerReplicationInfo));
 	else
 		`LogRx("GAME" `s "Disarmed;" `s self.Class `s "by" `s `PlayerLog(Disarmer.PlayerReplicationInfo));
 	BroadcastLocalizedMessage(class'Rx_Message_Deployed',GetTeamNum(),Disarmer.PlayerReplicationInfo,,self.Class);
-}
+
+	foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
+   {
+      if(PC.GetTeamNum() == IPC.GetTeamNum()) PC.CTextMessage("GDI",130, DeployableName@"disarmed!",C_Red,255, 255, false, 1, 0.75);
+	  else
+	PC.CTextMessage("GDI",130, DeployableName@"disarmed!",C_Green,255, 255, false, 1, 0.75);
+
+   }
+	
+	
+	}
 
 
 simulated function playCountDownSound() 

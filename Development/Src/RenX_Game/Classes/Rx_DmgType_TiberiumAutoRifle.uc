@@ -14,6 +14,7 @@ defaultproperties
     CustomTauntIndex=10
     lightArmorDmgScaling=0.32
     BuildingDamageScaling=0.1
+	MCTDamageScaling=5.0
     
     bPiercesArmor=false
 	

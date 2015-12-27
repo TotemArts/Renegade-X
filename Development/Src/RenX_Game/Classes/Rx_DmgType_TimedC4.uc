@@ -1,4 +1,4 @@
-class Rx_DmgType_TimedC4 extends Rx_DmgType;
+class Rx_DmgType_TimedC4 extends Rx_DmgType_Explosive;
 
 defaultproperties
 {
@@ -17,6 +17,7 @@ defaultproperties
 	AircraftDamageScaling=1.25 //Used so it will kill a 500hp Chinook
     MCTDamageScaling=4.0
 	MineDamageScaling=2.0
+	
     AlwaysGibDamageThreshold=99
 	bNeverGibs=false
 	

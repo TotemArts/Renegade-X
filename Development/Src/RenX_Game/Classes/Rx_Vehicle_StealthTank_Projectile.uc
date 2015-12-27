@@ -22,6 +22,56 @@ simulated function SetExplosionEffectParameters(ParticleSystemComponent ProjExpl
     ProjExplosion.SetScale(1.0f);
 }
 
+simulated state Homing
+{
+	simulated function Timer()
+	{
+		local vector TargetLocation;
+		local bool bDontLock;
+		
+		if(bDontLockAnymore) {
+			return;
+		}
+		
+		if(SeekTarget != none) {
+			TargetLocation = SeekTarget.GetTargetLocation();
+		} else {
+			TargetLocation = Target;		
+		}	
+		
+		/*if(class'Rx_Utils'.static.OrientationOfLocAndRotToBLocation(Location,Rotation,TargetLocation) > 0.0) { 
+			bDontLock = true;*/	
+			// else we already are past the target}
+		
+		if(GetTimerCount('ShutDownBeforeEndOfLife',self) < 2.0)
+			bDontLock = false;	
+		
+		if(!bDontLock) {
+			if(RxIfc_SeekableTarget(SeekTarget) != none && VSize(SeekTarget.Velocity) > 150 && RxIfc_SeekableTarget(SeekTarget).GetAimAheadModifier() > 0.0) { 
+				TargetLocation = TargetLocation + Normal(SeekTarget.Velocity) * RxIfc_SeekableTarget(SeekTarget).GetAimAheadModifier();
+			}
+			if(RxIfc_SeekableTarget(SeekTarget) != none && RxIfc_SeekableTarget(SeekTarget).GetAccelrateModifier() > 0.0) { 
+				AccelRate = default.AccelRate * RxIfc_SeekableTarget(SeekTarget).GetAccelrateModifier();
+			}
+			Acceleration = 16.0 * AccelRate * Normal(TargetLocation - Location);
+		} else {
+			bDontLockAnymore = true;
+		}		
+	}
+
+	simulated function BeginState(name PreviousStateName)
+	{
+		InitialState = 'Homing';
+		Timer();
+		SetTimer(0.1, true);
+	}
+}
+
+simulated static function float GetRange() //Wasn't working correctly with the acceleration set, so I just set it manually.-Yosh
+{
+return 5800 ;	
+}
+
 
 DefaultProperties
 {
@@ -65,17 +115,18 @@ DefaultProperties
 
    ExplosionLightClass=Class'Rx_Light_Tank_Explosion'
    MaxExplosionLightDistance=7000.000000
-   Speed=3000
-   MaxSpeed=3000
-   AccelRate=425
-   LifeSpan=1.5
+   Speed=500 //2000
+   MaxSpeed=5000 //3500
+   AccelRate=425 //425
+   LifeSpan=1.5 //1.5
+   HeadShotDamageMult=10.0 // 5.0
    Damage=45
    DamageRadius=280
    MomentumTransfer=100000.000000
    
    LockWarningInterval=1.5
-   BaseTrackingStrength=3.5
-   HomingTrackingStrength=3.5
+   BaseTrackingStrength=5.0
+   HomingTrackingStrength=5.0 //3.5
 
    MyDamageType=Class'Rx_DmgType_StealthTank'
 

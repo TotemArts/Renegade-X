@@ -40,12 +40,12 @@ var array<Rx_Weapon_DeployedRemoteC4> RemoteC4;
 var int RemoteC4Limit;
 var int LastAirdropTime;
 var repnotify int AirdropCounter;
-
+var bool bCanMine; //Determines if a player can place proximity mines or not. 
 
 replication
 {
 	if( bNetDirty && Role == ROLE_Authority)
-		Credits, ReplicatedRenScore, RenTotalKills, bIsSpy, bSpotted, bModeratorOnly, AirdropCounter;
+		Credits, ReplicatedRenScore, RenTotalKills, bIsSpy, bSpotted, bModeratorOnly, AirdropCounter, bCanMine;
 	if( bNetDirty && Role == ROLE_Authority && bDemoRecording) 
 		ReplicatedNetworkAddress;
 }
@@ -176,12 +176,18 @@ function equipStartWeapons()
 
 	/** one1: Set starting inventory. */
 	Rx_InventoryManager(rxPawn.InvManager).SetWeaponsForPawn();
-	
+	//Set Health
 	rxPawn.HealthMax = rxCharInfo.default.MaxHealth;
 	rxPawn.Health    = rxPawn.HealthMax;
+	//Set armour and type
 	rxPawn.ArmorMax  = rxCharInfo.default.MaxArmor;
-	rxPawn.Armor     = rxPawn.ArmorMax;	 	
-
+	rxPawn.Armor     = rxPawn.ArmorMax;	 	 	
+	rxPawn.setArmorType(rxCharInfo.default.Armor_Type);
+	
+	rxPawn.SpeedUpgradeMultiplier = rxCharInfo.default.SpeedMultiplier;	
+	rxPawn.UpdateRunSpeedNode();
+	rxPawn.SetGroundSpeed();
+	
  	rxPawn.bForceNetUpdate = true;
 }
 
@@ -390,6 +396,27 @@ function DestroyRemoteC4()
 	}
 }
 
+function SwitchMineStatus()
+{
+	local color MyColor;
+	
+	MyColor=MakeColor(255,128,255,255);
+	if(bCanMine)
+	{
+		bCanMine=false;
+		Rx_Controller(Owner).CTextMessage("GDI",100,"You Have Been Banned from Mining",MyColor,255,255, false,1,0.80);
+	}
+	else
+	{
+		bCanMine=true;
+		Rx_Controller(Owner).CTextMessage("GDI",100,"Your Mine Ban Was Lifted",MyColor,255,255, false,1,0.80);
+	}
+}
+
+function bool GetMineStatus()
+{
+	return bCanMine;
+}
 
 DefaultProperties
 {
@@ -401,5 +428,6 @@ DefaultProperties
 	OldRenScore=-1
 	ATMineLimit=2
 	RemoteC4Limit=4
+	bCanMine=true
 	LastAirdropTime=0
 }

@@ -7,7 +7,7 @@ defaultproperties
 
 	// Weapon SkeletalMesh
 	Begin Object Name=FirstPersonMesh
-		SkeletalMesh=SkeletalMesh'RX_WP_Carbine.Mesh.SK_Carbine_1P'
+		SkeletalMesh=SkeletalMesh'RX_WP_Carbine.Mesh.SK_Carbine_1P_NoSilencer'
 		AnimSets(0)=AnimSet'RX_WP_Carbine.Anims.AS_Carbine_1P'
 		Animations=MeshSequenceA
 		Scale=2.0
@@ -16,7 +16,7 @@ defaultproperties
 
 	// Weapon SkeletalMesh
 	Begin Object Name=PickupMesh
-		SkeletalMesh=SkeletalMesh'RX_WP_Carbine.Mesh.SK_Carbine_3P'
+		SkeletalMesh=SkeletalMesh'RX_WP_Carbine.Mesh.SK_Carbine_3P_NoSilencer'
 		Scale=1.0
 	End Object
 
@@ -65,7 +65,7 @@ defaultproperties
 	EquipTime=0.5
 //	PutDownTime=0.5
 	
-	Spread(0)=0.0055
+	Spread(0)=0.0045
 
 	FiringStatesArray(1)=Active
 /*	
@@ -78,10 +78,10 @@ defaultproperties
 	WeaponFireTypes(0)=EWFT_InstantHit
 	WeaponFireTypes(1)=EWFT_None
 
-	InstantHitDamage(0)=16
-	InstantHitDamage(1)=16
+	InstantHitDamage(0)=12
+	InstantHitDamage(1)=12
 	
-	HeadShotDamageMult=2.0
+	HeadShotDamageMult=2
 
 	InstantHitDamageTypes(0)=class'Rx_DmgType_Carbine'
 	InstantHitDamageTypes(1)=class'Rx_DmgType_Carbine'
@@ -91,9 +91,11 @@ defaultproperties
 	
 	WeaponRange=3200.0
 
-	ClipSize = 30
+	ClipSize = 25
 	InitalNumClips = 6
 	MaxClips = 6
+	
+	bHasInfiniteAmmo=true
 	
 	FireDelayTime = 0.01
     bCharge = true
@@ -127,9 +129,9 @@ defaultproperties
 	
 	WeaponPreFireSnd[0]=none
     WeaponPreFireSnd[1]=none
-    WeaponFireSnd[0]=SoundCue'RX_WP_Carbine.Sounds.SC_Carbine_FireLoop'
+    WeaponFireSnd[0]=SoundCue'RX_WP_Carbine.Sounds.SC_Carbine_NoSilencer_FireLoop'//SoundCue'RX_WP_Carbine.Sounds.SC_Carbine_FireLoop'
     WeaponFireSnd[1]=none
-    WeaponPostFireSnd[0]=SoundCue'RX_WP_Carbine.Sounds.SC_Carbine_FireStop'
+    WeaponPostFireSnd[0]=SoundCue'RX_WP_Carbine.Sounds.SC_Carbine_NoSilencer_FireStop'//SoundCue'RX_WP_Carbine.Sounds.SC_Carbine_FireStop'
     WeaponPostFireSnd[1]=none
 
 	WeaponPutDownSnd=SoundCue'RX_WP_AutoRifle.Sounds.AutoRifle_PutDownCue'
@@ -154,7 +156,7 @@ defaultproperties
 	IconCoordinates=(U=726,V=532,UL=165,VL=51)
 	InventoryMovieGroup=29
 
-	WeaponIconTexture=Texture2D'RX_WP_Carbine.UI.T_WeaponIcon_Carbine'
+	WeaponIconTexture=Texture2D'RX_WP_Carbine.UI.T_WeaponIcon_Carbine_NoSilencer'//Texture2D'RX_WP_Carbine.UI.T_WeaponIcon_Carbine'
 	
 	//==========================================
 	// IRON SIGHT PROPERTIES

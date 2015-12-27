@@ -7,9 +7,13 @@ DefaultProperties
 	// TODO: TEMP DATA  Needs Adjustment
 	DamagePointsMultiplier  = 0.036f
 	HealPointsMultiplier    = 0.0072f
-	PointsForKill           = 0.0f	
-	MaxHealth               = 200
-
+	PointsForKill           = 20.0f
+	
+	MaxHealth               = 100
+	MaxArmor               	= 175
+	Armor_Type 				= A_Kevlar
+	SpeedMultiplier			= 1.15
+	
     CharacterMesh=SkeletalMesh'rx_ch_gdi_patch.Mesh.SK_CH_patch'
 	
 	ArmMeshPackageName="RX_CH_Arms"

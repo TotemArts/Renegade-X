@@ -1,4 +1,4 @@
-class Rx_DmgType_Shell extends Rx_DmgType;		// Rx_DmgType_Burn;
+class Rx_DmgType_Shell extends Rx_DmgType_Explosive;		// Rx_DmgType_Burn;
 
 defaultproperties
 {
@@ -10,6 +10,7 @@ defaultproperties
 	lightArmorDmgScaling=0.83		// 0.85
 	AircraftDamageScaling=1.4 		//This is only used by a damage type if the value is greater than 0, otherwise it treats an aircraft like Light armour.
     BuildingDamageScaling=1.66		// 0.85
+	MCTDamageScaling=4.0
 	MineDamageScaling=2.0
 	
     AlwaysGibDamageThreshold=99

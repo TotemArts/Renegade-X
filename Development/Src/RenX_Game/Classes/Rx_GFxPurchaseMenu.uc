@@ -164,7 +164,7 @@ var array<PTEquipmentBlock>                     NodEquipmentExplosiveData;
 // var GFxObject ChatBox;
 var GFxObject 									Root;
 
-var GFxObject 									VehicleDrawer, EquipmentDrawer, BottomDrawer, MainDrawer, ClassDrawer, ItemDrawer, WeaponDrawer;
+var GFxObject 									VehicleDrawer, EquipmentDrawer, BottomDrawer, MainDrawer, ClassDrawer, ItemDrawer; //WeaponDrawer;
 
 var GFxObject                                   CursorMC;
 
@@ -182,7 +182,7 @@ var GFxClikWidget 								ExitButton, BackButton, VehicleInfoButton, CreditsButt
 
 
 //MainDrawer widgets
-var GFxClikWidget 								MainMenuButton[10];
+var GFxClikWidget 								MainMenuButton[10];//MainMenuButton[10]; Removed Weapons Menu
 //ClassDrawer widgets
 var GFxClikWidget 								ClassMenuButton[10];
 //vehicleDrawer widgets
@@ -212,7 +212,7 @@ var int                         				RotationIncrement;
 var float                         				MouseRotationIncrement;
 var float                                       LastCursorXPosition;
 
-var bool										bMainDrawerOpen, bClassDrawerOpen, bItemDrawerOpen, bWeaponDrawerOpen, bEquipmentDrawerOpen, bVehicleDrawerOpen;
+var bool										bMainDrawerOpen, bClassDrawerOpen, bItemDrawerOpen, bEquipmentDrawerOpen, bVehicleDrawerOpen; //, bWeaponDrawerOpen
 var bool                                        bIsInTransition;
 
 var private class<Rx_Weapon>                    OwnedSidearm, OwnedExplosive, OwnedItem;
@@ -271,7 +271,7 @@ function Initialize(LocalPlayer player, Rx_BuildingAttachment_PT PTOwner)
 	MainDrawer					=	GetVariableObject("_root.mainDrawer");
 	ClassDrawer					=	GetVariableObject("_root.classDrawer");
 	ItemDrawer					=	GetVariableObject("_root.itemDrawer");
-	WeaponDrawer				=	GetVariableObject("_root.weaponDrawer");
+	//WeaponDrawer				=	GetVariableObject("_root.weaponDrawer");
 
 	ExitTween 					=	GetVariableObject("_root.bottomDrawer.exitButton");
 	BackTween 					=	GetVariableObject("_root.bottomDrawer.backButton");
@@ -303,7 +303,8 @@ function Initialize(LocalPlayer player, Rx_BuildingAttachment_PT PTOwner)
 	VehicleInfoButton 			=	GFxClikWidget(GetVariableObject("_root.bottomDrawer.vehicleInfoButton.PTButton."$WidgetTeamPrefix $"Button", class'GFxClikWidget'));
 
 	CreditsButton 				=	GFxClikWidget(GetVariableObject("_root.bottomDrawer.creditsButton.PTButton."$WidgetTeamPrefix $"Button", class'GFxClikWidget'));
-
+	CreditsButton.SetString("label", "Credits: 0");
+	
 	PurchaseButton 				=	GFxClikWidget(GetVariableObject("_root.bottomDrawer.purchaseButton.PTButton."$WidgetTeamPrefix $"Button", class'GFxClikWidget'));
 	PurchaseButton.SetString("label", "<b>"$"<font size='14'>Purchase [</font>" $ "<font size='10'> Enter </font>" $ "<font size='14'>]</font>"$"</b>");
 
@@ -366,20 +367,30 @@ function Initialize(LocalPlayer player, Rx_BuildingAttachment_PT PTOwner)
 		GetVariableObject("_root.mainDrawer.tween.btnMenu"$i).GotoAndStopI(TeamID == TEAM_GDI? 1 : 2);
 		GetVariableObject("_root.classDrawer.tween.btnMenu"$i).GotoAndStopI(TeamID == TEAM_GDI? 1 : 2);
 		GetVariableObject("_root.itemDrawer.tween.btnMenu"$i).GotoAndStopI(TeamID == TEAM_GDI? 1 : 2);
-		GetVariableObject("_root.weaponDrawer.tween.btnMenu"$i).GotoAndStopI(TeamID == TEAM_GDI? 1 : 2);
+		//GetVariableObject("_root.weaponDrawer.tween.btnMenu"$i).GotoAndStopI(TeamID == TEAM_GDI? 1 : 2);
 
-		MainMenuButton[i] 		= 	GFxClikWidget(GetVariableObject("_root.mainDrawer.tween.btnMenu"$i $"."$WidgetTeamPrefix $"Button", class'GFxClikWidget'));
+		
+			
+		MainMenuButton[i] 		= 	GFxClikWidget(GetVariableObject("_root.mainDrawer.tween.btnMenu"$i $"."$WidgetTeamPrefix $"Button", class'GFxClikWidget'));	
+		AssignButtonData(MainMenuButton[i], TeamID == TEAM_GDI ? GDIMainMenuData[i] : NodMainMenuData[i], i);
+		MainMenuButton[i].SetObject("group", MainMenuGroup);
+		if(i == 9)
+		{
+			
+				MainMenuButton[i].SetBool("enable", false);
+				MainMenuButton[i].SetVisible(false);
+		}
+		
 		ClassMenuButton[i] 		=	GFxClikWidget(GetVariableObject("_root.classDrawer.tween.btnMenu"$i $"."$WidgetTeamPrefix $"Button", class'GFxClikWidget'));
 		ItemMenuButton[i] 		=	GFxClikWidget(GetVariableObject("_root.itemDrawer.tween.btnMenu"$i $"."$WidgetTeamPrefix $"Button", class'GFxClikWidget'));
-		WeaponMenuButton[i] 	=	GFxClikWidget(GetVariableObject("_root.weaponDrawer.tween.btnMenu"$i $"."$WidgetTeamPrefix $"Button", class'GFxClikWidget'));
+		//WeaponMenuButton[i] 	=	GFxClikWidget(GetVariableObject("_root.weaponDrawer.tween.btnMenu"$i $"."$WidgetTeamPrefix $"Button", class'GFxClikWidget'));
 
-		AssignButtonData(MainMenuButton[i], TeamID == TEAM_GDI ? GDIMainMenuData[i] : NodMainMenuData[i], i);
- 		MainMenuButton[i].SetObject("group", MainMenuGroup);
+		
 		
 		AssignButtonData(ClassMenuButton[i], TeamID == TEAM_GDI ? GDIClassMenuData[i] : NodClassMenuData[i], i);
 		ClassMenuButton[i].SetObject("group", ClassMenuGroup);
 		
-		//Enable the first 7 items in weapon menu, disable the rest
+		/**Enable the first 7 items in weapon menu, disable the rest
 		if (i < 7) {
 			AssignButtonData(WeaponMenuButton[i], TeamID == TEAM_GDI ? GDIWeaponMenuData[i] : NodWeaponMenuData[i], i);
 			WeaponMenuButton[i].SetObject("group", WeaponMenuGroup);
@@ -387,6 +398,7 @@ function Initialize(LocalPlayer player, Rx_BuildingAttachment_PT PTOwner)
 			WeaponMenuButton[i].SetBool("enable", false);
 			WeaponMenuButton[i].SetVisible(false);
 		}
+		*/
 		//Enable the first 8 items in item menu, disable the rest
 		if (i < 8) {
 			AssignButtonData(ItemMenuButton[i], TeamID == TEAM_GDI ? GDIItemMenuData[i] : NodItemMenuData[i], i);
@@ -432,10 +444,10 @@ function Initialize(LocalPlayer player, Rx_BuildingAttachment_PT PTOwner)
 	sidearmData = TeamID == TEAM_GDI ? GDIEquipmentSideArmData : NodEquipmentSideArmData;
 
 	if (rxPC.CurrentSidearmWeapon != none) {
-		AssignEquipmentData(EquipSideArmButton, EquipSideArmList, sidearmData, rxPC.PreviousSidearmTransactionRecords, rxPC.CurrentSidearmWeapon);
+		AssignEquipmentData(EquipSideArmButton, EquipSideArmList, sidearmData, rxInv.AvailableSideArmWeapons, rxPC.CurrentSidearmWeapon);
 	} else {
 		
-		AssignEquipmentData(EquipSideArmButton, EquipSideArmList, sidearmData, rxPC.PreviousSidearmTransactionRecords, class'Rx_InventoryManager'.default.SidearmWeapons[0]);
+		AssignEquipmentData(EquipSideArmButton, EquipSideArmList, sidearmData, rxInv.AvailableSidearmWeapons, rxInv.class.default.SidearmWeapons[0]);
 	}
 	EquipSideArmButton.SetObject("group", EquipmentMenuGroup);
 
@@ -487,7 +499,7 @@ function Initialize(LocalPlayer player, Rx_BuildingAttachment_PT PTOwner)
 	}
 
 	if (rxPC.CurrentExplosiveWeapon != none) {
-		AssignEquipmentData(EquipExplosivesButton, EquipExplosivesList, explosiveData , rxPC.PreviousExplosiveTransactionRecords, rxPC.CurrentExplosiveWeapon);
+		AssignEquipmentData(EquipExplosivesButton, EquipExplosivesList, explosiveData , rxInv.AvailableExplosiveWeapons, rxPC.CurrentExplosiveWeapon);
 	} else {
 		if (rxPC.bJustBaughtEngineer 
 		|| Rx_Pawn(rxPC.Pawn).GetRxFamilyInfo() == class'Rx_FamilyInfo_GDI_Hotwire' 
@@ -495,9 +507,9 @@ function Initialize(LocalPlayer player, Rx_BuildingAttachment_PT PTOwner)
 			//AssignEquipmentData(EquipExplosivesButton, EquipExplosivesList, explosiveData , rxPC.PreviousExplosiveTransactionRecords, rxInv.PrimaryWeapons[rxInv.PrimaryWeapons.Find(class'Rx_Weapon_ProxyC4')]);
 			`log("<PT Log> engi rxPC.Pawn.InvManager= " $ rxPC.Pawn.InvManager);
 			if (TeamID == TEAM_GDI) {
-				AssignEquipmentData(EquipExplosivesButton, EquipExplosivesList, explosiveData , rxPC.PreviousExplosiveTransactionRecords, class'Rx_InventoryManager_GDI_Hotwire'.default.ExplosiveWeapons[0]);
+				AssignEquipmentData(EquipExplosivesButton, EquipExplosivesList, explosiveData , rxInv.AvailableExplosiveWeapons, class'Rx_InventoryManager_GDI_Hotwire'.default.ExplosiveWeapons[0]);
 			} else {
-				AssignEquipmentData(EquipExplosivesButton, EquipExplosivesList, explosiveData , rxPC.PreviousExplosiveTransactionRecords, class'Rx_InventoryManager_Nod_Technician'.default.ExplosiveWeapons[0]);
+				AssignEquipmentData(EquipExplosivesButton, EquipExplosivesList, explosiveData , rxInv.AvailableExplosiveWeapons, class'Rx_InventoryManager_Nod_Technician'.default.ExplosiveWeapons[0]);
 			}
 		} else if (rxPC.bJustBaughtHavocSakura 
 		|| Rx_Pawn(rxPC.Pawn).GetRxFamilyInfo() == class'Rx_FamilyInfo_GDI_Havoc'
@@ -505,14 +517,14 @@ function Initialize(LocalPlayer player, Rx_BuildingAttachment_PT PTOwner)
 			//AssignEquipmentData(EquipExplosivesButton, EquipExplosivesList, explosiveData , rxPC.PreviousExplosiveTransactionRecords, class'Rx_InventoryManager'.default.ExplosiveWeapons[0]);
 			`log("<PT Log> Hvc/Skr rxPC.Pawn.InvManager= " $ rxPC.Pawn.InvManager);
 			if (TeamID == TEAM_GDI) {
-				AssignEquipmentData(EquipExplosivesButton, EquipExplosivesList, explosiveData , rxPC.PreviousExplosiveTransactionRecords, class'Rx_InventoryManager_GDI_Havoc'.default.ExplosiveWeapons[0]);
+				AssignEquipmentData(EquipExplosivesButton, EquipExplosivesList, explosiveData , rxInv.AvailableExplosiveWeapons, class'Rx_InventoryManager_GDI_Havoc'.default.ExplosiveWeapons[0]);
 			} else {
-				AssignEquipmentData(EquipExplosivesButton, EquipExplosivesList, explosiveData , rxPC.PreviousExplosiveTransactionRecords, class'Rx_InventoryManager_Nod_Sakura'.default.ExplosiveWeapons[0]);
+				AssignEquipmentData(EquipExplosivesButton, EquipExplosivesList, explosiveData , rxInv.AvailableExplosiveWeapons, class'Rx_InventoryManager_Nod_Sakura'.default.ExplosiveWeapons[0]);
 			}
 		} else {
 			`log("<PT Log> norm rxPC.Pawn.InvManager= " $ rxPC.Pawn.InvManager);
 			//AssignEquipmentData(EquipExplosivesButton, EquipExplosivesList, explosiveData , rxPC.PreviousExplosiveTransactionRecords, Rx_InventoryManager(rxPC.Pawn.InvManager).default.ExplosiveWeapons[0]);
-			AssignEquipmentData(EquipExplosivesButton, EquipExplosivesList, explosiveData , rxPC.PreviousExplosiveTransactionRecords, class'Rx_InventoryManager'.default.ExplosiveWeapons[0]);
+			AssignEquipmentData(EquipExplosivesButton, EquipExplosivesList, explosiveData , rxInv.AvailableExplosiveWeapons, class'Rx_InventoryManager'.default.ExplosiveWeapons[0]);
 		}
 	}
 	EquipExplosivesButton.SetObject("group", EquipmentMenuGroup);
@@ -523,7 +535,7 @@ function Initialize(LocalPlayer player, Rx_BuildingAttachment_PT PTOwner)
 	BottomWidgetFadeIn(CreditsTween);
 	BottomWidgetFadeIn(PurchaseTween);
 	MainDrawerFadeIn();
-	EquipmentDrawerFadeIn();
+	//EquipmentDrawerFadeIn();
 	bIsInTransition = false;;
 
 	
@@ -540,7 +552,7 @@ function RemoveWidgetEvents()
 {
 	local byte i;
 
-	for (i = 0; i < 10; i ++)
+	for (i = 0; i < 9; i ++)
 	{
 
 		MainMenuButton[i].RemoveAllEventListeners("CLIK_buttonClick");
@@ -549,8 +561,8 @@ function RemoveWidgetEvents()
 		ClassMenuButton[i].RemoveAllEventListeners("buttonClick");
 		ItemMenuButton[i].RemoveAllEventListeners("CLIK_buttonClick");
 		ItemMenuButton[i].RemoveAllEventListeners("buttonClick");
-		WeaponMenuButton[i].RemoveAllEventListeners("CLIK_buttonClick");
-		WeaponMenuButton[i].RemoveAllEventListeners("buttonClick");
+		//WeaponMenuButton[i].RemoveAllEventListeners("CLIK_buttonClick");
+		//WeaponMenuButton[i].RemoveAllEventListeners("buttonClick");
 	}
 	for (i = 0; i < 8; i ++)
 	{
@@ -591,9 +603,9 @@ function AddWidgetEvents()
 		if (ItemMenuButton[i].GetBool("enabled")){
 			ItemMenuButton[i].AddEventListener('CLIK_buttonClick', OnPTButtonClick);
 		}
-		if (WeaponMenuButton[i].GetBool("enabled")){
+		/**if (WeaponMenuButton[i].GetBool("enabled")){
 			WeaponMenuButton[i].AddEventListener('CLIK_buttonClick', OnPTButtonClick);
-		}
+		*/
 	}
 	for (i = 0; i < 8; i ++)
 	{
@@ -705,7 +717,7 @@ function LoadTexture(string pathName, GFxObject widget)
 	widget.ActionScriptVoid("loadTexture");
 }
 
-function AssignEquipmentData( GFxClikWidget widgetButton, GFxClikWidget widgetList, array<PTEquipmentBlock> equipmentData, array<class<Rx_Weapon> > PreviousPurchasedWeapons, class<Rx_Weapon> CurrentWeapon )
+function AssignEquipmentData( GFxClikWidget widgetButton, GFxClikWidget widgetList, array<PTEquipmentBlock> equipmentData, array<class<Rx_Weapon> > AvailableWeapons, class<Rx_Weapon> CurrentWeapon )
 {
 	//create widget list first
 	//then from the selected index, assign the widgetbutton
@@ -724,16 +736,22 @@ function AssignEquipmentData( GFxClikWidget widgetButton, GFxClikWidget widgetLi
 		if (!equipmentData[i].bEnable) {
 			continue;
 		}
-		//if it is free, add to list
+		//if it is free, add to list ---- NYOOOOOOOOOOOO
+		
+		/**
+		Deprecated: Just because it's free doesn't make it alright to add it to the list. 
 		if (equipmentData[i].bFree) {
 			DataProvider.SetElementString(j, equipmentData[i].title);
 			j++;
-		} else {
+			} else */
+		
 			// @shahman: InventoryManager::FindInventoryType() is returning null for our weapons, which means the weapon is not totally removed. take note
 			// foreach the purchased weapons
-			foreach PreviousPurchasedWeapons(weaponClass)
+			foreach AvailableWeapons(weaponClass)
 			{
 				// if eqipmentlist has previous purchased weapons, add to list.
+				
+				//EDIT: Add available weapons to list always.
 				if (equipmentData[i].WeaponClass == weaponClass){
 					DataProvider.SetElementString(j, equipmentData[i].title);
 					j++;
@@ -741,7 +759,7 @@ function AssignEquipmentData( GFxClikWidget widgetButton, GFxClikWidget widgetLi
 					break;
 				} 
 			}
-		}
+		
 
 // 		// if the equipdata is the same as our current weapon, then get the index data
 // 		`log("<PT Log>");
@@ -809,9 +827,10 @@ function AssignVehicleData(GFxClikWidget widget, PTVehicleBlock menuData, byte i
 		
 		if (rxBuildingOwner.AreAircraftDisabled()) {
 			if (menuData.bAircraft) {
-				widget.SetBool("enabled", false);
+				//widget.SetBool("enabled", false);
+			widget.SetBool("visible", false); /*There is literally no point to even showing aircraft if you can't get them :P -Yosh */
 			}
-		}		
+		}
 	} 
 }
 function TickHUD() 
@@ -875,12 +894,13 @@ function TickHUD()
 		}
 
 		VehicleInfoButton.SetString("label", "Vehicles: " $ VehicleCount $" / " $ rxTeamInfo.VehicleLimit);
-		MainMenuButton[9].SetString("vehicleCountLabel", "( "$ VehicleCount $ " )");
+		MainMenuButton[7].SetString("vehicleCountLabel", "( "$ VehicleCount $ " )");
 		//vehicle button number update here
 		
 	}
 
 
+	/** Disable for now
 	if (!EquipSideArmButton.GetBool("selected")) {
 		if (EquipSideArmList.GetBool("visible")) {
 			if (TeamID == TEAM_GDI) {
@@ -902,7 +922,7 @@ function TickHUD()
 			EquipExplosivesList.SetVisible(false);
 		}
 	}
-
+*/
 	//Pay Class Condition
 
 	if (rxPurchaseSystem.AreHighTierPayClassesDisabled(TeamID)) {
@@ -912,6 +932,7 @@ function TickHUD()
 					continue;
 				}
 				ClassMenuButton[i].SetBool("selected", false);
+				ClassMenuButton[i].SetBool("visible", false);
 				ClassMenuButton[i].SetBool("enabled", false);
 			}
 			for (i = 0; i < 3; i++) {
@@ -919,8 +940,8 @@ function TickHUD()
  				ClassMenuButton[i].SetBool("enabled", TeamID == TEAM_GDI ? GDIClassMenuData[i].bEnable : NodClassMenuData[i].bEnable);
 			}			
 		} else if (bMainDrawerOpen) {
-			MainMenuButton[8].SetString("sublabel", rxPurchaseSystem.GetFactoryDescription(TeamID, (TeamID == TEAM_GDI ? GDIMainMenuData[8].title : NodMainMenuData[8].title), rxPC));
-			MainMenuButton[8].SetBool("enabled", true);
+			MainMenuButton[7].SetString("sublabel", rxPurchaseSystem.GetFactoryDescription(TeamID, (TeamID == TEAM_GDI ? GDIMainMenuData[6].title : NodMainMenuData[6].title), rxPC));
+			MainMenuButton[7].SetBool("enabled", true);
 		}
 	} else {
 		if (bClassDrawerOpen) {
@@ -929,8 +950,8 @@ function TickHUD()
  				ClassMenuButton[i].SetBool("enabled", TeamID == TEAM_GDI ? GDIClassMenuData[i].bEnable : NodClassMenuData[i].bEnable);
 			}
 		} else if (bMainDrawerOpen) {
-			MainMenuButton[8].SetString("sublabel", rxPurchaseSystem.GetFactoryDescription(TeamID, (TeamID == TEAM_GDI ? GDIMainMenuData[8].title : NodMainMenuData[8].title), rxPC));
-			MainMenuButton[8].SetBool("enabled", true);
+			MainMenuButton[7].SetString("sublabel", rxPurchaseSystem.GetFactoryDescription(TeamID, (TeamID == TEAM_GDI ? GDIMainMenuData[6].title : NodMainMenuData[6].title), rxPC));
+			MainMenuButton[7].SetBool("enabled", true);
 		}
 	}
 
@@ -938,7 +959,8 @@ function TickHUD()
 
 	if (rxPurchaseSystem.AreVehiclesDisabled(TeamID, rxPC)) {
 		if (bVehicleDrawerOpen) {
- 			for(i=0; i < 8; i++) {
+ 			
+			for(i=0; i < 8; i++) {
 				if (!VehicleMenuButton[i].GetBool("enabled")) {
 					continue;
 				}
@@ -946,17 +968,31 @@ function TickHUD()
  				VehicleMenuButton[i].SetBool("enabled", false);
  			}
 			SelectBack();
-			MainMenuButton[9].SetString("sublabel", rxPurchaseSystem.GetFactoryDescription(TeamID, (TeamID == TEAM_GDI ? GDIMainMenuData[9].title : NodMainMenuData[9].title), rxPC ));
-			MainMenuButton[9].SetBool("selected", false);
-			MainMenuButton[9].SetBool("enabled", false);
+			MainMenuButton[7].SetString("sublabel", rxPurchaseSystem.GetFactoryDescription(TeamID, (TeamID == TEAM_GDI ? GDIMainMenuData[7].title : NodMainMenuData[7].title), rxPC ));
+			MainMenuButton[7].SetBool("selected", false);
+			MainMenuButton[7].SetBool("enabled", false);
 		} else if (bMainDrawerOpen) {
-			MainMenuButton[9].SetString("sublabel", rxPurchaseSystem.GetFactoryDescription(TeamID, (TeamID == TEAM_GDI ? GDIMainMenuData[9].title : NodMainMenuData[9].title), rxPC));
-			MainMenuButton[9].SetBool("selected", false);
-			MainMenuButton[9].SetBool("enabled", false);
+			MainMenuButton[7].SetString("sublabel", rxPurchaseSystem.GetFactoryDescription(TeamID, (TeamID == TEAM_GDI ? GDIMainMenuData[7].title : NodMainMenuData[7].title), rxPC));
+			MainMenuButton[7].SetBool("selected", false);
+			MainMenuButton[7].SetBool("enabled", false);
 		}
 	} else {
 		if (bVehicleDrawerOpen) {
  			for(i=0; i < 8; i++) {
+				
+				//`log("Team ID = " @ TeamID);
+				if(rxPurchaseSystem.AreHighTierVehiclesDisabled(TeamID) && i > 1) //limit to buggies / APCs
+				{
+					if(!VehicleMenuButton[i].GetBool("enabled")) 
+							continue; 
+						//`log("Parsed through vehicles");
+				VehicleMenuButton[i].SetBool("selected", false);
+				VehicleMenuButton[i].SetBool("visible", false);
+				VehicleMenuButton[i].SetBool("enabled", false);
+						
+					
+				}
+				
 				data = int(VehicleMenuButton[i].GetString("data"));
  				VehicleMenuButton[i].SetBool("enabled", TeamID == TEAM_GDI ? GDIVehicleMenuData[i].bEnable : NodVehicleMenuData[i].bEnable);
 
@@ -977,13 +1013,13 @@ function TickHUD()
 
  			}
 		} else if (bMainDrawerOpen) {
-			MainMenuButton[9].SetString("sublabel", rxPurchaseSystem.GetFactoryDescription(TeamID, (TeamID == TEAM_GDI ? GDIMainMenuData[9].title : NodMainMenuData[9].title), rxPC));
-			MainMenuButton[9].SetBool("enabled", true);
+			MainMenuButton[7].SetString("sublabel", rxPurchaseSystem.GetFactoryDescription(TeamID, (TeamID == TEAM_GDI ? GDIMainMenuData[7].title : NodMainMenuData[7].title), rxPC));
+			MainMenuButton[7].SetBool("enabled", true);
 		}
 	}
 
 	//silo condition
-	if (!rxPurchaseSystem.AreSilosCaptured(TeamID)) {
+	/**if (!rxPurchaseSystem.AreSilosCaptured(TeamID)) {
 		if (bWeaponDrawerOpen) {
 			for (i=0; i < 7; i++) {
 				data = int(WeaponMenuButton[i].GetString("data"));
@@ -1016,6 +1052,7 @@ function TickHUD()
 			}
 		}
 	}
+	*/
 	
 	//payment conditions
 
@@ -1024,6 +1061,7 @@ function TickHUD()
 				data = int(ClassMenuButton[i].GetString("data"));
 				if (TeamID == TEAM_GDI) {
 					if (!GDIClassMenuData[i].bEnable) {
+						
 						continue;
 					}
 				} else {
@@ -1035,73 +1073,54 @@ function TickHUD()
 					ClassMenuButton[i].SetBool("enabled", false);
 				}
 			}
-		} else if (bVehicleDrawerOpen) {
-			for (i = 0; i < 8; i++) {
-				data = int(VehicleMenuButton[i].GetString("data"));
-				if (TeamID == TEAM_GDI) {
-					if (!GDIVehicleMenuData[i].bEnable) {
-						continue;
+		} else if (bVehicleDrawerOpen) 			
+			{
+				for (i = 0; i < 8; i++) {
+					
+					if(rxPurchaseSystem.AreHighTierVehiclesDisabled(TeamID) && i > 1)
+					{
+					if(VehicleMenuButton[i].GetBool("enabled")) 
+						{
+						VehicleMenuButton[i].SetBool("enabled",false); 					
+						}
+					continue; //No need to parse the info for everything else if it isn't enabled and visible.
 					}
-				} else {
-					if (!NodVehicleMenuData[i].bEnable) {
-						continue;
-					}
-				}
-				if (rxBuildingOwner.AreAircraftDisabled()) {
+					data = int(VehicleMenuButton[i].GetString("data"));
 					if (TeamID == TEAM_GDI) {
-						if (GDIVehicleMenuData[i].bAircraft) {
+						if (!GDIVehicleMenuData[i].bEnable) {
 							continue;
 						}
 					} else {
-						if (NodVehicleMenuData[i].bAircraft) {
+						if (!NodVehicleMenuData[i].bEnable) {
 							continue;
 						}
 					}
-				}
-				
-				
-				if (TeamID == TEAM_GDI) {
-					VehicleMenuButton[i].SetString("costLabel", "$" $ rxPurchaseSystem.GetVehiclePrices(TeamID, GDIVehicleMenuData[i].ID, rxPurchaseSystem.AirdropAvailable(rxPRI)));
-				} else {
-					VehicleMenuButton[i].SetString("costLabel", "$" $ rxPurchaseSystem.GetVehiclePrices(TeamID, NodVehicleMenuData[i].ID, rxPurchaseSystem.AirdropAvailable(rxPRI)));
-				}				
-				
-				if (PlayerCredits > rxPurchaseSystem.GetVehiclePrices(TeamID, data, rxPurchaseSystem.AirdropAvailable(rxPRI))){
-					VehicleMenuButton[i].SetBool("enabled", true);
-				} else {
-					VehicleMenuButton[i].SetBool("enabled", false);
-				}
-			}
-		} else if (bWeaponDrawerOpen) {
-			for (i = 0; i < 7; i++) {
-				data = int(WeaponMenuButton[i].GetString("data"));
-				if (TeamID == TEAM_GDI) {
-					if (!GDIWeaponMenuData[i].bEnable) {
-						continue;
+					if (rxBuildingOwner.AreAircraftDisabled()) {
+						if (TeamID == TEAM_GDI) {
+							if (GDIVehicleMenuData[i].bAircraft) {
+								continue;
+							}
+						} else {
+							if (NodVehicleMenuData[i].bAircraft) {
+								continue;
+							}
+						}
 					}
-				} else {
-					if (!NodWeaponMenuData[i].bEnable) {
-						continue;
-					}
-				}
-				if (!rxPurchaseSystem.AreSilosCaptured(TeamID)) {
+				
+				
 					if (TeamID == TEAM_GDI) {
-						if (GDIWeaponMenuData[i].bSilo) {
-							continue;
-						}
+						VehicleMenuButton[i].SetString("costLabel", "$" $ rxPurchaseSystem.GetVehiclePrices(TeamID, GDIVehicleMenuData[i].ID, rxPurchaseSystem.AirdropAvailable(rxPRI)));
 					} else {
-						if (NodWeaponMenuData[i].bSilo) {
-							continue;
-						}
+						VehicleMenuButton[i].SetString("costLabel", "$" $ rxPurchaseSystem.GetVehiclePrices(TeamID, NodVehicleMenuData[i].ID, rxPurchaseSystem.AirdropAvailable(rxPRI)));
+					}				
+				
+					if (PlayerCredits > rxPurchaseSystem.GetVehiclePrices(TeamID, data, rxPurchaseSystem.AirdropAvailable(rxPRI)) ){
+						VehicleMenuButton[i].SetBool("enabled", true);
+					} else {
+						VehicleMenuButton[i].SetBool("enabled", false);
 					}
 				}
-				if (PlayerCredits > rxPurchaseSystem.GetWeaponPrices(TeamID, data)){
-					WeaponMenuButton[i].SetBool("enabled", true);
-				} else {
-					WeaponMenuButton[i].SetBool("enabled", false);
-				}
-			}
-		} else if (bItemDrawerOpen) {
+		}	else if (bItemDrawerOpen) {
 			for (i = 0; i < 8; i++) {
 				data = int(ItemMenuButton[i].GetString("data"));
 				if (TeamID == TEAM_GDI) {
@@ -1394,31 +1413,33 @@ function ItemDrawerFadeOut()
 	//}
 }
 
-function WeaponDrawerFadeIn()
+/**function WeaponDrawerFadeIn()
 {
-	//local int CurrentFrame;
+	/local int CurrentFrame;
 	if (WeaponDrawer == none) {
 		return;
 	}
-	//CurrentFrame = WeaponDrawer.GetInt("currentFrame");
-	//if (CurrentFrame == 1) {
+	/CurrentFrame = WeaponDrawer.GetInt("currentFrame");
+	/if (CurrentFrame == 1) {
 		WeaponDrawer.GotoAndPlay("Fade In");
 		bWeaponDrawerOpen = true;
-	//}
+	/}
 }
-function WeaponDrawerFadeOut()
+*/
+
+/**function WeaponDrawerFadeOut()
 {
-	//local int CurrentFrame;
+	/local int CurrentFrame;
 	if (WeaponDrawer == none) {
 		return;
 	}
-	//CurrentFrame = WeaponDrawer.GetInt("currentFrame");
-	//if (CurrentFrame == 20) {
+	/CurrentFrame = WeaponDrawer.GetInt("currentFrame");
+	/if (CurrentFrame == 20) {
 		WeaponDrawer.GotoAndPlay("Fade Out");
 		bWeaponDrawerOpen = false;
-	//}
+	/}
 }
-
+*/
 function VehicleDrawerFadeIn()
 {
 	//local int CurrentFrame;
@@ -1446,27 +1467,30 @@ function VehicleDrawerFadeOut()
 
 function EquipmentDrawerFadeIn()
 {
-	//local int CurrentFrame;
+	/**
+	/local int CurrentFrame;
 	if (EquipmentDrawer == none) {
 		return;
 	}
-	//CurrentFrame = EquipmentDrawer.GetInt("currentFrame");
-	//if (CurrentFrame == 1) {
+	/CurrentFrame = EquipmentDrawer.GetInt("currentFrame");
+	/if (CurrentFrame == 1) {
 		EquipmentDrawer.GotoAndPlay("Fade In");
 		bEquipmentDrawerOpen = true;
-	//}
+	/}
+	*/
 }
 function EquipmentDrawerFadeOut()
 {
-	//local int CurrentFrame;
+	/**local int CurrentFrame;
 	if (EquipmentDrawer == none) {
 		return;
 	}
-	//CurrentFrame = EquipmentDrawer.GetInt("currentFrame");
-	//if (CurrentFrame == 20) {
+	/CurrentFrame = EquipmentDrawer.GetInt("currentFrame");
+	/if (CurrentFrame == 20) {
 		EquipmentDrawer.GotoAndPlay("Fade Out");
 		bEquipmentDrawerOpen = false;
-	//}
+	/}
+	)*/
 }
 
 function CancelCurrentAnimations()
@@ -1475,9 +1499,7 @@ function CancelCurrentAnimations()
 		MainDrawer.GotoAndPlay("Fade Out");
 	} else if ( VehicleDrawer.GetInt("currentFrame") != 20 && bVehicleDrawerOpen ) {
 		VehicleDrawer.GotoAndPlay("Fade Out");
-	} else if (WeaponDrawer.GetInt("currentFrame") != 20 && bWeaponDrawerOpen ) {
-		WeaponDrawer.GotoAndPlay("Fade Out");
-	} else if (ItemDrawer.GetInt("currentFrame") != 20 && bItemDrawerOpen) {
+	}  else if (ItemDrawer.GetInt("currentFrame") != 20 && bItemDrawerOpen) {
 		ItemDrawer.GotoAndPlay("Fade Out");
 	} else if (ClassDrawer.GetInt("currentFrame") != 20 && bClassDrawerOpen ) {
 		ClassDrawer.GotoAndPlay("Fade Out");
@@ -1542,7 +1564,7 @@ function bool FilterButtonInput(int ControllerId, name ButtonName, EInputEvent I
 					SelectPurchase();
 				} else if ((bMainDrawerOpen && MainMenuButton[0].GetBool("enabled") ) 
 					|| (bClassDrawerOpen && ClassMenuButton[0].GetBool("enabled")) 
-					|| (bWeaponDrawerOpen && WeaponMenuButton[0].GetBool("enabled")) 
+					//|| (bWeaponDrawerOpen && WeaponMenuButton[0].GetBool("enabled")) 
 					|| (bItemDrawerOpen && ItemMenuButton[0].GetBool("enabled"))) {
 					PlaySoundFromTheme('buttonClick', 'default'); //TODO
 					SetSelectedButtonByIndex(0);
@@ -1563,7 +1585,7 @@ function bool FilterButtonInput(int ControllerId, name ButtonName, EInputEvent I
 					SelectPurchase();
 				} else if ((bMainDrawerOpen && MainMenuButton[1].GetBool("enabled") ) 
 					|| (bClassDrawerOpen && ClassMenuButton[1].GetBool("enabled")) 
-					|| (bWeaponDrawerOpen && WeaponMenuButton[1].GetBool("enabled")) 
+					//|| (bWeaponDrawerOpen && WeaponMenuButton[1].GetBool("enabled")) 
 					|| (bItemDrawerOpen && ItemMenuButton[1].GetBool("enabled"))) {
 					PlaySoundFromTheme('buttonClick', 'default'); //TODO
 					SetSelectedButtonByIndex(1);
@@ -1574,7 +1596,7 @@ function bool FilterButtonInput(int ControllerId, name ButtonName, EInputEvent I
 			break;
 		case 'Three':
 			if (InputEvent == EInputEvent.IE_Pressed) {
-				if ((bVehicleDrawerOpen && VehicleMenuButton[1].GetBool("enabled")) ) {
+				if ((bVehicleDrawerOpen && VehicleMenuButton[2].GetBool("enabled")) ) {
 					PlaySoundFromTheme('buttonClick', 'default'); //TODO
 					if (TeamID == TEAM_GDI) {
 						SetSelectedButtonByIndex(2);
@@ -1585,7 +1607,7 @@ function bool FilterButtonInput(int ControllerId, name ButtonName, EInputEvent I
 				} else if ((bMainDrawerOpen && MainMenuButton[2].GetBool("enabled") ) 
 					|| (bClassDrawerOpen && ClassMenuButton[2].GetBool("enabled")) 
 					|| (bVehicleDrawerOpen && VehicleMenuButton[2].GetBool("enabled")) 
-					|| (bWeaponDrawerOpen && WeaponMenuButton[2].GetBool("enabled")) 
+					//|| (bWeaponDrawerOpen && WeaponMenuButton[2].GetBool("enabled")) 
 					|| (bItemDrawerOpen && ItemMenuButton[2].GetBool("enabled"))) {
 					PlaySoundFromTheme('buttonClick', 'default'); //TODO
 					SetSelectedButtonByIndex(2);
@@ -1606,7 +1628,7 @@ function bool FilterButtonInput(int ControllerId, name ButtonName, EInputEvent I
 					SelectPurchase();
 				} else if ((bMainDrawerOpen && MainMenuButton[3].GetBool("enabled") ) 
 					|| (bClassDrawerOpen && ClassMenuButton[3].GetBool("enabled")) 
-					|| (bWeaponDrawerOpen && WeaponMenuButton[3].GetBool("enabled")) 
+					//|| (bWeaponDrawerOpen && WeaponMenuButton[3].GetBool("enabled")) 
 					|| (bItemDrawerOpen && ItemMenuButton[3].GetBool("enabled"))) {
 					PlaySoundFromTheme('buttonClick', 'default'); //TODO
 					SetSelectedButtonByIndex(3);
@@ -1626,7 +1648,7 @@ function bool FilterButtonInput(int ControllerId, name ButtonName, EInputEvent I
 					}
 					SelectPurchase();
 				} else if ((bClassDrawerOpen && ClassMenuButton[4].GetBool("enabled")) 
-					|| (bWeaponDrawerOpen && WeaponMenuButton[4].GetBool("enabled")) 
+					//|| (bWeaponDrawerOpen && WeaponMenuButton[4].GetBool("enabled")) 
 					|| (bItemDrawerOpen && ItemMenuButton[4].GetBool("enabled"))) {
 					SetSelectedButtonByIndex(4);
 					PlaySoundFromTheme('buttonClick', 'default'); //TODO
@@ -1658,7 +1680,7 @@ function bool FilterButtonInput(int ControllerId, name ButtonName, EInputEvent I
 				}
 			}
 			break;
-		case 'W'://weap
+		/**case 'W'://weap
 			if (InputEvent == EInputEvent.IE_Pressed) {
 				if ((bMainDrawerOpen && MainMenuButton[6].GetBool("enabled") ) ) {
 					PlaySoundFromTheme('buttonClick', 'default'); //TODO
@@ -1666,27 +1688,28 @@ function bool FilterButtonInput(int ControllerId, name ButtonName, EInputEvent I
 				}
 			}
 			break;
+		*/
 		case 'Q'://item
 			if (InputEvent == EInputEvent.IE_Pressed) {
-				 if ((bMainDrawerOpen && MainMenuButton[7].GetBool("enabled") ) ) {
+				 if ((bMainDrawerOpen && MainMenuButton[8].GetBool("enabled") ) ) {
 					PlaySoundFromTheme('buttonClick', 'default'); //TODO
-					SelectMenu(8);
+					SelectMenu(7);
 				}
 			}
 			break;
 		case 'C'://char
 			if (InputEvent == EInputEvent.IE_Pressed) {
-				 if ((bMainDrawerOpen && MainMenuButton[8].GetBool("enabled") ) ) {
+				 if ((bMainDrawerOpen && MainMenuButton[6].GetBool("enabled") ) ) {
 					PlaySoundFromTheme('buttonClick', 'default'); //TODO
-					SelectMenu(9);
+					SelectMenu(8);
 				}
 			}
 			break;
 		case 'V'://veh
 			if (InputEvent == EInputEvent.IE_Pressed) {
-				 if ((bMainDrawerOpen && MainMenuButton[9].GetBool("enabled") ) ) {
+				 if ((bMainDrawerOpen && MainMenuButton[7].GetBool("enabled") ) ) {
 					PlaySoundFromTheme('buttonClick', 'default'); //TODO
-					SelectMenu(0);
+					SelectMenu(9);
 				}
 			}
 			break;
@@ -1702,7 +1725,7 @@ function bool FilterButtonInput(int ControllerId, name ButtonName, EInputEvent I
 					}
 					SelectPurchase();
 				} else if ( (bClassDrawerOpen && ClassMenuButton[5].GetBool("enabled")) 
-					|| (bWeaponDrawerOpen && WeaponMenuButton[5].GetBool("enabled")) 
+					//|| (bWeaponDrawerOpen && WeaponMenuButton[5].GetBool("enabled")) 
 					|| (bItemDrawerOpen && ItemMenuButton[5].GetBool("enabled"))) {
 					PlaySoundFromTheme('buttonClick', 'default'); //TODO
 					SetSelectedButtonByIndex(5);
@@ -1723,7 +1746,7 @@ function bool FilterButtonInput(int ControllerId, name ButtonName, EInputEvent I
 						SelectPurchase();
 					}
 				} else if ((bClassDrawerOpen && ClassMenuButton[6].GetBool("enabled")) 
-					|| (bWeaponDrawerOpen && WeaponMenuButton[6].GetBool("enabled")) 
+					//|| (bWeaponDrawerOpen && WeaponMenuButton[6].GetBool("enabled")) 
 					|| (bItemDrawerOpen && ItemMenuButton[6].GetBool("enabled"))) {
 					PlaySoundFromTheme('buttonClick', 'default'); //TODO
 					SetSelectedButtonByIndex(6);
@@ -1744,7 +1767,7 @@ function bool FilterButtonInput(int ControllerId, name ButtonName, EInputEvent I
 						SelectPurchase();
 					}
 				} else if ((bClassDrawerOpen && ClassMenuButton[7].GetBool("enabled")) 
-					|| (bWeaponDrawerOpen && WeaponMenuButton[7].GetBool("enabled")) 
+					//|| (bWeaponDrawerOpen && WeaponMenuButton[7].GetBool("enabled")) 
 					|| (bItemDrawerOpen && ItemMenuButton[7].GetBool("enabled"))) {
 					PlaySoundFromTheme('buttonClick', 'default'); //TODO
 					SetSelectedButtonByIndex(7);
@@ -1755,7 +1778,7 @@ function bool FilterButtonInput(int ControllerId, name ButtonName, EInputEvent I
 		case 'Nine':
 			if (InputEvent == EInputEvent.IE_Pressed) {
 				if ((bClassDrawerOpen && ClassMenuButton[8].GetBool("enabled")) 
-					|| (bWeaponDrawerOpen && WeaponMenuButton[8].GetBool("enabled")) 
+					//|| (bWeaponDrawerOpen && WeaponMenuButton[8].GetBool("enabled")) 
 					|| (bItemDrawerOpen && ItemMenuButton[8].GetBool("enabled"))) {
 					PlaySoundFromTheme('buttonClick', 'default'); //TODO
 					SetSelectedButtonByIndex(8);
@@ -1766,7 +1789,7 @@ function bool FilterButtonInput(int ControllerId, name ButtonName, EInputEvent I
 		case 'Zero':
 			if (InputEvent == EInputEvent.IE_Pressed) {
 				if ((bClassDrawerOpen && ClassMenuButton[9].GetBool("enabled")) 
-					|| (bWeaponDrawerOpen && WeaponMenuButton[9].GetBool("enabled")) 
+					//|| (bWeaponDrawerOpen && WeaponMenuButton[9].GetBool("enabled")) 
 					|| (bItemDrawerOpen && ItemMenuButton[9].GetBool("enabled"))) {
 					PlaySoundFromTheme('buttonClick', 'default'); //TODO
 					SetSelectedButtonByIndex(9);
@@ -1807,13 +1830,13 @@ function bool FilterButtonInput(int ControllerId, name ButtonName, EInputEvent I
 		case 'F1':
 			if (InputEvent == EInputEvent.IE_Pressed) {
 				rxPC.PlaySound(SoundCue'RenXPurchaseMenu.Sounds.RenXPTSoundTest2_Cue');
-				CycleEquipmentButton(EquipSideArmButton, EquipSideArmList, TeamID == TEAM_GDI ? GDIEquipmentSideArmData : NodEquipmentSideArmData);
+				//CycleEquipmentButton(EquipSideArmButton, EquipSideArmList, TeamID == TEAM_GDI ? GDIEquipmentSideArmData : NodEquipmentSideArmData);
 			}
 			break;
 		case 'F2':
 			if (InputEvent == EInputEvent.IE_Pressed) {
 				rxPC.PlaySound(SoundCue'RenXPurchaseMenu.Sounds.RenXPTSoundTest2_Cue');
-				CycleEquipmentButton(EquipExplosivesButton, EquipExplosivesList, TeamID == TEAM_GDI ? GDIEquipmentExplosiveData : NodEquipmentExplosiveData);
+				//CycleEquipmentButton(EquipExplosivesButton, EquipExplosivesList, TeamID == TEAM_GDI ? GDIEquipmentExplosiveData : NodEquipmentExplosiveData);
 			}
 			break;
 
@@ -1856,12 +1879,14 @@ function SetSelectedButtonByIndex (int index, optional bool selected = true)
 		ClassMenuGroup.ActionScriptVoid("setSelectedButtonByIndex");
 		return;
 	}
+	/**
 	if (bWeaponDrawerOpen) {
 		if (index < 7) {
 			WeaponMenuGroup.ActionScriptVoid("setSelectedButtonByIndex");
 		}
 		return;
 	}
+	*/
 	if (bItemDrawerOpen) {
 		if (index < 8){
 			ItemMenuGroup.ActionScriptVoid("setSelectedButtonByIndex");
@@ -1900,7 +1925,7 @@ function SelectBack()
 		BottomWidgetFadeOut(VehicleInfoTween);
 		BottomWidgetFadeOut(BackTween);
 		MainDrawerFadeIn();
-		EquipmentDrawerFadeIn();
+		//EquipmentDrawerFadeIn();
 		bIsInTransition = false;
 	}
 
@@ -1919,7 +1944,7 @@ function SelectBack()
 		bIsInTransition = false;
 	}
 
-	if (bWeaponDrawerOpen) {
+	/**if (bWeaponDrawerOpen) {
 		if (GFxClikWidget(WeaponMenuGroup.GetObject("selectedButton", class'GFxClikWidget')) != none) {
 			GFxClikWidget(WeaponMenuGroup.GetObject("selectedButton", class'GFxClikWidget')).SetBool("selected", false);
 		}
@@ -1934,6 +1959,7 @@ function SelectBack()
 		EquipmentDrawerFadeIn();
 		bIsInTransition = false;
 	}
+	*/
 	if (bItemDrawerOpen) {
 		if (GFxClikWidget(ItemMenuGroup.GetObject("selectedButton", class'GFxClikWidget')) != none) {
 			GFxClikWidget(ItemMenuGroup.GetObject("selectedButton", class'GFxClikWidget')).SetBool("selected", false);
@@ -1946,7 +1972,7 @@ function SelectBack()
 		ItemDrawerFadeOut();
 		BottomWidgetFadeOut(BackTween);
 		MainDrawerFadeIn();
-		EquipmentDrawerFadeIn();
+		//EquipmentDrawerFadeIn();
 		bIsInTransition = false;
 	}
 }
@@ -1957,10 +1983,17 @@ function SelectMenu(int selectedIndex)
 	if (selectedIndex != Clamp(selectedIndex, 0, 9) || bIsInTransition) {
 		return;
 	}
-
+`log("---------------" @ selectedIndex @ "---------------");
 
 	switch (selectedIndex)
 	{
+		case 0: 
+			if (bClassDrawerOpen){
+				ChangeDummyPawnClass(TeamID == TEAM_GDI ? GDIClassMenuData[9].ID : NodClassMenuData[9].ID);
+			} else if (bVehicleDrawerOpen) {
+				ChangeDummyVehicleClass(TeamID == TEAM_GDI ? GDIVehicleMenuData[selectedIndex-1].ID : NodVehicleMenuData[selectedIndex - 1].ID);
+			}
+			break;		
 		case 1: 
 			if (bMainDrawerOpen){
 				ChangeDummyPawnClass(TeamID == TEAM_GDI ? GDIMainMenuData[selectedIndex-1].ID : NodMainMenuData[selectedIndex - 1].ID);
@@ -2063,13 +2096,13 @@ function SelectMenu(int selectedIndex)
 				}
 			}
 			break;
-		case 7: 
+		/**case 7: 
 			if (bMainDrawerOpen) {
 				if (GFxClikWidget(MainMenuGroup.GetObject("selectedButton", class'GFxClikWidget')) != none) {
 					GFxClikWidget(MainMenuGroup.GetObject("selectedButton", class'GFxClikWidget')).SetBool("selected", false);
 				}
 
-				//check if there is something transitioning, fade out immidietly
+				/check if there is something transitioning, fade out immidietly
 				CancelCurrentAnimations();
 				if (EquipmentDrawer.GetInt("currentFrame") != 20 && bEquipmentDrawerOpen) {
 					EquipmentDrawer.GotoAndPlay("Fade Out");
@@ -2089,19 +2122,20 @@ function SelectMenu(int selectedIndex)
 				}
 			}
 			break;
-		case 8: 
+		*/
+		case 7: 
 			if (bMainDrawerOpen) {
 				if (GFxClikWidget(MainMenuGroup.GetObject("selectedButton", class'GFxClikWidget')) != none) {
 					GFxClikWidget(MainMenuGroup.GetObject("selectedButton", class'GFxClikWidget')).SetBool("selected", false);
 				}
 				//check if there is something transitioning, fade out immidietly
 				CancelCurrentAnimations();
-				if (EquipmentDrawer.GetInt("currentFrame") != 20 && bEquipmentDrawerOpen) {
+				/**if (EquipmentDrawer.GetInt("currentFrame") != 20 && bEquipmentDrawerOpen) {
 					EquipmentDrawer.GotoAndPlay("Fade Out");
-				} 
+				} */
 				bIsInTransition = true;
 				MainDrawerFadeOut();
-				EquipmentDrawerFadeOut();
+				//EquipmentDrawerFadeOut();
 				ItemDrawerFadeIn();
 				BottomWidgetFadeIn(BackTween);
 				bIsInTransition = false;
@@ -2113,7 +2147,7 @@ function SelectMenu(int selectedIndex)
 				}
 			}
 			break;
-		case 9: 
+		case 8: 
 			if (bMainDrawerOpen) { 
 				if (GFxClikWidget(MainMenuGroup.GetObject("selectedButton", class'GFxClikWidget')) != none) {
 					GFxClikWidget(MainMenuGroup.GetObject("selectedButton", class'GFxClikWidget')).SetBool("selected", false);
@@ -2130,7 +2164,7 @@ function SelectMenu(int selectedIndex)
 				ChangeDummyPawnClass(TeamID == TEAM_GDI ? GDIClassMenuData[selectedIndex-1].ID : NodClassMenuData[selectedIndex - 1].ID);
 			}
 			break;
-		case 0: 
+		case 9: 
 			if (bMainDrawerOpen) {
 				if (!rxPurchaseSystem.AreVehiclesDisabled(TeamID, rxPC)) {
 					if (GFxClikWidget(MainMenuGroup.GetObject("selectedButton", class'GFxClikWidget')) != none) {
@@ -2138,21 +2172,22 @@ function SelectMenu(int selectedIndex)
 					}
 					//check if there is something transitioning, fade out immidietly
 					CancelCurrentAnimations();
-					if (EquipmentDrawer.GetInt("currentFrame") != 20 && bEquipmentDrawerOpen) {
+				/**	if (EquipmentDrawer.GetInt("currentFrame") != 20 && bEquipmentDrawerOpen) {
 						EquipmentDrawer.GotoAndPlay("Fade Out");
 					} 
-
+				*/
 					bIsInTransition = true;
 					rxPC.bIsInPurchaseTerminalVehicleSection = true;
 					MainDrawerFadeOut();
-					EquipmentDrawerFadeOut();
+					//EquipmentDrawerFadeOut();
 					VehicleDrawerFadeIn();
 					BottomWidgetFadeIn(BackTween);
 					BottomWidgetFadeIn(VehicleInfoTween);
 					bIsInTransition = false;
 				}
 			} else if (bClassDrawerOpen){
-				ChangeDummyPawnClass(TeamID == TEAM_GDI ? GDIClassMenuData[9].ID : NodClassMenuData[9].ID);
+				ChangeDummyPawnClass(TeamID == TEAM_GDI ? GDIClassMenuData[selectedIndex-1].ID : NodClassMenuData[selectedIndex - 1].ID); 
+				//ChangeDummyPawnClass(TeamID == TEAM_GDI ? GDIClassMenuData[9].ID : NodClassMenuData[9].ID);
 			}
 			break;
 	}
@@ -2186,9 +2221,9 @@ function SelectPurchase()
 	if (bVehicleDrawerOpen) {
 		SelectVehiclePurchase(VehicleMenuGroup);
 	}
-	if (bWeaponDrawerOpen) {
+	/**if (bWeaponDrawerOpen) {
 		SelectWeaponPurchase(WeaponMenuGroup);
-	}
+	}*/
 	if (bItemDrawerOpen) {
 		SelectItemPurchase(ItemMenuGroup);
 	}
@@ -2209,6 +2244,8 @@ function SelectClassPurchase(GFxClikWidget ButtonGroup)
 
 	//if it is not selected or not existed, then exit?
 	if (selectedButton == none || !selectedButton.GetBool("selected")){
+		
+		`log("Exitting due to button not being selected"); 
 // 		if ( EquipSideArmList.GetInt("selectedIndex") >= 0 || EquipExplosivesList.GetInt("selectedIndex") >= 0 ){
 // 			rxPC.PlaySound(SoundCue'RenXPurchaseMenu.Sounds.RenXPTSoundPurchase');
 // 			SetLoadout();
@@ -2225,29 +2262,23 @@ function SelectClassPurchase(GFxClikWidget ButtonGroup)
 			`log("<PT Log> Price: " $ Price);
 			`log("<PT Log> PlayerCredits: " $ PlayerCredits);
 	//if we have enough credits, proceed with purchase
-	if (PlayerCredits > Price) {
+	if (PlayerCredits >= Price) {
 		rxPC.PlaySound(SoundCue'RenXPurchaseMenu.Sounds.RenXPTSoundPurchase');
 		rxPC.PurchaseCharacter(TeamID, data);
 
 		//set the current weapon to defaults so we can force perform our loadouts
 		
-		rxPC.CurrentSidearmWeapon = class'Rx_InventoryManager'.default.SidearmWeapons[0];
-		if (rxPC.bJustBaughtEngineer 
-		|| Rx_Pawn(rxPC.Pawn).GetRxFamilyInfo() == class'Rx_FamilyInfo_GDI_Hotwire' 
-		|| Rx_Pawn(rxPC.Pawn).GetRxFamilyInfo() == class'Rx_FamilyInfo_Nod_Technician'){
-			rxPC.CurrentExplosiveWeapon = class'Rx_Weapon_ProxyC4';
-			//rxPC.CurrentExplosiveWeapon = class'Rx_InventoryManager'.default.ExplosiveWeapons[0];
-		} else if (rxPC.bJustBaughtHavocSakura 
-		|| Rx_Pawn(rxPC.Pawn).GetRxFamilyInfo() == class'Rx_FamilyInfo_GDI_Havoc'
-		|| Rx_Pawn(rxPC.Pawn).GetRxFamilyInfo() == class'Rx_FamilyInfo_Nod_Sakura' ) {
-			rxPC.CurrentExplosiveWeapon = class'Rx_Weapon_RemoteC4';
-		}else {
-			rxPC.CurrentExplosiveWeapon = class'Rx_InventoryManager'.default.ExplosiveWeapons[0];
-		}
+		`log("XXX: " @ rxPurchaseSystem.GetFamilyClass(TeamID, data).default.InvManagerClass);
+		
+		`log("XXX2: " @ rxPurchaseSystem.GetFamilyClass(TeamID, data).default.InvManagerClass.default.SidearmWeapons[0]);
+		
+		rxPC.CurrentSidearmWeapon = rxPurchaseSystem.GetFamilyClass(TeamID, data).default.InvManagerClass.default.SidearmWeapons[0];
+		rxPC.CurrentExplosiveWeapon = rxPurchaseSystem.GetFamilyClass(TeamID, data).default.InvManagerClass.default.ExplosiveWeapons[0];
+		
 		
 		
 
-		SetLoadout();
+		SetLoadout(true);
 			
 		rxPC.SwitchWeapon(0);
 		ClosePTMenu(false);
@@ -2271,7 +2302,7 @@ function SelectVehiclePurchase(GFxClikWidget ButtonGroup)
 		`log("<PT Log> Character: " $ rxPurchaseSystem.GetVehicleClass(TeamID, data));
 		`log("<PT Log> Price: " $ Price);
 		`log("<PT Log> PlayerCredits: " $ PlayerCredits);
-	if (PlayerCredits > Price) {
+	if (PlayerCredits >= Price) {
 		rxPC.PlaySound(SoundCue'RenXPurchaseMenu.Sounds.RenXPTSoundPurchase');
 		rxPC.PurchaseVehicle(TeamID, data);
 		ClosePTMenu(false);
@@ -2294,7 +2325,7 @@ function SelectWeaponPurchase(GFxClikWidget ButtonGroup)
 		`log("<PT Log> Character: " $ rxPurchaseSystem.GetWeaponClass(TeamID, data));
 		`log("<PT Log> Price: " $ Price);
 		`log("<PT Log> PlayerCredits: " $ PlayerCredits);
-	if (PlayerCredits > Price) {
+	if (PlayerCredits >= Price) {
 		rxPC.PlaySound(SoundCue'RenXPurchaseMenu.Sounds.RenXPTSoundPurchase');
 		rxPC.PurchaseWeapon(TeamID, data);
 		ClosePTMenu(false);
@@ -2317,7 +2348,7 @@ function SelectItemPurchase(GFxClikWidget ButtonGroup)
 		`log("<PT Log> Character: " $ rxPurchaseSystem.GetItemClass(TeamID, data));
 		`log("<PT Log> Price: " $ Price);
 		`log("<PT Log> PlayerCredits: " $ PlayerCredits);
-	if (PlayerCredits > Price) {
+	if (PlayerCredits >= Price) {
 		rxPC.PlaySound(SoundCue'RenXPurchaseMenu.Sounds.RenXPTSoundPurchase');
 		rxPC.PurchaseItem(TeamID, data);
 		ClosePTMenu(false);
@@ -2347,7 +2378,7 @@ function CycleEquipmentButton(GFxClikWidget WidgetButton, GFxClikWidget WidgetLi
 	}
 }
 
-function SetLoadout() {
+function SetLoadout(optional bool CharChange = false) {
 	
 	
 
@@ -2358,13 +2389,22 @@ function SetLoadout() {
 	 * */
 
 	`log("<PT Log> ------------------ [ SetLoadout() Called ] ------------------ ");
-	SetExplosiveLoadout();
+	
+	if(CharChange) 
+	{
+	SetSidearmLoadout(true);
+	SetExplosiveLoadout(true);
+	}
+	else
+	{
 	SetSidearmLoadout();
+	SetExplosiveLoadout();
+	}
 	//SetItemLoadout();
 	//TODO:SetItemLoadout
 }
 
-function SetExplosiveLoadout ()
+function SetExplosiveLoadout (optional bool CharChange = false)
 {
 	/**
 	 * If the explosive selected is not the same as player loadout explosives,
@@ -2389,10 +2429,30 @@ function SetExplosiveLoadout ()
 
 	i = EquipExplosivesList.GetInt("selectedIndex");
 	SelectedIndex = EquipmentExplosiveData.Find('title', EquipExplosivesList.GetObject("dataProvider").GetElementString(i));
+		
 	if (SelectedIndex >= 0) {
 		
+		if(!CharChange) explosiveClass = EquipmentExplosiveData[SelectedIndex].WeaponClass; /*only set the explosive class to something else if it isn't a Character Change*/
+			`log("<PT Log> rxPC.CurrentExplosiveWeapon? " $ rxPC.CurrentExplosiveWeapon);
+			`log("<PT Log> OwnedExplosive? " $ OwnedExplosive);
+			`log("<PT Log> selected explosive data? " $ explosiveClass);
+		
+		
+		if (rxPC.CurrentExplosiveWeapon != explosiveClass && explosiveClass !=none) {
+			rxPC.RemoveAllExplosives();
+			rxPC.AddExplosives(explosiveClass);
+		} else {
+			
+			`log ("<PT Log> explosive Loadout is the same as current loadout. loadout not performed!!!");
+		}
+		
+	}
+		
+		
+		
+		
 		// if this is an engineer type
-		if (rxPC.bJustBaughtEngineer 
+		/**if (rxPC.bJustBaughtEngineer 
 			|| Rx_Pawn(rxPC.Pawn).GetRxFamilyInfo() == class'Rx_FamilyInfo_GDI_Hotwire' 
 			|| Rx_Pawn(rxPC.Pawn).GetRxFamilyInfo() == class'Rx_FamilyInfo_Nod_Technician') {
 
@@ -2403,9 +2463,9 @@ function SetExplosiveLoadout ()
 			} else {
 				explosiveClass = EquipmentExplosiveData[SelectedIndex].WeaponClass;
 			}
-			//do a check if there is a 'change' in our explosive loadout, if there is perform change.
+			/-/do a check if there is a 'change' in our explosive loadout, if there is perform change.
 
-			//class'Rx_InventoryManager'.default.ExplosiveWeapons[0]
+			/-/class'Rx_InventoryManager'.default.ExplosiveWeapons[0]
 
 			`log("<PT Log>      engi rxPC.CurrentExplosiveWeapon? " $ rxPC.CurrentExplosiveWeapon);
 			`log("<PT Log>      engi OwnedExplosive? " $ OwnedExplosive);
@@ -2431,9 +2491,9 @@ function SetExplosiveLoadout ()
 		|| Rx_Pawn(rxPC.Pawn).GetRxFamilyInfo() == class'Rx_FamilyInfo_GDI_Havoc'
 		|| Rx_Pawn(rxPC.Pawn).GetRxFamilyInfo() == class'Rx_FamilyInfo_Nod_Sakura' ) {
 		
-			//do a check if there is a 'change' in our explosive loadout, if there is perform change.
-			//explosiveClass = EquipmentExplosiveData[SelectedIndex].WeaponClass;
-			//it is not suppose to happen, but if we have a proxyc4, swap it with timedc4, else continue
+			/-/do a check if there is a 'change' in our explosive loadout, if there is perform change.
+			/-/explosiveClass = EquipmentExplosiveData[SelectedIndex].WeaponClass;
+			/-/it is not suppose to happen, but if we have a proxyc4, swap it with timedc4, else continue
 			if (EquipmentExplosiveData[SelectedIndex].WeaponClass == class'Rx_Weapon_TimedC4'
 				|| EquipmentExplosiveData[SelectedIndex].WeaponClass == class'Rx_Weapon_ProxyC4') {
 				explosiveClass = class'Rx_Weapon_RemoteC4';
@@ -2462,9 +2522,9 @@ function SetExplosiveLoadout ()
 		}else {
 			
 
-			//do a check if there is a 'change' in our explosive loadout, if there is perform change.
-			//explosiveClass = EquipmentExplosiveData[SelectedIndex].WeaponClass;
-			//it is not suppose to happen, but if we have a proxyc4, swap it with timedc4, else continue
+			/-/do a check if there is a 'change' in our explosive loadout, if there is perform change.
+			/-/explosiveClass = EquipmentExplosiveData[SelectedIndex].WeaponClass;
+			/-/it is not suppose to happen, but if we have a proxyc4, swap it with timedc4, else continue
 			if (EquipmentExplosiveData[SelectedIndex].WeaponClass == class'Rx_Weapon_ProxyC4'
 				|| EquipmentExplosiveData[SelectedIndex].WeaponClass == class'Rx_Weapon_RemoteC4') {
 				explosiveClass = class'Rx_Weapon_TimedC4';
@@ -2490,11 +2550,11 @@ function SetExplosiveLoadout ()
 					`log ("<PT Log> norm Explosive Loadout is the same as current loadout. loadout not performed!!!");
 				}
 			}
-		}
-	}
+		}*/
+	
 }
 
-function SetSidearmLoadout() 
+function SetSidearmLoadout(optional bool CharChange = false) /*added boolean value to see if this is for a total character swap. If it is, we changeup sidearms/explosives that can be carried. */
 {
 	local int SelectedIndex;
 	local byte i;
@@ -2509,11 +2569,14 @@ function SetSidearmLoadout()
 	i = EquipSideArmList.GetInt("selectedIndex");
 	SelectedIndex = EquipmentSidearmData.Find('title', EquipSideArmList.GetObject("dataProvider").GetElementString(i));
 	if (SelectedIndex >= 0) {
-		sidearmClass = EquipmentSidearmData[SelectedIndex].WeaponClass;
+		
+		if(!CharChange) sidearmClass = EquipmentSidearmData[SelectedIndex].WeaponClass; /*only set the sidearm class to something else if it isn't a Character Change*/
 			`log("<PT Log> rxPC.CurrentSidearmWeapon? " $ rxPC.CurrentSidearmWeapon);
 			`log("<PT Log> OwnedSidearm? " $ OwnedSidearm);
 			`log("<PT Log> selected sidearm data? " $ sidearmClass);
-		if (rxPC.CurrentSidearmWeapon != sidearmClass) {
+		
+		
+		if (rxPC.CurrentSidearmWeapon != sidearmClass && sidearmClass !=none) {
 			rxPC.SetSidearmWeapon(EquipmentSidearmData[SelectedIndex].WeaponClass);
 		} else {
 			
@@ -2652,24 +2715,25 @@ function OnPTButtonClick(GFxClikWidget.EventData ev)
 				hotkey = 6;
 			}
 			break;
-		case "W":
+		/**case "W":
 			if(bMainDrawerOpen) {
 				hotkey = 7;
 			}
 			break;
+		*/
 		case "Q":
 			if(bMainDrawerOpen) {
-				hotkey = 8;
+				hotkey = 7;
 			}
 			break;
 		case "C":
 			if(bMainDrawerOpen) {
-				hotkey = 9;
+				hotkey = 8;
 			}
 			break;
 		case "V":
 			if(bMainDrawerOpen) {
-				hotkey = 0;
+				hotkey = 9;
 			}
 			break;
 		default:
@@ -2801,36 +2865,37 @@ bAutoPlay                       	=   false
 	bMainDrawerOpen                 =   false
 	bClassDrawerOpen                =   false
 	bItemDrawerOpen                 =   false
-	bWeaponDrawerOpen               =   false
+	//bWeaponDrawerOpen               =   false
 	bEquipmentDrawerOpen            =   false
 	bVehicleDrawerOpen              =   false
 	
 
-	GDIMainMenuData(0) 				= (BlockType=EPBT_CLASS, id=0,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Autorifle',  iconID=27, hotkey="1", title="SOLDIER",	    desc="Good Vs:\n-Infrantry\n-Light Armour Vehicles\n\nWeak Vs:\n-Buildings\n-Heavy Armour Vehicles\n",	cost="FREE", type=2, damage=1,range=3,rateOfFire=5,magCap=4)
-	GDIMainMenuData(1) 				= (BlockType=EPBT_CLASS, id=1,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Shotgun', iconID=52, hotkey="2", title="SHOTGUNNER",  desc="Good Vs:\n-Infrantry\n-Light Armour Vehicles\n\nWeak Vs:\n-Vehicles, Buildings\n-Heavy Armour",	cost="FREE", type=2, damage=3,range=1,rateOfFire=2,magCap=2)
-	GDIMainMenuData(2) 				= (BlockType=EPBT_CLASS, id=2,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_GrenadeLauncher', iconID=34, hotkey="3", title="GRENADIER",   desc="Good Vs:\n-Light Armour\n-Heavy Armour\n-Buildings\n\nWeak Vs:\n-Infrantry",						cost="FREE", type=2, damage=3,range=4,rateOfFire=2,magCap=2)
-	GDIMainMenuData(3) 				= (BlockType=EPBT_CLASS, id=3,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_MarksmanRifle', iconID=41, hotkey="4", title="MARKSMAN",	desc="Good Vs:\n-Infrantry\n-Light Armour\n\nWeak Vs:\n-Vehicles, Buildings\n-Heavy Armour",			cost="FREE", type=2, damage=3,range=5,rateOfFire=3,magCap=2)
-	GDIMainMenuData(4) 				= (BlockType=EPBT_CLASS, id=4,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RepairGun', iconID=50, hotkey="5", title="ENGINEER",	desc="Pros:\n-Building Destruction\n-Repairing/Healing\n\nCons:\n-No Offensive Weapon\n-Short Ranged",	cost="FREE", type=2, damage=3,range=1,rateOfFire=6,magCap=6)
+	GDIMainMenuData(0) 				= (BlockType=EPBT_CLASS, id=0,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Autorifle',  iconID=27, hotkey="1", title="SOLDIER",	    desc="Armour: Kevlar\nSide: Silenced Pistol\n+Anti-Infantry",	cost="FREE", type=2, damage=1,range=3,rateOfFire=5,magCap=4)
+	GDIMainMenuData(1) 				= (BlockType=EPBT_CLASS, id=1,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Shotgun', iconID=52, hotkey="2", title="SHOTGUNNER",  desc="Armour: Kevlar\nSide: Silenced Pistol\n+Anti-Infantry",	cost="FREE", type=2, damage=3,range=1,rateOfFire=2,magCap=2)
+	GDIMainMenuData(2) 				= (BlockType=EPBT_CLASS, id=2,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_GrenadeLauncher', iconID=34, hotkey="3", title="GRENADIER",   desc="Armour: Flak\nSide: Silenced Pistol\n+Anti-Armour\n+Anti-Building",	cost="FREE", type=2, damage=3,range=4,rateOfFire=2,magCap=2)
+	GDIMainMenuData(3) 				= (BlockType=EPBT_CLASS, id=3,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_MarksmanRifle', iconID=41, hotkey="4", title="MARKSMAN",	desc="Armour: Kevlar\nSide: Silenced Pistol\n+Anti-Infantry",			cost="FREE", type=2, damage=3,range=5,rateOfFire=3,magCap=2)
+	GDIMainMenuData(4) 				= (BlockType=EPBT_CLASS, id=4,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RepairGun', iconID=50, hotkey="5", title="ENGINEER",	desc="Armour: Flak\nSide: Silenced Pistol\nRemote C4\n+Anti-Building\n+Repair/Support",	cost="FREE", type=2, damage=3,range=1,rateOfFire=6,magCap=6)
 	GDIMainMenuData(5) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Refill', iconID=05, hotkey="R", title="REFILL",	    desc="\nRefill Health\nRefill Armour\nRefill Ammo\nRefill Stamina",										cost="MENU", type=1)
-	GDIMainMenuData(6) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapons', iconID=60, hotkey="W", title="WEAPONS",	    desc="\n\nSidearms\nGrenades\nSupport Weapons",															cost="MENU", type=1)
-	GDIMainMenuData(7) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_ItemsGDI', iconID=03, hotkey="Q", title="ITEM",		desc="\n\nSuperweapons\nEquipment\nDeployables",														cost="MENU", type=1)
-	GDIMainMenuData(8) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Characters', iconID=02, hotkey="C", title="CHARACTERS",  desc="",																								cost="MENU", type=1)
-	GDIMainMenuData(9) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Vehicles_GDI', iconID=25, hotkey="V", title="VEHICLES",	desc="",																								cost="MENU", type=1)
+	//GDIMainMenuData(6) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapons', iconID=60, hotkey="W", title="WEAPONS",	    desc="\n\nSidearms\nGrenades\nSupport Weapons",															cost="MENU", type=1)
+	GDIMainMenuData(6) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Characters', iconID=02, hotkey="C", title="CHARACTERS",  desc="",																								cost="MENU", type=1)
+	GDIMainMenuData(7) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Vehicles_GDI', iconID=25, hotkey="V", title="VEHICLES",	desc="",																								cost="MENU", type=1)
+	GDIMainMenuData(8) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_ItemsGDI', iconID=03, hotkey="Q", title="ITEM",		desc="\n\nSuperweapons\nEquipment\nDeployables",														cost="MENU", type=1)
 
-	GDIClassMenuData(0) 			= (BlockType=EPBT_CLASS, id=5,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Chaingun', iconID=28, hotkey="1", title="OFFICER"		 ,desc="Good Vs:\n-Infrantry\n-Light Armour Vehicles\n\nWeak Vs:\n-Buildings\n-Heavy Armour Vehicles",	cost="175", type=2,damage=1,range=3,rateOfFire=6,magCap=6)
-	GDIClassMenuData(1) 			= (BlockType=EPBT_CLASS, id=6,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_MissileLauncher', iconID=42, hotkey="2", title="ROCKET SOLDIER",desc="Good Vs:\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Infratry\n-Buildings",						cost="225", type=2,damage=4,range=5,rateOfFire=1,magCap=1)
-	GDIClassMenuData(2) 			= (BlockType=EPBT_CLASS, id=7,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_FlakCannon', iconID=31, hotkey="3", title="MCFARLAND"	 ,desc="Good Vs:\n-Infratry\n-Light Armour\n\nWeak Vs:\n-Heavy Armour\n-Buildings",						cost="150", type=2,damage=3,range=1,rateOfFire=3,magCap=3)
-	GDIClassMenuData(3) 			= (BlockType=EPBT_CLASS, id=8,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_SniperRifle', iconID=54, hotkey="4", title="DEADEYE"		 ,desc="Good Vs:\n-Infrantry\n-Light Armour\n\nWeak Vs:\n-Heavy Armour\n-Buildings",					cost="500", type=2,damage=4,range=6,rateOfFire=1,magCap=2)
-	GDIClassMenuData(4) 			= (BlockType=EPBT_CLASS, id=9,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RocketLauncher', iconID=51, hotkey="5", title="GUNNER"		 ,desc="Good Vs:\n-Light Armour\n-Heavy Armour\n-Buildings\n\nWeak Vs:\n-Infrantry",					cost="400", type=2,damage=4,range=5,rateOfFire=3,magCap=2)
-	GDIClassMenuData(5) 			= (BlockType=EPBT_CLASS, id=10, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_TacticalRifle', iconID=55, hotkey="6", title="PATCH"		 ,desc="Good Vs:\n-Infratry\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Buildings",						cost="450", type=2,damage=3,range=4,rateOfFire=4,magCap=3)
-	GDIClassMenuData(6) 			= (BlockType=EPBT_CLASS, id=11, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RamjetRifle', iconID=48, hotkey="7", title="HAVOC"		 ,desc="Good Vs:\n-Infrantry\n-Light Armour\n\nWeak Vs:\n-Heavy Armour\n-Buildings",					cost="1000",type=2,damage=5,range=6,rateOfFire=2,magCap=2)
-	GDIClassMenuData(7) 			= (BlockType=EPBT_CLASS, id=12, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_PIC', iconID=44, hotkey="8", title="SYDNEY"		 ,desc="Good Vs:\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Infrantry\n-Buildings",					cost="1000",type=2,damage=6,range=4,rateOfFire=1,magCap=2)
-	GDIClassMenuData(8) 			= (BlockType=EPBT_CLASS, id=13, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_VoltAutoRifle', iconID=59, hotkey="9", title="MOBIUS"		 ,desc="Good Vs:\n-Infrantry\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Buildings",					cost="1000",type=2,damage=3,range=3,rateOfFire=6,magCap=4)
-	GDIClassMenuData(9) 			= (BlockType=EPBT_CLASS, id=14, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RepairGun', iconID=50, hotkey="0", title="HOTWIRE"		 ,desc="Pros:\n-Building Destruction\n-Repairing/Healing\n\nCons:\n-No Defensive Weapon\n-Short Range",	cost="350", type=2,damage=6,range=1,rateOfFire=6,magCap=6)
+	GDIClassMenuData(0) 			= (BlockType=EPBT_CLASS, id=5,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Chaingun', iconID=28, hotkey="1", title="OFFICER"		 ,desc="Armour: Kevlar\nSide: Silenced Pistol\nSmoke Grenade\n+Anti-Infantry",	cost="175", type=2,damage=1,range=3,rateOfFire=6,magCap=6)
+	GDIClassMenuData(1) 			= (BlockType=EPBT_CLASS, id=6,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_MissileLauncher', iconID=42, hotkey="2", title="ROCKET SOLDIER",desc="Armour: Flak\nSide: Machine Pistol\nAnti-Tank Mines\n+Anti-Armour\n+Anti-Aircraft", cost="225", type=2,damage=4,range=5,rateOfFire=1,magCap=1)
+	GDIClassMenuData(2) 			= (BlockType=EPBT_CLASS, id=7,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_FlakCannon', iconID=31, hotkey="3", title="MCFARLAND"	 ,desc="Armour: Kevlar\nSide: Silenced Pistol\n+Anti-Infantry",						cost="150", type=2,damage=3,range=1,rateOfFire=3,magCap=3)
+	GDIClassMenuData(3) 			= (BlockType=EPBT_CLASS, id=8,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_SniperRifle', iconID=54, hotkey="4", title="DEADEYE"		 ,desc="Armour: Kevlar\nSide: Heavy Pistol\nSmoke Grenade\n+Anti-Infantry",					cost="500", type=2,damage=4,range=6,rateOfFire=1,magCap=2)
+	GDIClassMenuData(4) 			= (BlockType=EPBT_CLASS, id=9,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RocketLauncher', iconID=51, hotkey="5", title="GUNNER"		 ,desc="Armour: Flak\nSide: Carbine\nEMP Grenade\n+Anti-Armour\n+Anti-Structure",					cost="400", type=2,damage=4,range=5,rateOfFire=3,magCap=2)
+	GDIClassMenuData(5) 			= (BlockType=EPBT_CLASS, id=10, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_TacticalRifle', iconID=55, hotkey="6", title="PATCH"		 ,desc="Armour: Kevlar\nSide: Heavy Pistol\nFrag Grenades\n+Anti-Everything",						cost="450", type=2,damage=3,range=4,rateOfFire=4,magCap=3)
+	GDIClassMenuData(6) 			= (BlockType=EPBT_CLASS, id=11, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RamjetRifle', iconID=48, hotkey="7", title="HAVOC"		 ,desc="Armour: Kevlar\nSide: S. Carbine\nSmoke Grenade\n+Anti-Infantry",					cost="1000",type=2,damage=5,range=6,rateOfFire=2,magCap=2)
+	GDIClassMenuData(7) 			= (BlockType=EPBT_CLASS, id=12, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_PIC', iconID=44, hotkey="8", title="SYDNEY"		 ,desc="Armour: Flak\nSide: Heavy Pistol\nEMP Grenade\nAnti-Tank Mines\n+Anti-Armour",					cost="1000",type=2,damage=6,range=4,rateOfFire=1,magCap=2)
+	GDIClassMenuData(8) 			= (BlockType=EPBT_CLASS, id=13, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_VoltAutoRifle', iconID=59, hotkey="9", title="MOBIUS"		 ,desc="Armour: Kevlar\nSide: Heavy Pistol\n+Anti-Everything",					cost="1000",type=2,damage=3,range=3,rateOfFire=6,magCap=4)
+	GDIClassMenuData(9) 			= (BlockType=EPBT_CLASS, id=14, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RepairGun', iconID=50, hotkey="0", title="HOTWIRE"		 ,desc="Armour: Flak\nSide: Silenced Pistol\nRemote C4\nProximity Mines\n+Anti-Building\n+Repair/Support",	cost="350", type=2,damage=6,range=1,rateOfFire=6,magCap=6)
 
 	GDIItemMenuData(0) 				= (BlockType=EPBT_ITEM, id=0, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_IonCannonBeacon', iconID=70, hotkey="1", title="ION CANNON BEACON", desc="<font size='8'>Pros:\n-Instant Building Destruction\n-Large Blast Radius\n\nCons:\n-60 Seconds for impact(Dismantle)\n-5 seconds for deployment\n-Statitargets only</font>", 	cost="1000", type=1)
 	GDIItemMenuData(1) 				= (BlockType=EPBT_ITEM, id=1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_Airstrike_A10', iconID=62, hotkey="2", title="A-10 AIRSTRIKE",	desc="<font size='8'>Pros:\n-5 seconds to impact\n-Quick bombardment\n-Anti-Infrantry/Vehicle\n\nCons:\n-Weak Vs. Buildings</font>", 												cost="800",  type=1)
-	GDIItemMenuData(2) 				= (BlockType=EPBT_ITEM, id=2, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_MedKit', iconID=66, hotkey="3", title="MEDICAL KIT",	 	desc="<font size='8'>Pros:\n-Heals near by infrantry\n-30 seconds before depletion\n\nCons:\n-Heals near by eenemies as well\n-Cannot refill</font>", 								cost="150",  type=1 , bEnable = false)
+	GDIItemMenuData(2) 				= (BlockType=EPBT_ITEM, id=2, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RepairTool', iconID=73, hotkey="3", title="REPAIR TOOL",      desc="<font size='8'>Pros:\n-Repairs Units/Buildings\n-Disarms Mines\nCons:\n-Cannot disarm beacons\nLimited Ammo </font>", cost="200")
+	//GDIItemMenuData(2) 				= (BlockType=EPBT_ITEM, id=2, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_MedKit', iconID=66, hotkey="3", title="MEDICAL KIT",	 	desc="<font size='8'>Pros:\n-Heals near by infrantry\n-30 seconds before depletion\n\nCons:\n-Heals near by eenemies as well\n-Cannot refill</font>", 								cost="150",  type=1 , bEnable = false)
 	GDIItemMenuData(3) 				= (BlockType=EPBT_ITEM, id=3, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_AmmoKit', iconID=64, hotkey="4", title="AMMUNITION KIT",	desc="<font size='8'>Pros:\n-Rearms near by infrantry\n-30 seconds before depletion\n\nCons:\n-Rearms near by enemies as well\n-Cannot refill</font>", 								cost="150",  type=1 , bEnable = false)
 	GDIItemMenuData(4) 				= (BlockType=EPBT_ITEM, id=4, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_MechanicalKit', iconID=65, hotkey="5", title="MECHANICAL KIT",	desc="<font size='8'>Pros:\n-Repairs near by vehicles\n-30 seconds before depletion\n\nCons:\n-Repairs near by enemies as well\n-Cannot refill</font>", 							cost="150",  type=1 , bEnable = false)
 	GDIItemMenuData(5) 				= (BlockType=EPBT_ITEM, id=5, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_MotionSensor', iconID=67, hotkey="6", title="MOTION SENSOR",	 	desc="<font size='8'>Pros:\n-Relays enemy position in a radius\n-Detects mines and beacons\n\nCons:\n-Emits an audible sound\n-Cannot refill</font>", 								cost="200",  type=1 , bEnable = false)
@@ -2851,34 +2916,35 @@ bAutoPlay                       	=   false
 	GDIVehicleMenuData(3) 			= (BlockType=EPBT_VEHICLE, id=3, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Veh_GDI_MediumTank', iconID=11, hotkey="4",title="MEDIUM TANK",							desc="<font size='10'>-105mm Cannon\n-Heavy Armour\n-Main Battle Tank\n-Driver + Passenger</font>",							cost="800")
 	GDIVehicleMenuData(4) 			= (BlockType=EPBT_VEHICLE, id=4, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Veh_GDI_MammothTank', iconID=10, hotkey="5",title="MAMMOTH TANK",						desc="<font size='10'>-2x 120mm Cannons\n-4x Tusk Missiles\n-Heavy Armour\n-Heavy Battle Tank\n-Driver + Passenger</font>",	cost="1500")
 	GDIVehicleMenuData(5) 			= (BlockType=EPBT_VEHICLE, id=5, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Veh_TransportHelicopter', iconID=24, hotkey="7",title="TRANSPORT HELICOPTER",				desc="<font size='10'>-2x Gattling Guns\n-Light Armour\n-Troop Transport\n-Pilot + 4 Passengers</font>",					cost="700", bAircraft = true)
-	GDIVehicleMenuData(6) 			= (BlockType=EPBT_VEHICLE, id=6, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Veh_GDI_Orca', iconID=13, hotkey="8",title="ORCA FIGHTER",						desc="<font size='10'>-Hellfire Missiles\n-.50 Calibre Machine Gun\n-Light Armour\n-Attack VTOL\n-Pilot Only</font>",		cost="900", bAircraft = true)
+	GDIVehicleMenuData(6) 			= (BlockType=EPBT_VEHICLE, id=6, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Veh_GDI_Orca', iconID=13, hotkey="8",title="ORCA FIGHTER",						desc="<font size='10'>-Hellfire Missiles\n-.50 Calibre Machine Gun\n-Light Armour\n-Attack VTOL\n-Pilot and Passenger</font>",		cost="900", bAircraft = true)
 
-	NodMainMenuData(0) 				= (BlockType=EPBT_CLASS, id=0,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Autorifle', iconID=27, hotkey="1", title="SOLDIER",	 	 desc="Good Vs:\n-Infrantry\n-Light Armour Vehicles\n\nWeak Vs:\n-Buildings\n-Heavy Armour Vehicles",	cost="FREE", type=2, damage=1, range=3, rateOfFire=5, magCap=4 )
-	NodMainMenuData(1) 				= (BlockType=EPBT_CLASS, id=1,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Shotgun', iconID=52, hotkey="2", title="SHOTGUNNER",	 desc="Good Vs:\n-Infrantry\n-Light Armour Vehicles\n\nWeak Vs:\n-Vehicles, Buildings\n-Heavy Armour",	cost="FREE", type=2, damage=3, range=1, rateOfFire=2, magCap=2 )
-	NodMainMenuData(2) 				= (BlockType=EPBT_CLASS, id=2,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_FlameThrower', iconID=32, hotkey="3", title="FLAMETHROWER", desc="Good Vs:\n-Infrantry\n-Light Armour\n-Buildings\n\nWeak Vs:\n-Heavy Armour",						cost="FREE", type=2, damage=2, range=1, rateOfFire=4, magCap=4 )
-	NodMainMenuData(3) 				= (BlockType=EPBT_CLASS, id=3,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_MarksmanRifle', iconID=41, hotkey="4", title="MARKSMAN",	 desc="Good Vs:\n-Infrantry\n-Light Armour\n\nWeak Vs:\n-Vehicles, Buildings\n-Heavy Armour",			cost="FREE", type=2, damage=3, range=5, rateOfFire=3, magCap=2 )
-	NodMainMenuData(4) 				= (BlockType=EPBT_CLASS, id=4,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RepairGun', iconID=50, hotkey="5", title="ENGINEER",	 desc="Pros:\n-Building Destruction\n-Repairing/Healing\n\nCons:\n-No Offensive Weapon\n-Short Ranged",	cost="FREE", type=2, damage=3, range=1, rateOfFire=6, magCap=6 )
+	NodMainMenuData(0) 				= (BlockType=EPBT_CLASS, id=0,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Autorifle', iconID=27, hotkey="1", title="SOLDIER",	 	 desc="Armour: Kevlar\nSide: Silenced Pistol\n+Anti-Infantry",	cost="FREE", type=2, damage=1, range=3, rateOfFire=5, magCap=4 )
+	NodMainMenuData(1) 				= (BlockType=EPBT_CLASS, id=1,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Shotgun', iconID=52, hotkey="2", title="SHOTGUNNER",	 desc="Armour: Kevlar\nSide: Silenced Pistol\n+Anti-Infantry",	cost="FREE", type=2, damage=3, range=1, rateOfFire=2, magCap=2 )
+	NodMainMenuData(2) 				= (BlockType=EPBT_CLASS, id=2,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_FlameThrower', iconID=32, hotkey="3", title="FLAMETHROWER", desc="Armour: Flak\nSide: Silenced Pistol\n+Anti-Everything",						cost="FREE", type=2, damage=2, range=1, rateOfFire=4, magCap=4 )
+	NodMainMenuData(3) 				= (BlockType=EPBT_CLASS, id=3,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_MarksmanRifle', iconID=41, hotkey="4", title="MARKSMAN",	 desc="Armour: Kevlar\nSide: Silenced Pistol\n+Anti-Infantry",			cost="FREE", type=2, damage=3, range=5, rateOfFire=3, magCap=2 )
+	NodMainMenuData(4) 				= (BlockType=EPBT_CLASS, id=4,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RepairGun', iconID=50, hotkey="5", title="ENGINEER",	 desc="Armour: Flak\nSide: Silenced Pistol\nRemote C4\n+Anti-Building\n+Repair/Support",	cost="FREE", type=2, damage=3, range=1, rateOfFire=6, magCap=6 )
 	NodMainMenuData(5) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Refill', iconID=05, hotkey="R", title="REFILL",	 	 desc="\nRefill Health\nRefill Armour\nRefill Ammo\nRefill Stamina",									cost="MENU", type=1 )
-	NodMainMenuData(6) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapons', iconID=60, hotkey="W", title="WEAPONS",	 	 desc="\n\nSidearms\nGrenades\nSupport Weapons",														cost="MENU", type=1 )
-	NodMainMenuData(7) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_ItemsNod', iconID=04, hotkey="Q", title="ITEM",		 desc="\n\nSuperweapons\nEquipment\nDeployables",														cost="MENU", type=1 )
-	NodMainMenuData(8) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Characters', iconID=02, hotkey="C", title="CHARACTERS",	 desc="",																								cost="MENU", type=1 )
-	NodMainMenuData(9) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Vehicles_Nod', iconID=61, hotkey="V", title="VEHICLES",	 desc="",																								cost="MENU", type=1 )
+	//NodMainMenuData(6) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapons', iconID=60, hotkey="W", title="WEAPONS",	 	 desc="\n\nSidearms\nGrenades\nSupport Weapons",														cost="MENU", type=1 )
+	NodMainMenuData(6) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Characters', iconID=02, hotkey="C", title="CHARACTERS",	 desc="",																								cost="MENU", type=1 )
+	NodMainMenuData(7) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Vehicles_Nod', iconID=61, hotkey="V", title="VEHICLES",	 desc="",																								cost="MENU", type=1 )
+	NodMainMenuData(8) 				= (BlockType=EPBT_MENU,  id=-1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_ItemsNod', iconID=04, hotkey="Q", title="ITEM",		 desc="\n\nSuperweapons\nEquipment\nDeployables",														cost="MENU", type=1 )
 
-	NodClassMenuData(0)				= (BlockType=EPBT_CLASS, id=5,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Chaingun', iconID=28, hotkey="1", title="OFFICER",				desc="Good Vs:\n-Infrantry\n-Light Armour Vehicles\n\nWeak Vs:\n-Buildings\n-Heavy Armour Vehicles",	cost="175",  type=2, damage=1, range=3, rateOfFire=6, magCap=6)
-	NodClassMenuData(1)				= (BlockType=EPBT_CLASS, id=6,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_MissileLauncher', iconID=42, hotkey="2", title="ROCKET SOLDIER",		desc="Good Vs:\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Infratry\n-Buildings",						cost="225",  type=2, damage=4, range=5, rateOfFire=1, magCap=1)
-	NodClassMenuData(2)				= (BlockType=EPBT_CLASS, id=7,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_ChemicalThrower', iconID=29, hotkey="3", title="CHEMICAL TROOPER",	desc="Good Vs:\n-Infratry\n-Light Armour\n-Buildings\n\nWeak Vs:\n-Heavy Armour",						cost="150",  type=2, damage=3, range=1, rateOfFire=4, magCap=4)
-	NodClassMenuData(3)				= (BlockType=EPBT_CLASS, id=8,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_SniperRifle', iconID=54, hotkey="4", title="BLACK HAND SNIPER",	desc="Good Vs:\n-Infrantry\n-Light Armour\n\nWeak Vs:\n-Heavy Armour\n-Buildings",						cost="500",  type=2, damage=4, range=6, rateOfFire=1, magCap=2)
-	NodClassMenuData(4)				= (BlockType=EPBT_CLASS, id=9,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_LaserRifle', iconID=39, hotkey="5", title="STEALTH BLACK HAND",	desc="Good Vs:\n-Infrantry\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Buildings",						cost="400",  type=2, damage=3, range=4, rateOfFire=4, magCap=3)
-	NodClassMenuData(5)				= (BlockType=EPBT_CLASS, id=10, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_LaserChaingun', iconID=38, hotkey="6", title="LASER CHAINGUNNER",	desc="Good Vs:\n-Infratry\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Buildings",						cost="450",  type=2, damage=3, range=3, rateOfFire=5, magCap=5)
-	NodClassMenuData(6)				= (BlockType=EPBT_CLASS, id=11, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RamjetRifle', iconID=48, hotkey="7", title="SAKURA",				desc="Good Vs:\n-Infrantry\n-Light Armour\n\nWeak Vs:\n-Heavy Armour\n-Buildings",						cost="1000", type=2, damage=5, range=6, rateOfFire=2, magCap=2)
-	NodClassMenuData(7)				= (BlockType=EPBT_CLASS, id=12, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Railgun', iconID=47, hotkey="8", title="RAVESHAW",			desc="Good Vs:\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Infrantry\n-Buildings",						cost="1000", type=2, damage=6, range=4, rateOfFire=1, magCap=2)
-	NodClassMenuData(8)				= (BlockType=EPBT_CLASS, id=13, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_VoltAutoRifle', iconID=59, hotkey="9", title="MENDOZA",				desc="Good Vs:\n-Infrantry\n-Light Armour\n-Heavy Armour\n\nWeak Vs:\n-Buildings",						cost="1000", type=2, damage=3, range=3, rateOfFire=6, magCap=4)
-	NodClassMenuData(9)				= (BlockType=EPBT_CLASS, id=14, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RepairGun', iconID=50, hotkey="0", title="TECHNICIAN",			desc="Pros:\n-Building Destruction\n-Repairing/Healing\n\nCons:\n-No Defensive Weapon\n-Short Range",	cost="350",  type=2, damage=6, range=1, rateOfFire=6, magCap=6)
+	NodClassMenuData(0)				= (BlockType=EPBT_CLASS, id=5,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Chaingun', iconID=28, hotkey="1", title="OFFICER",				desc="Armour: Kevlar\nSide: Silenced Pistol\nSmoke Grenade\n+Anti-Infantry",	cost="175",  type=2, damage=1, range=3, rateOfFire=6, magCap=6)
+	NodClassMenuData(1)				= (BlockType=EPBT_CLASS, id=6,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_MissileLauncher', iconID=42, hotkey="2", title="ROCKET SOLDIER",		desc="Armour: Flak\nSide: Machine Pistol\nAnti-Tank Mines\n+Anti-Armour\n+Anti-Aircraft",						cost="225",  type=2, damage=4, range=5, rateOfFire=1, magCap=1)
+	NodClassMenuData(2)				= (BlockType=EPBT_CLASS, id=7,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_ChemicalThrower', iconID=29, hotkey="3", title="CHEMICAL TROOPER",	desc="Armour: Flak\nSide: Silenced Pistol\n+Anti-Infantry\n+Anti-Building",						cost="150",  type=2, damage=3, range=1, rateOfFire=4, magCap=4)
+	NodClassMenuData(3)				= (BlockType=EPBT_CLASS, id=8,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_SniperRifle', iconID=54, hotkey="4", title="BLACK HAND SNIPER",	desc="Armour: Kevlar\nSide: Heavy Pistol\nSmoke Grenade\n+Anti-Infantry",						cost="500",  type=2, damage=4, range=6, rateOfFire=1, magCap=2)
+	NodClassMenuData(4)				= (BlockType=EPBT_CLASS, id=9,  PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_LaserRifle', iconID=39, hotkey="5", title="STEALTH BLACK HAND",	desc="Armour: Lazarus\nSide: S. M. Pistol\nActive Camouflage\n+Anti-Everything",						cost="400",  type=2, damage=3, range=4, rateOfFire=4, magCap=3)
+	NodClassMenuData(5)				= (BlockType=EPBT_CLASS, id=10, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_LaserChaingun', iconID=38, hotkey="6", title="LASER CHAINGUNNER",	desc="Armour: Flak\nEMP Grenade\nAnti-Tank Mines\n+Anti-Everything\n+Heavy Infantry",						cost="450",  type=2, damage=3, range=3, rateOfFire=5, magCap=5)
+	NodClassMenuData(6)				= (BlockType=EPBT_CLASS, id=11, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RamjetRifle', iconID=48, hotkey="7", title="SAKURA",				desc="Armour: Kevlar\nSide: S. Carbine\nSmoke Grenade\n+Anti-Infantry",						cost="1000", type=2, damage=5, range=6, rateOfFire=2, magCap=2)
+	NodClassMenuData(7)				= (BlockType=EPBT_CLASS, id=12, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Railgun', iconID=47, hotkey="8", title="RAVESHAW",			desc="Armour: Flak\nSide: Heavy Pistol\nEMP Grenade\nAnti-Tank Mines\n+Anti-Armour",						cost="1000", type=2, damage=6, range=4, rateOfFire=1, magCap=2)
+	NodClassMenuData(8)				= (BlockType=EPBT_CLASS, id=13, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_TibAutoRifle', iconID=59, hotkey="9", title="MENDOZA",				desc="Armour: Kevlar\nSide: Heavy Pistol\n+Anti-Everything",						cost="1000", type=2, damage=3, range=3, rateOfFire=6, magCap=4)
+	NodClassMenuData(9)				= (BlockType=EPBT_CLASS, id=14, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RepairGun', iconID=50, hotkey="0", title="TECHNICIAN",			desc="Armour: Flak\nSide: Silenced Pistol\nRemote C4\nProximity Mines\n+Anti-Building\n+Repair/Support",	cost="350",  type=2, damage=6, range=1, rateOfFire=6, magCap=6)
 
 
 	NodItemMenuData(0)				= (BlockType=EPBT_ITEM, id=0, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_NukeBeacon', iconID=71, hotkey="1", title="NUKE STRIKE BEACON", desc="<font size='8'>Pros:\n-Instant Building Destruction\n-Large Blast Radius\n\nCons:\n-60 Seconds for impact(Dismantle)\n-5 seconds for deployment\n-Statitargets only</font>", cost="1000", type=1)
 	NodItemMenuData(1)				= (BlockType=EPBT_ITEM, id=1, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_Airstrike_AC130', iconID=63, hotkey="2", title="AC-130 AIRSTRIKE",	 desc="<font size='8'>Pros:\n-5 seconds to impact\n-Quick bombardment\n-Anti-Infrantry/Vehicle\n\nCons:\n-Weak Vs. Buildings</font>", 												cost="800" , type=1)
-	NodItemMenuData(2)				= (BlockType=EPBT_ITEM, id=2, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_MedKit', iconID=66, hotkey="3", title="MEDICAL KIT",	 	 desc="<font size='8'>Pros:\n-Heals near by infrantry\n-30 seconds before depletion\n\nCons:\n-Heals near by eenemies as well\n-Cannot refill</font>", 								cost="150" , type=1, bEnable = false)
+	NodItemMenuData(2)				= (BlockType=EPBT_ITEM, id=2, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RepairTool', iconID=73, hotkey="3", title="REPAIR TOOL",      desc="<font size='8'>Pros:\n-Repairs Units/Buildings\n-Disarms Mines\nCons:\n-Cannot disarm beacons\nLimited Ammo </font>", cost="200")
+	//NodItemMenuData(2)				= (BlockType=EPBT_ITEM, id=2, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_MedKit', iconID=66, hotkey="3", title="MEDICAL KIT",	 	 desc="<font size='8'>Pros:\n-Heals near by infrantry\n-30 seconds before depletion\n\nCons:\n-Heals near by eenemies as well\n-Cannot refill</font>", 								cost="150" , type=1, bEnable = false)
 	NodItemMenuData(3)				= (BlockType=EPBT_ITEM, id=3, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_AmmoKit', iconID=64, hotkey="4", title="AMMUNITION KIT",	 desc="<font size='8'>Pros:\n-Rearms near by infrantry\n-30 seconds before depletion\n\nCons:\n-Rearms near by enemies as well\n-Cannot refill</font>", 							cost="150" , type=1, bEnable = false)
 	NodItemMenuData(4)				= (BlockType=EPBT_ITEM, id=4, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_MechanicalKit', iconID=65, hotkey="5", title="MECHANICAL KIT",	 desc="<font size='8'>Pros:\n-Repairs near by vehicles\n-30 seconds before depletion\n\nCons:\n-Repairs near by enemies as well\n-Cannot refill</font>", 							cost="150" , type=1, bEnable = false)
 	NodItemMenuData(5)				= (BlockType=EPBT_ITEM, id=5, PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_MotionSensor', iconID=67, hotkey="6", title="MOTION SENSOR",	 	 desc="<font size='8'>Pros:\n-Relays enemy position in a radius\n-Detects mines and beacons\n\nCons:\n-Emits an audible sound\n-Cannot refill</font>", 								cost="200" , type=1, bEnable = false)

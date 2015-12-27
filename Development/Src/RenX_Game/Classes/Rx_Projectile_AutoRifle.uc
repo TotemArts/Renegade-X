@@ -33,10 +33,10 @@ DefaultProperties
     DrawScale= 0.75 //1.0f
 
     bCollideComplex=true
-    Speed=14000		// 9000
-    MaxSpeed=14000	// 9000
+    Speed=18000	//14000 / 9000
+    MaxSpeed=18000	//14000 / 9000
     AccelRate=0
-    LifeSpan=0.425	// 0.65
+    LifeSpan=0.3305	//0.425	/0.65 
     Damage=8
     DamageRadius=0
 	HeadShotDamageMult=3.0

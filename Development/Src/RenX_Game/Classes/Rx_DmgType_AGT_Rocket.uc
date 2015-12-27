@@ -1,4 +1,4 @@
-class Rx_DmgType_AGT_Rocket extends Rx_DmgType;
+class Rx_DmgType_AGT_Rocket extends Rx_DmgType_Explosive;
 
 defaultproperties
 {

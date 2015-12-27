@@ -86,10 +86,10 @@ DefaultProperties
 	CreditContent.Add("Uzochukwu 'Franklin' Iheanacho")
 	CreditContent.Add("Wiebe 'GreaseMonk' Geertsma")
 	CreditContent.Add("Zach 'triggerhippy' Gray")
+	CreditContent.Add("Jessica 'Agent' James")
 	CreditContent.Add("Mike Geig")
 	CreditContent.Add("one1")
 	CreditContent.Add("Kil")
-	CreditContent.Add("Justin 'Agent' James");
 	CreditContent.Add("")
 	CreditContent.Add("")
 	CreditContent.Add("[ General Artist ]")

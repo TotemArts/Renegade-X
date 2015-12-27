@@ -221,9 +221,12 @@ simulated function int GetHealth();
 
 simulated function int GetMaxHealth();
 
+simulated function int GetTrueMaxHealth(); //Max Health minus armor
+
 simulated function int GetArmor();
 
 simulated function int GetMaxArmor();
+
 
 simulated function string GetBuildingName()
 {
@@ -288,6 +291,7 @@ DefaultProperties
 		bEnabled            = True
 		bDynamic            = True
 		bSynthesizeSHLight  = True
+		bCastShadows 		= False
 		TickGroup           = TG_DuringAsyncWork
 	End Object
 	Components.Add(MyLightEnvironment)

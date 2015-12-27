@@ -57,6 +57,13 @@ function bool IsTargetRelevant( Pawn thisTarget )
 			return false;
 		}
 	}
+	
+	if(Rx_VehicleSeatPawn(thisTarget) != none)
+	{
+		if(Rx_Vehicle_Air(Rx_VehicleSeatPawn(thisTarget).MyVehicle) != none || Rx_Vehicle_Air_Jet(Rx_VehicleSeatPawn(thisTarget).MyVehicle) != none) 
+			return false;		
+	}
+	
 	if (thisTarget != None && 
 		FastTrace(thisTarget.location,pawn.location) &&
 		(thisTarget.Controller != None) && 

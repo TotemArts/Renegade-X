@@ -1,4 +1,4 @@
-class Rx_DmgType_Orca_Gun extends Rx_DmgType;
+class Rx_DmgType_Orca_Gun extends Rx_DmgType_Bullet;
 
 defaultproperties
 {
@@ -17,7 +17,9 @@ defaultproperties
     CustomTauntIndex=10
     lightArmorDmgScaling=0.185
     BuildingDamageScaling=0.185
+	MCTDamageScaling=4.0
 	MineDamageScaling=1.0
+	
 
 	IconTextureName="T_DeathIcon_Orca"
 	IconTexture=Texture2D'RX_VH_Orca.UI.T_DeathIcon_Orca'

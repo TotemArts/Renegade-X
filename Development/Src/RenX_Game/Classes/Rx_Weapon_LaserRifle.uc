@@ -138,12 +138,13 @@ DefaultProperties
     InstantHitMomentum(0)=10000
     InstantHitMomentum(1)=0
 
-    Spread(0)=0.01
+    Spread(0)=0.002
     Spread(1)=0.0
  
     ClipSize = 30
     InitalNumClips = 7
     MaxClips = 7
+	bHasInfiniteAmmo=true
 
     ReloadAnimName(0) = "weaponreload"
     ReloadAnimName(1) = "weaponreload"

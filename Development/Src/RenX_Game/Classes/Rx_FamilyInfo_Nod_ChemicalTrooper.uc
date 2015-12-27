@@ -8,8 +8,11 @@ DefaultProperties
 	// TODO: TEMP DATA  Needs Adjustment
 	DamagePointsMultiplier  = 0.036f
 	HealPointsMultiplier    = 0.0072f
-	PointsForKill           = 0.0f	
-	MaxHealth               = 150
+	PointsForKill           = 10.0f	
+	MaxHealth               = 100
+	MaxArmor               	= 125
+	Armor_Type 				= A_FLAK
+	SpeedMultiplier			= 1.0
 
 	CharacterMesh=SkeletalMesh'RX_CH_Nod_BHS.Mesh.SK_CH_ChemicalTrooper'
 	

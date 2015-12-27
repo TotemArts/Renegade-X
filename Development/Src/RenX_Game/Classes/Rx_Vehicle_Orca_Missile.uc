@@ -79,7 +79,8 @@ DefaultProperties
    LockWarningInterval=1.5
    BaseTrackingStrength=5.0
    HomingTrackingStrength=5.0
-
+	 HeadShotDamageMult=10.0 // 5.0
+   
    //RotationRate=(Roll=50000)
 
    bCheckProjectileLight=true

@@ -733,7 +733,9 @@ defaultproperties
 	PendingFire(0)=0
 	PendingFire(1)=0
 
+	
 	AvailableSidearmWeapons(0) = class'Rx_Weapon_Pistol'
+	/**
 	AvailableSidearmWeapons(1) = class'Rx_Weapon_SMG'
 	AvailableSidearmWeapons(2) = class'Rx_Weapon_SMG_GDI'
 	AvailableSidearmWeapons(3) = class'Rx_Weapon_SMG_Nod'
@@ -742,17 +744,21 @@ defaultproperties
 	AvailableSidearmWeapons(6) = class'Rx_Weapon_TiberiumAutoRifle'
 	AvailableSidearmWeapons(7) = class'Rx_Weapon_Carbine'
 	AvailableSidearmWeapons(8) = class'Rx_Weapon_RepairTool'
+*/
 
-	AvailableExplosiveWeapons(0) = class'Rx_Weapon_Grenade'
-	AvailableExplosiveWeapons(1) = class'Rx_Weapon_TimedC4'
-	AvailableExplosiveWeapons(2) = class'Rx_Weapon_EMPGrenade'
+
+	//AvailableExplosiveWeapons(0) = class'Rx_Weapon_Grenade' Fuck 'nades 'yo =|
+	AvailableExplosiveWeapons(0) = class'Rx_Weapon_TimedC4'
+
+/**		AvailableExplosiveWeapons(2) = class'Rx_Weapon_EMPGrenade'
 	AvailableExplosiveWeapons(3) = class'Rx_Weapon_ATMine'
 	AvailableExplosiveWeapons(4) = class'Rx_Weapon_SmokeGrenade'
-
+*/
 	AvailableItems(0) = class'Rx_Weapon_IonCannonBeacon'
 	AvailableItems(1) = class'Rx_Weapon_NukeBeacon'
 	AvailableItems(2) = class'Rx_Weapon_Airstrike_GDI'
 	AvailableItems(3) = class'Rx_Weapon_Airstrike_Nod'
+	AvailableItems(4) = class'Rx_Weapon_RepairTool'
 
 	SidearmWeapons[0] = class'Rx_Weapon_Pistol'
 	ExplosiveWeapons[0] = class'Rx_Weapon_TimedC4'

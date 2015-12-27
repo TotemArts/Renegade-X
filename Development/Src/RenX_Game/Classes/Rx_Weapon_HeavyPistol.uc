@@ -43,8 +43,8 @@ DefaultProperties
 	
 	//-------------- Recoil
 	RecoilDelay = 0.02
-	MinRecoil = 80.0
-	MaxRecoil = 100.0
+	MinRecoil = 120.0
+	MaxRecoil = 150.0
 	MaxTotalRecoil = 5000.0
 	RecoilYawModifier = 0.5 
 	RecoilInterpSpeed = 50.0
@@ -69,41 +69,43 @@ DefaultProperties
 	EquipTime=0.45
 //	PutDownTime=0.35
 	
-	WeaponRange=6000.0
+	WeaponRange=3000.0
 
     LockerRotation=(pitch=0,yaw=0,roll=-16384)
 
+	/******** AND BACK TO INSTANT HIT *********
 	WeaponFireTypes(0)=EWFT_Projectile
 	WeaponFireTypes(1)=EWFT_None
 	
 	WeaponProjectiles(0)=class'RenX_Game.Rx_Projectile_HeavyPistol'
 	WeaponProjectiles(1)=none
+*/
 
-/*
+
 	WeaponFireTypes(0)=EWFT_InstantHit
 	WeaponFireTypes(1)=EWFT_None
 
-	InstantHitDamage(0)=30
+	InstantHitDamage(0)=20
 	InstantHitDamage(1)=0
 	
-	HeadShotDamageMult=2.0
+	HeadShotDamageMult=3
 	
-	InstantHitDamageRadius(0)=80
+	InstantHitDamageRadius(0)=1
 
 	InstantHitDamageTypes(0)=class'Rx_DmgType_HeavyPistol'
 	InstantHitDamageTypes(1)=None
 
 	InstantHitMomentum(0)=10000
-	InstantHitMomentum(1)=0
-*/	
-	Spread(0)=0.005
+	InstantHitMomentum(1)=10000
+
+	Spread(0)=0.001
 	Spread(1)=0.0
 	
 	ClipSize = 8
 	InitalNumClips = 7
 	MaxClips = 7
 
-	bHasInfiniteAmmo = false;
+	bHasInfiniteAmmo = true;
 
 	ReloadAnimName(0) = "weaponreload"
 	ReloadAnimName(1) = "weaponreload"
@@ -149,7 +151,7 @@ DefaultProperties
 	AIRating=+0.1
 	CurrentRating=+0.1	
 	bFastRepeater=true
-	bInstantHit=false	
+	bInstantHit=true	
 	
 	// IronSight:
 	bIronSightCapable = true	

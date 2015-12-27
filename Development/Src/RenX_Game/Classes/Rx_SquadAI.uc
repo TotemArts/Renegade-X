@@ -366,8 +366,18 @@ function bool CheckVehicle(UTBot B)
 
 function float VehicleDesireability(UTVehicle V, UTBot B)
 {
-	if(Rx_Vehicle(V) != None && Rx_Vehicle(V).bDriverLocked) {
-		return 0;
+	// if a vehicle was purchased by the bot AND is bound to the bot, treat normally
+	if(Rx_Vehicle(V) != None && (Rx_Vehicle(V).buyerPri != B.PlayerReplicationInfo || (Rx_Vehicle(V).BoundPRI != None && Rx_Vehicle(V).BoundPRI != B.PlayerReplicationInfo)))
+	{
+		if (Rx_Vehicle(V).bReservedToBuyer) // Reserved to buyer (nobody can enter but buyer)
+			return 0;
+
+		if (Rx_Vehicle(V).GetTeamNum() != B.GetTeamNum() && (Rx_Vehicle(V).BoundPRI == None || (B.GetTeamNum() != Rx_Vehicle(V).BoundPRI.GetTeamNum()))) // Prioritize stealing enemy vehicles
+			return super.VehicleDesireability(V,B) * 2.0;
+
+		if ((Rx_Vehicle(V).BoundPRI != None && Rx_Vehicle(V).TimeLastOccupied >= 0 && WorldInfo.TimeSeconds - Rx_Vehicle(V).TimeLastOccupied < 30) // Bound & empty for 30 seconds
+			|| Rx_Vehicle(V).bDriverLocked) // Locked
+			return 0;
 	}
 	return super.VehicleDesireability(V,B);
 }

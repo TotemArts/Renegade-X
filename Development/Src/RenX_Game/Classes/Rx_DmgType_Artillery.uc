@@ -9,7 +9,7 @@ defaultproperties
     VehicleDamageScaling=0.84
 	lightArmorDmgScaling=0.84
     BuildingDamageScaling=1.6f
-
+	
 	IconTextureName="T_DeathIcon_Artillery"
 	IconTexture=Texture2D'RX_VH_Artillery.UI.T_DeathIcon_Artillery'
 }

@@ -7,8 +7,11 @@ DefaultProperties
 
 	DamagePointsMultiplier  = 0.12667f
 	HealPointsMultiplier    = 0.02533f
-	PointsForKill           = 0.0f
-	MaxHealth               = 200
+	PointsForKill           = 30.0f
+	MaxHealth               = 100
+	MaxArmor               	= 150
+	Armor_Type 				= A_Lazarus
+	SpeedMultiplier			= 1.1
 
 	CharacterMesh=SkeletalMesh'RX_CH_Nod_SBH.Mesh.SK_CH_StealthBlackHand'
 	

@@ -16,6 +16,11 @@ defaultproperties
 	AircraftDamageScaling=1.5 //This is only used by a damage type if the value is greater than 0, otherwise it treats an aircraft like Light armour./Again, weapons that are actually difficult to hit with should see the larger bonuses, as opposed to giving huge bonuses to weapons that are hit-scan
     BuildingDamageScaling=1.225
 	MineDamageScaling=2.0
+	////Infantry Armour Types//////
+	Inf_FLAKDamageScaling = 0.70     //FLAK infantry armour (Standard rule is explosive weapons does  30% less, while gun damage does 30% more)
+	Inf_KevlarDamageScaling = 1.0	//Kevlar (General rule is 15% less damage from direct hits/bullets, but no penalties)
+	Inf_LazarusDamageScaling = 1.0  // Lazarus SBH armour, standard rule is +40% to Electrical damage but likely no other damage modifiers.
+	
     AlwaysGibDamageThreshold=99
     bNeverGibs=false
 	

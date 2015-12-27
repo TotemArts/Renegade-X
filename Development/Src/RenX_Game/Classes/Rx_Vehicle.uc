@@ -33,6 +33,7 @@ var name tpCameraTag;
 var int ZoomedFOV;
 var PlayerReplicationInfo buyerPri;
 var PlayerReplicationInfo BoundPRI;
+var float TimeLastOccupied;
 var bool bDriverLocked;
 var bool bReservedToBuyer;
 var float startTime;
@@ -693,27 +694,31 @@ function bool TryToDrive(Pawn P)
 	local bool bEnteredVehicle;
 
 	local Pawn DriverTemp;
+	local Rx_SoftLevelBoundaryVolume volume;
+	local Rx_Controller PC;
 
 	// Bots should only be drivers, not passengers
 	if(Rx_VehRolloutController(Controller) == None && Driver != None && UTBot(P.Controller) != None) 
 		return false; 
+
+	PC = Rx_Controller(P.PlayerReplicationInfo.Owner);
 
 	if(buyerPri != none)
 	{ 
 		// Known Bug: If a player buys a vehicle then switches team, he'll be able to get in the vehicle he bought on his old team before exclusive access expires.
 		if (bReservedToBuyer && P.PlayerReplicationInfo != buyerPri)
 		{
-			if(P.PlayerReplicationInfo.Owner != None && Rx_Controller(P.PlayerReplicationInfo.Owner) != None) 
+			if(P.PlayerReplicationInfo.Owner != None && PC != None) 
 			{
-				Rx_Controller(P.PlayerReplicationInfo.Owner).ReceiveVehicleMessageWithInt(class'Rx_Message_Vehicle',VM_NoEntry_BuyerReserved,buyerPri,,Class,Int(ReservationLength - `TimeSince(startTime))+1);
+				PC.ReceiveVehicleMessageWithInt(class'Rx_Message_Vehicle',VM_NoEntry_BuyerReserved,buyerPri,,Class,Int(ReservationLength - `TimeSince(startTime))+1);
 			}
 			return false;
 		}
 		else if (P.GetTeamNum() != buyerPri.GetTeamNum())
 		{
-			if(P.PlayerReplicationInfo.Owner != None && Rx_Controller(P.PlayerReplicationInfo.Owner) != None) 
+			if(P.PlayerReplicationInfo.Owner != None && PC != None) 
 			{
-				Rx_Controller(P.PlayerReplicationInfo.Owner).ReceiveVehicleMessageWithInt(class'Rx_Message_Vehicle',VM_NoEntry_TeamReserved,buyerPri,,Class,Int(ReservationLength - `TimeSince(startTime))+1);
+				PC.ReceiveVehicleMessageWithInt(class'Rx_Message_Vehicle',VM_NoEntry_TeamReserved,buyerPri,,Class,Int(ReservationLength - `TimeSince(startTime))+1);
 			}
 			return false;
 		}
@@ -793,6 +798,17 @@ function bool TryToDrive(Pawn P)
 		if( bEnteredVehicle )
 		{
 			SetTexturesToBeResident( TRUE );
+			foreach TouchingActors(class'Rx_SoftLevelBoundaryVolume', volume)
+			{
+				if (PC.IsInPlayArea)
+				{
+					PC.PlayAreaLeaveDamageWaitCounter = volume.DamageWaitCounter;
+					PC.PlayAreaLeaveDamageWait = volume.DamageWait;
+					PC.SetTimer(volume.fWaitToWarn, false, 'PlayAreaTimerTick');
+					PC.IsInPlayArea = false;
+				}
+				break;
+			}
 		}
 
 		return bEnteredVehicle;
@@ -818,6 +834,9 @@ function bool AnySeatAvailable()
 
 function bool ChangeSeat(Controller ControllerToMove, int RequestedSeat)
 {
+	if (Controller == ControllerToMove && bAllowedExit == false)
+		return false;
+
 	if (RequestedSeat == 0 && bDriverLocked && ControllerToMove.PlayerReplicationInfo != BoundPRI)
 	{
 		if ( PlayerController(ControllerToMove) != None )
@@ -827,8 +846,7 @@ function bool ChangeSeat(Controller ControllerToMove, int RequestedSeat)
 		}
 		return false;
 	}
-	else
-		return super.ChangeSeat(ControllerToMove, RequestedSeat);
+	return super.ChangeSeat(ControllerToMove, RequestedSeat);
 }
 
 /**
@@ -1352,6 +1370,7 @@ function bool SetNeutralIfNoOccupants()
 			return false;
 	}
 	SetTeamNum(255);
+	TimeLastOccupied = WorldInfo.TimeSeconds;
 	return true;
 }
 
@@ -1488,13 +1507,19 @@ simulated event TakeDamage(int Damage, Controller EventInstigator, vector HitLoc
 		    {
 				
 				ScoreDamage = Damage;
-				if(Health < 0)
+				/**if(Health < 0)
 					ScoreDamage += Health; // so that if he already was nearly dead, we dont get full score
-				if(ScoreDamage < 0)
-					ScoreDamage = 0;
+				**/
 					
-				Scr = ScoreDamage * DamagePointsScale;						
+					if(ScoreDamage > float(Health)) ScoreDamage = float(Health); //Don't give ridiculously high points for high damage
+					
+					if(ScoreDamage < 0)
+					ScoreDamage = 0;
 				
+				//`log(ScoreDamage);
+				
+				Scr = ScoreDamage * DamagePointsScale;						
+				//`log(Scr);
 				Rx_PRI(EventInstigator.PlayerReplicationInfo).AddScoreToPlayerAndTeam(Scr);	    	    
 		    }
 	    }	    		
@@ -1725,7 +1750,9 @@ simulated function StartFire(byte FireModeNum)
 	{
 		//Reloadable weapons (Most of them)
 			if(Rx_Vehicle_Weapon_Reloadable(weapon) != none &&
-			Rx_Vehicle_Weapon_Reloadable(weapon).CurrentlyReloadingClientside)
+			Rx_Vehicle_Weapon_Reloadable(weapon).CurrentlyReloadingClientside) 
+			
+			return; 
 			
 			switch(FireModeNum)
 			{
@@ -2411,6 +2438,7 @@ DefaultProperties
 	bUsesBullets = false
 	bOkAgainstBuildings=true
 	bBindable=true
+	TimeLastOccupied=-1
 	ReservationLength=30
 
 	DamageSmokeThreshold=0.25
@@ -2442,7 +2470,7 @@ DefaultProperties
 	RanOverDamageType=class'Rx_DmgType_RanOver'
 	CrushedDamageType=class'Rx_DmgType_Pancake'
 
-	EMPTime=8
+	EMPTime=6
 	EMPDamage=1
 	EMPDmgType=class'Rx_DmgType_EMPGrenade'
 

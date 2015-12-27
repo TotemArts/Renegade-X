@@ -25,7 +25,7 @@ defaultproperties
 //========================================================\\
 
     Begin Object name=SVehicleMesh
-		AnimTreeTemplate=AnimTree'RX_VH_Chinook.Anims.AT_VH_Chinook_Nod'
+		//AnimTreeTemplate=AnimTree'RX_VH_Chinook.Anims.AT_VH_Chinook_Nod' These are identical, except the Nod one is missing stuff
         Materials(0)=MaterialInstanceConstant'RX_VH_Chinook.Materials.MI_VH_Chinook_Nod'
     End Object
 	
@@ -60,13 +60,13 @@ defaultproperties
                 ViewPitchMax=0,
                 MuzzleFlashLightClass=class'RenX_Game.Rx_Light_AutoRifle_MuzzleFlash'
                 )}
-
+//CGR_ViewSocket,
     Seats(2)={( GunClass=class'Rx_Vehicle_Chinook_Weapon_Nod_Right',
 				TurretVarPrefix="GunnerRight",
                 GunSocket=(Fire_Right),
                 TurretControls=(TurretPitch_Right,TurretRotate_Right),
                 GunPivotPoints=(CGR_Yaw),
-                CameraTag=CGR_ViewSocket,
+                CameraTag=CamView3P ,
                 CameraBaseOffset=(Z=10),
                 CameraOffset=-20,
                 CameraEyeHeight=0,

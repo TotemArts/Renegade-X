@@ -477,8 +477,8 @@ DefaultProperties
 	Spread(1)=0.0
 	
 	ClipSize = 1
-	InitalNumClips = 17
-	MaxClips = 17
+	InitalNumClips = 26
+	MaxClips = 26
 
 	ReloadAnimName(0) = "weaponreload"
 	ReloadAnimName(1) = "weaponreload"

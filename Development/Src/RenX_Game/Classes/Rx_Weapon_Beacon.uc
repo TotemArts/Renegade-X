@@ -263,33 +263,52 @@ simulated function ActiveRenderOverlays( HUD H )
    local Canvas C;
    local float PanX, PanY, PosX, PosY;
 
+   local Rx_Hud RxH;
+   local Rx_GFxHud HudMovie;
+
    super.ActiveRenderOverlays(H);
    C = H.Canvas;
+   RxH = Rx_Hud(H);
+   HudMovie = RxH.HudMovie;
 
-   if (LastPos != Owner.Location || !bShowLoadPanel || C == none)
-      return;
+   if (LastPos != Owner.Location || !bShowLoadPanel || C == none) {
+		if (HudMovie != none) {
+			HudMovie.HideLoadingBar();
+		}
+		return;
+   } 
 
-   // get the draw values
-   PanX = C.SizeX * PanelWidth;
-   PanY = C.SizeY * PanelHeight;
-   // draw the loadpanel border
-   //C.DrawColor = Rx_Hud(H).TeamColors[Owner.GetTeamNum()];
-   C.SetDrawColor(255,64,64,255);
-   PosX = C.SizeX * 0.5f - PanX * 0.5f;
-   PosY = C.SizeY - PanY - 200;
-   C.SetPos(PosX, PosY);
-   C.DrawBox(PanX, PanY);
-   // draw the text
-   C.SetPos(PosX+3, PosY+3);
+   if (HudMovie != none) {
+	
+	   if (CurrentProgress < 0.5){
+			HudMovie.ShowLoadingBar(CurrentProgress, "Loading Coordinates ...");
+	   } else {
+			HudMovie.ShowLoadingBar(CurrentProgress, "Connecting to satellite ...");
+	   }
+   } else {
+	   // get the draw values
+	   PanX = C.SizeX * PanelWidth;
+	   PanY = C.SizeY * PanelHeight;
+	   // draw the loadpanel border
+	   //C.DrawColor = Rx_Hud(H).TeamColors[Owner.GetTeamNum()];
+	   C.SetDrawColor(255,64,64,255);
+	   PosX = C.SizeX * 0.5f - PanX * 0.5f;
+	   PosY = C.SizeY - PanY - 200;
+	   C.SetPos(PosX, PosY);
+	   C.DrawBox(PanX, PanY);
+	   // draw the text
+	   C.SetPos(PosX+3, PosY+3);
 
-   if (CurrentProgress < 0.5)
-      C.DrawText("Loading Coordinates ...");
-   else
-      C.DrawText("Connecting to satellite ...");
-   // draw the loadpanel anim
-   C.DrawColor.A = 50;
-   C.SetPos(PosX + 1, PosY + 1);
-   C.DrawRect(PanX * CurrentProgress - 2, PanY - 2);
+	   if (CurrentProgress < 0.5)
+		  C.DrawText("Loading Coordinates ...");
+	   else
+		  C.DrawText("Connecting to satellite ...");
+	   // draw the loadpanel anim
+	   C.DrawColor.A = 50;
+	   C.SetPos(PosX + 1, PosY + 1);
+	   C.DrawRect(PanX * CurrentProgress - 2, PanY - 2);
+   }
+
 }
 
 simulated function float GetWeaponRating()

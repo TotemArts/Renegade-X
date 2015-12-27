@@ -17,6 +17,8 @@ defaultproperties
     lightArmorDmgScaling=0.1875
 	AircraftDamageScaling=0.3 //This is only used by a damage type if the value is greater than 0, otherwise it treats an aircraft like Light armour. Can just barely 1-clip an Orca if you land everything
     BuildingDamageScaling=0.25
+	MCTDamageScaling=2.5
+	
 	MineDamageScaling=2.0
 	
 	BleedDamageFactor=0.2

@@ -44,7 +44,10 @@ simulated function float getBuildingHealthPct()
 {
 	if (OwnerBuilding != none && OwnerBuilding.BuildingVisuals != none)
 	{
-		return float(OwnerBuilding.BuildingVisuals.GetHealth()) / float(OwnerBuilding.BuildingVisuals.GetMaxHealth());
+		if(OwnerBuilding.GetMaxArmor() <= 0) return float(OwnerBuilding.BuildingVisuals.GetHealth()) / float(OwnerBuilding.BuildingVisuals.GetMaxHealth());	
+			
+		if(OwnerBuilding.GetMaxArmor() > 0) return float(OwnerBuilding.BuildingVisuals.GetHealth()) / float(OwnerBuilding.BuildingVisuals.GetTrueMaxHealth()); //Used to visually display a full bar. 
+	
 	}
 	else return -1;
 }
@@ -53,7 +56,9 @@ simulated function float getBuildingHealthMaxPct()
 {
 	if (OwnerBuilding != none && OwnerBuilding.BuildingVisuals != none)
 	{
-		return float(OwnerBuilding.BuildingVisuals.GetMaxHealth() - OwnerBuilding.BuildingVisuals.GetMaxArmor()) / float(OwnerBuilding.BuildingVisuals.GetMaxHealth());		
+			if(OwnerBuilding.GetMaxArmor() <= 0) return float(OwnerBuilding.BuildingVisuals.GetMaxHealth() - OwnerBuilding.BuildingVisuals.GetMaxArmor()) / float(OwnerBuilding.BuildingVisuals.GetMaxHealth());	
+			
+			if(OwnerBuilding.GetMaxArmor() > 0) return 1.0f ; //Used to visually display a full bar. 
 	}
 	else return -1;
 }

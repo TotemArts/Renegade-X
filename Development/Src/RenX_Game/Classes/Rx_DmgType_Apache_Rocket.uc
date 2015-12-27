@@ -1,4 +1,4 @@
-class Rx_DmgType_Apache_Rocket extends Rx_DmgType;
+class Rx_DmgType_Apache_Rocket extends Rx_DmgType_Explosive;
 
 defaultproperties
 {
@@ -10,12 +10,16 @@ defaultproperties
     VehicleDamageScaling=0.76
     NodeDamageScaling=0.5
     VehicleMomentumScaling=0.025
+	
+
     bBulletHit=True
 
     CustomTauntIndex=10
     lightArmorDmgScaling=0.76
     BuildingDamageScaling=1.52
+	MCTDamageScaling=3.0
 	MineDamageScaling=2.0
+	
 	
     AlwaysGibDamageThreshold=30
 	bNeverGibs=false

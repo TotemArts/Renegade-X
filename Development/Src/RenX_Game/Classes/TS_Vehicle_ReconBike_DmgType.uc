@@ -8,6 +8,7 @@ defaultproperties
 
     VehicleDamageScaling=0.48
 	lightArmorDmgScaling=0.48
+	AircraftDamageScaling=0.60
     BuildingDamageScaling=0.96f
 	MineDamageScaling=2.0
 

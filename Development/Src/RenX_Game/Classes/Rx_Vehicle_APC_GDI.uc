@@ -127,7 +127,7 @@ DefaultProperties
     TurnTime=18
     ViewPitchMin=-13000
     HornIndex=1
-    COMOffset=(x=20.0,y=0.0,z=-55.0)
+    COMOffset=(x=25.0,y=0.0,z=-55.0)
     bUsesBullets = true
     bOkAgainstBuildings=false
     bSecondaryFireTogglesFirstPerson=true
@@ -136,7 +136,7 @@ DefaultProperties
 	
 	MaxSprintSpeedMultiplier=1.2
 	
-	CustomGravityScaling=0.6
+	CustomGravityScaling=1.5
 
     Begin Object Class=SVehicleSimTank Name=SimObject
         bClampedFrictionModel=true

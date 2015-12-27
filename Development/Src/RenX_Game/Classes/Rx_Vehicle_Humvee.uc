@@ -107,7 +107,7 @@ DefaultProperties
     bOkAgainstBuildings=false
     bSecondaryFireTogglesFirstPerson=true
 	
-	CustomGravityScaling=0.6
+	CustomGravityScaling=0.95
 
     HeavySuspensionShiftPercent=0.75f;
     bLookSteerOnNormalControls=true

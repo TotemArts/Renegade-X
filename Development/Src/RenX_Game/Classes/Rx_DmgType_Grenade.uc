@@ -1,4 +1,4 @@
-class Rx_DmgType_Grenade extends Rx_DmgType;
+class Rx_DmgType_Grenade extends Rx_DmgType; //_Explosive;
 
 defaultproperties
 {
@@ -17,6 +17,8 @@ defaultproperties
     lightArmorDmgScaling=0.15
     BuildingDamageScaling=0.15
 	MineDamageScaling=2.0
+	
+	
     AlwaysGibDamageThreshold=200
     bNeverGibs=false
 	

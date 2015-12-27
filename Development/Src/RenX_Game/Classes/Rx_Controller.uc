@@ -88,6 +88,7 @@ var bool bVaulted;
 var bool bJustExitedVehicle;
 var bool bInVehicle;
 var int MapVote;
+var float NextChangeMapTime; //Used to prevent spamming of map votes in particular
 var Rx_Bot RespondingBot; // bot that should respond to a command given by the player
 var int ReplicatedHitIndicator;
 var int CurrentClientHitIndicNumber;
@@ -130,6 +131,11 @@ var int TempInt;
 var int LastClientpositionUpdates;
 var vector ClientLocTemp;
 var float ClientLocErrorDuration;
+
+/** Rx_SoftLevelBoundaryVolume related variables */
+var int PlayAreaLeaveDamageWaitCounter;
+var int	PlayAreaLeaveDamageWait;
+var bool IsInPlayArea;
 
 replication
 {
@@ -339,6 +345,25 @@ function EnableVoteMenu(bool donate)
 	VoteHandler.Enabled(self);
 }
 
+function bool CanVoteMapChange()
+{
+	if(WorldInfo.TimeSeconds < NextChangeMapTime ) 
+	{
+	ClientMessage("You must wait"@ int(NextChangeMapTime - WorldInfo.TimeSeconds) @"more seconds before you can start another MAP related vote.");
+	return false; 
+	}
+	else
+	return true; 
+}
+
+function bool CanSurrender()
+{
+	
+if(Worldinfo.GRI.ElapsedTime < Rx_Game(Worldinfo.Game).SurrenderDisabledTime)		
+		return false;
+	else
+		return true;
+}
 /** one1: Returns true if vote menu is enabled. */
 function bool IsVoteMenuEnabled()
 {
@@ -376,11 +401,35 @@ function SendVote(class<Rx_VoteMenuChoice> VoteChoiceClass, string param, int t)
 reliable server function ServerVote(class<Rx_VoteMenuChoice> VoteChoiceClass, string param, int t)
 {
 	local Rx_Game g;
-
+	local color MyColor;
+	
+	MyColor=MakeColor(111,255,157,255);
+	
+	
+	if(WorldInfo.TimeSeconds < NextChangeMapTime)
+	{
+		
+		if(
+		string(VoteChoiceClass) == "Rx_VoteMenuChoice_Surrender" ||
+		string(VoteChoiceClass) == "Rx_VoteMenuChoice_ChangeMap" ||
+		string(VoteChoiceClass) == "Rx_VoteMenuChoice_RestartMap")
+			{
+			UpdateMapOrSurrenderCooldown();
+			CTextMessage("GDI",45, "Map-related Vote Rejected: You've started one too recently ",MyColor,180, 255, true, 2, 0.75);
+			return;
+			}
+	}
+	
 	if (WorldInfo.TimeSeconds < NextVoteTime)
 	{
 		ClientMessage("Vote rejected - you've started one too recently.");
 		return;
+	}
+	
+	if(VoteChoiceClass == class'Rx_VoteMenuChoice_Surrender' && !CanSurrender()) 
+	{
+	CTextMessage("GDI",45, "Can Not Surrender for the first 15 minutes",MyColor,180, 255, true, 2, 0.75);	
+	return ; 	
 	}
 	
 	g = Rx_Game(WorldInfo.Game);
@@ -401,6 +450,9 @@ reliable server function ServerVote(class<Rx_VoteMenuChoice> VoteChoiceClass, st
 
 		g.GlobalVote = new (self) VoteChoiceClass;
 		g.GlobalVote.ServerInit(self, param, t);
+		
+	if(isMapRelatedVote(VoteChoiceClass) )	UpdateMapOrSurrenderCooldown();
+			
 		UpdateVoteCooldown();
 	}
 	else if (t == 0)
@@ -413,6 +465,9 @@ reliable server function ServerVote(class<Rx_VoteMenuChoice> VoteChoiceClass, st
 
 		g.GDIVote = new (self) VoteChoiceClass;
 		g.GDIVote.ServerInit(self, param, t);
+		
+		if(isMapRelatedVote(VoteChoiceClass) )	UpdateMapOrSurrenderCooldown();
+
 		UpdateVoteCooldown();
 	}
 	else if (t == 1)
@@ -425,9 +480,23 @@ reliable server function ServerVote(class<Rx_VoteMenuChoice> VoteChoiceClass, st
 
 		g.NODVote = new (self) VoteChoiceClass;
 		g.NODVote.ServerInit(self, param, t);
+		if(isMapRelatedVote(VoteChoiceClass) )	UpdateMapOrSurrenderCooldown();
 		UpdateVoteCooldown();
 	}
 }
+
+function bool isMapRelatedVote(coerce string VType)
+		
+{
+	if(
+	VType == "Rx_VoteMenuChoice_Surrender" ||
+	VType == "Rx_VoteMenuChoice_ChangeMap" ||
+	VType == "Rx_VoteMenuChoice_RestartMap")
+	return true; 
+	else 
+	return false; 
+		
+	}
 
 function UpdateVoteCooldown()
 {
@@ -438,6 +507,18 @@ function UpdateVoteCooldown()
 reliable client function UpdateClientVoteCooldown(float cooldown)
 {
 	NextVoteTime = WorldInfo.TimeSeconds + cooldown;
+}
+
+function UpdateMapOrSurrenderCooldown()
+{
+	
+	NextChangeMapTime = (WorldInfo.TimeSeconds + Rx_Game(WorldInfo.Game).VotePersonalCooldown*5) ; //At least 5 minutes between surrender votes by one player. 
+	UpdateClientMapOrSurrenderCooldown(Rx_Game(WorldInfo.Game).VotePersonalCooldown);
+}
+
+reliable client function UpdateClientMapOrSurrenderCooldown(float cooldown)
+{
+	NextChangeMapTime = (WorldInfo.TimeSeconds + 5*cooldown);
 }
 
 /** one1: Console input for vote choices. */
@@ -728,6 +809,21 @@ reliable client event TeamMessage( PlayerReplicationInfo PRI, coerce string S, n
 	}
 }
 
+//Sends a fancy little message to the upper/middle portion of the client's screen. :Yosh 
+reliable client function CTextMessage(string Team, float TIME, string TEXT,color C,byte Alpha_MIN, byte Alpha_MAX, bool LOOP, optional int LOOPNUM = 1, float Size = 0.75)
+{
+	if( myHUD != None )
+	{
+		//Team, the first argument, literally does not matter (right now. Leaving it around on the off chance it becomes a necessity).
+		Rx_HUD(myHUD).CommandText.SetFlashText("GDI",TIME, TEXT,C,Alpha_MIN, Alpha_MAX, LOOP, LOOPNUM,Size);
+	}
+	// since this is on the client, we can assume that if Player exists, it is a LocalPlayer
+	if( Player != None )
+	{
+		LocalPlayer( Player ).ViewportClient.ViewportConsole.OutputText( TEXT );
+	}
+}
+
 // These two functions are from PlayerController, added in here again because they are private,
 // thus couldn't be called from the Copy Paste TeamMessage function above.
 simulated private function bool CanCommunicate()
@@ -971,6 +1067,7 @@ function AddExplosives(class<Rx_Weapon> expl)
 	invmngr = Rx_InventoryManager(Pawn.InvManager);
 	if (invmngr == none) return;
 
+	/** More shite that's unnecessary 
 	if(expl == class'Rx_Weapon_TimedC4') {
 		if (bJustBaughtEngineer) {
 			expl = class'Rx_Weapon_TimedC4_Multiple';
@@ -984,7 +1081,7 @@ function AddExplosives(class<Rx_Weapon> expl)
 		else if (invmngr.default.AvailableExplosiveWeapons.Find(class'Rx_Weapon_TimedC4_Multiple') != -1) {
 			expl = class'Rx_Weapon_TimedC4_Multiple';
 		}
-	} 
+	} */
 		`log("#### expl " $ expl);
 	CurrentExplosiveWeapon = expl; 
 	ServerAddExplosives(expl);
@@ -1066,8 +1163,11 @@ function CheckAuthenticationResult() {
 
 event InitInputSystem()
 {
+	
 	super.InitInputSystem();
 	SetOurCameraMode(camMode);
+	
+	
 }
 
 reliable server function ServerEndGame() 
@@ -1649,7 +1749,7 @@ reliable server function ServerEquipNuke()
 
 function ChangeToSBH(bool sbh) 
 {
-	local pawn p;
+	local pawn p, NewP; //Let us try NOT destroying our initial pawn till after the new one is made... may solve the changing to SBH issue where Rx_Controller suddenly controls nothing
 	local vector l;
 	local rotator r; 
 	local InventoryManager i;
@@ -1657,8 +1757,8 @@ function ChangeToSBH(bool sbh)
 	p = Pawn;
 	//store the inventory info if we were to transfer over to SBH or vice versa
 	i = p.InvManager;
-	l = Pawn.Location;
-	r = Pawn.Rotation; 
+	l = p.Location;//Pawn.Location;
+	r = p.Rotation; //Pawn.Rotation; 
 	
 
 	if(sbh) 
@@ -1666,10 +1766,11 @@ function ChangeToSBH(bool sbh)
 		if(self.Pawn.class != class'Rx_Pawn_SBH' )
 		{
 			UnPossess();
-			p.Destroy(); 
-			p = Spawn(class'Rx_Pawn_SBH', , ,l,r);
+			 p.Destroy(); // Changed this to kill just the old pawn. The new one will be a new reference to see if this resolves the old SBH issue. (see above)
+			NewP = Spawn(class'Rx_Pawn_SBH', , ,l,r);
 			//restore the inventory back
-			p.InvManager = i;
+			NewP.InvManager = i;
+			NewP.bForceNetUpdate = true;
 		}
 		else
 		{
@@ -1682,9 +1783,10 @@ function ChangeToSBH(bool sbh)
 		{
 			UnPossess();
 			p.Destroy(); 
-			p = Spawn(Rx_Game(WorldInfo.Game).DefaultPawnClass, , ,l,r);
+			NewP = Spawn(Rx_Game(WorldInfo.Game).DefaultPawnClass, , ,l,r);
 			//restore the inventory back
-			p.InvManager = i;
+			NewP.InvManager = i;
+			
 		}
 		else
 		{
@@ -1692,7 +1794,8 @@ function ChangeToSBH(bool sbh)
 		}
 		
 	}
-	Possess(p, false);	
+	Possess(NewP, false);	
+	bForceNetUpdate = true;
 }
 
 exec function FreeView(bool bEnabled)
@@ -1916,6 +2019,8 @@ function BroadcastBaseDefenseSpotMessages(Rx_Defence DefenceStructure)
 	local int nr;
 		
 	if(DefenceStructure.GetTeamNum() == GetTeamNum()) {
+		
+		
 		if(DefenceStructure.GetHealth(0) == DefenceStructure.HealthMax) { 
 			msg = "Defend Defence Structure"@DefenceStructure.GetHumanReadableName();
 			nr = 27;
@@ -1938,8 +2043,13 @@ function BroadcastBuildingSpotMessages(Rx_Building Building)
 	local String msg;
 	local int nr;
 	if(Building.GetTeamNum() == GetTeamNum()) {
-		if((Building.GetHealth() + Building.GetArmor()) == Building.GetMaxHealth()) { 
+		
+		if(Building.GetMaxArmor() <= 0) { /*We're not using armour*/
+		
+		if(Building.GetHealth() == Building.GetMaxHealth()) { 
+			
 			msg = "Defend the"@Building.GetHumanReadableName()@"!";
+			
 			if(Rx_Building_Refinery(Building) != None)
 				nr = 28;
 			else if(Rx_Building_PowerPlant(Building) != None)
@@ -1951,10 +2061,36 @@ function BroadcastBuildingSpotMessages(Rx_Building Building)
 			msg = "The"@Building.GetHumanReadableName()@"needs repair!";
 			nr = 0;
 		} else {
-			msg = "The"@Building.GetHumanReadableName()@"needs repair immidiatly!";	
+			msg = "The"@Building.GetHumanReadableName()@"needs repair immediatly!";	
 			nr = 0;
+			}
+		
+									}
+			else /*We are using armour*/
+			
+		 { 
+		
+		if((Building.GetArmor()) == Building.GetMaxArmor()) { 
+			
+			msg = "Defend the"@Building.GetHumanReadableName()@"!";
+			
+			if(Rx_Building_Refinery(Building) != None)
+				nr = 28;
+			else if(Rx_Building_PowerPlant(Building) != None)
+				nr = 29;
+			else
+				nr = 27;
 		}
-	} else {
+		else if((Building.GetArmor()) > Building.GetMaxArmor()/4) {
+			msg = "The"@Building.GetHumanReadableName()@"needs repair!";
+			nr = 0;
+		} else {
+			msg = "The"@Building.GetHumanReadableName()@"needs repair immediatly!";	
+			nr = 0;
+			}
+			
+	}
+	} else { //Enemy building
 		msg = "Attack the"@Building.GetHumanReadableName()@"!";
 		if(Rx_Building_Refinery(Building) != None)
 			nr = 23;
@@ -3052,6 +3188,7 @@ reliable server function ServerChangeTeam(int N)
 	super.ServerChangeTeam(N);
 	
 	Rx_PRI(PlayerReplicationInfo).LastAirdropTime = 0;
+	Rx_PRI(PlayerReplicationInfo).AirdropCounter=0;
 	ResetLastAirdropTimeClient();	
 	
 	ForEach AllActors(class'Rx_Building_Internals', buildingInternals) {
@@ -3343,7 +3480,7 @@ event PlayerTick( float DeltaTime )
 		HowMuchCreditsString = "";
 	}
 	
-	if(Rx_PRI(PlayerReplicationInfo).LastAirdropTime != 0)
+	if(Rx_PRI(PlayerReplicationInfo).AirdropCounter != 0) //(Rx_PRI(PlayerReplicationInfo).LastAirdropTime != 0 ) Again, it is going to be zero if someone just joined. 
 		TempInt = TimeTillNextAirdrop();
 	if(Rx_PRI(PlayerReplicationInfo).LastAirdropTime != 0 && (TempInt <= 0 && TempInt > -5))
 		bDisplayingAirdropReadyMsg = true;
@@ -3374,6 +3511,8 @@ function PawnDied(Pawn P)
 	{
 		BoundVehicle.ToggleDriverLock();
 	}
+
+	IsInPlayArea = true;
 }
 
 
@@ -3385,7 +3524,13 @@ reliable client simulated function ClientPawnDied()
 		if (Rx_HUD(myHUD).PTMovie.bMovieIsOpen) {
 			Rx_HUD(myHUD).PTMovie.ClosePTMenu(false);	
 		}
-	}	
+	}
+
+	IsInPlayArea = true;
+
+	if(Rx_Hud(myHUD) != None)
+		Rx_Hud(myHUD).ClearPlayAreaAnnouncement();
+
 	super.ClientPawnDied();	
 	Rx_HUD(myHUD).ClearCapturePoint();
 }
@@ -3808,6 +3953,134 @@ function CheckClientpositionUpdates()
 	LastClientpositionUpdates = 0;
 }
 
+/** Rx_SoftLevelBoundaryVolume related stuff */
+
+function PlayAreaTimerTick()
+{
+	if(IsInPlayArea)
+		return;
+	//BAD BOY! Time to warn the disobedient player...
+	ClientPlaySound(class'Rx_SoftLevelBoundaryVolume'.default.PlayerWarnSound);
+
+	//show the first visual warning, with how long they have to get back.
+	if (WorldInfo.NetMode != NM_DedicatedServer && Rx_HUD(myHUD) != None)
+		Rx_HUD(myHUD).PlayAreaAnnouncement("RETURN TO BATTLEFIELD", PlayAreaLeaveDamageWait);
+	else
+		PlayAreaAnnouncementClient("RETURN TO BATTLEFIELD", PlayAreaLeaveDamageWait);
+		
+	//tick once.
+	SetTimer(1.0f, false, 'PlayVolumeViolationDamageCountDown');
+}
+
+function PlayVolumeViolationDamageCountDown()
+{
+	//check and see if player and vehicle returned to volume.
+	if (IsInPlayArea || Pawn.health <= 0)
+	{
+		PlayAreaLeaveDamageWaitCounter = 0; //reset
+		return;
+	}
+
+	PlayAreaLeaveDamageWaitCounter++;
+	
+	if (PlayAreaLeaveDamageWaitCounter == PlayAreaLeaveDamageWait)
+	{
+		//Time ran out...PUNISH the player!
+		PlayAreaLeaveDamageWaitCounter = 0; //reset
+		
+		if (WorldInfo.NetMode != NM_DedicatedServer && Rx_Hud(myHUD) != None)
+			Rx_Hud(myHUD).ClearPlayAreaAnnouncement();
+		else
+			ClearPlayAreaAnnouncementClient();
+		
+		// Kill vehicle (if any)
+		if (Vehicle(Pawn) != None)
+			Pawn.KilledBy(None);
+
+		// Kill player
+		Pawn.KilledBy(None);
+
+		PlayAreaLeaveDamageWaitCounter = 0; //reset
+	}
+	else
+	{
+		//keep warning.
+		if (WorldInfo.NetMode != NM_DedicatedServer && Rx_Hud(myHUD) != None)
+			Rx_Hud(myHUD).PlayAreaAnnouncement("RETURN TO BATTLEFIELD", PlayAreaLeaveDamageWait - PlayAreaLeaveDamageWaitCounter);
+		else
+			PlayAreaAnnouncementClient("RETURN TO BATTLEFIELD", PlayAreaLeaveDamageWait - PlayAreaLeaveDamageWaitCounter);
+		
+		SetTimer(1.0f, false, 'PlayVolumeViolationDamageCountDown');
+	}
+}
+
+reliable client function PlayAreaAnnouncementClient(string announcement, int count)
+{
+	if(Rx_Hud(myHUD) != None)
+		Rx_Hud(myHUD).PlayAreaAnnouncement(announcement, count);	
+}
+
+reliable client function ClearPlayAreaAnnouncementClient()
+{
+	if(Rx_Hud(myHUD) != None)
+		Rx_Hud(myHUD).ClearPlayAreaAnnouncement();
+}
+
+// Copied from PlayerController to change log type to LogRx
+function float GetServerMoveDeltaTime(float TimeStamp)
+{
+	local float DeltaTime;
+
+	DeltaTime = FMin(MaxResponseTime, TimeStamp - CurrentTimeStamp);
+	if( Pawn == None )
+	{
+		bWasSpeedHack = FALSE;
+		ResetTimeMargin();
+	}
+	else if( !CheckSpeedHack(DeltaTime) )
+	{
+		if( !bWasSpeedHack )
+		{
+			if( WorldInfo.TimeSeconds - LastSpeedHackLog > 20 )
+			{
+				`LogRx("PLAYER" `s "SpeedHack;" `s `PlayerLog(PlayerReplicationInfo));
+				LastSpeedHackLog = WorldInfo.TimeSeconds;
+			}
+			ClientMessage( "Speed Hack Detected!",'CriticalEvent' );
+		}
+		else
+		{
+			bWasSpeedHack = TRUE;
+		}
+		DeltaTime = 0;
+		Pawn.Velocity = vect(0,0,0);
+	}
+	else
+	{
+		DeltaTime *= Pawn.CustomTimeDilation;
+		bWasSpeedHack = FALSE;
+	}
+
+	return DeltaTime;
+}
+
+/** Kismet hook to trigger console events Editted to also include 'viewmode'*/
+function OnConsoleCommand( SeqAct_ConsoleCommand inAction )
+{
+	local string Command;
+
+	foreach inAction.Commands(Command)
+	{
+		// prevent "set" commands from ever working in Kismet as they are e.g. disabled in netplay
+		if (!(Left(Command, 4) ~= "set ") && !(Left(Command, 9) ~= "setnopec ") && !(Left(Command, 9) ~= "viewmode "))
+		{
+			ConsoleCommand(Command);
+		}
+	}
+}
+
+/** Properties */
+
 DefaultProperties
 {
 	DamagePostProcessChain=PostProcessChain'RenXHud.PostProcess.PPC_HitEffect'
@@ -3831,6 +4104,8 @@ DefaultProperties
 	bHasChangedFocus = false;
 
 	CPCheckTime=1.0
+
+	IsInPlayArea = true
 
 	//--------------Vaulting Options
 	ClimbHeight = 0

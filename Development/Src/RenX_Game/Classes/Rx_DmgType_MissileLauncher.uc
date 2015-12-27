@@ -1,4 +1,4 @@
-class Rx_DmgType_MissileLauncher extends Rx_DmgType;
+class Rx_DmgType_MissileLauncher extends Rx_DmgType_Explosive;
 
 defaultproperties
 {
@@ -16,6 +16,7 @@ defaultproperties
     lightArmorDmgScaling=0.75
     AircraftDamageScaling=0.90 //This is only used by a damage type if the value is greater than 0, otherwise it treats an aircraft like Light armour.
     BuildingDamageScaling=1.5
+	
 	AlwaysGibDamageThreshold=99
 	bNeverGibs=false
 	

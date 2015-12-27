@@ -7,8 +7,11 @@ DefaultProperties
 
 	DamagePointsMultiplier  = 0.157142f
 	HealPointsMultiplier    = 0.031428f
-	PointsForKill           = 0.0f
-	MaxHealth               = 250
+	PointsForKill           = 30.0f
+	MaxHealth               = 100
+	MaxArmor               	= 250
+	Armor_Type 				= A_FLAK
+	SpeedMultiplier			= 1.0
 
 	CharacterMesh=SkeletalMesh'RX_CH_Nod_Raveshaw.Mesh.SK_CH_Raveshaw'
 

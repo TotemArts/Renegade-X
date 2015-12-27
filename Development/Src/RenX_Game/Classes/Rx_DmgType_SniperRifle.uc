@@ -16,6 +16,7 @@ DefaultProperties
     bCausesBloodSplatterDecals=false
     lightArmorDmgScaling=0.3		// 0.428
     BuildingDamageScaling=0.009
+	MCTDamageScaling=100.0
 	MineDamageScaling=1.0
 	
 	KDamageImpulse=6000

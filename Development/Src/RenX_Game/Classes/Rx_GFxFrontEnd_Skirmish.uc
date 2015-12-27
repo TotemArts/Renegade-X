@@ -585,6 +585,8 @@ function LaunchSkirmishGame()
 	SelectedMap.SavePerObjectConfig();
 
 
+	
+	
     //and finally...
     OutURL =  ""$ SelectedMap.MapName
                 $"?Team=" $ SelectedMap.LastStartingTeamItemPosition
@@ -606,8 +608,14 @@ function LaunchSkirmishGame()
                 $"?HasEndGamePedistal=" $ SelectedMap.bEndGamePedistal
                 $"?HasTimeLimitExpiry=" $ SelectedMap.bTimeLimitExpiry;
 
-	`log("Command: ->> " $ "open " $ OutURL);
-    ConsoleCommand("open " $OutURL);
+	//Last second, see if this selected map has a day/night variant, and randomly choose one.
+	
+	`log("OutURL is: " @  Right(OutURL,Len(OutURL)-1) @ MapPackageHasDayNight( Right(OutURL,1))) ; 
+	
+	if(MapPackageHasDayNight(SelectedMap.MapName)) OutURL=PickDayorNight(SelectedMap.MapName);
+				
+	`log("Command: ->> " @ "open " $ OutURL);
+    ConsoleCommand("open " @ OutURL);
 }
 
 
@@ -798,6 +806,33 @@ function OnTimeLimitExpiryCheckBoxSelect(GFxClikWidget.EventData ev)
 	MapDataProviderList[LastMapListItemPosition].bTimeLimitExpiry = ev._this.GetBool("selected");
 	MapDataProviderList[LastMapListItemPosition].SavePerObjectConfig();
 }
+
+function bool MapPackageHasDayNight (string ThePackage)
+{
+	`log("Package: " @ caps(ThePackage));
+	return 
+	caps(ThePackage) == "CNC-MESA_II" ||
+	caps(ThePackage) == "CNC-FIELD"  ||	
+	caps(ThePackage) == "CNC-CANYON" ; 
+	
+}
+
+function string PickDayorNight(string BasePackageName)
+{
+	local int DorN;
+	
+	DorN=rand(3);
+	
+	`log("Random Seed was: " @ DorN) ;
+		
+	if(DorN > 0) return BasePackageName$"_Day" ;
+	else
+	return BasePackageName$"_Night";
+	
+		return BasePackageName; //Incase for some reason this gets called out of place.
+	
+}
+
 DefaultProperties
 {
 	

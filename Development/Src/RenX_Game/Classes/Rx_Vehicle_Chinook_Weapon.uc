@@ -68,6 +68,11 @@ DefaultProperties
 
 	InstantHitDamage(0)=12
 	InstantHitDamage(1)=12
+	InstantHitDamageRadius(0)=1
+	InstantHitDamageRadius(1)=1
+	InstantHitDamageTypes(0)=class'Rx_DmgType_Chinook'
+	InstantHitDamageTypes(1)=class'Rx_DmgType_Chinook'
+	
 	
 	HeadShotDamageMult=2.5
 

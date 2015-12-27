@@ -62,6 +62,7 @@ DefaultProperties
    
 	LockWarningInterval        = 1.5
 	BaseTrackingStrength       =5.0
+	HeadShotDamageMult=10.0 // 5.0
 
 	MyDamageType=Class'Rx_DmgType_MammothTank_Missile'
 

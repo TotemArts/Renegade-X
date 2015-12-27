@@ -56,6 +56,7 @@ DefaultProperties
 	LifeSpan=1.15
 	Damage=60
 	DamageRadius=500
+	HeadShotDamageMult=10.0 //5.0
 	MomentumTransfer=100000.000000
 
 	MyDamageType=Class'Rx_DmgType_LightTank'

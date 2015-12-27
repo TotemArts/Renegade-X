@@ -68,7 +68,7 @@ DefaultProperties
 		bEnabled                        = True
 		bSynthesizeSHLight              = True
 		bUseBooleanEnvironmentShadowing = False
-		bCastShadows 					= True
+		bCastShadows 					= False
 	End Object
 	Components.Add(MyLightEnvironment)
 	

@@ -7,7 +7,9 @@ simulated function WeaponEmpty()
 // 		if (Rx_Controller(Instigator.Controller).PreviousExplosiveTransactionRecords.Find(self.Class) > -1) {
 // 			Rx_Controller(Instigator.Controller).PreviousExplosiveTransactionRecords.RemoveItem(self.Class);
 // 		}
-		Rx_Controller(Instigator.Controller).CurrentExplosiveWeapon = none;
+		if (Rx_Controller(Instigator.Controller).CurrentExplosiveWeapon == self.Class) {
+			Rx_Controller(Instigator.Controller).CurrentExplosiveWeapon = none;
+		}
 	} 
 	super.WeaponEmpty();
 }

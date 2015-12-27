@@ -7,6 +7,7 @@ var GFxObject ScoreNod;
 var GFxObject test;
 var GFxObject buildings[10];
 var GFxObject buildingsHp[10];
+var GFxObject buildingsAp[10];
 var GFxObject buildingsStatus[10];
 var GFxObject Scoreboard;
 var GFxObject ScoreboardVictoryMsg;
@@ -83,6 +84,7 @@ function Draw()
 	local int nodScore;
 	local Rx_Building B;
 	local int health;
+	local int armor;
 	local int UpdateInterval;
 	
 	if (!bMovieIsOpen) {
@@ -132,12 +134,17 @@ function Draw()
 	{
 		if(GetBuildingIndex(B) == -1)
 			continue;
+		
+		
 		buildings[GetBuildingIndex(B)].SetVisible(true);
-		health = Float(B.GetHealth())/Float(B.GetMaxHealth())*100.0;
-		if(health <= 0)
+		health = Float(B.GetHealth())/Float(B.GetTrueMaxHealth())*100.0;
+		if(B.GetMaxArmor() != 0) armor = Float(B.GetArmor())/Float(B.GetMaxArmor())*100.0; 
+		if(health <= 0 && Armor <=0) {
 			buildings[GetBuildingIndex(B)].GotoAndStopI(2);
-		else	
+		} else {
 			buildingsHp[GetBuildingIndex(B)].GotoAndStopI(health);
+			buildingsAp[GetBuildingIndex(B)].GotoAndStopI(armor);
+		}
 		buildingsStatus[GetBuildingIndex(B)].GotoAndStopI(GetBuildingPicIndex(B));
 	}	
 	
@@ -526,33 +533,43 @@ function SetBuildingGfxObjects()
 {
 	buildings[0] = GetVariableObject("_root.sb.Stats_GDI.building1");
 	buildingsHp[0] = GetVariableObject("_root.sb.Stats_GDI.building1.hp");
+	buildingsAp[0] = GetVariableObject("_root.sb.Stats_GDI.building1.ap");
 	buildingsStatus[0] = GetVariableObject("_root.sb.Stats_GDI.building1.status");	
 	buildings[1] = GetVariableObject("_root.sb.Stats_GDI.building2");
 	buildingsHp[1] = GetVariableObject("_root.sb.Stats_GDI.building2.hp");
+	buildingsAp[1] = GetVariableObject("_root.sb.Stats_GDI.building2.ap");
 	buildingsStatus[1] = GetVariableObject("_root.sb.Stats_GDI.building2.status");	
 	buildings[2] = GetVariableObject("_root.sb.Stats_GDI.building3");
 	buildingsHp[2] = GetVariableObject("_root.sb.Stats_GDI.building3.hp");
+	buildingsAp[2] = GetVariableObject("_root.sb.Stats_GDI.building3.ap");
 	buildingsStatus[2] = GetVariableObject("_root.sb.Stats_GDI.building3.status");	
 	buildings[3] = GetVariableObject("_root.sb.Stats_GDI.building4");
 	buildingsHp[3] = GetVariableObject("_root.sb.Stats_GDI.building4.hp");
+	buildingsAp[3] = GetVariableObject("_root.sb.Stats_GDI.building4.ap");
 	buildingsStatus[3] = GetVariableObject("_root.sb.Stats_GDI.building4.status");	
 	buildings[4] = GetVariableObject("_root.sb.Stats_GDI.building5");
 	buildingsHp[4] = GetVariableObject("_root.sb.Stats_GDI.building5.hp");
+	buildingsAp[4] = GetVariableObject("_root.sb.Stats_GDI.building5.ap");
 	buildingsStatus[4] = GetVariableObject("_root.sb.Stats_GDI.building5.status");	
 	buildings[5] = GetVariableObject("_root.sb.Stats_Nod.building1");
 	buildingsHp[5] = GetVariableObject("_root.sb.Stats_Nod.building1.hp");
+	buildingsAp[5] = GetVariableObject("_root.sb.Stats_Nod.building1.ap");
 	buildingsStatus[5] = GetVariableObject("_root.sb.Stats_Nod.building1.status");	
 	buildings[6] = GetVariableObject("_root.sb.Stats_Nod.building2");
 	buildingsHp[6] = GetVariableObject("_root.sb.Stats_Nod.building2.hp");
+	buildingsAp[6] = GetVariableObject("_root.sb.Stats_Nod.building2.ap");
 	buildingsStatus[6] = GetVariableObject("_root.sb.Stats_Nod.building2.status");	
 	buildings[7] = GetVariableObject("_root.sb.Stats_Nod.building3");
 	buildingsHp[7] = GetVariableObject("_root.sb.Stats_Nod.building3.hp");
+	buildingsAp[7] = GetVariableObject("_root.sb.Stats_Nod.building3.ap");
 	buildingsStatus[7] = GetVariableObject("_root.sb.Stats_Nod.building3.status");	
 	buildings[8] = GetVariableObject("_root.sb.Stats_Nod.building4");
 	buildingsHp[8] = GetVariableObject("_root.sb.Stats_Nod.building4.hp");
+	buildingsAp[8] = GetVariableObject("_root.sb.Stats_Nod.building4.ap");
 	buildingsStatus[8] = GetVariableObject("_root.sb.Stats_Nod.building4.status");	
 	buildings[9] = GetVariableObject("_root.sb.Stats_Nod.building5");
 	buildingsHp[9] = GetVariableObject("_root.sb.Stats_Nod.building5.hp");
+	buildingsAp[9] = GetVariableObject("_root.sb.Stats_Nod.building5.ap");
 	buildingsStatus[9] = GetVariableObject("_root.sb.Stats_Nod.building5.status");	
 }
 

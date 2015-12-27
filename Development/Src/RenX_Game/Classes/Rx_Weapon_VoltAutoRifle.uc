@@ -459,16 +459,16 @@ DefaultProperties
     ShotCost(0)=1
     ShotCost(1)=1
 	
-    FireInterval(0)=+0.065
-    FireInterval(1)=+0.065
+    FireInterval(0)=0.06 //+0.065
+    FireInterval(1)=0.06 //+0.065
     ReloadTime(0) = 3.5
     ReloadTime(1) = 3.5
     
     EquipTime=1.0
 //	PutDownTime=0.7
 
-    Spread(0)=0.01
-    Spread(1)=0.01
+    Spread(0)=0.001//0.01
+    Spread(1)=0.001//0.01
     
     WeaponRange=3000.0
 
@@ -488,8 +488,8 @@ DefaultProperties
     InstantHitDamageTypes(0)=class'Rx_DmgType_VoltAutoRifle'
 
     ClipSize = 100
-    InitalNumClips = 5
-    MaxClips = 5
+    InitalNumClips = 7
+    MaxClips = 7
     
     FireDelayTime = 0.01
     bCharge = true

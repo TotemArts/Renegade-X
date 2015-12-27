@@ -2,5 +2,5 @@ class Rx_InventoryManager_Nod_ChemicalTrooper extends Rx_InventoryManager_Adv_NO
 
 DefaultProperties
 {
-	PrimaryWeapons[0] = class'Rx_Weapon_ChemicalThrower'
+	PrimaryWeapons[0] = class'Rx_Weapon_ChemicalThrower' //2
 }

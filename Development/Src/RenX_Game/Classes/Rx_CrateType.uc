@@ -1,7 +1,7 @@
 class  Rx_CrateType extends Object
 	abstract
 	transient
-	config(RenegadeX);
+	config(XSettings);
 
 var config float BaseProbability; // 1 = Average probability, 2 = twice average, 0.5 = half average, 0 = never
 var config int StartSpawnTime; // Time at which crate becomes possible in seconds

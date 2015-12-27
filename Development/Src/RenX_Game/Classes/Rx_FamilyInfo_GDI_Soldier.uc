@@ -7,8 +7,11 @@ DefaultProperties
 
 	DamagePointsMultiplier  = 0.025f
 	HealPointsMultiplier    = 0.005f
-	PointsForKill           = 0.0f
+	PointsForKill           = 5.0f
 	MaxHealth               = 100
+	MaxArmor               	= 100
+	Armor_Type 				= A_Kevlar
+	SpeedMultiplier			= 1.0
 
 	CharacterMesh=SkeletalMesh'rx_ch_gdi_soldier.Mesh.SK_CH_GDI_Soldier'
 	

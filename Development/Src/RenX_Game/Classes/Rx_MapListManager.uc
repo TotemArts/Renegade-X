@@ -112,6 +112,9 @@ function Initialize()
 
 
 	// Sync ActiveGameProfile with the current game class
+	
+	`log("INITIAL: " @ GetCurrentGameProfileIndex() @ ActiveGameProfile );
+	
 	GetCurrentGameProfileIndex();
 
 	StartupGameProfile = ActiveGameProfile;
@@ -153,16 +156,20 @@ function string GetNextMap(optional Rx_MapList InMapList=ActiveMapList)
 		InMapList = GetCurrentMapList();
 
 	if (InMapList == none)
-		return "";
-
+	{
+		`log("InMapList was none");
+	return "";
+	}
 
 	CurMapIdx = InMapList.LastActiveMapIndex;
 	NextMapIdx = InMapList.GetNextMapIndex();
 
 	// This should only ever happen when the maplist length is 0 (and that shouldn't ever happen)
 	if (NextMapIdx >= InMapList.Maps.Length)
-		return "";
-
+	{
+		`log("Map list length was 0");
+	return "";
+	}
 
 	// If the next map is disabled, then keep iterating until a selectable one is found
 	if (!bMapEnabled(InMapList, NextMapIdx))
@@ -175,6 +182,7 @@ function string GetNextMap(optional Rx_MapList InMapList=ActiveMapList)
 			if (bMapEnabled(InMapList, i) && i != CurMapIdx)
 			{
 				NextMapIdx = i;
+				`log("Did fine enabled map");
 				bFound = True;
 				break;
 			}
@@ -186,6 +194,7 @@ function string GetNextMap(optional Rx_MapList InMapList=ActiveMapList)
 		if (!bFound)
 		{
 			FallbackIdx = INDEX_None;
+			`log("No map was found: trying more lenient checks");
 			i = InMapList.GetNextMapIndex(NextMapIdx);
 
 			while (i != NextMapIdx)
@@ -213,9 +222,15 @@ function string GetNextMap(optional Rx_MapList InMapList=ActiveMapList)
 
 			// If there are still no valid maps, then just use the next map in the list
 			if (FallbackIdx == INDEX_None)
+			{
 				NextMapIdx = InMapList.GetNextMapIndex();
+				`log("NO valid maps, using next map in list: "@ NextMapIdx);
+			}
 			else
+			{
 				NextMapIdx = FallbackIdx;
+				`log("NO valid maps, using fallback 2: "@ NextMapIdx);
+			}
 		}
 	}
 
@@ -415,6 +430,7 @@ function Rx_MapList GetMapListByName(name MapListName, optional bool bCreate)
 
 	for (i=0; i<LoadedMapLists.Length; ++i)
 		if (LoadedMapLists[i].Name == MapListName)
+			`log("Loaded Map list is: " @ LoadedMapLists[0]);
 			return LoadedMapLists[i];
 
 
@@ -542,11 +558,13 @@ function Rx_MapList GetCurrentMapList(optional bool bForceUpdate)
 	GameProfileIdx = GetCurrentGameProfileIndex();
 
 	if (GameProfileIdx == INDEX_None)
+	{
+		`log("Game profile Index was NONE");
 		return none;
-
+	}
 
 	ActiveMapList = GetMapListByName(AvailableGameProfiles[GameProfileIdx].MapListName);
-
+	`log("Active Map List set to"@ ActiveMapList); 
 	return ActiveMapList;
 }
 

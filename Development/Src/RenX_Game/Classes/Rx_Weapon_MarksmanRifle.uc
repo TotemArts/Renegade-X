@@ -165,8 +165,8 @@ defaultproperties
 
 
 	ClipSize = 10
-	InitalNumClips = 8
-	MaxClips = 8
+	InitalNumClips = 12
+	MaxClips = 12
 
 	ReloadAnimName(0) = "weaponreload"
 	ReloadAnimName(1) = "weaponreload"

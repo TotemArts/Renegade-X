@@ -144,8 +144,8 @@ DefaultProperties
 	Spread(1)=0.0015
 	
 	ClipSize = 100
-	InitalNumClips = 5
-	MaxClips = 5
+	InitalNumClips = 8
+	MaxClips = 8
 	
 	FireDelayTime = 0.01
     bCharge = true

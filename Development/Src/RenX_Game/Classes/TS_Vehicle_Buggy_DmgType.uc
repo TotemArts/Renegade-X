@@ -7,16 +7,21 @@ defaultproperties
     SuicideStatsName=SUICIDES_BUGGY
 
     DamageWeaponFireMode=2
-    VehicleDamageScaling=0.135
+    VehicleDamageScaling=0.11
     NodeDamageScaling=0.5
     VehicleMomentumScaling=0.1
     bBulletHit=True
 
     CustomTauntIndex=10
-    lightArmorDmgScaling=0.17
+    lightArmorDmgScaling=0.16
 	AircraftDamageScaling=0.30 //This is only used by a damage type if the value is greater than 0, otherwise it treats an aircraft like Light armour.
     BuildingDamageScaling=0.15
 	MineDamageScaling=1.0
+	
+	////Infantry Armour Types//////
+	Inf_FLAKDamageScaling = 1.3     //FLAK infantry armour (Standard rule is explosive weapons does  30% less, while gun damage does 30% more)
+	Inf_KevlarDamageScaling = 0.8	//Kevlar (General rule is 15% less damage from direct hits/bullets, but no penalties)
+	Inf_LazarusDamageScaling = 1.0  // Lazarus SBH armour, standard rule is +40% to Electrical damage but likely no other damage modifiers.
 	
     AlwaysGibDamageThreshold=19
 	bNeverGibs=false

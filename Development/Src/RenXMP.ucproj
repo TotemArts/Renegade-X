@@ -2054,6 +2054,7 @@
     <Compile Include="RenX_Game\Classes\Rx_HUD.uc" />
     <Compile Include="RenX_Game\Classes\Rx_HUD_CaptureProgress.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Hud_Component.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_HUD_CTextComponent.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Hud_PlayerNames.uc" />
     <Compile Include="RenX_Game\Classes\Rx_HUD_TargetingBox.uc" />
     <Compile Include="RenX_Game\Classes\Rx_InventoryManager.uc" />
@@ -2134,7 +2135,6 @@
     <Compile Include="RenX_Game\Classes\Rx_Pickup_HealthLarge.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Pickup_HealthMedium.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Pickup_HealthSmall.uc" />
-    <Compile Include="RenX_Game\Classes\Rx_PlayAreaVolume.uc" />
     <Compile Include="RenX_Game\Classes\Rx_PlayerInput.uc" />
     <Compile Include="RenX_Game\Classes\Rx_PRI.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Projectile.uc" />
@@ -2213,14 +2213,18 @@
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_ListMutators.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_LoadMutator.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_Map.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_MineBan.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_MineLimit.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_MineUnban.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_MutateAsNone.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_MutateAsPlayer.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_NormalMode.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_Ping.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_PlayerInfo.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_RecordDemo.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_Rotation.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_ServerInfo.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_SpectateMode.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_SwapTeams.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_Team.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_Team2.uc" />
@@ -2426,6 +2430,7 @@
     <Compile Include="RenX_Game\Classes\Rx_VoteMenuChoice_ChangeMap.uc" />
     <Compile Include="RenX_Game\Classes\Rx_VoteMenuChoice_Donate.uc" />
     <Compile Include="RenX_Game\Classes\Rx_VoteMenuChoice_Kick.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_VoteMenuChoice_MineBan.uc" />
     <Compile Include="RenX_Game\Classes\Rx_VoteMenuChoice_RemoveBots.uc" />
     <Compile Include="RenX_Game\Classes\Rx_VoteMenuChoice_RestartMap.uc" />
     <Compile Include="RenX_Game\Classes\Rx_VoteMenuChoice_StartMatch.uc" />

@@ -124,6 +124,8 @@ simulated event Destroyed()
 	super.Destroyed();
 }
 
+simulated function UpdateRunSpeedNode() ;
+
 DefaultProperties
 {
 	Begin Object Name=WPawnSkeletalMeshComponent

@@ -15,6 +15,7 @@ var UTEmitter BeamEndpointEffect;
 var float SavedHealAmmount;
 var bool bHealing;
 var bool bKeepFiring;
+var float MineDamageModifier; //Modifier for disarming mines, if any
 
 /** cached cast of attachment class for calling coloring functions */
 var class<Rx_Attachment_RepairGun> RepGunAttachmentClass;
@@ -69,7 +70,7 @@ simulated function RepairBuilding(Rx_Building building, float DeltaTime)
 	local int maxRepairableHealth;
 	
 	
-	if(Rx_GRI(WorldInfo.GRI).buildingArmorPercentage > 0 && (Rx_Building_Techbuilding(building) == None && Rx_CapturableMCT(building) == None))
+	if (Rx_Building_Techbuilding(building) == None && Rx_CapturableMCT(building) == None)
 	{
 		repairableHealth = building.GetArmor();
 		maxRepairableHealth = building.GetMaxHealth() * Rx_GRI(WorldInfo.GRI).buildingArmorPercentage/100;
@@ -102,7 +103,7 @@ simulated function RepairBuildingAttachment(Rx_BuildingAttachment buildingAttach
 	local int repairableHealth;
 	local int maxRepairableHealth;	
 	
-	if(Rx_GRI(WorldInfo.GRI).buildingArmorPercentage > 0 && (Rx_Building_Techbuilding(buildingAttachment.OwnerBuilding.BuildingVisuals) == None && Rx_CapturableMCT(buildingAttachment.OwnerBuilding.BuildingVisuals) == None))
+	if(Rx_Building_Techbuilding(buildingAttachment.OwnerBuilding.BuildingVisuals) == None && Rx_CapturableMCT(buildingAttachment.OwnerBuilding.BuildingVisuals) == None)
 	{
 		repairableHealth = buildingAttachment.OwnerBuilding.BuildingVisuals.GetArmor();
 		maxRepairableHealth = buildingAttachment.OwnerBuilding.BuildingVisuals.GetMaxHealth() * Rx_GRI(WorldInfo.GRI).buildingArmorPercentage/100;
@@ -132,10 +133,12 @@ simulated function RepairBuildingAttachment(Rx_BuildingAttachment buildingAttach
 
 simulated function RepairDeployedActor(Rx_Weapon_DeployedActor deployedActor, float DeltaTime)
 {
+	
 	if (!deployedActor.bCanNotBeDisarmedAnymore 
 			&& (IsEnemy(deployedActor) || (Rx_Weapon_DeployedProxyC4(deployedActor) != None 
 												&& CurrentFireMode == 0
-												&& Rx_Weapon_DeployedProxyC4(deployedActor).OwnerPRI == Instigator.PlayerReplicationInfo)))
+												&& (Rx_Weapon_DeployedProxyC4(deployedActor).OwnerPRI == Instigator.PlayerReplicationInfo || Rx_PRI(Rx_Weapon_DeployedProxyC4(deployedActor).OwnerPRI).GetMineStatus() == false )
+												)))
 	{
 		Repair(deployedActor,DeltaTime,true);
 	}
@@ -153,10 +156,21 @@ simulated function RepairDeployedActor(Rx_Weapon_DeployedActor deployedActor, fl
 simulated function Repair(Actor actor, float DeltaTime, optional bool Disarm = false)
 {
 	local int ActualHealAmmount;
+	local float DamageMod;
 
+	DamageMod=1;
+	
+	if(Rx_Weapon_DeployedC4(actor) != none  ) 
+		{
+			if(actor.GetTeamNum() == Owner.GetTeamNum() ) DamageMod=MineDamageModifier*5; //disarming mines should be quick. 
+			else
+			DamageMod=MineDamageModifier;
+		}
+	
+	
 	bHealing = true;
 
-	SavedHealAmmount += HealAmount * DeltaTime;
+	SavedHealAmmount += HealAmount * DamageMod * DeltaTime;
 	ActualHealAmmount = int(SavedHealAmmount);
 	
 	if(ActualHealAmmount < MinHealAmount) 
@@ -510,7 +524,8 @@ DefaultProperties
 
 	HealAmount = 20
 	MinHealAmount = 1
-
+	MineDamageModifier  = 2
+	
 	ClipSize = 999
 	InitalNumClips = 1
 	MaxClips = 1

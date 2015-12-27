@@ -7,8 +7,11 @@ DefaultProperties
 
 	DamagePointsMultiplier  = 0.020f
 	HealPointsMultiplier    = 0.004f
-	PointsForKill           = 0.0f
+	PointsForKill           = 5.0f
 	MaxHealth               = 100
+	MaxArmor               	= 75
+	Armor_Type 				= A_Kevlar
+	SpeedMultiplier			= 1.0
 	
 	ArmMeshPackageName="RX_CH_Arms"
 	ArmMesh="RX_CH_Arms.Mesh.SK_Arms_Nod_Default"

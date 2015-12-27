@@ -116,8 +116,8 @@ DefaultProperties
     ShotCost(1)=0
     FireInterval(0)=+0.1
     FireInterval(1)=+0.0
-    ReloadTime(0) = 2.7
-    ReloadTime(1) = 2.7
+    ReloadTime(0) = 3.5
+    ReloadTime(1) = 3.5
     
     EquipTime=1.0
 //	PutDownTime=0.75
@@ -145,9 +145,10 @@ DefaultProperties
     Spread(0)=0.0045
     Spread(1)=0.0
  
-    ClipSize = 100
+    ClipSize = 120
     InitalNumClips = 5
     MaxClips = 5
+	bHasInfiniteAmmo=true
 	
 	FireDelayTime = 0.01
 	bCharge = true

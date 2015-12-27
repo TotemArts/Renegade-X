@@ -35,15 +35,15 @@ DefaultProperties
 	
 	//-------------- Recoil
 	RecoilDelay = 0.02
-	MinRecoil = 50.0
-	MaxRecoil = 60.0
+	MinRecoil = 120.0
+	MaxRecoil = 150.0
 	MaxTotalRecoil = 5000.0
 	RecoilYawModifier = 0.5 
 	RecoilInterpSpeed = 40.0
 	RecoilDeclinePct = 0.25
 	RecoilDeclineSpeed = 4.0
-	MaxSpread = 0.1
-	RecoilSpreadIncreasePerShot = 0.003	
+	MaxSpread = 0.05
+	RecoilSpreadIncreasePerShot = 0.0025	
 	RecoilSpreadDeclineSpeed = 0.8
 	RecoilSpreadDecreaseDelay = 0.15
 	RecoilSpreadCrosshairScaling = 1000;
@@ -82,7 +82,7 @@ DefaultProperties
 //	WeaponProjectiles(0)=class'RenX_Game.Rx_Projectile_SMG'
 //	WeaponProjectiles(1)=class'RenX_Game.Rx_Projectile_SMG'
 
-	Spread(0)=0.025
+	Spread(0)=0.02
 	Spread(1)=0.0
 	
 	ClipSize = 30

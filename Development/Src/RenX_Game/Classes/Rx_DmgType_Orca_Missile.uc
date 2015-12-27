@@ -1,4 +1,4 @@
-class Rx_DmgType_Orca_Missile extends Rx_DmgType;
+class Rx_DmgType_Orca_Missile extends Rx_DmgType_Explosive;
 
 defaultproperties
 {
@@ -15,8 +15,9 @@ defaultproperties
     CustomTauntIndex=10
     lightArmorDmgScaling=1.0
     BuildingDamageScaling=2.0
+	MCTDamageScaling=4.0
 	MineDamageScaling=2.0
-
+	
     AlwaysGibDamageThreshold=99
 	bNeverGibs=false
 	

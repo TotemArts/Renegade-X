@@ -10,7 +10,7 @@ simulated function FireAmmunition()
 
 simulated function bool UsesClientSideProjectiles(byte FireMode)
 {
-	return false;
+	return true; //false;
 }
 
 DefaultProperties
@@ -79,8 +79,8 @@ DefaultProperties
 	Spread(1)=0.0
 
 	ClipSize = 6
-	InitalNumClips = 7
-	MaxClips = 7
+	InitalNumClips = 11
+	MaxClips = 11
 
 	ReloadAnimName(0) = "weaponreload"
 	ReloadAnimName(1) = "weaponreload"

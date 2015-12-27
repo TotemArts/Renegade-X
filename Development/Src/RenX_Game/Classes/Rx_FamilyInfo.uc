@@ -20,13 +20,23 @@ var localized string    CharacterName;
 /** one1: Made this obsolete. */
 //var array<class>        StartWeapons;
 
+//Enumerated values for armour types. 
+enum ENUM_Armor 
+{
+	A_Kevlar,
+	A_FLAK, 
+	A_Lazarus
+};
+
+
 var const float         DamagePointsMultiplier;
+var const float 		SpeedMultiplier;
 var const float         HealPointsMultiplier;
 var const float         PointsForKill;
 var const int           MaxHealth;
 var const int           MaxArmor;
+var ENUM_Armor 			Armor_Type;
 var const bool			bFemale; //halo2pac
-
 
 // Offset the 3rd person camera height for tall or short characters.
 var const float         CameraHeightModifier;
@@ -148,6 +158,8 @@ DefaultProperties
 
 	MaxHealth = 100
 	MaxArmor  = 100
+	Armor_Type = A_Kevlar
+	SpeedMultiplier=1
 	
 	bFemale = false; //halo2pac
 

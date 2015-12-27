@@ -64,6 +64,8 @@ var bool 		           bCheckIfBarrelInsideWorldGeomBeforeFiring;
 var bool 		           bCheckIfFireStartLocInsideOtherVehicle;
 var bool 				   CurrentlyReloadingClientside;
 var bool				   bReloadAfterEveryShot;
+var bool				   bDropOnTarget; 
+var float				   TossZ_Mod, TrackingMod; //Used for missiles that drop on their target. 
 /**
  * For reload capable weapons. Reload time and Reload Anim name's 
  * 
@@ -355,8 +357,16 @@ simulated function Projectile ProjectileFireOld()
 {
     local UDKProjectile SpawnedProjectile;
     local vector ForceLoc;
-
+	
+	
+	
     SpawnedProjectile = UDKProjectile(Super.ProjectileFire());
+	
+	if(bLockedOnTarget && bDropOnTarget && CurrentFireMode != 1) 
+	{
+		UseArcShot( Rx_Projectile_Rocket(SpawnedProjectile) );
+		SpawnedProjectile.Init( vector(AddSpread(MyVehicle.GetWeaponAim(self))) );
+	}
     if ( (Role==ROLE_Authority) && (SpawnedProjectile != None) && MyVehicle != none && MyVehicle.Mesh != none)
     {
         // apply force to vehicle
@@ -364,7 +374,9 @@ simulated function Projectile ProjectileFireOld()
         ForceLoc.Z += 100;
         MyVehicle.Mesh.AddImpulse(RecoilImpulse*SpawnedProjectile.Velocity, ForceLoc);
     }  
-    if (bTargetLockingActive && Rx_Projectile_Rocket(SpawnedProjectile) != None)
+
+	
+	if (bTargetLockingActive && Rx_Projectile_Rocket(SpawnedProjectile) != None)
     {
 		SetRocketTarget(Rx_Projectile_Rocket(SpawnedProjectile));
     }    
@@ -383,6 +395,13 @@ simulated function SetRocketTarget(Rx_Projectile_Rocket Rocket)
 		Rocket.Target = GetDesiredAimPoint();
 		Rocket.GotoState('Homing');
 	}
+}
+
+simulated function UseArcShot(Rx_Projectile_Rocket Rocket)
+{
+	Rocket.TossZ=TossZ_Mod;
+	Rocket.BaseTrackingStrength=TrackingMod; 
+	
 }
 
 function float GetOptimalRangeFor(Actor Target)
@@ -713,6 +732,8 @@ simulated function InstantFire()
 	local ImpactInfo RealImpact;
 	local int i;
 	
+	//`log("Instant Fire");
+	
 	if(WorldInfo.NetMode == NM_DedicatedServer && AIController(Instigator.Controller) == None) {
 		return;	
 	} else if(WorldInfo.Netmode == NM_Client ) {
@@ -725,9 +746,12 @@ simulated function InstantFire()
 	bUsingAimingHelp = false;
 	RealImpact = CalcWeaponFire(StartTrace, EndTrace, ImpactList);
 
+	
 	for (i = 0; i < ImpactList.length; i++)
 	{
 		if(WorldInfo.NetMode != NM_DedicatedServer && Instigator.Controller.IsLocalPlayerController()) {
+			
+			
 			
 			if(WorldInfo.NetMode == NM_Client && FracturedStaticMeshActor(RealImpact.HitActor) != None) {
 				ProcessInstantHit(CurrentFireMode, ImpactList[i]);
@@ -742,6 +766,7 @@ simulated function InstantFire()
 		} else if(ROLE == ROLE_Authority && AIController(Instigator.Controller) != None) {
 			ProcessInstantHit(CurrentFireMode, ImpactList[i]);
 		}
+		//`log("Did not process == Worldinfo:" @ WorldInfo.NetMode @ "FracturedStaticMeshActor" @ FracturedStaticMeshActor(RealImpact.HitActor));
 	}
 
 	if (Role == ROLE_Authority && (AIController(Instigator.Controller) != None || WorldInfo.NetMode == NM_StandAlone))
@@ -765,6 +790,10 @@ simulated function bool TryHeadshot(byte FiringMode, ImpactInfo Impact)
 	local float Scaling;
 	local int HeadDamage;
     	
+		
+		//`log("In TryHS" @ WeaponFireTypes[FiringMode] == EWFT_InstantHit); 
+		
+		
 	if(WeaponFireTypes[FiringMode] == EWFT_InstantHit)
 	{
 		if (Instigator == None || VSize(Instigator.Velocity) < Instigator.GroundSpeed * Instigator.CrouchedPct)
@@ -777,12 +806,16 @@ simulated function bool TryHeadshot(byte FiringMode, ImpactInfo Impact)
 		}
 
 		HeadDamage = InstantHitDamage[FiringMode]* HeadShotDamageMult;
+		
+		//`log("TryHS" @ WeaponFireTypes[FiringMode] == EWFT_InstantHit @ HeadDamage );
 		if ( (Rx_Pawn(Impact.HitActor) != None && Rx_Pawn(Impact.HitActor).TakeHeadShot(Impact, HeadShotDamageType, HeadDamage, Scaling, Instigator.Controller, false)))
 		{
 			SetFlashLocation(Impact.HitLocation);
+		//	`log("True");
 			return true;
 		}
 	}
+	//	`log("False");
 	return false;
 }
 
@@ -792,8 +825,11 @@ simulated function ProcessInstantHit( byte FiringMode, ImpactInfo Impact, option
 	local KActorFromStatic NewKActor;
 	local StaticMeshComponent HitStaticMesh;
 	
+	//`log("Process Instant Hit");
+	
 	if(WorldInfo.NetMode != NM_DedicatedServer && TryHeadshot(FiringMode, Impact)) { // cause Headshotsphere detection is done clientside and then send as a ServerALHeadshotHit()
-		return;
+	//`log("Returned"); 	
+	return;
 	}
 
 	if ( Impact.HitActor != None )
@@ -844,14 +880,21 @@ reliable server function ServerALInstanthitHit( byte FiringMode, ImpactInfo Impa
 reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, TraceHitInfo HitInfo)
 {
 	local class<Rx_Projectile>	ProjectileClass;
-	local class<DamageType> 	DamageType;
+	local class<DamageType> 	DamageType, TempDamageType; //TempDamageType Holds the REAL damage type for a weapon
 	local Rx_Vehicle			Shooter;
 	local vector				Momentum, FireDir;
-	local float 				Damage;
+	local float 				Damage, ArmorMultiplier;
 
+	//`log("Process Headshot");
+	
+	ArmorMultiplier=1; //Used for infantry armour, so it will also apply to headshots
 	Shooter = Rx_Vehicle(Owner);
 	ProjectileClass = class<Rx_Projectile>(GetProjectileClass());
 
+	//`log("Shooter:" @ Shooter @ "Projectile: " @ ProjectileClass);
+	
+	//`log("WeaponFireTypes" @ WeaponFireTypes[CurrentFireMode]); 
+	
 	if(WorldInfo.Netmode == NM_DedicatedServer && AIController(Instigator.Controller) == None) {
 		if(UTPlayercontroller(Instigator.Controller) == None || Rx_Controller(Instigator.Controller) == None) {
 			return;
@@ -859,7 +902,9 @@ reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, T
 	}	
 
 	// If we don't have a projectile class, and are not an instant hit weapon
-	if (ProjectileClass == none && !self.bInstantHit)
+	//if (ProjectileClass == none && !self.bInstantHit)
+	
+	if (ProjectileClass == none && WeaponFireTypes[CurrentFireMode] != EWFT_InstantHit)
 	{
 		return;
 	}
@@ -876,16 +921,21 @@ reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, T
 		return;
 	}
 
-	if (!self.bInstantHit)
+	
+	
+	//if (!self.bInstantHit)
+	if(WeaponFireTypes[CurrentFireMode] != EWFT_InstantHit )
 	{
 		Damage  = ProjectileClass.default.Damage * ProjectileClass.default.HeadShotDamageMult;
-    
+		TempDamageType = ProjectileClass.default.MyDamageType;
+		
 		FireDir = Normal(Target.Location - Instigator.Location);
 		Momentum = ProjectileClass.default.MomentumTransfer * FireDir;
 
 		if(ProjectileClass.default.HeadShotDamageType != None) 
 		{
 			DamageType = ProjectileClass.default.HeadShotDamageType; 
+			
 		} 
 		else 
 		{
@@ -893,7 +943,8 @@ reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, T
 		}
 	} else {
 		Damage  = self.InstantHitDamage[CurrentFireMode] * self.HeadShotDamageMult;
-    
+		TempDamageType = self.InstantHitDamageTypes[CurrentFireMode];
+
 		FireDir = Normal(Target.Location - Instigator.Location);
 		Momentum = self.InstantHitMomentum[CurrentFireMode] * FireDir;
 
@@ -907,16 +958,28 @@ reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, T
 		}
 	}
 
-	if(Rx_Pawn(Target) != None) 
+	if(Rx_Pawn(Target) != None && Rx_Pawn(Target).Armor > 0 ) 
 	{
 		Rx_Pawn(Target).setbHeadshot(true);	
+		
+		//Adjust for armour, as Rx_Pawn does not inherently adjust damage if it is a headshot 
+		if(Rx_Pawn(Target).GetArmor() == A_KEVLAR) ArmorMultiplier=class<Rx_DmgType>(TempDamageType).static.KevlarDamageScalingFor(); 
+		else
+		if(Rx_Pawn(Target).GetArmor() == A_FLAK) ArmorMultiplier=class<Rx_DmgType>(TempDamageType).static.FlakDamageScalingFor(); 
+		else
+		if(Rx_Pawn(Target).GetArmor() == A_LAZARUS) ArmorMultiplier=class<Rx_DmgType>(TempDamageType).static.LazarusDamageScalingFor(); 
+		else
+		ArmorMultiplier=1;
 	}
+	
+		Damage*=ArmorMultiplier;
+
 	
 	if(WorldInfo.Netmode == NM_DedicatedServer)
 	{
 		SetFlashLocation(HitLocation);
 	}		
-	
+	//`log("ServerALHeadshot Armor Multiplier: " @ ArmorMultiplier @ Damage);
 	Target.TakeDamage(Damage, Instigator.Controller, HitLocation, Momentum, DamageType, HitInfo, self);	
 }
 
@@ -929,6 +992,8 @@ reliable server function ServerALHit(Actor Target, vector HitLocation, TraceHitI
 	local float 				Damage;
 	local float 				HitDistDiff;
 
+	//`log("Process ServerALHit");
+	
 	Shooter = Rx_Vehicle(Owner);
 	if(Shooter == None && UTWeaponPawn(Owner) != None)
 		Shooter = Rx_Vehicle(UTWeaponPawn(Owner).MyVehicle); 
@@ -984,6 +1049,8 @@ reliable server function ServerALRadiusDamage(Actor Target, vector HurtOrigin, b
 	local float					Momentum;
 	local float 				Damage,DamageRadius;
 
+	//`log("ServerALRadiusDamage");
+	
 	Shooter = Rx_Vehicle(Owner);
 
 	ProjectileClass = class<Rx_Projectile>(GetProjectileClass());
@@ -1026,6 +1093,8 @@ simulated function InstantFireRadiusDamage(byte FiringMode, vector HurtOrigin, v
 	local vector AltOrigin, TraceHitLocation, TraceHitNormal;
 	local Actor TraceHitActor;
 
+	//`log("Process InstantFireRadiusDamage");
+	
 	// early out if already in the middle of hurt radius
 	if ( bHurtEntry )
 		return;
@@ -1065,6 +1134,9 @@ simulated function InstantFireClientRadiusCheck(byte FiringMode, vector HurtOrig
 	local Actor A;
 	local array<ClientSideHit> Hits;
 	local ClientSideHit Temp;
+	
+//	`log("Process InstantFireCLIENTRadiusDamage");
+	
 	// client radius check
 	foreach VisibleCollidingActors( class'Actor', A, InstantHitDamageRadius[FiringMode], HurtOrigin,,,,class'RxIfc_ClientSideInstantHitRadius' )
 	{
@@ -1087,6 +1159,7 @@ simulated function InstantFireClientRadiusCheck(byte FiringMode, vector HurtOrig
 
 reliable server function ServerInstantFireRadiusStart(byte FiringMode, vector HurtOrigin, Actor ImpactedActor)
 {
+	//`log("Process InstantFireRadiusSTART");
 	ClientHitFiringMode = FiringMode;
 	ClientHitHurtOrigin = HurtOrigin;
 	InstantFireHurtRadius(FiringMode, HurtOrigin, ImpactedActor, true);
@@ -1094,6 +1167,7 @@ reliable server function ServerInstantFireRadiusStart(byte FiringMode, vector Hu
 
 reliable server function ServerInstantFireRadiusHit(Actor HitActor, float Distance)
 {
+	//`log("Process InstantFireRadiusHIT");
 	// Redo this check on the server due to lag consideration. ie a vehicle may have changed teams but that has yet to be replicated to the client
 	if (!InstantHitDamageRadiusIgnoreTeam[ClientHitFiringMode] && Instigator.GetTeamNum() == HitActor.GetTeamNum())
 		return;
@@ -1109,6 +1183,8 @@ function InstantFireHurtRadius(byte FiringMode, vector HurtOrigin, Actor Impacte
 	local KActorFromStatic NewKActor;
 	local bool bShowHit;
 
+	//`log("Process InstantFireRadiuesHURT" @ FiringMode @ HurtOrigin @ ImpactedActor @ bSkipClientSideCalculated @ InstantHitDamage[FiringMode]);
+	
 	// Prevent HurtRadius() from being reentrant.
 	if ( bHurtEntry )
 		return;
@@ -1179,12 +1255,14 @@ simulated function bool ShouldRefire()
  	
  	if(CurrentlyReloadingClientside)
  	{
+		//`log("(RX_Weapon: Still reloading clientside)"); 
  		return false;
  	}
  		
  	if(bCheckIfBarrelInsideWorldGeomBeforeFiring) {
 	 	FireStartLoc = MyVehicle.GetEffectLocation(SeatIndex);
 	 	if(!FastTrace(FireStartLoc,MyVehicle.location)) {
+			//`log("Cleared Pending Fire"); 
 			ClearPendingFire(CurrentFireMode);
 			return false;
 		}
@@ -1196,6 +1274,7 @@ simulated function bool ShouldRefire()
    		{
 			if(veh == Pawn(Owner))
 				continue;
+			//`log("Cleared Pending Fire"); 
 			ClearPendingFire(CurrentFireMode);
 			return false;
 		}

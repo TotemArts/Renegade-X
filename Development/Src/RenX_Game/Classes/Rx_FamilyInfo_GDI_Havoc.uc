@@ -7,8 +7,11 @@ DefaultProperties
 
 	DamagePointsMultiplier  = 0.142857f
 	HealPointsMultiplier    = 0.028571f
-	PointsForKill           = 0.0f
-	MaxHealth               = 250
+	PointsForKill           = 30.0f
+	MaxHealth               = 100
+	MaxArmor               	= 175
+	Armor_Type 				= A_Kevlar
+	SpeedMultiplier			= 0.9
 
 	CharacterMesh=SkeletalMesh'RX_CH_GDI_Havoc.Mesh.SK_CH_Havoc'
 	

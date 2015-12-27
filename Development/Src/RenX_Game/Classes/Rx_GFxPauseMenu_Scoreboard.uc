@@ -119,7 +119,9 @@ function TickHUD()
 function UpdateBuildingIcon(Rx_Building building, GFxObject icon)
 {
 	local float buildingHealth;
+	local float buildingArmor;
 	local GFxObject buildingIconHealth;
+	local GFxObject buildingIconArmor;
 
 	if (icon == none ) {
 		return;
@@ -130,7 +132,8 @@ function UpdateBuildingIcon(Rx_Building building, GFxObject icon)
 		return;
 	}
 	//icon.SetVisible(true); //place this in setup function
-	buildingHealth = (float(building.GetHealth()) / float(building.GetMaxHealth())) * 100.0;
+	buildingHealth = (float(building.GetHealth()) / float(building.GetTrueMaxHealth())) * 100.0;
+	buildingArmor = (float(building.GetArmor()) / float(building.GetMaxArmor())) * 100.0; //If it's used for drawing, use MaxVisualArmor
 	if (buildingHealth <= 0.0) {
 		icon.GotoAndStopI(2);
 	} else {
@@ -143,6 +146,16 @@ function UpdateBuildingIcon(Rx_Building building, GFxObject icon)
 		} else {
 			buildingIconHealth.GotoAndStopI(Clamp(int(buildingHealth/6.0), 1, 16) + 1);
 		}
+		
+		buildingIconArmor = icon.GetObject("armorBar");
+		if (int(buildingArmor) == 100) {
+			buildingIconArmor.GotoAndStopI(18);
+		} else if (int(buildingArmor) == 0) {
+			buildingIconArmor.GotoAndStopI(1);
+		} else {
+			buildingIconArmor.GotoAndStopI(Clamp(int(buildingArmor/6.0), 1, 16) + 1);
+		}
+
 	}
 }
 

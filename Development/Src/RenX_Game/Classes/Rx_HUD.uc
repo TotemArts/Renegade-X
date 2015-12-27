@@ -15,7 +15,7 @@
 *********************************************************/
 
 class Rx_HUD extends UTHUDBase
-config(RenegadeX);
+config(XSettings);
 
 // Use team colors for player names. Otherwise show friendly/enemy
 var config bool NicknamesUseTeamColors;
@@ -34,6 +34,7 @@ var Rx_GFxHud HudMovie;
 var Rx_HUD_TargetingBox TargetingBox;
 var Rx_Hud_PlayerNames PlayerNames;
 var Rx_HUD_CaptureProgress CaptureProgress;
+var Rx_HUD_CTextComponent CommandText;
 
 /** GFx movie used for displaying damage system */
 var Rx_GFxDamageSystem DamageSystemMovie;
@@ -365,6 +366,7 @@ function CreateHudCompoenents()
 	TargetingBox = New class'Rx_Hud_TargetingBox';
 	PlayerNames = New class 'Rx_Hud_PlayerNames';
 	CaptureProgress = New class 'Rx_HUD_CaptureProgress';
+	CommandText = New class 'Rx_HUD_CTextComponent';
 }
 
 function UpdateHudCompoenents(float DeltaTime, Rx_HUD HUD)
@@ -372,13 +374,15 @@ function UpdateHudCompoenents(float DeltaTime, Rx_HUD HUD)
 	TargetingBox.Update(DeltaTime,HUD);  // Targetting box isn't fully seperated from this class yet so we can't update it here.
 	PlayerNames.Update(DeltaTime,HUD);
 	CaptureProgress.Update(DeltaTime,HUD);
+	CommandText.Update(DeltaTime,HUD);
 }
 
 function DrawHudCompoenents()
 {
-	TargetingBox.Draw(); // Targetting box isn't fully seperated from this class yet so we can't draw it here.
+	TargetingBox.Draw(); // Targeting box isn't fully separated from this class yet so we can't draw it here.
 	PlayerNames.Draw();
 	CaptureProgress.Draw();
+	CommandText.Draw(); 
 }
 
 //Create and initialize the Damage System.

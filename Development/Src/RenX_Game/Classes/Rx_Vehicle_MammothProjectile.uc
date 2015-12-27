@@ -46,6 +46,7 @@ DefaultProperties
 	Damage=80
 	DamageRadius=500
 	MomentumTransfer=100000.000000
+	HeadShotDamageMult=10.0 // 5.0
 
 	MyDamageType=Class'Rx_DmgType_MammothTank_Cannon'
 

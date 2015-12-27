@@ -76,6 +76,17 @@ var bool bRepairing;
 var int DamageRate;
 var bool bTakingDamage;
 
+//Enumerated values for armour types. 
+enum ENUM_Armor 
+{
+	A_Kevlar,
+	A_FLAK, 
+	A_Lazurus
+};
+
+var ENUM_Armor Armor_Type;
+
+
 /** Is the player climbing downward? */
 var bool            bClimbDown;
 
@@ -157,8 +168,6 @@ var int ArmorMax;
 
 var name WeaponBackSocket, WeaponC4Socket, WeaponPistolSocket;
 
-var int PlayAreaLeaveDamageWaitCounter;
-var int	PlayAreaLeaveDamageWait;
 var bool bCalculatingBleedDamage;
 var bool bIsPtPawn;
 var bool bPTInitialized;
@@ -199,8 +208,6 @@ var repnotify bool bBeaconDeployAnimating;
 var int ShotgunPelletCount;
 var repnotify vector ShotgunPelletHitLocations[12];
 var bool bHeadshot;
-var int InPlayAreaVolumes;
-var Soundcue PlayerWarnSound;
 
 var Rx_Building_Obelisk Obelisk;
 var Rx_Building_AdvancedGuardTower Agt;
@@ -229,7 +236,7 @@ var byte HitEnemyWithHeadshotForDemoRec;
 replication
 {
 	if ( bNetDirty)
-		Armor, ArmorMax, CurrentBackWeapons, AirstrikeLocation, SpeedUpgradeMultiplier; 
+		Armor, ArmorMax, CurrentBackWeapons, AirstrikeLocation, SpeedUpgradeMultiplier, Armor_Type; 
 	if ( bNetDirty && !bNetOwner)
 		DodgeAnim, ReloadAnim, BoltReloadAnim, ParachuteDeployed, bRepairing, bBeaconDeployAnimating, bBlinkingName, bSprintingServer;
 	// Only replicate if our current weapon is a shotgun. Otherwise this is irrelivant.
@@ -615,6 +622,7 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 	local class<Rx_DmgType_Special> DmgType;
 	local float Scr;
 	
+	//`log("Took Damage"); 
 		
 	if(!ValidRotation(EventInstigator, DamageCauser)) {
 		return;	
@@ -664,11 +672,12 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 	ActualDamage = Damage;
 	WorldInfo.Game.ReduceDamage(ActualDamage, self, EventInstigator, HitLocation, Momentum, DamageType, DamageCauser);
 
-	//reduce damage based on armor
+	//reduce damage based on armor... Editted for infantry armour.
 	if(!bHeadshot) 
 	{
 		AdjustDamage(ActualDamage, Momentum, EventInstigator, HitLocation, DamageType, HitInfo, DamageCauser );
 	}
+	
 
 	// Controller is set to None by Actor.TakeDamage
 	Killed = Controller;
@@ -693,7 +702,7 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 
 	// When Taking Falling Damage Armor is not Useful
 	// Also water (drowning damage) is not useful to armor - halo2pac
-	if ( DamageType == class'DmgType_Fell' || DamageType == class'UTDmgType_Drowned' || DmgType != none && DmgType.default.bPiercesArmor)
+	if ( DamageType == class'Rx_DmgType_Fell' || DamageType == class'UTDmgType_Drowned' || DmgType != none && DmgType.default.bPiercesArmor)
 	{
 		Health -= ActualDamage;
 	}
@@ -831,6 +840,41 @@ function bool ValidRotation(Controller EventInstigator, Actor DamageCauser)
 			}
 		}	
 	return true;
+}
+
+function AdjustDamage(out int InDamage, out vector Momentum, Controller InstigatedBy, vector HitLocation, class<DamageType> DamageType, TraceHitInfo HitInfo, Actor DamageCauser)
+{
+	//Editted for RenX armor system. Armor reduces/increases damage so long as it's up. 	
+	
+	//`log("Damage Type in AdjustDamage():" @ DamageType );
+	//Even if they only have 1 armor left, the damage is reduced. 
+	if(Armor > 0)
+	{
+		switch(Armor_Type)
+		{
+		case A_Kevlar :
+		InDamage*=class<Rx_DmgType>(DamageType).static.KevlarDamageScalingFor();
+		break; 
+		
+		case A_FLAK :
+		InDamage*=class<Rx_DmgType>(DamageType).static.FLAKDamageScalingFor(); 
+		break; 
+		
+		case A_Lazurus : 
+		InDamage*=class<Rx_DmgType>(DamageType).static.LazarusDamageScalingFor();
+		break;
+		}
+	}
+	
+	
+	////UT3 call////
+	super.AdjustDamage(InDamage, Momentum, InstigatedBy, HitLocation, DamageType, HitInfo, DamageCauser);
+	
+}
+
+simulated function ENUM_Armor GetArmor()
+{
+	return Armor_Type;
 }
 
 function bool Died(Controller Killer, class<DamageType> damageType, vector HitLocation)
@@ -1619,25 +1663,36 @@ simulated event Vector GetWeaponStartTraceLocation(optional Weapon CurrentWeapon
 */
 simulated function bool TakeHeadShot(const out ImpactInfo Impact, class<DamageType> HeadShotDamageType, int HeadDamage, float AdditionalScale, controller InstigatingController, bool bRocketDamage)
 {
+	
+	//`log("Took Headshot" @ HeadshotDamageType @ HeadDamage @ AdditionalScale @ InstigatingController @ bRocketDamage); 
 	if(Role < ROLE_Authority && InstigatingController != None && !InstigatingController.IsLocalPlayerController()) {
+		`log("rETURN fase in take headshot");
 		return false;
 	}
 	if(InstigatingController != None && IsLocationOnHead(Impact, AdditionalScale) && (InstigatingController.IsA('PlayerController') || UTBot(InstigatingController) != None) )
 	{
 		bHeadshot = true;
+		
+		//`log("Took Headshot" @ HeadshotDamageType); 
+		
 		if(WorldInfo.NetMode != NM_DedicatedServer && Rx_Pawn(InstigatingController.Pawn) != None && InstigatingController.Pawn.IsLocallyControlled()) {
+			
 			if(Health > 0 && self.GetTeamNum() != InstigatingController.GetTeamNum() && UTPlayerController(InstigatingController) != None) {
 				Rx_Hud(UTPlayerController(InstigatingController).myHud).ShowHitMarker();
 			}	
+			//`log("Took Headshot(Local Pawn)" @ HeadshotDamageType); 
 			Rx_Weapon(InstigatingController.Pawn.Weapon).ServerALHeadshotHit(self,Impact.HitLocation,Impact.HitInfo);
 		} else if(WorldInfo.NetMode != NM_DedicatedServer && Rx_Vehicle(InstigatingController.Pawn) != None && InstigatingController.Pawn.IsLocallyControlled()) {
 			if(Health > 0 && self.GetTeamNum() != InstigatingController.GetTeamNum() && UTPlayerController(InstigatingController) != None) {
 				Rx_Hud(UTPlayerController(InstigatingController).myHud).ShowHitMarker();
 			}			
+			`log("Took Headshot(Local V)" @ HeadshotDamageType); 
 			Rx_Vehicle_Weapon(InstigatingController.Pawn.Weapon).ServerALHeadshotHit(self,Impact.HitLocation,Impact.HitInfo);
 		} else if(WorldInfo.NetMode == NM_DedicatedServer && (AIController(InstigatingController) != None || bRocketDamage)) {
+			//`log("Took Headshot(Local Rocket)" @ HeadshotDamageType);
 			TakeDamage(HeadDamage, InstigatingController, Impact.HitLocation, Impact.RayDir, HeadShotDamageType, Impact.HitInfo);
 		}
+		//`log("Was a headshot"); 
 		return true;
 	}
 	return false;
@@ -1758,7 +1813,7 @@ function DoDodge(eDoubleClickDir DoubleClickMove)
 			break;
 		// in case there is an error
 		default:
-			`log('DoDodge Error');
+		//	`log('DoDodge Error');
 			break;
 	}
 
@@ -1853,8 +1908,8 @@ function UnDodge()
 	if(Controller != None && PlayerController(Controller) != None) {
 		PlayerController(Controller).IgnoreMoveInput(false);
 	}
-	GroundSpeed = default.GroundSpeed;
-	AirSpeed = default.AirSpeed;
+	GroundSpeed = default.GroundSpeed*SpeedUpgradeMultiplier;
+	AirSpeed = default.AirSpeed*SpeedUpgradeMultiplier;
 	DodgeAnim = '';
 	if(WasInFirstPersonBeforeDodge) {
 		if(Controller != None && PlayerController(Controller) != None && WorldInfo.NetMode != NM_DedicatedServer) {
@@ -2047,99 +2102,6 @@ simulated function ProcessViewRotation( float DeltaTime, out rotator out_ViewRot
 	{
 		out_ViewRotation = PlayerController(Controller).LimitViewRotation(out_ViewRotation, ViewPitchMin, ViewPitchMax);
 	}
-}
-
-function PlayAreaTimerTick()
-{
-	local Rx_Hud RxHUD;
-
-	if(InPlayAreaVolumes > 0)
-		return;
-	//BAD BOY! Time to warn the disobedient player...
-	if (Controller != None || DrivenVehicle != None)
-	{
-		if(DrivenVehicle !=None)
-		{
-			PlayerController(DrivenVehicle.Controller).ClientPlaySound(PlayerWarnSound);
-			RxHUD = Rx_Hud(PlayerController(DrivenVehicle.Controller).myHUD);	
-		}
-		else
-		{
-			PlayerController(Controller).ClientPlaySound(PlayerWarnSound);
-			RxHUD = Rx_Hud(PlayerController(Controller).myHUD);
-		}
-		if (RxHUD != None)
-		{
-			//show the first visual warning, with how long they have to get back.
-			RxHUD.PlayAreaAnnouncement("RETURN TO BATTLEFIELD",PlayAreaLeaveDamageWait);
-		}
-		
-		//tick once.
-		SetTimer(1.0f, false, 'PlayVolumeViolationDamageCountDown');
-	}
-}
-
-function PlayVolumeViolationDamageCountDown()
-{
-	local PlayerController PC;
-	local Rx_Hud RxHUD;
-	
-	//check and see if player and vehicle returned to volume.
-	if (InPlayAreaVolumes >= 1 || health <= 0)
-	{
-		PlayAreaLeaveDamageWaitCounter = 0; //reset
-		return;
-	}
-
-	PlayAreaLeaveDamageWaitCounter++;
-	
-	if(DrivenVehicle !=None)
-		PC = PlayerController(DrivenVehicle.Controller);
-	else
-		PC = PlayerController(Controller);
-	
-	RxHUD = Rx_Hud(PC.myHUD);
-	
-	if (PlayAreaLeaveDamageWaitCounter == PlayAreaLeaveDamageWait)
-	{
-		//Time ran out...PUNISH the player!
-		PlayAreaLeaveDamageWaitCounter = 0; //reset
-		
-		if (WorldInfo.NetMode != NM_DedicatedServer && RxHUD != None)
-			RxHUD.ClearPlayAreaAnnouncement();
-		else
-			ClearPlayAreaAnnouncementClient();
-			
-		if (DrivenVehicle != None)
-			Rx_Vehicle(DrivenVehicle).DriverLeave(true);
-		
-		//kill player.
-		TakeDamage(1000,None,vect(0,0,0),vect(0,0,0),class'DmgType_Fell');
-
-		PlayAreaLeaveDamageWaitCounter = 0; //reset
-	}
-	else
-	{
-		//keep warning.
-		if (WorldInfo.NetMode != NM_DedicatedServer && RxHUD != None)
-			RxHUD.PlayAreaAnnouncement("RETURN TO BATTLEFIELD",(PlayAreaLeaveDamageWait - PlayAreaLeaveDamageWaitCounter));
-		else
-			PlayAreaAnnouncementClient("RETURN TO BATTLEFIELD",(PlayAreaLeaveDamageWait - PlayAreaLeaveDamageWaitCounter));
-		
-		SetTimer(1.0f, false, 'PlayVolumeViolationDamageCountDown');
-	}
-}
-
-reliable client function PlayAreaAnnouncementClient(string announcement, int count)
-{
-	if(Rx_Hud(PlayerController(Controller).myHUD) != None)
-		Rx_Hud(PlayerController(Controller).myHUD).PlayAreaAnnouncement(announcement,count);	
-}
-
-reliable client function ClearPlayAreaAnnouncementClient()
-{
-	if(Rx_Hud(PlayerController(Controller).myHUD) != None)
-		Rx_Hud(PlayerController(Controller).myHUD).ClearPlayAreaAnnouncement();
 }
 
 function bool IsInPain()
@@ -3257,6 +3219,41 @@ reliable server function RemoveCreditsAction(int Credits)
 	Rx_PRI(PlayerReplicationInfo).RemoveCredits(Credits);
 }
 
+function setArmorType(byte AType)
+{
+	Armor_Type=ENUM_Armor(Atype); 
+}
+
+//Add
+simulated function TakeFallingDamage()
+{
+	local float EffectiveSpeed;
+
+	if (Velocity.Z < -0.5 * MaxFallSpeed)
+	{
+		if ( Role == ROLE_Authority )
+		{
+			MakeNoise(1.0);
+			if (Velocity.Z < -1 * MaxFallSpeed)
+			{
+				EffectiveSpeed = Velocity.Z;
+				if (TouchingWaterVolume())
+				{
+					EffectiveSpeed += 100;
+				}
+				if (EffectiveSpeed < -1 * MaxFallSpeed)
+				{
+					TakeDamage(-100 * (EffectiveSpeed + MaxFallSpeed)/MaxFallSpeed, None, Location, vect(0,0,0), class'Rx_DmgType_Fell');
+				}
+				}
+		}
+	}
+	else if (Velocity.Z < -1.4 * JumpZ)
+		MakeNoise(0.5);
+	else if ( Velocity.Z < -0.8 * JumpZ )
+		MakeNoise(0.2);
+}
+
 DefaultProperties
 {
 	Begin Object Class=SkeletalMeshComponent Name=ParachuteMeshComponent
@@ -3477,13 +3474,13 @@ DefaultProperties
 //	WeaponBackSocket = Weapon_Back
 //	WeaponC4Socket = Weapon_C4 
 //	WeaponPistolSocket = Weapon_Pistol
-	
+	/
 	WalkingSpeed=90
 	RunningSpeed=310	// 290
 	SprintSpeed=420.0	// 440.0 
 	LadderSpeed=85
 	SpeedUpgradeMultiplier=1
-
+	
 	ExhaustionTime=3.0f			// Seconds
 	StaminaCooldownTime=2.0f	// Seconds
 	SprintStaminaCost=5.0f;		// Per second
@@ -3510,9 +3507,6 @@ DefaultProperties
 	
 	bReplicateHealthToAll=true
 	bCanPickupInventory=true	
-	
-	PlayerWarnSound			= SoundCue'RX_Dialogue.Generic.S_BackToObjective_Cue'
-	InPlayAreaVolumes = 1
 	
 	// Seeking modifiers. Higher values mean seeking rockets can track this vehicle better
 	SeekAimAheadModifier = 0.0

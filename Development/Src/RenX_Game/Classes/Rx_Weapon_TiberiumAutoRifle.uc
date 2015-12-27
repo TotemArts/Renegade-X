@@ -84,8 +84,8 @@ defaultproperties
 	FiringStatesArray(1)=Active
 
 	ClipSize = 25
-	InitalNumClips = 5
-	MaxClips = 5
+	InitalNumClips = 7
+	MaxClips = 7
 
 	ReloadAnimName(0) = "weaponreload"
 	ReloadAnimName(1) = "weaponreload2"

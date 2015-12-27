@@ -7,8 +7,11 @@ DefaultProperties
 
 	DamagePointsMultiplier  = 0.025f
 	HealPointsMultiplier    = 0.005f
-	PointsForKill           = 0.0f
+	PointsForKill           = 5.0f
 	MaxHealth               = 100
+	MaxArmor               	= 125
+	Armor_Type 				= A_FLAK
+	SpeedMultiplier			= 1.1
 
 	CharacterMesh=SkeletalMesh'RX_CH_Nod_Soldier.Mesh.SK_CH_Nod_Soldier_Red'
 	

@@ -1,7 +1,7 @@
 class Rx_Weapon_ATMine extends Rx_Weapon_Beacon;
 
 
-simulated function WeaponEmpty()
+/**simulated function WeaponEmpty()
 {
 	if(AmmoCount <= 0) {
 		Rx_InventoryManager(Instigator.InvManager).RemoveWeaponOfClass(self.Class);
@@ -11,7 +11,8 @@ simulated function WeaponEmpty()
 		Rx_Controller(Instigator.Controller).CurrentExplosiveWeapon = none;
 	} 
 	super.WeaponEmpty();
-}
+}*/
+
 function bool Deploy()
 {
 	if ( super.Deploy() )
@@ -27,8 +28,11 @@ function bool Deploy()
 simulated function ActiveRenderOverlays( HUD H );
 
 // AT Mines are non-refillable, players must purchase more.
-simulated function PerformRefill();
-
+//simulated function PerformRefill();
+simulated function PerformRefill()
+{
+	AmmoCount = MaxAmmoCount;
+}
 DefaultProperties
 {
 	DeployedActorClass=class'Rx_Weapon_DeployedATMine'
@@ -121,7 +125,7 @@ DefaultProperties
 
 	CrosshairMIC = MaterialInstanceConstant'RenXHud.MI_Reticle_AutoRifle'
 
-	InventoryGroup=5
+	InventoryGroup=4
 	GroupWeight=1
 	InventoryMovieGroup=35
 

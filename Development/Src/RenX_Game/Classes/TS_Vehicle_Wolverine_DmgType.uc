@@ -1,4 +1,4 @@
-class TS_Vehicle_Wolverine_DmgType extends Rx_DmgType;
+class TS_Vehicle_Wolverine_DmgType extends Rx_DmgType_Bullet;
 
 defaultproperties
 {

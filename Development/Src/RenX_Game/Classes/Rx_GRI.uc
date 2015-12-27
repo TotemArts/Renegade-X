@@ -4,6 +4,7 @@ class Rx_GRI extends UTGameReplicationInfo;
 
 var Rx_VehicleManager VehManager;
 var byte WinnerTeamNum;
+var bool WinBySurrender;
 var String WinnerReason;
 var int MapVotes[`MapVoteMaxSize];
 var string MapVoteList[`MapVoteMaxSize];
@@ -31,7 +32,7 @@ var int buildingArmorPercentage;
 replication
 {
 	if (bNetDirty)
-		WinnerTeamNum,WinnerReason,MapVotes,PurchaseSystem,MapVoteList,NextMap,buildingArmorPercentage;
+		WinnerTeamNum,WinnerReason,MapVotes,PurchaseSystem,MapVoteList,NextMap,buildingArmorPercentage, WinBySurrender;
 }
 
 simulated event PostBeginPlay()
@@ -596,7 +597,31 @@ simulated function int GetMapVote() {
 
 simulated function string GetMapVoteName()
 {
-	return MapVoteList[ GetMapVote() != -1 ? GetMapVote() : 0 ];
+	local int DorN;
+	
+	local string BasePackageName;
+	
+	
+	DorN = rand(3); 
+	
+	BasePackageName = MapVoteList[ GetMapVote() != -1 ? GetMapVote() : 0 ];
+		
+		//If it has a day/night version, give us a random seed 
+		if(MapPackageHasDayNight(BasePackageName)) 
+		{
+			if(DorN > 0) return BasePackageName$"_Day" ;
+			else
+			return BasePackageName$"_Night";
+		}
+		else
+		return BasePackageName;
+	
+}
+
+function bool MapPackageHasDayNight (string ThePackage)
+{
+	`log("Package: " @ caps(ThePackage));
+	return caps(ThePackage) == "CNC-MESA_II" || caps(ThePackage) == "CNC-FIELD" || caps(ThePackage) == "CNC-CANYON";
 }
 
 function ResetMapVotes() {

@@ -100,8 +100,8 @@ defaultproperties
 
     NumPellets = 12
     ClipSize = 8
-    InitalNumClips = 5
-    MaxClips = 5
+    InitalNumClips = 8
+    MaxClips = 8
  
     FireInterval(0)=1.5
 //    FireInterval(1)=0.65

@@ -1,4 +1,4 @@
-class Rx_DmgType_ChainGun extends Rx_DmgType;
+class Rx_DmgType_ChainGun extends Rx_DmgType_Bullet;
 
 DefaultProperties
 {
@@ -15,6 +15,8 @@ DefaultProperties
     lightArmorDmgScaling=0.2333331
 	AircraftDamageScaling=0.55 //This is only used by a damage type if the value is greater than 0, otherwise it treats an aircraft like Light armour.
     BuildingDamageScaling=0.0035
+	MCTDamageScaling=150.0
+	
 	MineDamageScaling=2.0
 	
 	DeathAnim=H_M_Death_CrotchShot

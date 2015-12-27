@@ -7,8 +7,11 @@ DefaultProperties
 
 	DamagePointsMultiplier  = 0.1f
 	HealPointsMultiplier    = 0.02f
-	PointsForKill           = 0.0f
-	MaxHealth               = 200
+	PointsForKill           = 20.0f
+	MaxHealth               = 100
+	MaxArmor               	= 150
+	Armor_Type 				= A_Kevlar
+	SpeedMultiplier			= 0.9
 
 	CharacterMesh=SkeletalMesh'RX_CH_Nod_BHS.Mesh.SK_CH_BlackHandSniper'
 	

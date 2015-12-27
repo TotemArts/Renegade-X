@@ -101,8 +101,8 @@ DefaultProperties
 	IronSightAndScopedSpread(0)= 0.0
   
     ClipSize = 4
-    InitalNumClips = 8
-    MaxClips = 8
+    InitalNumClips = 12
+    MaxClips = 12
 	
 //	FireDelayTime = 1.29
 //    bCharge = true

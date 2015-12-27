@@ -5,7 +5,7 @@
  * */
 class Rx_SystemSettingsHandler extends Rx_Actor
 	  dependson(UberPostProcessEffect) // <-- experimenting on settings that was not available on systemsettings.ini
-	  config(RenegadeX);
+	  config(XSettings);//config(RenegadeX);
 
 
 var Engine engine;

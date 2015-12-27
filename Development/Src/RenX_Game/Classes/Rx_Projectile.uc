@@ -300,8 +300,10 @@ simulated singular event HitWall(vector HitNormal, actor Wall, PrimitiveComponen
 
 			if(Rx_BuildingAttachment_MCT(Wall) != None) 
 			{
-				Wall = Rx_BuildingAttachment_MCT(Wall).OwnerBuilding.BuildingVisuals;	
+				Wall = Rx_BuildingAttachment_MCT(Wall).OwnerBuilding.BuildingVisuals;
+					
 				mctDamage = true;
+			`log("-------------MCT Hit----------" @ self @ "----------" @ mctDamage); 
 			} 
 
 			CallServerALHit(Wall,location,WallHitInfo,mctDamage);		
@@ -324,6 +326,7 @@ simulated function CallServerALHit(Actor Target, vector HitLocation, TraceHitInf
 	} 
 	else 
 	{
+		`log("Vehicle hit"); 
 		Rx_Vehicle_Weapon(Instigator.Weapon).ServerALHit(Target,HitLocation,ProjHitInfo,mctDamage);
 	}
 }

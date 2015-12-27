@@ -1010,10 +1010,10 @@ simulated function CheckMyZoom()
 	else
 	{
 		if(!Rx_Pawn(Instigator).bSprinting && !Rx_Pawn(Instigator).bSprintingServer && !Rx_Pawn(Instigator).bDodging) {
-    		P.GroundSpeed = class'Rx_Pawn'.Default.GroundSpeed;
-	    	P.AirSpeed = class'Rx_Pawn'.Default.AirSpeed;
+    		P.GroundSpeed = class'Rx_Pawn'.Default.GroundSpeed*Rx_Pawn(Instigator).SpeedUpgradeMultiplier;
+	    	P.AirSpeed = class'Rx_Pawn'.Default.AirSpeed*Rx_Pawn(Instigator).SpeedUpgradeMultiplier;
 		}
-    	P.WaterSpeed = class'Rx_Pawn'.Default.WaterSpeed;
+    	P.WaterSpeed = class'Rx_Pawn'.Default.WaterSpeed*Rx_Pawn(Instigator).SpeedUpgradeMultiplier;
     	P.JumpZ = class'Rx_Pawn'.Default.JumpZ;
 
     	FireOffset=default.FireOffset;
@@ -1045,15 +1045,20 @@ reliable server function ServerALInstanthitHit( byte FiringMode, ImpactInfo Impa
 reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, TraceHitInfo HitInfo)
 {
 	local class<UTProjectile>	ProjectileClass;
-	local class<DamageType> 	DamageType;
+	local class<DamageType> 	DamageType, TempDamageType; //TempDamageType Holds the REAL damage type for a weapon
 	local Rx_Pawn				Shooter;
 	local vector				Momentum, FireDir;
 	local float 				Damage;
-	local float 				HeadShotDamageMultLocal;
+	local float 				HeadShotDamageMultLocal, ArmorMultiplier;
 
-	Shooter = Rx_Pawn(Owner);
+	ArmorMultiplier=1; //Used for infantry armour, so it will also apply to headshots
+	
+	//`log("ServerALHeadshot called");
 	ProjectileClass = class<UTProjectile>(GetProjectileClass());
-
+	//`log("PType: " @ ProjectileClass); 
+	
+	Shooter = Rx_Pawn(Owner);
+	
 	if(WorldInfo.Netmode == NM_DedicatedServer && AIController(Instigator.Controller) == None) {
 		if(UTPlayercontroller(Instigator.Controller) == None || Rx_Controller(Instigator.Controller) == None) {
 			return;
@@ -1061,7 +1066,7 @@ reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, T
 	}	
 
 	// If we don't have a projectile class, and are not an instant hit weapon
-	if (ProjectileClass == none && !self.bInstantHit)
+	if (ProjectileClass == none && WeaponFireTypes[CurrentFireMode] != EWFT_InstantHit)
 	{
 		return;
 	}
@@ -1079,16 +1084,25 @@ reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, T
 		return;
 	}
 
-	if (!self.bInstantHit)
+	//if (!self.bInstantHit)
+		//Several weapons use instant hit and projectiles.
+	if(WeaponFireTypes[CurrentFireMode] != EWFT_InstantHit )
 	{
 		if(class<Rx_Projectile>(ProjectileClass) != None) {
 			HeadShotDamageMultLocal = class<Rx_Projectile>(ProjectileClass).default.HeadShotDamageMult;
 			HeadShotDamageType = class<Rx_Projectile>(ProjectileClass).default.HeadShotDamageType;
+			TempDamageType = class<Rx_Projectile>(ProjectileClass).default.MyDamageType;
+		//	`log("With Class " @ TempDamageType);
 		} else {
 			HeadShotDamageMultLocal = class<Rx_Projectile_Rocket>(ProjectileClass).default.HeadShotDamageMult;
 			HeadShotDamageType = class<Rx_Projectile_Rocket>(ProjectileClass).default.HeadShotDamageType;
+			TempDamageType = class<Rx_Projectile_Rocket>(ProjectileClass).default.MyDamageType;
+			//`log("No class:" @ TempDamageType);
 		}
-		Damage  = ProjectileClass.default.Damage * HeadShotDamageMultLocal;
+		
+		
+		
+		Damage = ProjectileClass.default.Damage * HeadShotDamageMultLocal;
     
 		FireDir = Normal(Target.Location - Instigator.Location);
 		Momentum = ProjectileClass.default.MomentumTransfer * FireDir;
@@ -1101,6 +1115,7 @@ reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, T
 		{
 			DamageType = ProjectileClass.default.MyDamageType; 
 		}
+		//`log("Projectile hit mods vs. " @ TempDamageType);
 	}
 	// Then we are an instant hit weapon
 	else
@@ -1109,10 +1124,19 @@ reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, T
     
 		FireDir = Normal(Target.Location - Instigator.Location);
 		Momentum = self.InstantHitMomentum[CurrentFireMode] * FireDir;
-
+		TempDamageType = self.InstantHitDamageTypes[CurrentFireMode];
+		
+		if(TempDamageType == none)	
+		{
+			TempDamageType = class<Rx_Projectile>(ProjectileClass).default.MyDamageType;
+		
+		}
+		//`log("Instant hit mods vs. " @ TempDamageType);
+		
 		if(self.HeadShotDamageType != None) 
 		{
 			DamageType = self.HeadShotDamageType;
+			
 		} 
 		else 
 		{
@@ -1120,15 +1144,30 @@ reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, T
 		}
 	}
 
-	if(Rx_Pawn(Target) != None) 
+	if(Rx_Pawn(Target) != None && Rx_Pawn(Target).Armor > 0) 
 	{
-		Rx_Pawn(Target).bHeadshot = true;	
+		//Rx_Pawn(Target).bHeadshot = true;	
+		Rx_Pawn(Target).setbHeadshot(true);
+		//`log("Armor mods vs. " @ TempDamageType);
+		//Adjust for armour, as Rx_Pawn does not inherently adjust damage if it is a headshot 
+		if(Rx_Pawn(Target).GetArmor() == A_KEVLAR) ArmorMultiplier=class<Rx_DmgType>(TempDamageType).static.KevlarDamageScalingFor(); 
+		else
+		if(Rx_Pawn(Target).GetArmor() == A_FLAK) ArmorMultiplier=class<Rx_DmgType>(TempDamageType).static.FlakDamageScalingFor(); 
+		else
+		if(Rx_Pawn(Target).GetArmor() == A_LAZARUS) ArmorMultiplier=class<Rx_DmgType>(TempDamageType).static.LazarusDamageScalingFor(); 
+		else
+		ArmorMultiplier=1;
+	//`log("Armor Mult" @ ArmorMultiplier @Damage); 
 	}
+	
+	Damage*=ArmorMultiplier;
 	
 	if(WorldInfo.Netmode == NM_DedicatedServer)
 	{
 		SetFlashLocation(HitLocation);
 	}	
+	
+	//`log("ServerALHeadshot Armor Multiplier: " @ ArmorMultiplier @ Damage);
 	
 	if(Rx_Pawn(Instigator) != None)
 		Rx_Pawn(Instigator).HitEnemyWithHeadshotForDemoRec++;	

@@ -67,13 +67,13 @@ defaultproperties
 
     ShotCost(0)=1
     ShotCost(1)=0
-    FireInterval(0)=+1.5
+    FireInterval(0)=+2.0
     FireInterval(1)=+0.0
     
     EquipTime=1.0
 //	PutDownTime=0.75
     
-    Spread(0)=0.00
+    Spread(0)=0.0
 	IronSightAndScopedSpread(0)= 0.0
  
 	WeaponFireTypes(0)=EWFT_InstantHit

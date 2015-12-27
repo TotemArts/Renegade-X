@@ -16,11 +16,11 @@ function Execute(Rx_Game game)
 	switch(ToTeam)
 	{
 		case 0:
-		game.EndRxGame("Surrender", 1);
+		game.BeginSurrender(1);
 		break;
 		
 		case 1:
-		game.EndRxGame("Surrender", 0);
+		game.BeginSurrender(0);
 		break;
 		
 		default: 
