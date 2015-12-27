@@ -13,6 +13,7 @@ defaultproperties
     VehicleMomentumScaling=0.1
     CustomTauntIndex=10
     lightArmorDmgScaling=0.2333331
+	AircraftDamageScaling=0.35
     BuildingDamageScaling=0.0035
 	MCTDamageScaling=150.0
 	

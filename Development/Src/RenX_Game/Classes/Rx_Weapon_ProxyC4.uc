@@ -1,4 +1,4 @@
-class Rx_Weapon_ProxyC4 extends Rx_Weapon_Deployable;
+class Rx_Weapon_ProxyC4 extends Rx_Weapon_Beacon ;//Rx_Weapon_Deployable;
 
 simulated function WeaponEmpty()
 {
@@ -13,7 +13,6 @@ simulated function WeaponEmpty()
 	} 
 	super.WeaponEmpty();
 }
-
 /**
  * Draw the Crosshairs
  * halo2pac - implemented code that changes crosshair color based on what's targeted. Edit for Proxy mines, tack on the mine limit.
@@ -135,6 +134,8 @@ simulated function DrawCrosshair( Hud HUD )
 }
 
 
+
+
 function bool Deploy()
 {
 	local Rx_Controller IPC;
@@ -150,13 +151,25 @@ function bool Deploy()
 	return false;
 	}
 	
-	if(super(Rx_Weapon_Deployable).Deploy()) {
+	//if(super(Rx_Weapon_Deployable).Deploy()) {
+		if(super.Deploy() ){
 		destroyOldMinesIfMinelimitReached();
 		Rx_TeamInfo(Rx_Game(WorldInfo.Game).Teams[Instigator.GetTeamNum()]).mineCount++;
 		return true;
 	}
 	return false;
 }
+
+
+
+// Don't use progress bar.
+simulated function ActiveRenderOverlays( HUD H );
+
+simulated function PerformRefill()
+{
+	AmmoCount = MaxAmmoCount;
+}
+
 
 DefaultProperties
 {
@@ -183,6 +196,8 @@ DefaultProperties
 	
 	PlayerViewOffset=(X=10.0,Y=0.0,Z=-2.5)
 	FireOffset=(X=25,Y=0,Z=-5)
+	SecondsNeedLoad=1
+	bBlockDeployCloseToOwnBase=false
 	
 	//-------------- Recoil
 	RecoilDelay = 0.07
@@ -215,9 +230,9 @@ DefaultProperties
     Spread(0)=0.0
 	Spread(1)=0.0
 	
-	ClipSize = 1
-	InitalNumClips = 6
-	MaxClips = 6
+	ClipSize = 6 //1
+	InitalNumClips = 1 //6
+	MaxClips = 1 //6
 	
 	//AmmoCount=6
 	//MaxAmmoCount=6

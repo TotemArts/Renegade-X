@@ -1045,12 +1045,14 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
 
 function bool DoJump( bool bUpdating )
 {
-	if (DeductStamina(JumpStaminaCost))
+	/**if (DeductStamina(JumpStaminaCost))
 	{			
 		JumpZ = MaxJumpZ * CurrentHopStamina;
 		CurrentHopStamina = FMax(CurrentHopStamina - HopCost,MinHopStamina);
+		}*/
+		
 		return super.DoJump(bUpdating);
-	}
+	
 	return false;
 }
 
@@ -1244,14 +1246,14 @@ simulated function Tick(float DeltaTime)
 		}
 	}
 	
-	// Regen hop stamina
+	/** Regen hop stamina
 	if (CurrentHopStamina < 1)
 	{
 		CurrentHopStamina = FMin(CurrentHopStamina + HopRegenRate * DeltaTime ,1);
 		if (CurrentHopStamina == 1 && WorldInfo.NetMode != NM_DedicatedServer)
 			SetGroundSpeed();
 	}
-
+*/
 	//Dodging(DeltaTime);
 
 	TickParachute(DeltaTime);

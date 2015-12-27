@@ -5,7 +5,7 @@ DefaultProperties
 	PrimaryWeapons[0] = class'Rx_Weapon_RocketLauncher' //2
 	PrimaryWeapons[1] = class'Rx_Weapon_EMPGrenade_Rechargeable' //5
 	
-	SidearmWeapons[0] = class'Rx_Weapon_Carbine' //1
+	AvailableSidearmWeapons(0) = class'Rx_Weapon_SMG_GDI' //1
 	
-	AvailableSidearmWeapons(1) = class'Rx_Weapon_Carbine' 
+	AvailableSidearmWeapons(1) = class'Rx_Weapon_SMG_GDI' 
 }

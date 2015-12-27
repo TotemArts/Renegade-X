@@ -11,7 +11,7 @@ DefaultProperties
 	MaxHealth               = 100
 	MaxArmor               	= 250
 	Armor_Type 				= A_Kevlar
-	SpeedMultiplier			= 1.1
+	SpeedMultiplier			= 1.0
 
 	CharacterMesh=SkeletalMesh'rx_ch_gdi_mobius.Mesh.SK_CH_Mobius_New'
 	

@@ -63,10 +63,10 @@ DefaultProperties
 	WeaponFireTypes(0)=EWFT_InstantHit
 	WeaponFireTypes(1)=EWFT_None
 
-	InstantHitDamage(0)=7
-	InstantHitDamage(1)=7
+	InstantHitDamage(0)=8
+	InstantHitDamage(1)=8
 	
-	HeadShotDamageMult=2.0
+	HeadShotDamageMult=2.5
 
 	InstantHitDamageTypes(0)=class'Rx_DmgType_SMG'
 	InstantHitDamageTypes(1)=class'Rx_DmgType_SMG'
@@ -82,7 +82,7 @@ DefaultProperties
 //	WeaponProjectiles(0)=class'RenX_Game.Rx_Projectile_SMG'
 //	WeaponProjectiles(1)=class'RenX_Game.Rx_Projectile_SMG'
 
-	Spread(0)=0.02
+	Spread(0)=0.002
 	Spread(1)=0.0
 	
 	ClipSize = 30

@@ -6,10 +6,10 @@ DefaultProperties
 	
 	PrimaryWeapons[1] = class'Rx_Weapon_SmokeGrenade_Rechargeable' //5
 	
-	SidearmWeapons[0] = class'Rx_Weapon_Carbine_Silencer' //1
+	SidearmWeapons[0] = class'Rx_Weapon_Carbine' //1
 	
 	
-	AvailableSidearmWeapons(0) = class'Rx_Weapon_Carbine_Silencer'
+	AvailableSidearmWeapons(0) = class'Rx_Weapon_Carbine'
 
 	//	AvailableSidearmWeapons(2) = class'Rx_Weapon_HeavyPistol'
 	//SidearmWeapons[1] = class'Rx_Weapon_HeavyPistol'	

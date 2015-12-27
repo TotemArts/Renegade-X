@@ -524,7 +524,7 @@ DefaultProperties
 
 	HealAmount = 20
 	MinHealAmount = 1
-	MineDamageModifier  = 2
+	MineDamageModifier  = 3
 	
 	ClipSize = 999
 	InitalNumClips = 1

@@ -32,7 +32,7 @@ simulated function ConsumeRepairAmmo(int ActualHealAmount)
 	if (ShotCost[0] <= 0)
 		return;
 	CurrentAmmoInClip = Max(CurrentAmmoInClip-ActualHealAmount,0);
-	AddAmmo(-ActualHealAmount);
+	AddAmmo(-ShotCost[0]); //AddAmmo(-ActualHealAmount);
 }
 
 simulated function StopFire(byte FireModeNum)
@@ -119,16 +119,16 @@ DefaultProperties
 	WeaponRange=300.0
 	
 	ShotCost(0)=1
-	ClipSize = 500
+	ClipSize = 200
 	FireInterval(0)=+0.3
 	FireInterval(1)=+0.3
 	
 
 	HealAmount = 20
 	MinHealAmount = 1
-	MineDamageModifier  = 5
+	MineDamageModifier  = 4
 	RechargeTime = 5.0f
-	RechargeRate = 5
+	RechargeRate = 1
 	
 	StartAltFireSound=SoundCue'RX_WP_RepairGun.Sounds.SC_RepairTool_Fire_Start'
 	EndAltFireSound=SoundCue'RX_WP_RepairGun.Sounds.SC_RepairTool_Fire_Stop'

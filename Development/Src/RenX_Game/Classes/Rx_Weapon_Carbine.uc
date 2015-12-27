@@ -65,7 +65,7 @@ defaultproperties
 	EquipTime=0.5
 //	PutDownTime=0.5
 	
-	Spread(0)=0.0045
+	Spread(0)=0.0025
 
 	FiringStatesArray(1)=Active
 /*	
@@ -78,10 +78,10 @@ defaultproperties
 	WeaponFireTypes(0)=EWFT_InstantHit
 	WeaponFireTypes(1)=EWFT_None
 
-	InstantHitDamage(0)=12
-	InstantHitDamage(1)=12
+	InstantHitDamage(0)=10
+	InstantHitDamage(1)=10
 	
-	HeadShotDamageMult=2
+	HeadShotDamageMult=2.5
 
 	InstantHitDamageTypes(0)=class'Rx_DmgType_Carbine'
 	InstantHitDamageTypes(1)=class'Rx_DmgType_Carbine'
@@ -91,7 +91,7 @@ defaultproperties
 	
 	WeaponRange=3200.0
 
-	ClipSize = 25
+	ClipSize = 30
 	InitalNumClips = 6
 	MaxClips = 6
 	

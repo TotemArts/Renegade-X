@@ -10,7 +10,7 @@ DefaultProperties
 	HealPointsMultiplier    = 0.0072f
 	PointsForKill           = 10.0f	
 	MaxHealth               = 100
-	MaxArmor               	= 125
+	MaxArmor               	= 150
 	Armor_Type 				= A_FLAK
 	SpeedMultiplier			= 1.0
 
