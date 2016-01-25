@@ -23,7 +23,7 @@ function string trigger(string parameters)
 
 	// Game Version intentionally excluded from default (passed on connect).
 	// Port, Name, Level, Players, Bots
-	return "Port" `s Rx_Game(WorldInfo.Game).Port `s "Name" `s WorldInfo.GRI.ServerName `s "Level" `s string(WorldInfo.GetPackageName()) `s "Players" `s WorldInfo.Game.NumPlayers `s "Bots" `s WorldInfo.Game.NumBots;
+	return "Port" `s Rx_Game(WorldInfo.Game).Port `s "Name" `s WorldInfo.GRI.ServerName `s "Level" `s string(WorldInfo.GetPackageName()) `s "Players" `s WorldInfo.Game.NumPlayers `s "Bots" `s WorldInfo.Game.NumBots `s "LevelGUID" `s class'Rx_Game'.static.GuidToHex(GetPackageGuid(GetPackageName()));
 }
 
 function string getHelp(string parameters)

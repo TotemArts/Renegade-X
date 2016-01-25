@@ -5,7 +5,7 @@ DefaultProperties
 	FamilyID="GDI"
 	Faction="GDI"
 
-	DamagePointsMultiplier  = 0.020f
+	//DamagePointsMultiplier  = 0.020f
 	HealPointsMultiplier    = 0.004f
 	PointsForKill           = 5.0f
 	

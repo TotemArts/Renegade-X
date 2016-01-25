@@ -14,7 +14,7 @@ defaultproperties
 
 	AttachmentClass=class'Rx_Attachment_MarksmanRifle_Nod'
 	
-//	WeaponProjectiles(0)=class'Rx_Projectile_MarksmanRifle_Nod'
+	WeaponProjectiles(0)=class'Rx_Projectile_MarksmanRifle_Nod'
 
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_MarksmanRifle_Nod'

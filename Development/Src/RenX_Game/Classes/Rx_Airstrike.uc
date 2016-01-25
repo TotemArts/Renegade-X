@@ -55,24 +55,24 @@ simulated function PlayASSound()
 	{
 		IPC = Rx_Controller(pc);
 		
-	if (pc.IsLocalController()) // play on local players only
-									// in case we are NM_ListenServer,
-									// without this check, it would replicate
-									// sound playing two times
-			pc.PlaySound(ASType.default.ApproachingSound);
-			
-	if(IPC.GetTeamNum() == 0)
-	{	
-	if(ASType==class'Rx_Airstrike_A10')	IPC.CTextMessage("GDI",90, "!!!Friendly Airstrike Inbound!!!",CGreen,255, 255, false, 1);
-	else
-	IPC.CTextMessage("GDI",90, "!!!Enemy Airstrike Inbound!!!",CRed,255, 255, false, 0.6);
-	}
-	else	
-	{	
-	if(ASType==class'Rx_Airstrike_AC130')	IPC.CTextMessage("GDI",90, "!!!Friendly Airstrike Inbound!!!",CGreen,255, 255, false, 1);
-	else
-	IPC.CTextMessage("GDI",90, "!!!Enemy Airstrike Inbound!!!",CRed,255, 255, false);
-	}
+		if (pc.IsLocalController()) // play on local players only
+										// in case we are NM_ListenServer,
+										// without this check, it would replicate
+										// sound playing two times
+				pc.PlaySound(ASType.default.ApproachingSound);
+				
+		if(IPC.GetTeamNum() == 0)
+		{	
+		if(ASType==class'Rx_Airstrike_A10')	IPC.CTextMessage("GDI",90, "!!!Friendly Airstrike Inbound ["@IPC.GetSpottargetLocationInfo(self)@"] !!!",CGreen,255, 255, false, 1);
+		else
+		IPC.CTextMessage("GDI",90, "!!!Enemy Airstrike Inbound!!!",CRed,255, 255, false, 0.6);
+		}
+		else	
+		{	
+		if(ASType==class'Rx_Airstrike_AC130')	IPC.CTextMessage("GDI",90, "!!!Friendly Airstrike Inbound ["@IPC.GetSpottargetLocationInfo(self)@"] !!! ",CGreen,255, 255, false, 1);
+		else
+		IPC.CTextMessage("GDI",90, "!!!Enemy Airstrike Inbound!!!",CRed,255, 255, false);
+		}
 		
 			
 	}

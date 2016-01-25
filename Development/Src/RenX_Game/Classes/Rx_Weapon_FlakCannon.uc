@@ -42,6 +42,10 @@ simulated function bool TryHeadshot(byte FiringMode, ImpactInfo Impact)
 	return false;
 }
 
+function bool IsInstantHit()
+{
+	return CurrentFireMode == 0; 
+}
 
 DefaultProperties
 {

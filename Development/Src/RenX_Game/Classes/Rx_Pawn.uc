@@ -124,6 +124,7 @@ var float		WalkingSpeed;
 var float		RunningSpeed;
 var float       IntendedGroundSpeed;
 var repnotify float       SpeedUpgradeMultiplier;
+var float JumpHeightMultiplier; 
 
 var name 		DodgeForwardAnim;
 var name 		DodgeBackwardAnim;
@@ -227,6 +228,7 @@ var SkelControlSingleBone RightHandIK_SB; //Right Professional Ass-Grabbin' Kont
 var bool bBlinkingName;
 var byte HitEnemyForDemorec;
 var byte HitEnemyWithHeadshotForDemoRec;
+var float LastRanInto;
 
 
 //-----------------------------------------------------------------------------
@@ -236,7 +238,7 @@ var byte HitEnemyWithHeadshotForDemoRec;
 replication
 {
 	if ( bNetDirty)
-		Armor, ArmorMax, CurrentBackWeapons, AirstrikeLocation, SpeedUpgradeMultiplier, Armor_Type; 
+		Armor, ArmorMax, CurrentBackWeapons, AirstrikeLocation, SpeedUpgradeMultiplier, Armor_Type, JumpHeightMultiplier; 
 	if ( bNetDirty && !bNetOwner)
 		DodgeAnim, ReloadAnim, BoltReloadAnim, ParachuteDeployed, bRepairing, bBeaconDeployAnimating, bBlinkingName, bSprintingServer;
 	// Only replicate if our current weapon is a shotgun. Otherwise this is irrelivant.
@@ -702,7 +704,7 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 
 	// When Taking Falling Damage Armor is not Useful
 	// Also water (drowning damage) is not useful to armor - halo2pac
-	if ( DamageType == class'Rx_DmgType_Fell' || DamageType == class'UTDmgType_Drowned' || DmgType != none && DmgType.default.bPiercesArmor)
+	if ( DamageType == class'Rx_DmgType_Fell' || DamageType == class'Rx_DmgType_Drowned' || DmgType != none && DmgType.default.bPiercesArmor)
 	{
 		Health -= ActualDamage;
 	}
@@ -848,7 +850,7 @@ function AdjustDamage(out int InDamage, out vector Momentum, Controller Instigat
 	
 	//`log("Damage Type in AdjustDamage():" @ DamageType );
 	//Even if they only have 1 armor left, the damage is reduced. 
-	if(Armor > 0)
+	if(Armor > 0 && class<Rx_DmgType>(DamageType) != none )
 	{
 		switch(Armor_Type)
 		{
@@ -1051,6 +1053,7 @@ function bool DoJump( bool bUpdating )
 		CurrentHopStamina = FMax(CurrentHopStamina - HopCost,MinHopStamina);
 		}*/
 		
+		JumpZ = default.JumpZ * JumpHeightMultiplier;
 		return super.DoJump(bUpdating);
 	
 	return false;
@@ -1668,7 +1671,7 @@ simulated function bool TakeHeadShot(const out ImpactInfo Impact, class<DamageTy
 	
 	//`log("Took Headshot" @ HeadshotDamageType @ HeadDamage @ AdditionalScale @ InstigatingController @ bRocketDamage); 
 	if(Role < ROLE_Authority && InstigatingController != None && !InstigatingController.IsLocalPlayerController()) {
-		`log("rETURN fase in take headshot");
+		//`log("rETURN fase in take headshot");
 		return false;
 	}
 	if(InstigatingController != None && IsLocationOnHead(Impact, AdditionalScale) && (InstigatingController.IsA('PlayerController') || UTBot(InstigatingController) != None) )
@@ -1688,7 +1691,7 @@ simulated function bool TakeHeadShot(const out ImpactInfo Impact, class<DamageTy
 			if(Health > 0 && self.GetTeamNum() != InstigatingController.GetTeamNum() && UTPlayerController(InstigatingController) != None) {
 				Rx_Hud(UTPlayerController(InstigatingController).myHud).ShowHitMarker();
 			}			
-			`log("Took Headshot(Local V)" @ HeadshotDamageType); 
+			//`log("Took Headshot(Local V)" @ HeadshotDamageType); 
 			Rx_Vehicle_Weapon(InstigatingController.Pawn.Weapon).ServerALHeadshotHit(self,Impact.HitLocation,Impact.HitInfo);
 		} else if(WorldInfo.NetMode == NM_DedicatedServer && (AIController(InstigatingController) != None || bRocketDamage)) {
 			//`log("Took Headshot(Local Rocket)" @ HeadshotDamageType);
@@ -2808,8 +2811,16 @@ simulated event PlayFootStepSound(int FootDown)
 {
 	local PlayerController PC;
 	local SoundCue FootSound;
+	
 	FootSound = SoundGroupClass.static.GetFootstepSound(FootDown, GetMaterialBelowFeet());
-
+	
+	if(SoundGroupClass==class'Rx_PawnSoundGroup_Heavy') 
+	{
+		FootSound.VolumeMultiplier=1.25; //1.5; 
+	} 
+	
+	
+	
 	ForEach LocalPlayerControllers(class'PlayerController', PC)
 	{
 		if ( (PC.ViewTarget != None) && (VSizeSq(PC.ViewTarget.Location - Location) < MaxFootstepDistSq) )
@@ -2821,6 +2832,8 @@ simulated event PlayFootStepSound(int FootDown)
 			return;
 		}
 	}
+	
+
 }
 
 // Debug function for testing the DeployedActor building radius trace stuff
@@ -3205,7 +3218,7 @@ function KillRecipient(Pawn Recipient)
 
 simulated function bool CanThrowWeapon()
 {
-	return false;
+	return ( (Rx_Weapon_Beacon(Weapon) != None) && Weapon.CanThrow() );
 }
 
 simulated function OnRemoveCredits(Rx_SeqAct_RemoveCredits InAction)
@@ -3254,6 +3267,11 @@ simulated function TakeFallingDamage()
 		MakeNoise(0.5);
 	else if ( Velocity.Z < -0.8 * JumpZ )
 		MakeNoise(0.2);
+}
+
+function TakeDrowningDamage()
+{
+	TakeDamage(10, None, Location + GetCollisionHeight() * vect(0,0,0.5)+ 0.7 * GetCollisionRadius() * vector(Controller.Rotation), vect(0,0,0), class'Rx_DmgType_Drowned');
 }
 
 DefaultProperties
@@ -3481,7 +3499,8 @@ DefaultProperties
 	RunningSpeed=310	// 290
 	SprintSpeed=420.0	// 440.0 
 	LadderSpeed=85
-	SpeedUpgradeMultiplier=1
+	SpeedUpgradeMultiplier=1 
+	JumpHeightMultiplier=1
 	
 	ExhaustionTime=3.0f			// Seconds
 	StaminaCooldownTime=2.0f	// Seconds
@@ -3520,4 +3539,5 @@ DefaultProperties
 	BackWeaponSocketNames[2] = Weapon_Pistol
 	BackWeaponSocketNames[3] = Weapon_C4
 	BackWeaponSocketNames[4] = Weapon_Item
+
 }

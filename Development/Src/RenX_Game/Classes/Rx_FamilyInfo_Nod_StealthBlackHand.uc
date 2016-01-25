@@ -5,13 +5,13 @@ DefaultProperties
 	FamilyID="Nod"
 	Faction="Nod"
 
-	DamagePointsMultiplier  = 0.12667f
+	//DamagePointsMultiplier  = 0.12667f
 	HealPointsMultiplier    = 0.02533f
-	PointsForKill           = 30.0f
+	PointsForKill           = 27.5f //40
 	MaxHealth               = 100
 	MaxArmor               	= 150
 	Armor_Type 				= A_Lazarus
-	SpeedMultiplier			= 1.1
+	SpeedMultiplier			= 1.1 // +10%, +7.5%, +5% 
 
 	CharacterMesh=SkeletalMesh'RX_CH_Nod_SBH.Mesh.SK_CH_StealthBlackHand'
 	

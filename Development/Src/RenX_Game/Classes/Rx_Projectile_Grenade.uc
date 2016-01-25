@@ -40,7 +40,14 @@ simulated function Timer()
 {
 	//ReplicatePositionAfterLanded();
 	
-    Explode(Location, vect(0,0,1));
+	local vector ZOffsetLocation;
+	
+	ZOffsetLocation=location;
+	
+	ZOffsetLocation.z+=40; 
+
+		
+    Explode(ZOffsetLocation,vect(0,0,10)) ;// vect(0,0,1));
 }
 
 
@@ -88,11 +95,12 @@ simulated event HitWall(vector HitNormal, Actor Wall, PrimitiveComponent WallCom
         }
         // If we hit a pawn or we are moving too slowly, explod
 
-        if ( Speed < 20  )
+       /** if ( Speed < 20  )
         {
             ImpactedActor = Wall;
             SetPhysics(PHYS_None);
         }
+		*/
     }
 }
 
@@ -128,7 +136,7 @@ simulated function bool HurtRadius
 		bCausedDamage = ImpactedActor.bProjTarget;
 	}
 
-	foreach OverlappingActors( class'Pawn', Victim, DamageRadius, HurtOrigin, true)
+	foreach OverlappingActors( class'Pawn', Victim, DamageRadius, HurtOrigin, true) //foreach OverlappingActors( class'Pawn', Victim, DamageRadius, HurtOrigin, true)
 	{
 		if(Victim == ImpactedActor || GetTeamNum() == Victim.GetTeamNum() ) {
 			continue;
@@ -144,12 +152,17 @@ simulated function bool HurtRadius
 }
 
 // Uncomment this if we don't want to projectile translate the hurt origin seeing as it hits thru walls.
-/*
+
 simulated function bool ProjectileHurtRadius( vector HurtOrigin, vector HitNormal)
 {
-	return HurtRadius(Damage, DamageRadius, MyDamageType, MomentumTransfer, AltOrigin);
+	//`log("PHR" @ HurtOrigin) ; 
+	
+	
+	return super.ProjectileHurtRadius(HurtOrigin, HitNormal);
+	
+	//HurtRadius(Damage, DamageRadius, MyDamageType, MomentumTransfer, AltOrigin);
 }
-*/
+
 
 DefaultProperties
 {
@@ -199,7 +212,7 @@ DefaultProperties
     AccelRate=0
     LifeSpan=2.0
     Damage=200
-    DamageRadius=750
+    DamageRadius=350
     MomentumTransfer=50000
 
     bCollideComplex=true

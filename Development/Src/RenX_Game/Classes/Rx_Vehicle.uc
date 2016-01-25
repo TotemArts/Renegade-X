@@ -90,14 +90,15 @@ var ParticleSystem DefaultWheelPSCTemplate;
 var ParticleSystem WheelParticleEffect, OldWheelParticleEffect;
 var UTPhysicalMaterialProperty OldPhysicalProperty;
 
-var bool bSprinting, bSprintingServer;
+var bool bSprinting;
+var repnotify bool bSprintingServer;
 
 /**Shahman: Variables when being detected*/
 var bool bSpotted;
 var bool bTargetted;
 
 /** Minimum speed multiplier for sprinting. */
-var(Vehicle) float MinSprintSpeedMultiplier;
+var(Vehicle) repnotify float MinSprintSpeedMultiplier;
 
 /** Maximum speed multiplier for sprinting. */
 var(Vehicle) float MaxSprintSpeedMultiplier;
@@ -122,7 +123,7 @@ var() Texture MinimapIconTexture;
 replication
 {
 	if (bNetDirty && Role == ROLE_Authority )
-		SavedDmg, bReverseSteeringInverted, bSpotted, buyerPri, BoundPRI, bDriverLocked, bReservedToBuyer, bEMPd, bBlinkingName;
+		SavedDmg, bReverseSteeringInverted, bSprintingServer, MinSprintSpeedMultiplier, bSpotted, buyerPri, BoundPRI, bDriverLocked, bReservedToBuyer, bEMPd, bBlinkingName;
 
 	if (bNetDirty && Role == ROLE_Authority && Seats.Length >= 3)
 		Passenger2PRI;
@@ -146,6 +147,35 @@ simulated event ReplicatedEvent(name VarName)
 		}
 		else
 			StopEMPEffects();
+	}
+	else if(VarName == 'bSprintingServer')
+	{
+		if(!bSprintingServer && IsTimerActive('DecreaseSprintSpeed'))
+		{
+			ClearTimer('DecreaseSprintSpeed');
+		}
+				
+		if(UDKVehicleSimChopper(SimObj) != None)
+		{
+			UDKVehicleSimChopper(SimObj).MaxStrafeForce = bSprintingServer ? UDKVehicleSimChopper(SimObj).Default.MaxStrafeForce * Rx_Vehicle_Air(self).MaxStrafeForce : UDKVehicleSimChopper(SimObj).Default.MaxStrafeForce;
+			UDKVehicleSimChopper(SimObj).MaxRiseForce = bSprintingServer ? UDKVehicleSimChopper(SimObj).Default.MaxRiseForce * Rx_Vehicle_Air(self).MaxRiseForce : UDKVehicleSimChopper(SimObj).Default.MaxRiseForce;
+			UDKVehicleSimChopper(SimObj).MaxYawRate = bSprintingServer ? UDKVehicleSimChopper(SimObj).Default.MaxYawRate * Rx_Vehicle_Air(self).MaxYawRate : UDKVehicleSimChopper(SimObj).Default.MaxYawRate;
+			UDKVehicleSimChopper(SimObj).RollTorqueStrafeFactor = bSprintingServer ? UDKVehicleSimChopper(SimObj).Default.RollTorqueStrafeFactor * Rx_Vehicle_Air(self).RollTorqueStrafeFactor : UDKVehicleSimChopper(SimObj).Default.RollTorqueStrafeFactor;
+			UDKVehicleSimChopper(SimObj).PitchTorqueFactor = bSprintingServer ? UDKVehicleSimChopper(SimObj).Default.PitchTorqueFactor * Rx_Vehicle_Air(self).PitchTorqueFactor : UDKVehicleSimChopper(SimObj).Default.PitchTorqueFactor;	
+		} 
+		 			
+	}
+	else if(VarName == 'MinSprintSpeedMultiplier')
+	{
+		if(UDKVehicleSimCar(SimObj) != None)
+		{
+			UDKVehicleSimCar(SimObj).ThrottleSpeed = UDKVehicleSimCar(SimObj).Default.ThrottleSpeed * MinSprintSpeedMultiplier;
+		}
+		else if(SVehicleSimTank(SimObj) != None)
+		{
+			SVehicleSimTank(SimObj).MaxEngineTorque = SVehicleSimTank(SimObj).Default.MaxEngineTorque * MinSprintSpeedMultiplier;
+    		SVehicleSimTank(SimObj).InsideTrackTorqueFactor =  SVehicleSimTank(SimObj).Default.InsideTrackTorqueFactor * (MinSprintSpeedMultiplier / Rx_Vehicle_Treaded(self).SprintTrackTorqueFactorDivident);
+    	} 	
 	}
 	else
 		super.ReplicatedEvent(VarName);
@@ -339,6 +369,7 @@ function StartSprint()
 	{
 		if(!IsTimerActive('IncreaseSprintSpeed'))
 		{
+	    
 			if(MinSprintSpeedMultiplier == Default.MinSprintSpeedMultiplier)
 				IncreaseSprintSpeed();
 			else
@@ -802,7 +833,7 @@ function bool TryToDrive(Pawn P)
 			{
 				if (PC.IsInPlayArea)
 				{
-					PC.PlayAreaLeaveDamageWaitCounter = volume.DamageWaitCounter;
+					PC.PlayAreaLeaveDamageWaitCounter = 0;
 					PC.PlayAreaLeaveDamageWait = volume.DamageWait;
 					PC.SetTimer(volume.fWaitToWarn, false, 'PlayAreaTimerTick');
 					PC.IsInPlayArea = false;
@@ -1498,7 +1529,7 @@ simulated event TakeDamage(int Damage, Controller EventInstigator, vector HitLoc
 	    	SavedDmg -= Float(TempDmg);		   
 	    }
 	    
-	    if( Driver != none )
+	    if( Driver != none || Rx_Defence(self) != none )
 	    {
 		    if (EventInstigator != none 
 		    	&& !EventInstigator.IsA('Rx_SentinelController') 
@@ -1543,7 +1574,7 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
 
 	RealAmount = Min(Amount, HealthMax - Health);
 
-	if (RealAmount > 0 && Driver != none)
+	if (RealAmount > 0 && (Driver != none || Rx_Defence(self) !=none ))
 	{
 		if (Health >= HealthMax && SavedDmg > 0.0f)
 		{
@@ -1741,7 +1772,7 @@ simulated function StartFire(byte FireModeNum)
  	{
  		if(WorldInfo.NetMode != NM_DedicatedServer && Rx_Controller(controller) != None)
  		{
- 			ToggleCam();
+ 			Rx_Controller(controller).ToggleCam();
  		}
  		return;
  	}
@@ -2054,7 +2085,13 @@ simulated function ClientsideVehicleWeaponImpactEffects(vector HitLocation, int 
 	PlayBeamParticleEffect(HitLocation, SeatIndex);
 }
 
-
+event RanInto(Actor Other)
+{
+	if (Rx_Pawn(Other) != None && Rx_Pawn(Other).GetTeamNum() == GetTeamNum())
+		Rx_Pawn(Other).LastRanInto = WorldInfo.TimeSeconds;
+	else
+		super.RanInto(Other);
+}
 
 simulated function WeaponFired(Weapon InWeapon, bool bViaReplication, optional vector HitLocation)
 {
@@ -2177,7 +2214,7 @@ simulated function rotator GetWeaponAim(UTVehicleWeapon VWeapon)
 		{
 			PC.GetPlayerViewPoint(CameraLocation, CameraRotation);
 			DesiredAimPoint = CameraLocation + Vector(CameraRotation) * VWeapon.GetTraceRange();
-			if (Trace(HitLocation, HitRotation, DesiredAimPoint, CameraLocation) != None)
+			if (Trace(HitLocation, HitRotation, DesiredAimPoint, CameraLocation, true, vect(0,0,0),,TRACEFLAG_Bullet) != None)
 			{
 				DesiredAimPoint = HitLocation;
 			}

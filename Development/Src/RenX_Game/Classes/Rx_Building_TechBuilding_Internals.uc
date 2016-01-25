@@ -304,12 +304,19 @@ DefaultProperties
 	`NodCapSound	= SoundNodeWave'RX_EVA_VoiceClips.Nod_EVA.S_EVA_Nod_TechBuilding_Captured'
 	`NodLostSound	= SoundNodeWave'RX_EVA_VoiceClips.Nod_EVA.S_EVA_Nod_TechBuilding_Lost'
 
-	`GdiUnderAttackForGdiSound = SoundNodeWave'RX_EVA_VoiceClips.gdi_eva.S_EVA_GDI_GDISilo_UnderAttack'
+	
+	`GdiUnderAttackForGdiSound = SoundNodeWave'RX_EVA_VoiceClips_Extra.gdi_eva.S_EVA_GDI_GDITech_UnderAttack'
+	`GdiUnderAttackForNodSound = SoundNodeWave'RX_EVA_VoiceClips_Extra.Nod_EVA.S_EVA_Nod_GDITech_UnderAttack'
+
+	`NodUnderAttackForGdiSound = SoundNodeWave'RX_EVA_VoiceClips_Extra.gdi_eva.S_EVA_GDI_NodTech_UnderAttack'
+	`NodUnderAttackForNodSound = SoundNodeWave'RX_EVA_VoiceClips_Extra.Nod_EVA.S_EVA_Nod_NodTech_UnderAttack'
+	
+	/**`GdiUnderAttackForGdiSound = SoundNodeWave'RX_EVA_VoiceClips.gdi_eva.S_EVA_GDI_GDISilo_UnderAttack'
 	`GdiUnderAttackForNodSound = SoundNodeWave'RX_EVA_VoiceClips.Nod_EVA.S_EVA_Nod_GDISilo_UnderAttack'
 
 	`NodUnderAttackForGdiSound = SoundNodeWave'RX_EVA_VoiceClips.gdi_eva.S_EVA_GDI_NodSilo_UnderAttack'
 	`NodUnderAttackForNodSound = SoundNodeWave'RX_EVA_VoiceClips.Nod_EVA.S_EVA_Nod_NodSilo_UnderAttack'
-
+	*/
 	//AttachmentClasses.Remove(Rx_BuildingAttachment_MCT)
 	//AttachmentClasses.Add(Rx_BuildingAttachment_MCT_TechBuilding)
 

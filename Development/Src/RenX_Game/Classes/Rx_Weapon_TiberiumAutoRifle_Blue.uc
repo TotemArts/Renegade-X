@@ -1,5 +1,9 @@
 class Rx_Weapon_TiberiumAutoRifle_Blue extends Rx_Weapon_Reloadable;
 
+function bool IsInstantHit()
+{
+	return CurrentFireMode == 0; 
+}
 
 defaultproperties
 {
@@ -69,12 +73,12 @@ defaultproperties
     EquipTime=1.0
 //	PutDownTime=0.7
 
-    Spread(0)=0.01
+    Spread(0)=0.02 //0.01
     Spread(1)=0.01
     
     WeaponRange=3000.0
 
-    InstantHitDamage(0)=24 //20
+    InstantHitDamage(0)=22 //20
 	
 	HeadShotDamageMult=2.0
 	

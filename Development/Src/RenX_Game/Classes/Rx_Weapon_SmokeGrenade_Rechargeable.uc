@@ -3,21 +3,6 @@ class Rx_Weapon_SmokeGrenade_Rechargeable extends Rx_Weapon_RechargeableGrenade;
 // Smoke Grenades are non-refillable, players must purchase more.
 simulated function PerformRefill();
 
-simulated state Active
-{
-	simulated function WeaponEmpty()
-	{
-		if(AmmoCount <= 0) {
-			Rx_InventoryManager(Instigator.InvManager).RemoveWeaponOfClass(self.Class);
-			if (Rx_Controller(Instigator.Controller).PreviousExplosiveTransactionRecords.Find(self.Class) > -1) {
-				Rx_Controller(Instigator.Controller).PreviousExplosiveTransactionRecords.RemoveItem(self.Class);
-			}
-			Rx_Controller(Instigator.Controller).CurrentExplosiveWeapon = none;
-		} 
-		super.WeaponEmpty();
-	}
-}
-
 
 
 DefaultProperties
@@ -48,8 +33,8 @@ DefaultProperties
     WeaponProjectiles(0)=class'Rx_Projectile_SmokeGrenade'
     WeaponProjectiles(1)=class'Rx_Projectile_SmokeGrenade'
 	
-	ReloadTime(0) = 20.0 //These should be pretty long 
-	ReloadTime(1) = 20.0 //These should be pretty long
+	ReloadTime(0) = 35.0 //These should be pretty long 
+	ReloadTime(1) = 35.0 //These should be pretty long
 	
 	
 	InventoryMovieGroup=38  // TODO

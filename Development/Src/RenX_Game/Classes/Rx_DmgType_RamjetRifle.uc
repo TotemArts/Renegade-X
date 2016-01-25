@@ -18,6 +18,10 @@ defaultproperties
 	MCTDamageScaling=100.0
 	MineDamageScaling=2.0
 	
+	GibPerterbation=0.15
+    AlwaysGibDamageThreshold=100
+    bNeverGibs=false
+	
 	KDamageImpulse=20000
 	KDeathUpKick=100
 

@@ -399,6 +399,12 @@ reliable server function ServerALRadiusDamageCharged(Actor Target, vector HurtOr
     Target.TakeRadiusDamage(Instigator.Controller,Damage,DamageRadius,DamageType,Momentum,HurtOrigin,bFullDamage,self);
 }
 
+function bool IsInstantHit()
+{
+	return CurrentFireMode == 0; 
+}
+
+
 DefaultProperties
 {
     Begin Object class=AnimNodeSequence Name=MeshSequenceA
@@ -467,8 +473,8 @@ DefaultProperties
     EquipTime=1.0
 //	PutDownTime=0.7
 
-    Spread(0)=0.001//0.01
-    Spread(1)=0.001//0.01
+    Spread(0)=0.005 //0.001 //0.01
+    Spread(1)=0.005 //0.001 //0.01
     
     WeaponRange=3000.0
 

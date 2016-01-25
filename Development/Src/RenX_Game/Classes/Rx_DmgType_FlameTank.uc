@@ -15,7 +15,7 @@ defaultproperties
     lightArmorDmgScaling=0.9285
     BuildingDamageScaling=0.8357
 	MineDamageScaling=2.0
-	MCTDamageScaling=2.0
+	MCTDamageScaling=1.0
 	
 	DamageBodyMatColor=(R=50,G=50)
 	DamageOverlayTime=0.3

@@ -1,5 +1,10 @@
 class Rx_Weapon_Carbine extends Rx_Weapon_Charged;
 
+function bool IsInstantHit()
+{
+	return true; 
+}
+
 defaultproperties
 {
 	Begin Object class=AnimNodeSequence Name=MeshSequenceA
@@ -78,8 +83,8 @@ defaultproperties
 	WeaponFireTypes(0)=EWFT_InstantHit
 	WeaponFireTypes(1)=EWFT_None
 
-	InstantHitDamage(0)=10
-	InstantHitDamage(1)=10
+	InstantHitDamage(0)=12
+	InstantHitDamage(1)=12
 	
 	HeadShotDamageMult=2.5
 

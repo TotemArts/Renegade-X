@@ -5,7 +5,6 @@ class Rx_SoftLevelBoundaryVolume extends Volume placeable;
 var float				fWaitToWarn;
 var Soundcue			PlayerWarnSound;
 
-var int					DamageWaitCounter;
 var() int				DamageWait;
 
 var() ArrowComponent 	Arrow;
@@ -78,37 +77,87 @@ static function bool IsInRange(int low_yaw, int high_yaw, int yaw)
 	return (yaw == default.degrees_180 && low_yaw == -default.degrees_180) || (yaw == -default.degrees_180 && high_yaw == default.degrees_180);
 }
 
+/**
+ * @brief Checks if a pair of 2-dimensional rays intersect (ignores Z).
+ * 
+ * @param vect1 Position vector of the first ray
+ * @param vect2 Position vector of the second ray
+ * @param unit1 Unit vector representing direction of the first ray
+ * @param unit2 Unit vector representing direction of the second ray
+ * @return True if the rays intersect, false otherwise
+ */
+static function bool RaysIntersect2D(vector vect1, vector vect2, vector unit1, vector unit2)
+{
+	local float div, diff_x, diff_y;
+
+	div = unit2.X * unit1.Y - unit2.Y * unit1.X;
+	if (div == 0.0) // parallel
+		return false;
+
+	diff_x = vect2.X - vect1.X;
+	diff_y = vect2.Y - vect1.Y;
+	return (diff_y * unit2.X - diff_x * unit2.Y) / div > 0 && (diff_y * unit1.X - diff_x * unit1.Y) / div > 0;
+}
+
+function bool Touches(Rx_SoftLevelBoundaryVolume in_volume)
+{
+	local Rx_SoftLevelBoundaryVolume vol;
+
+	foreach TouchingActors(class'Rx_SoftLevelBoundaryVolume', vol)
+		if (vol == in_volume)
+			return true;
+	return false;
+}
+
+function bool Intersects(Rx_SoftLevelBoundaryVolume vol)
+{
+	return Touches(vol) && RaysIntersect2D(Location, vol.Location, vector(ArrowRotation), vector(vol.ArrowRotation));
+}
+
 event Touch(Actor Other, PrimitiveComponent OtherComp, vector HitLocation, vector HitNormal)
 {
 	local array<Rx_Controller> controllers;
 	local Rx_Controller PC;
 	local int index;
 	
-	if (UDKVehicle(Other) != None) // A vehicle
+	if (UDKVehicle(Other) != None) // A vehicle - Add all occupants
 	{
 		UDKVehicle(Other).bAllowedExit = false;
 		for (index = 0; index != UDKVehicle(Other).Seats.Length; ++index)
 			if (UDKVehicle(Other).Seats[index].SeatPawn.Controller != None && Rx_Controller(UDKVehicle(Other).Seats[index].SeatPawn.Controller) != None)
 				controllers.AddItem(Rx_Controller(UDKVehicle(Other).Seats[index].SeatPawn.Controller));
 	}
-	else if (Pawn(Other) != None && Rx_Controller(Pawn(Other).Controller) != None) // A player's pawn
-			controllers.AddItem(Rx_Controller(Pawn(Other).Controller));
-	else
-		`log("ERROR: NEITHER VEHICLE NOR PAWN");
+	else if (Pawn(Other) != None && Rx_Controller(Pawn(Other).Controller) != None) // A player's pawn - Add player
+		controllers.AddItem(Rx_Controller(Pawn(Other).Controller));
+	else // Happens when leaving vehicle before controller is attached
+		return;
 
 	while (controllers.Length != 0)
 	{
 		PC = controllers[controllers.Length - 1];
 		controllers.Remove(controllers.Length - 1, 1);
+		PC.BoundaryVolumes.AddItem(self);
 
 		if (PC.IsInPlayArea)
 		{
-			PC.PlayAreaLeaveDamageWaitCounter = DamageWaitCounter;
+			PC.PlayAreaLeaveDamageWaitCounter = 0;
 			PC.PlayAreaLeaveDamageWait = DamageWait;
 			PC.SetTimer(fWaitToWarn, false, 'PlayAreaTimerTick');
 			PC.IsInPlayArea = false;
 		}
 	}
+}
+
+function SuccessfulExit(Actor Other, Rx_Controller PC)
+{
+	if (UDKVehicle(Other) != None)
+		UDKVehicle(Other).bAllowedExit = true;
+
+	PC.IsInPlayArea = true;
+	if (WorldInfo.NetMode != NM_DedicatedServer && Rx_Hud(PC.myHUD) != None)
+		Rx_Hud(PC.myHUD).ClearPlayAreaAnnouncement();
+	else
+		PC.ClearPlayAreaAnnouncementClient();
 }
 
 event UnTouch(Actor Other)
@@ -117,31 +166,74 @@ event UnTouch(Actor Other)
 	local Rx_Controller PC;
 	local int index;
 
-	if (IsInRange(ArrowRotation.Yaw - degrees_90, ArrowRotation.Yaw + degrees_90, Rotator(Other.Velocity).Yaw)) // Successful exit via x/y bounds (walking/driving)
-		// TODO: Successful exit via z/pitch (flying)
+	if (UDKVehicle(Other) != None) // A vehicle - Add all occupants
 	{
-		if (UDKVehicle(Other) != None) // A vehicle
-		{
-			UDKVehicle(Other).bAllowedExit = true;
-			for (index = 0; index != UDKVehicle(Other).Seats.Length; ++index)
-				if (UDKVehicle(Other).Seats[index].SeatPawn.Controller != None && Rx_Controller(UDKVehicle(Other).Seats[index].SeatPawn.Controller) != None)
-					controllers.AddItem(Rx_Controller(UDKVehicle(Other).Seats[index].SeatPawn.Controller));
-		}
-		else if (Pawn(Other) != None && Rx_Controller(Pawn(Other).Controller) != None) // A player's pawn
+		for (index = 0; index != UDKVehicle(Other).Seats.Length; ++index)
+			if (UDKVehicle(Other).Seats[index].SeatPawn.Controller != None && Rx_Controller(UDKVehicle(Other).Seats[index].SeatPawn.Controller) != None)
+				controllers.AddItem(Rx_Controller(UDKVehicle(Other).Seats[index].SeatPawn.Controller));
+	}
+	else if (Rx_Pawn(Other) != None && Rx_Controller(Rx_Pawn(Other).Controller) != None) // A player's pawn - Add player
+	{
+		if (WorldInfo.TimeSeconds - Rx_Pawn(Other).LastRanInto > 1.0)
 			controllers.AddItem(Rx_Controller(Pawn(Other).Controller));
-		else
-			`log("ERROR: NEITHER VEHICLE NOR PAWN");
+	}
+	else // Never happens
+		return;
 
+	if (IsInRange(ArrowRotation.Yaw - degrees_90, ArrowRotation.Yaw + degrees_90, Rotator(Other.Velocity + Other.GetAggregateBaseVelocity()).Yaw)) // Successful exit via x/y bounds (walking/driving)
+		// TODO: Successful exit via z/pitch (flying/jumping/falling)
+	{
 		while (controllers.Length != 0)
 		{
 			PC = controllers[controllers.Length - 1];
 			controllers.Remove(controllers.Length - 1, 1);
+			PC.BoundaryVolumes.RemoveItem(self);
 
-			PC.IsInPlayArea = true;
-			if (WorldInfo.NetMode != NM_DedicatedServer && Rx_Hud(PC.myHUD) != None)
-				Rx_Hud(PC.myHUD).ClearPlayAreaAnnouncement();
-			else
-				PC.ClearPlayAreaAnnouncementClient();
+			// We're no longer in any volumes
+			if (PC.BoundaryVolumes.Length == 0)
+			{
+				// We did not just leave a corner
+				if (WorldInfo.TimeSeconds > PC.LastLeftBoundaryTime + Rx_MapInfo(WorldInfo.GetMapInfo()).SoftLevelBoundaryCornerTimeThreshold)
+					SuccessfulExit(Other, PC);
+				else // We just left a corner
+				{
+					if (Intersects(PC.LastLeftBoundary)) // These point to the same area; use AND logic (check if they BOTH are successful exits)
+					{
+						if (IsInRange(PC.LastLeftBoundary.ArrowRotation.Yaw - degrees_90, PC.LastLeftBoundary.ArrowRotation.Yaw + degrees_90, Rotator(Other.Velocity + Other.GetAggregateBaseVelocity()).Yaw)) // Successful exit via x/y bounds (walking/driving)
+							SuccessfulExit(Other, PC);
+					}
+					else // These do not point to the same area; use OR logic (check if ANY are successful exits)
+						SuccessfulExit(Other, PC);
+				}
+			}
+
+			PC.LastLeftBoundary = self;
+			PC.LastLeftBoundaryTime = WorldInfo.TimeSeconds;
+		}
+	}
+	else // We exited a volume unsuccessfully.
+	{
+		while (controllers.Length != 0)
+		{
+			PC = controllers[controllers.Length - 1];
+			controllers.Remove(controllers.Length - 1, 1);
+			PC.BoundaryVolumes.RemoveItem(self);
+
+			if (PC.BoundaryVolumes.Length == 0) // We're no longer in any volumes
+			{
+				if (WorldInfo.TimeSeconds <= PC.LastLeftBoundaryTime + Rx_MapInfo(WorldInfo.GetMapInfo()).SoftLevelBoundaryCornerTimeThreshold) // We just left a corner
+				{
+					if (Intersects(PC.LastLeftBoundary) == false) // These do not point to the same area; use OR logic (check if ANY are successful exits)
+					{
+						if (IsInRange(PC.LastLeftBoundary.ArrowRotation.Yaw - degrees_90, PC.LastLeftBoundary.ArrowRotation.Yaw + degrees_90, Rotator(Other.Velocity + Other.GetAggregateBaseVelocity()).Yaw)) // Successful exit via x/y bounds (walking/driving)
+							SuccessfulExit(Other, PC);
+					}
+					// else // These point to the same area; use AND logic (check if BOTH are successful exits)
+				}
+			}
+
+			PC.LastLeftBoundary = self;
+			PC.LastLeftBoundaryTime = WorldInfo.TimeSeconds;
 		}
 	}
 }
@@ -166,15 +258,10 @@ DefaultProperties
 	
 	//sounds
 	PlayerWarnSound			= SoundCue'RX_Dialogue.Generic.S_BackToObjective_Cue'
-	//BeepSound				= SoundCue'RX_WP_Timed.Sounds.SC_Beep_Single'
-	
-	//how much damage to apply every second outside volume.
-	//DamageToCause			= 20
 	
 	//how long before start applying damage.
 	DamageWait				= 10
 	
 	//internal
-	DamageWaitCounter		= 0
 	bPawnsOnly 			    = true
 }

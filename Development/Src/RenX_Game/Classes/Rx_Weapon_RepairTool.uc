@@ -9,6 +9,45 @@ replication
 		bRecharging; 
 }
 
+auto simulated state Inactive
+{
+	simulated function BeginState(name PreviousStateName)
+	{
+		local PlayerController PC;
+
+		if ( Instigator != None )
+		{
+		  PC = PlayerController(Instigator.Controller);
+		  if ( PC != None && LocalPlayer(PC.Player)!= none )
+		  {
+			  PC.SetFOV(PC.DefaultFOV);
+		  }
+		}
+
+		//Always recharge when put away. 
+		if(!IsTimerActive('SetRechargeTimer') && CurrentAmmoInClip != default.ClipSize)
+		{	
+			
+			SetTimer( RechargeTime , false, 'SetRechargeTimer');
+			
+		}
+		
+		Super.BeginState(PreviousStateName);
+	}
+
+	
+	
+	/**
+	 * @returns false if the weapon isn't ready to be fired.  For example, if it's in the Inactive/WeaponPuttingDown states.
+	 */
+	simulated function bool bReadyToFire()
+	{
+		return false;
+	}
+}
+
+
+
 simulated function PerformRefill()
 {} 
 
@@ -19,7 +58,6 @@ simulated function StartFire(byte FireModeNum)
 	
 	if(IsTimerActive('RechargeTimer')) ClearTimer('RechargeTimer') ; 
 	if(IsTimerActive('SetRechargeTimer')) ClearTimer('SetRechargeTimer');
-		bRecharging = true;
 	
 	bRecharging = false; 
 	
@@ -31,22 +69,23 @@ simulated function ConsumeRepairAmmo(int ActualHealAmount)
 {
 	if (ShotCost[0] <= 0)
 		return;
-	CurrentAmmoInClip = Max(CurrentAmmoInClip-ActualHealAmount,0);
+	CurrentAmmoInClip = Max(CurrentAmmoInClip-ShotCost[0],0);
 	AddAmmo(-ShotCost[0]); //AddAmmo(-ActualHealAmount);
 }
 
-simulated function StopFire(byte FireModeNum)
+simulated function EndFire(Byte FireModeNum)
 {
 	if(!IsTimerActive('SetRechargeTimer'))
 	{
+		
 			SetTimer(RechargeTime,true,'SetRechargeTimer');
 	}	
-	super.StopFire(FireModeNum);
+	super.EndFire(FireModeNum);
 }
+
 
 simulated function WeaponEmpty()
 {
-	`log("Called Weapon Empty"); 
 	if(AmmoCount <= 0) {
 		if(!bRecharging || !IsTimerActive('SetRechargeTimer'))
 		{
@@ -61,7 +100,7 @@ simulated function WeaponEmpty()
 simulated function SetRechargeTimer()
 {
 
-	if(!IsTimerActive('RechargeTimer')) SetTimer(0.1,true,'RechargeTimer');
+	if(!IsTimerActive('RechargeTimer')) SetTimer(RechargeRate/10,true,'RechargeTimer');
 	else
 	return;
 }
@@ -81,10 +120,27 @@ simulated function RechargeTimer()
 	}
 }
 
+
 simulated function int GetReserveAmmo()
 {
 	return default.ClipSize;
 }
+
+simulated function bool ShouldRefire()
+{
+	if(bKeepFiring)
+		return true;
+	
+	if(IsTimerActive('RechargeTimer'))
+	{ 
+	ClearTimer('RechargeTimer') ; 
+	
+	}
+	
+	if(IsTimerActive('SetRechargeTimer')) ClearTimer('SetRechargeTimer');
+	
+	return super.ShouldRefire();
+}	
 
 DefaultProperties
 {
@@ -116,19 +172,19 @@ DefaultProperties
 
 	AttachmentClass = class'Rx_Attachment_RepairTool'
 
-	WeaponRange=300.0
+	WeaponRange=350.0
 	
 	ShotCost(0)=1
-	ClipSize = 200
+	ClipSize = 250//350//400
 	FireInterval(0)=+0.3
 	FireInterval(1)=+0.3
 	
 
-	HealAmount = 20
+	HealAmount = 15
 	MinHealAmount = 1
-	MineDamageModifier  = 4
+	MineDamageModifier  = 1.5
 	RechargeTime = 5.0f
-	RechargeRate = 1
+	RechargeRate = 1.0f
 	
 	StartAltFireSound=SoundCue'RX_WP_RepairGun.Sounds.SC_RepairTool_Fire_Start'
 	EndAltFireSound=SoundCue'RX_WP_RepairGun.Sounds.SC_RepairTool_Fire_Stop'

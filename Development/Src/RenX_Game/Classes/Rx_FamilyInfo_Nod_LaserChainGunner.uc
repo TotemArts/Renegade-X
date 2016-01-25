@@ -8,12 +8,14 @@ DefaultProperties
 	// TODO: TEMP DATA  Needs Adjustment
 	DamagePointsMultiplier  = 0.036f
 	HealPointsMultiplier    = 0.0072f
-	PointsForKill           = 20.0f	
+	PointsForKill           = 30.0f	//45
 	MaxHealth               = 100
 	MaxArmor               	= 250
 	Armor_Type 				= A_FLAK
-	SpeedMultiplier			= 0.8
-
+	SpeedMultiplier			= 0.8 //0.75
+	JumpMultiplier			= 0.8 //0.70 Just high enough to get off of the 
+	SoundGroupClass=class'RenX_Game.Rx_PawnSoundGroup_Heavy' 
+	
 	CharacterMesh=SkeletalMesh'RX_CH_Nod_BHS.Mesh.SK_CH_LaserChainGunner'
 	
 	ArmMeshPackageName="RX_CH_Arms"

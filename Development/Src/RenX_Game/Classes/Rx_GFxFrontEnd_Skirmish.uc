@@ -578,7 +578,8 @@ function LaunchSkirmishGame()
 	local Rx_UIDataProvider_MapInfo SelectedMap;
 
 	SelectedMap = MapDataProviderList[LastMapListItemPosition];
-
+	
+	
 	if (SelectedMap.LastStartingTeamItemPosition == 2) {
 		SelectedMap.LastStartingTeamItemPosition = Rand(2);
 	}
@@ -588,6 +589,32 @@ function LaunchSkirmishGame()
 	
 	
     //and finally...
+	
+	if(MapPackageHasDayNight(SelectedMap.MapName)) //OutURL=PickDayorNight(SelectedMap.MapName)//Make an exception for Day/Night Maps
+	
+	{
+		OutURL =  ""$ PickDayorNight(SelectedMap.MapName)
+                $"?Team=" $ SelectedMap.LastStartingTeamItemPosition
+                $"?Numplay=" $ (SelectedMap.GDIBotValue + SelectedMap.NodBotValue)
+                //$"?Difficulty=" $BotDifficulty
+                $"?GDIBotCount=" $ SelectedMap.GDIBotValue - (SelectedMap.LastStartingTeamItemPosition == 0 ? 1 : 0)
+                $"?NODBotCount=" $ SelectedMap.NodBotValue - (SelectedMap.LastStartingTeamItemPosition == 1 ? 1 : 0)
+                $"?GDIDifficulty=" $ SelectedMap.LastGDIBotItemPosition
+                $"?NODDifficulty=" $ SelectedMap.LastNodBotItemPosition
+                $"?GDIAttackingStrengh=" $ SelectedMap.GDIAttackingValue
+                $"?NodAttackingStrengh=" $ SelectedMap.NodAttackingValue
+				$"?StartingCredits=" $ SelectedMap.StartingCreditsValue
+                $"?TimeLimit=" $TimeLimitPresets[SelectedMap.LastTimeLimitItemPosition]
+                $"?MineLimit=" $MineLimitPresets[SelectedMap.LastMineLimitItemPosition]
+                $"?VehicleLimit=" $ SelectedMap.LastVehicleLimitItemPosition + 7
+                $"?IsFriendlyfire=" $ SelectedMap.bFriendlyFire
+                $"?CanRepairBuildings=" $ SelectedMap.bCanRepairBuildings
+                $"?HasBaseDestruction=" $ SelectedMap.bBaseDestruction
+                $"?HasEndGamePedistal=" $ SelectedMap.bEndGamePedistal
+                $"?HasTimeLimitExpiry=" $ SelectedMap.bTimeLimitExpiry;
+	}
+	else
+	{
     OutURL =  ""$ SelectedMap.MapName
                 $"?Team=" $ SelectedMap.LastStartingTeamItemPosition
                 $"?Numplay=" $ (SelectedMap.GDIBotValue + SelectedMap.NodBotValue)
@@ -607,12 +634,13 @@ function LaunchSkirmishGame()
                 $"?HasBaseDestruction=" $ SelectedMap.bBaseDestruction
                 $"?HasEndGamePedistal=" $ SelectedMap.bEndGamePedistal
                 $"?HasTimeLimitExpiry=" $ SelectedMap.bTimeLimitExpiry;
-
+	}
 	//Last second, see if this selected map has a day/night variant, and randomly choose one.
 	
 	`log("OutURL is: " @  Right(OutURL,Len(OutURL)-1) @ MapPackageHasDayNight( Right(OutURL,1))) ; 
 	
-	if(MapPackageHasDayNight(SelectedMap.MapName)) OutURL=PickDayorNight(SelectedMap.MapName);
+	
+				
 				
 	`log("Command: ->> " @ "open " $ OutURL);
     ConsoleCommand("open " @ OutURL);

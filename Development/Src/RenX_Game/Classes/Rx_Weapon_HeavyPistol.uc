@@ -8,6 +8,11 @@ simulated function FireAmmunition()
 	WeaponPlaySound( WeaponDistantFireSnd );
 }
 
+function bool IsInstantHit()
+{
+	return true; 
+}
+
 DefaultProperties
 {
 	bAutoFire = false
@@ -85,10 +90,10 @@ DefaultProperties
 	WeaponFireTypes(0)=EWFT_InstantHit
 	WeaponFireTypes(1)=EWFT_None
 
-	InstantHitDamage(0)=20
+	InstantHitDamage(0)=30//20
 	InstantHitDamage(1)=0
 	
-	HeadShotDamageMult=3
+	HeadShotDamageMult=2.25//3
 	
 	InstantHitDamageRadius(0)=1
 

@@ -5,11 +5,11 @@ DefaultProperties
 	FamilyID="GDI"
 	Faction="GDI"
 
-	DamagePointsMultiplier  = 0.142857f
+	//DamagePointsMultiplier  = 0.142857f
 	HealPointsMultiplier    = 0.028571f
-	PointsForKill           = 30.0f
+	PointsForKill           = 40.0f //55
 	MaxHealth               = 100
-	MaxArmor               	= 175
+	MaxArmor               	= 200
 	Armor_Type 				= A_Kevlar
 	SpeedMultiplier			= 0.9
 

@@ -5,13 +5,13 @@ DefaultProperties
 	FamilyID="GDI"
 	Faction="GDI"
 	// TODO: TEMP DATA  Needs Adjustment
-	DamagePointsMultiplier  = 0.036f
+	//DamagePointsMultiplier  = 0.036f
 	HealPointsMultiplier    = 0.0072f
-	PointsForKill           = 10.0f
+	PointsForKill           = 8.75f //20
 	MaxHealth               = 100
 	MaxArmor               	= 125
 	Armor_Type 				= A_Kevlar
-	SpeedMultiplier			= 1.075
+	SpeedMultiplier			= 1.1
 
 	CharacterMesh=SkeletalMesh'rx_ch_gdi_officer.Mesh.SK_CH_McFarland'
 	

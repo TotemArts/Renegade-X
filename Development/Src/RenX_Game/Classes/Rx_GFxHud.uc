@@ -565,7 +565,7 @@ function SetLivingHUDVisible(bool visible)
 	WeaponBlock.SetVisible(visible);
 
 }
-function UpdateHUDVars() 
+exec function UpdateHUDVars() 
 {
 	// Grease:	When you have two frames, and an object in each frame with the same name,
 	//			the variables HAVE to be updated, otherwise it will only change the object

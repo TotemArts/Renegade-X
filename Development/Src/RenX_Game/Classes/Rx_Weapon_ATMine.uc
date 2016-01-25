@@ -24,19 +24,61 @@ function bool Deploy()
 	return false;
 }
 
-// Don't use progress bar.
-simulated function ActiveRenderOverlays( HUD H );
-
-// AT Mines are non-refillable, players must purchase more.
 //simulated function PerformRefill();
 simulated function PerformRefill()
 {
+	CurrentAmmoInClip=default.ClipSize;
 	AmmoCount = MaxAmmoCount;
 }
+
+
+/**
+ * Access to HUD and Canvas. Set bRenderOverlays=true to receive event.
+ * Event called every frame when the item is in the InventoryManager
+ *
+ * @param   HUD H
+ */
+simulated function ActiveRenderOverlays( HUD H )
+{
+   local Canvas C;
+   local float PanX, PanY, PosX, PosY;
+
+   super(Rx_Weapon).ActiveRenderOverlays(H);
+   C = H.Canvas;
+
+   if (LastPos != Owner.Location || !bShowLoadPanel || C == none)
+      return;
+
+   // get the draw values
+   PanX = C.SizeX * PanelWidth;
+   PanY = C.SizeY * PanelHeight;
+   // draw the loadpanel border
+   //C.DrawColor = Rx_Hud(H).TeamColors[Owner.GetTeamNum()];
+   C.SetDrawColor (0, 100, 255, 255); //(255,64,64,255);
+   PosX = C.SizeX * 0.5f - PanX * 0.5f;
+   PosY = C.SizeY/2 - PanY; //- 300;
+   C.SetPos(PosX, PosY);
+   C.DrawBox(PanX, PanY);
+   // draw the text
+   C.SetPos(PosX+3, PosY+3);
+   
+  // C.DrawText("Planting.....");
+   // draw the loadpanel anim
+   C.DrawColor.A = 128;
+   C.SetPos(PosX + 1, PosY + 1);
+   C.DrawRect(PanX * CurrentProgress - 2, PanY - 2);
+}
+
+
+
+
 DefaultProperties
 {
 	DeployedActorClass=class'Rx_Weapon_DeployedATMine'
 
+	PanelWidth  = 0.15f
+    PanelHeight = 0.033f
+	
 	// Weapon SkeletalMesh
 	Begin Object class=AnimNodeSequence Name=MeshSequenceA
 	End Object
@@ -99,6 +141,8 @@ DefaultProperties
 	bRemoveWhenDepleted=false   // We must retain the weapon in our inventory during the super deploy call, so that the deploy in this class can update the AT mine counters.
 	SecondsNeedLoad=1
 	bBlockDeployCloseToOwnBase=false
+	
+	bDisplayCrosshair=false
 	
 	ThirdPersonWeaponPutDownAnim="H_M_C4_PutDown"
 	ThirdPersonWeaponEquipAnim="H_M_C4_Equip"

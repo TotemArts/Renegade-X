@@ -80,7 +80,7 @@ DefaultProperties
 	DefaultImpactEffect=(ParticleTemplate=ParticleSystem'RX_WP_TiberiumAutoRifle.Effects.P_Impact_CrystalBlue',Sound=SoundCue'RX_WP_TiberiumAutoRifle.Sounds.SC_BulletImpact_TibBlue')
 	ImpactEffects(0)=(MaterialType=Metal, ParticleTemplate=ParticleSystem'RX_WP_TiberiumAutoRifle.Effects.P_Impact_CrystalBlue',Sound=SoundCue'RX_WP_TiberiumAutoRifle.Sounds.SC_BulletImpact_TibBlue_Metal')
 	
-	BulletWhip=SoundCue'RX_SoundEffects.Bullet_WhizBy.SC_Bullet_WhizBy'
+	BulletWhip=SoundCue'RX_WP_TiberiumAutoRifle.Sounds.SC_Bullet_WhizBy'
 	BeamTemplate=ParticleSystem'RX_WP_TiberiumAutoRifle.Effects.P_InstantHit_Tracer_TibBlue'
 
 	

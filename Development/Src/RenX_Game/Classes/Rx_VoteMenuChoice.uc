@@ -196,7 +196,10 @@ function bool CanExecute(Rx_Game game)
 
 function int GetNeededYesVotes(Rx_Game game)
 {
-	return int(float(game.NumPlayers) * PercentYesToPass) + PlayerCount(No) + 1;
+	if (ToTeam == -1)
+		return int(float(game.NumPlayers) * PercentYesToPass) + PlayerCount(No) + 1;
+	else
+		return int(float(game.NumPlayers) * PercentYesToPass * 0.5) + PlayerCount(No) + 1;
 }
 
 // execute vote

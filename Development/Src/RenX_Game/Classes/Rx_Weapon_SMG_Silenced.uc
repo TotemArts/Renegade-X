@@ -1,5 +1,10 @@
 class Rx_Weapon_SMG_Silenced extends Rx_Weapon_Charged;		// Rx_Weapon_Reloadable;
 
+function bool IsInstantHit()
+{
+	return true; 
+}
+
 DefaultProperties
 {
 	bAutoFire = true
@@ -63,8 +68,8 @@ DefaultProperties
 	WeaponFireTypes(0)=EWFT_InstantHit
 	WeaponFireTypes(1)=EWFT_None
 
-	InstantHitDamage(0)=8
-	InstantHitDamage(1)=8
+	InstantHitDamage(0)=7
+	InstantHitDamage(1)=7
 	
 	HeadShotDamageMult=3
 

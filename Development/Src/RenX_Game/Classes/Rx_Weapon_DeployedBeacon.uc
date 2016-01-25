@@ -25,6 +25,19 @@ var class<UDKExplosionLight>  ExplosionLightClass;
 var rotator					  emitterRotation;
 var ParticleSystemComponent   BlinkingLightComponent;
 var float		     	      DeployTime;
+var float					  Damage_Taken;
+
+/*Track who does damage to me so I can distribute points correctly on disarming*/
+struct Attacker
+{
+	var PlayerReplicationInfo PPRI; 
+	var float DamageDone; 
+};
+
+var array<Attacker>	DamagingParties;	//Track who is doing damage to me to evenly distribute points
+
+
+
 
 simulated function PostBeginPlay()
 {
@@ -100,30 +113,25 @@ simulated function PlayImminentSound()
       }
 }
 
-/**function BroadcastPlaced()
+function BroadcastPlaced()
 {
-	`LogRx("GAME"`s "Deployed;" `s self.Class `s "by" `s `PlayerLog(InstigatorController.PlayerReplicationInfo) );
-	BroadcastLocalizedMessage(class'Rx_Message_Deployed',-1,InstigatorController.PlayerReplicationInfo,,self.Class);
-}
-*/
+	local Rx_Controller PC, IPC;
+	local color C_Red, C_Green;
 
-function BroadcastPlaced() {
-   local Rx_Controller PC, IPC;
-   local color C_Red, C_Green;
-   
-   C_Red=MakeColor(255,20,20,255);
-   C_Green=MakeColor(20,255,20,255);
-   
-   IPC=Rx_Controller(InstigatorController);
-   
-   `LogRx("GAME"`s "Deployed;" `s self.Class `s "by" `s `PlayerLog(InstigatorController.PlayerReplicationInfo) );
-   BroadcastLocalizedMessage(class'Rx_Message_Deployed',-1,InstigatorController.PlayerReplicationInfo,,self.Class);
-   foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
-   {
-     if(PC.GetTeamNum() == IPC.GetTeamNum()) PC.CTextMessage("GDI",150, "Friendly" @ DeployableName @ "placed!",C_Green,255, 255, false, 1, 0.75);
-	 else
-	PC.CTextMessage("GDI",150, "Enemy" @ DeployableName @ "placed!",C_Red,255, 255, false, 0.75);
-   }
+	C_Red=MakeColor(255,20,20,255);
+	C_Green=MakeColor(20,255,20,255);
+
+	IPC=Rx_Controller(InstigatorController);
+
+	`LogRx("GAME"`s "Deployed;" `s self.Class `s "by" `s `PlayerLog(InstigatorController.PlayerReplicationInfo) `s "near" `s GetSpotMarkerName());
+	BroadcastLocalizedMessage(class'Rx_Message_Deployed',-1,InstigatorController.PlayerReplicationInfo,,self.Class);
+	foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
+	{
+	if (PC.GetTeamNum() == IPC.GetTeamNum())
+		PC.CTextMessage("GDI",150, "Friendly" @ DeployableName @ " placed " @ "[" $ PC.GetSpottargetLocationInfo(self) $ "]" @ "!",C_Green,255, 255, false, 1, 0.75);
+	else
+		PC.CTextMessage("GDI",150, "Enemy" @ DeployableName @ "placed!",C_Red,255, 255, false, 0.75);
+	}
 }
 
 simulated function playCountInitiatedDownSound()
@@ -239,11 +247,98 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
 
 function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)
 {
+	local int InstigatorIndex;
+	local Attacker TempAttacker;
+	local Attacker PRII;
+	
+	if (!CanDisarmMe(DamageCauser))
+	{
+		return;
+	}
+	
 	if(!bCanNotBeDisarmedAnymore)
 	{
-	super.TakeDamage(DamageAmount,EventInstigator,HitLocation,Momentum,DamageType,HitInfo,DamageCauser);
+	super(Actor).TakeDamage(DamageAmount,EventInstigator,HitLocation,Momentum,DamageType,HitInfo,DamageCauser);
+	
+	//Most of the super call to Rx_Weapon_DeployedActor
+	if (DamageAmount <= 0 || HP <= 0 || bDisarmed )
+      return;
+
+  
+  
+  /*Now track who's doing the damage*/
+	InstigatorIndex=DamagingParties.Find('PPRI',EventInstigator.PlayerReplicationInfo);
+		
+			if(InstigatorIndex == -1)  //New damager
+			{
+			TempAttacker.PPRI=EventInstigator.PlayerReplicationInfo;
+			
+			TempAttacker.DamageDone = Min(DamageAmount,HP);
+			
+			Damage_Taken+=TempAttacker.DamageDone; //Add this damage to the total damage taken.
+			
+			DamagingParties.AddItem(TempAttacker) ;
+			
+			}
+			else
+			{
+				if(DamageAmount <= float(HP))
+				{
+				DamagingParties[InstigatorIndex].DamageDone+=DamageAmount;
+				Damage_Taken+=DamageAmount; //Add this damage to the total damage taken.
+				}
+				else
+				{
+				DamagingParties[InstigatorIndex].DamageDone+=HP;	
+				Damage_Taken+=HP; //Add this damage to the total damage taken.
+				}
+				
+				
+			}
+  
+  
+  
+	HP -= DamageAmount;
+
+	if (HP <= 0)
+	{
+		BroadcastDisarmed(EventInstigator);
+		if (WorldInfo.NetMode == NM_DedicatedServer || WorldInfo.NetMode == NM_ListenServer) // trigger client replication
+			bDisarmed = true;
+		if (WorldInfo.NetMode != NM_DedicatedServer)
+			PlayDisarmedEffect();      
+			ClearTimer('Explosion');
+
+		foreach DamagingParties(PRII)
+		{
+		if(PRII.PPRI != none)
+			{
+			Rx_PRI(PRII.PPRI).AddScoreToPlayerAndTeam(default.DisarmScoreReward*(PRII.DamageDone/Damage_Taken)) ; 
+			DisarmScoreReward-=default.DisarmScoreReward*(PRII.DamageDone/Damage_Taken);
+			}
+		}
+		
+		if(DisarmScoreReward > 0) //If there's leftover score, just add it to the team
+		{
+			Rx_TeamInfo(EventInstigator.PlayerReplicationInfo.Team).AddRenScore(DisarmScoreReward);
+			DisarmScoreReward=0; 
+		}
+		
+		/**
+		if (EventInstigator.PlayerReplicationInfo != none && EventInstigator.PlayerReplicationInfo.GetTeamNum() != TeamNum)
+		{
+			Rx_Pri(EventInstigator.PlayerReplicationInfo).AddScoreToPlayerAndTeam(DisarmScoreReward,true);
+		}*/
+		
+		SetTimer(0.1, false, 'DestroyMe'); // delay it a bit so disappearing blends a littlebit better with the disarmed effects
 	}
+					
+	
+	}
+	
+	
 }
+
 
 simulated function string GetTargetedDescription(PlayerController PlayerPerspective)
 {
@@ -269,4 +364,5 @@ DefaultProperties
 	BuildingDmgRadius = 500.0f
 	Damage = 5000;
 	HP = 400;
+	Damage_Taken = 0 //Tracks all of the damage that has been taken from disarming. 
 }

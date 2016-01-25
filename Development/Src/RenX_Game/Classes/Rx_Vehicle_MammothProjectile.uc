@@ -43,7 +43,7 @@ DefaultProperties
 	Speed=7625
 	MaxSpeed=7625
 	LifeSpan=1.15
-	Damage=80
+	Damage= 80//80 should be about 90
 	DamageRadius=500
 	MomentumTransfer=100000.000000
 	HeadShotDamageMult=10.0 // 5.0

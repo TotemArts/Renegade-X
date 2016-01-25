@@ -1066,8 +1066,9 @@ reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, T
 	}	
 
 	// If we don't have a projectile class, and are not an instant hit weapon
-	if (ProjectileClass == none && WeaponFireTypes[CurrentFireMode] != EWFT_InstantHit)
+	if (ProjectileClass == none && WeaponFireTypes[CurrentFireMode] != EWFT_InstantHit && !IsInstantHit() ) 
 	{
+		`log("Return with no bullet" @ ProjectileClass @ WeaponFireTypes[CurrentFireMode] @ IsInstantHit() );
 		return;
 	}
 
@@ -1086,7 +1087,7 @@ reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, T
 
 	//if (!self.bInstantHit)
 		//Several weapons use instant hit and projectiles.
-	if(WeaponFireTypes[CurrentFireMode] != EWFT_InstantHit )
+	if(WeaponFireTypes[CurrentFireMode] != EWFT_InstantHit && !IsInstantHit() )
 	{
 		if(class<Rx_Projectile>(ProjectileClass) != None) {
 			HeadShotDamageMultLocal = class<Rx_Projectile>(ProjectileClass).default.HeadShotDamageMult;
@@ -1119,6 +1120,7 @@ reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, T
 	}
 	// Then we are an instant hit weapon
 	else
+		if( IsInstantHit() )
 	{
 		Damage  = self.InstantHitDamage[CurrentFireMode] * self.HeadShotDamageMult;
     
@@ -1499,6 +1501,10 @@ simulated state Active
 	}
 }
 
+function bool IsInstantHit() //Use this to determine if a weapon firing mode is actually instant hit. 
+{
+	return false; 
+}
 
 DefaultProperties
 {

@@ -68,7 +68,10 @@ simulated function FireAmmunition()
 	WeaponPlaySound( WeaponDistantFireSnd );
 }
 
-
+function bool IsInstantHit()
+{
+	return true; 
+}
 
 
 defaultproperties
@@ -136,14 +139,16 @@ defaultproperties
 	EquipTime=0.5
 //	PutDownTime=0.5
 	
-	Spread(0)=0.01
-	IronSightAndScopedSpread(0)= 0.0001
+	Spread(0)=0.0 //0.01
+	IronSightAndScopedSpread(0)= 0.0//0.0001
 	
 	WeaponRange=30000.0
-
-	WeaponFireTypes(0)=EWFT_InstantHit
+	WeaponFireTypes(0)=EWFT_Projectile
+	
 	WeaponFireTypes(1)=EWFT_None
-
+	
+	//WeaponFireTypes(0)=EWFT_InstantHit
+	
 	InstantHitDamage(0)=30
 	InstantHitDamage(1)=30
 	
@@ -155,16 +160,14 @@ defaultproperties
 	InstantHitMomentum(0)=20000
 	InstantHitMomentum(1)=20000
 	
-	bInstantHit=true
+	bInstantHit=false
 
-//	WeaponFireTypes(0)=EWFT_Projectile
-	
-//	WeaponProjectiles(0)=class'Rx_Projectile_MarksmanRifle'
+	WeaponProjectiles(0)=class'Rx_Projectile_MarksmanRifle'
 
 	FiringStatesArray(1)=Active
 
 
-	ClipSize = 10
+	ClipSize = 10 //8
 	InitalNumClips = 12
 	MaxClips = 12
 

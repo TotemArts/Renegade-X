@@ -489,6 +489,29 @@ simulated function PlayCamerashakeAnim()
    }
 }
 
+function string GetSpotMarkerName()
+{
+	local Actor TempActor;
+	local float NearestSpotDist;
+	local RxIfc_SpotMarker NearestSpotMarker;
+	local float DistToSpot;	
+	
+	foreach AllActors(class'Actor', TempActor, class'RxIfc_SpotMarker')
+	{
+		DistToSpot = VSize(TempActor.location - Location);
+		if (NearestSpotDist == 0.0 || DistToSpot < NearestSpotDist)
+		{
+			NearestSpotDist = DistToSpot;
+			NearestSpotMarker = RxIfc_SpotMarker(TempActor);
+		}
+	}
+
+	if (NearestSpotMarker == None)
+		return "";
+	
+	return NearestSpotMarker.GetSpotName();
+}
+
 defaultproperties
 {
    Physics=PHYS_Falling

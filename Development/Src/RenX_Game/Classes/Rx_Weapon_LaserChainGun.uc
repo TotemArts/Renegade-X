@@ -63,6 +63,10 @@ simulated function PostReloadUpdate()
     UpdateAmmoCounter();
 }
 
+function bool IsInstantHit()
+{
+	return true; 
+}
 
 DefaultProperties
 {

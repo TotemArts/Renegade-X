@@ -1,14 +1,17 @@
 class Rx_Weapon_Beacon extends Rx_Weapon_Deployable;
 
-var private bool     bShowLoadPanel;
+/*These were all PRIVATE variables. Reset them to that if they ever need to go back to that for some reason*/
+
+var  bool     bShowLoadPanel;
+var  float    PanelWidth, PanelHeight;   /** width and height of the panel relative to screen size*/
+var  float    CurrentProgress;
+var  float    TimerSeconds;
+var repnotify  bool  bFired;
+var Vector   LastPos;
+var Vector   CurrentPos;
 var float    SecondsNeedLoad;           /** seconds need to load to place Beacon*/
-var private float    PanelWidth, PanelHeight;   /** width and height of the panel relative to screen size*/
-var private float    CurrentProgress;
-var private float    TimerSeconds;
-var repnotify private bool  bFired;
+/*END Private variables*/
 var() Color   PanelColor;
-var private Vector   LastPos;
-var private Vector   CurrentPos;
 var SoundCue ChargeCue;
 var AudioComponent ChargeCueComp;
 var bool bCanCharge;
@@ -192,13 +195,11 @@ simulated function CustomFire()
 function bool Deploy()
    {
       local Rotator FlatAim;
-
-
-	  if(bBlockDeployCloseToOwnBase && GetNearestSpottargetLocationIsOwnTeamBuilding())
+	  
+	  if(!isValidPosition())
 	  {
-	  	Rx_Controller(Pawn(Owner).Controller).ClientMessage("Planting Beacon failed: This location is too close to your base!");
-	  	return false;	
-	  }
+	  	return false;
+	  }	  
 
       FlatAim.Yaw = 0;
       FlatAim.Pitch = 0;
@@ -225,6 +226,32 @@ function bool Deploy()
 reliable server function ServerDeploy()
 {
 	Deploy();
+}
+
+function bool IsValidPosition() 
+{
+	local vector HitLocation, HitNormal, off;
+	local Actor HitActor;
+	local float ZDistToBuildingCenter;
+	
+	if(bBlockDeployCloseToOwnBase && GetNearestSpottargetLocationIsOwnTeamBuilding())
+	{
+	  Rx_Controller(Pawn(Owner).Controller).ClientMessage("Planting Beacon failed: This location is too close to your base!");
+	  return false;	
+	}
+	 
+	off = Pawn(Owner).location;
+	off.z -= 100;  
+	HitActor = Trace(HitLocation, HitNormal, off, Pawn(Owner).location, true);
+	ZDistToBuildingCenter = abs(Rx_Building(HitActor).location.z - Pawn(Owner).location.z);
+	loginternal(ZDistToBuildingCenter);
+	if((Rx_Building(HitActor) != None && ZDistToBuildingCenter > 440) && !(Rx_Building_WeaponsFactory(HitActor) != None && ZDistToBuildingCenter < 800) )
+	{
+		Rx_Controller(Pawn(Owner).Controller).ClientMessage("Planting Beacon failed: This location is invalid!");
+		return false; // to prevent beacons to be placed on chimneys, the Hand of the HON etc
+	}
+	
+	return true;
 }
 
 function bool GetNearestSpottargetLocationIsOwnTeamBuilding() 
@@ -316,11 +343,33 @@ simulated function float GetWeaponRating()
 	return -1;
 }
 
+simulated function bool CanThrow()
+{
+	return false; //true; Re-enable when we have this fully fleshed out. 
+}
+
+function DropFrom(vector StartLocation, vector StartVelocity)
+{
+	local String DropLocation;
+	local PlayerController PC;
+	
+	DropLocation = Rx_Controller(Pawn(Owner).Controller).GetSpottargetLocationInfo(self);
+	foreach WorldInfo.AllControllers(class'PlayerController', PC) {
+		if (PC.PlayerReplicationInfo.Team == Pawn(Owner).Controller.PlayerReplicationInfo.Team) {
+			WorldInfo.Game.BroadcastHandler.BroadcastText(Instigator.PlayerReplicationInfo, PC, "Beacon dropped"@DropLocation, 'TeamSay');
+		}
+	}	
+	
+	super.DropFrom(StartLocation,StartVelocity);
+	SetTimer(10.0, false, 'Destroy');
+}
+
 defaultproperties
 {
 	bCanCharge = true
 	bRemoveWhenDepleted = true
 	bBlockDeployCloseToOwnBase = true
+	bDropOnDeath = false//true
 
 	WeaponFireSnd(0)=SoundCue'RX_WP_TimedC4.Sounds.SC_TimedC4_Fire'
    	FiringStatesArray(0)="Charging"

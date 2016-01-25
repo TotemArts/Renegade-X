@@ -58,6 +58,11 @@ simulated function FireAmmunition()
 
 }
 
+function bool IsInstantHit()
+{
+	return true; 
+}
+
 DefaultProperties
 {
     // Weapon SkeletalMesh

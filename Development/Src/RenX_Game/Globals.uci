@@ -15,7 +15,7 @@
 
 `define BlankSteamID "0x0000000000000000"
 
-`define nbsp " "
+`define nbsp Chr(0xA0)
 
 // Log Message seperator
 `define s $`nbsp$

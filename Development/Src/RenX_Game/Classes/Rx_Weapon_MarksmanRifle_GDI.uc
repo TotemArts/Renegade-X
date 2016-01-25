@@ -9,7 +9,7 @@ defaultproperties
 
 	AttachmentClass=class'Rx_Attachment_MarksmanRifle_GDI'
 	
-//	WeaponProjectiles(0)=class'Rx_Projectile_MarksmanRifle_GDI'
+	WeaponProjectiles(0)=class'Rx_Projectile_MarksmanRifle_GDI'
 
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_MarksmanRifle_GDI'

@@ -14,7 +14,7 @@ defaultproperties
     CustomTauntIndex=10
     lightArmorDmgScaling=0.35		// 0.495		// 3.96 hp per shot
     BuildingDamageScaling=0.5 //0.33		// 0.495		// 3.96 hp per shot
-	MCTDamageScaling=3.0
+	MCTDamageScaling=2.8 //3.0
 	
 	MineDamageScaling=2.0
     

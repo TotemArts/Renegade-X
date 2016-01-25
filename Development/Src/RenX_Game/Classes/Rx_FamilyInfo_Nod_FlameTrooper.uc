@@ -5,13 +5,13 @@ DefaultProperties
 	FamilyID="Nod"
 	Faction="Nod"
 
-	DamagePointsMultiplier  = 0.025f
+//	DamagePointsMultiplier  = 0.025f
 	HealPointsMultiplier    = 0.005f
 	PointsForKill           = 5.0f
 	MaxHealth               = 100
-	MaxArmor               	= 125
+	MaxArmor               	= 100 //125
 	Armor_Type 				= A_FLAK
-	SpeedMultiplier			= 1.1
+	SpeedMultiplier			= 1.05
 
 	CharacterMesh=SkeletalMesh'RX_CH_Nod_Soldier.Mesh.SK_CH_Nod_Soldier_Red'
 	

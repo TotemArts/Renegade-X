@@ -198,9 +198,16 @@ static function string byteToHex(byte in)
 	return quadToHex(in >> 4) $ quadToHex(in);
 }
 
+// Assumes 16-bit codepoint
 static function string codepointToHex(int value)
 {
 	return byteToHex(value >> 8) $ byteToHex(value & 0xFF);
+}
+
+// Assumes 32-bit integer
+static function string intToHex(int value)
+{
+	return codepointToHex(value >> 16) $ codepointToHex(value & 0xFFFF);
 }
 
 function AuthTimeout()

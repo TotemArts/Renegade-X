@@ -75,10 +75,10 @@ simulated function PerformDeploy()
 		} else {
 			SetBase(ImpactedActor,FloorNormal);
 		}
-		if (Pawn(ImpactedActor) != None && Pawn(ImpactedActor).PlayerReplicationInfo != None && Rx_PRI(Pawn(ImpactedActor).PlayerReplicationInfo) != None)
-			`LogRxPub("GAME" `s "Deployed;" `s self.class `s "by" `s `PlayerLog(InstigatorController.PlayerReplicationInfo) `s "on" `s `PlayerLog(Rx_Pawn(ImpactedActor).PlayerReplicationInfo));
+		if (Rx_Pawn(ImpactedActor) != None && Rx_Pawn(ImpactedActor).PlayerReplicationInfo != None)
+			`LogRxPub("GAME" `s "Deployed;" `s self.class `s "by" `s `PlayerLog(InstigatorController.PlayerReplicationInfo) `s "on" `s `PlayerLog(Rx_Pawn(ImpactedActor).PlayerReplicationInfo) `s "near" `s GetSpotMarkerName());
 		else
-			`LogRxPub("GAME" `s "Deployed;" `s self.class `s "by" `s `PlayerLog(InstigatorController.PlayerReplicationInfo) `s "on" `s ImpactedActor.Class.name);
+			`LogRxPub("GAME" `s "Deployed;" `s self.class `s "by" `s `PlayerLog(InstigatorController.PlayerReplicationInfo) `s "on" `s ImpactedActor.Class.name `s "near" `s GetSpotMarkerName());
 	}
 	else if (Base != none)
 		Base.Attach(self);
@@ -169,8 +169,8 @@ simulated function bool HurtRadius
 		}
 		if ( (Victim != IgnoredActor) && (Victim.bCanBeDamaged || Victim.bProjTarget) )
 		{
-			if(FRand() < 0.75)
-				Victim.TakeDamage(20*FRand(),InstigatedByController,Location,vect(0,0,0),class'Rx_DmgType_BurnC4');
+			//if(FRand() < 0.75)
+				Victim.TakeDamage(20,InstigatedByController,Location,vect(0,0,0),class'Rx_DmgType_BurnC4');
 			Victim.TakeRadiusDamage(InstigatedByController, BaseDamage, DamageRadius, DamageType, Momentum, HurtOrigin, bDoFullDamage, self);
 			bCausedDamage = bCausedDamage || Victim.bProjTarget;
 		}

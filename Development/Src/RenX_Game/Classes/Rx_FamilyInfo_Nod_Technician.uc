@@ -5,13 +5,13 @@ DefaultProperties
 	FamilyID="Nod"
 	Faction="Nod"
 
-	DamagePointsMultiplier  = 0.083333f
+	//DamagePointsMultiplier  = 0.083333f
 	HealPointsMultiplier    = 0.016667f
-	PointsForKill           = 20.0f
+	PointsForKill           = 12.25f //Total 25
 	MaxHealth               = 100
-	MaxArmor               	= 100
+	MaxArmor               	= 125
 	Armor_Type 				= A_FLAK
-	SpeedMultiplier			= 0.9
+	SpeedMultiplier			= 1.0 /*0.9 set back to 1.0 for the sake of some map design issues. Besides, they got nerfed where it hurt already. Right in the sidearm*/ 
 
 	CharacterMesh=SkeletalMesh'RX_CH_Technician.Meshes.SK_CH_Technician'
 	

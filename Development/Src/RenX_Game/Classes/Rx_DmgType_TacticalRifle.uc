@@ -7,7 +7,7 @@ defaultproperties
     SuicideStatsName=SUICIDES_TACTICALRIFLE
 
     DamageWeaponFireMode=2
-    VehicleDamageScaling=0.1 //0.375
+    VehicleDamageScaling=0.15 //0.375
     NodeDamageScaling=0.5
     VehicleMomentumScaling=0.1
     bBulletHit=false

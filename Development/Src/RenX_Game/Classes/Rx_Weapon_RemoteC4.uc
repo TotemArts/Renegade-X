@@ -8,7 +8,7 @@ var bool bCanPlaceRemoteRightNow;
 replication
 {
 	if( bNetDirty && bNetOwner && Role == ROLE_Authority)
-		bDetonatedRemotes;
+		bDetonatedRemotes, bCanPlaceRemoteRightNow;
 }
 
 simulated event ReplicatedEvent(name VarName)
@@ -45,7 +45,8 @@ simulated function CustomFire()
 	if(CurrentFireMode == 0) {
 		super.CustomFire();
 		bCanPlaceRemoteRightNow=false;
-		SetTimer(1.5,false,'SetCanPlaceRemoteAgain');
+		SetTimer(1.0,false,'SetCanPlaceRemoteAgain');
+		//SetTimer(1.5,false,'SetCanPlaceRemoteAgain');
 	}
 }
 
@@ -64,7 +65,8 @@ function DetonateCharges()
 		ScriptTrace();
 	}
 
-	if( Role == ROLE_Authority && Remotes.Length > 0 )
+	//if( Role == ROLE_Authority && Remotes.Length > 0)
+	if( Role == ROLE_Authority && Remotes.Length > 0)
 	{
 		foreach Remotes(D)
 		{
@@ -74,8 +76,10 @@ function DetonateCharges()
 				}
 			}
 		}
+	
 	}
 	Remotes.Length = 0;
+	//Remotes.Length = 0;
 }
 
 function ConsumeAmmo( byte FireModeNum ) {
@@ -139,14 +143,18 @@ simulated function StartFire(byte FireModeNum)
 
 reliable server function ServerDetonateRemotes()
 {
+	if(!bCanPlaceRemoteRightNow) return; 
+	
 	if(Remotes.Length > 0) {
 		DetonateCharges();	
+		
 	}
 	bDetonatedRemotes = true;
 	if(!HasAnyAmmo()) {
 		super.WeaponEmpty();
 	}	
 }
+
 
 DefaultProperties
 {

@@ -130,11 +130,12 @@ function SetChar(class<Rx_FamilyInfo> newFamily, Pawn pawn)
 	{
 		return;
 	}
-
-	if( (WorldInfo.NetMode == NM_ListenServer && RemoteRole == ROLE_SimulatedProxy) || WorldInfo.NetMode == NM_Standalone )
+	
+if( (WorldInfo.NetMode == NM_ListenServer && RemoteRole == ROLE_SimulatedProxy) || WorldInfo.NetMode == NM_Standalone )
 	{
 		UpdateCharClassInfo();
 	} else if(newFamily != None) {
+		`log("setting pawn " @ pawn @ "Character info to" @ newFamily); 
 		Rx_Pawn(pawn).SetCharacterClassFromInfo(newFamily);
 	}
 
@@ -185,9 +186,10 @@ function equipStartWeapons()
 	rxPawn.setArmorType(rxCharInfo.default.Armor_Type);
 	
 	rxPawn.SpeedUpgradeMultiplier = rxCharInfo.default.SpeedMultiplier;	
+	rxPawn.JumpHeightMultiplier = rxCharInfo.default.JumpMultiplier; 
 	rxPawn.UpdateRunSpeedNode();
 	rxPawn.SetGroundSpeed();
-	
+	rxPawn.SoundGroupClass = rxCharInfo.default.SoundGroupClass;
  	rxPawn.bForceNetUpdate = true;
 }
 

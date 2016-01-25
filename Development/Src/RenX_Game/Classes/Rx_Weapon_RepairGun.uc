@@ -20,6 +20,8 @@ var float MineDamageModifier; //Modifier for disarming mines, if any
 /** cached cast of attachment class for calling coloring functions */
 var class<Rx_Attachment_RepairGun> RepGunAttachmentClass;
 
+var Actor MyHitActor; 
+
 simulated function PostBeginPlay()
 {
 	super.PostBeginPlay();
@@ -138,12 +140,13 @@ simulated function RepairDeployedActor(Rx_Weapon_DeployedActor deployedActor, fl
 			&& (IsEnemy(deployedActor) || (Rx_Weapon_DeployedProxyC4(deployedActor) != None 
 												&& CurrentFireMode == 0
 												&& (Rx_Weapon_DeployedProxyC4(deployedActor).OwnerPRI == Instigator.PlayerReplicationInfo || Rx_PRI(Rx_Weapon_DeployedProxyC4(deployedActor).OwnerPRI).GetMineStatus() == false )
-												)))
+												&& deployedActor.HP > 0
+												&& deployedActor.HP <= deployedActor.MaxHP)))
 	{
 		Repair(deployedActor,DeltaTime,true);
 	}
 	else if (deployedActor.HP > 0 &&
-			deployedActor.HP < deployedActor.MaxHP)
+			deployedActor.HP <= deployedActor.MaxHP)
 	{
 		Repair(deployedActor,DeltaTime,false);
 	}
@@ -160,7 +163,7 @@ simulated function Repair(Actor actor, float DeltaTime, optional bool Disarm = f
 
 	DamageMod=1;
 	
-	if(Rx_Weapon_DeployedC4(actor) != none  ) 
+	if(Rx_Weapon_DeployedProxyC4(actor) != none  ) //For Proximity mines only 
 		{
 			if(actor.GetTeamNum() == Owner.GetTeamNum() ) DamageMod=MineDamageModifier*5; //disarming mines should be quick. 
 			else
@@ -216,6 +219,8 @@ simulated function ProcessBeamHit(vector StartTrace, vector AimDir, out ImpactIn
 {
 	SetFlashLocation(Impact.HitLocation);
 
+	MyHitActor=Impact.HitActor; 
+	
 	if (Rx_Vehicle(Impact.HitActor)!= none)
 	{
 		RepairVehicle(Rx_Vehicle(Impact.HitActor),DeltaTime);
@@ -467,6 +472,69 @@ simulated function bool UsesClientSideProjectiles(byte FireMode)
 	return false;
 }
 
+simulated function DrawCrosshair( Hud HUD )
+{
+	local vector2d CrosshairSize;
+	local float x,y;	
+	local UTHUDBase H;
+	local Pawn MyPawnOwner;
+	local actor TargetActor;
+	local int targetTeam, rectColor;	
+	
+	H = UTHUDBase(HUD);
+	if ( H == None )
+		return;
+
+ 	CrosshairSize.Y = CrosshairHeight;
+	CrosshairSize.X = CrosshairWidth;
+
+	X = H.Canvas.ClipX * 0.5 - (CrosshairSize.X * 0.5);
+	Y = H.Canvas.ClipY * 0.5 - (CrosshairSize.Y * 0.5);
+
+	
+	MyPawnOwner = Pawn(Owner);
+
+	//determines what we are looking at and what color we should use based on that.
+	if (MyPawnOwner != None)
+	{
+		TargetActor = Rx_Hud(HUD).GetActorWeaponIsAimingAt();
+		
+		if(TargetActor != None)
+		{
+			targetTeam = TargetActor.GetTeamNum();
+			
+			if (targetTeam == 0 || targetTeam == 1) //has to be gdi or nod player
+			{
+				if (targetTeam != MyPawnOwner.GetTeamNum())
+				{
+					if (!TargetActor.IsInState('Stealthed') && !TargetActor.IsInState('BeenShot'))
+						rectColor = 1; //enemy, go red, except if stealthed (else would be cheating ;] )
+				}
+				else
+					rectColor = 2; //Friendly
+			}
+		}
+	}
+	
+	if (!HasAnyAmmo()) //no ammo, go yellow
+		rectColor = 3;
+
+	CrosshairMIC2.SetScalarParameterValue('ReticleColourSwitcher', rectColor);
+	if ( CrosshairMIC2 != none )
+	{
+		//H.Canvas.SetPos( X+1, Y+1 );
+		H.Canvas.SetPos( X, Y );
+		H.Canvas.DrawMaterialTile(CrosshairMIC2,CrosshairSize.X, CrosshairSize.Y,0.0,0.0,1.0,1.0);
+		DrawHitIndicator(H,x,y);
+	}
+	if(bDebugWeapon)
+	{
+	H.Canvas.DrawText("Hit Actor" @ MyHitActor,true,1,1);
+	}
+	
+}
+
+
 DefaultProperties
 {
 	// Weapon SkeletalMesh
@@ -524,7 +592,7 @@ DefaultProperties
 
 	HealAmount = 20
 	MinHealAmount = 1
-	MineDamageModifier  = 3
+	MineDamageModifier  = 2//3
 	
 	ClipSize = 999
 	InitalNumClips = 1

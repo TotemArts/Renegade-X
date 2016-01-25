@@ -734,7 +734,7 @@ Defaultproperties
 	
 	AnimSteps            = 40.0f;
 	AnimPlayTime         = 1.5f;
-	LowHPMult            = 0.15f;	
+	LowHPMult            = 0.50f //0.15f;	
    	TimeStealthDelay 	 = 5.0f    //  seconds we need to stay without action to get stealthed
 
 }

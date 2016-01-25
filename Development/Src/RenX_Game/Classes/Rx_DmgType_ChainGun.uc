@@ -12,7 +12,7 @@ DefaultProperties
     NodeDamageScaling=0.5
     VehicleMomentumScaling=0.1
     CustomTauntIndex=10
-    lightArmorDmgScaling=0.2333331
+    lightArmorDmgScaling=0.25//0.2333331
 	AircraftDamageScaling=0.55 //This is only used by a damage type if the value is greater than 0, otherwise it treats an aircraft like Light armour.
     BuildingDamageScaling=0.0035
 	MCTDamageScaling=150.0

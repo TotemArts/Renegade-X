@@ -5,9 +5,9 @@ DefaultProperties
 	FamilyID="Nod"
 	Faction="Nod"
 
-	DamagePointsMultiplier  = 0.1f
+	//DamagePointsMultiplier  = 0.1f
 	HealPointsMultiplier    = 0.02f
-	PointsForKill           = 20.0f
+	PointsForKill           = 22.5 // 35
 	MaxHealth               = 100
 	MaxArmor               	= 150
 	Armor_Type 				= A_Kevlar

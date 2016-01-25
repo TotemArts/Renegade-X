@@ -47,15 +47,17 @@ auto simulated state Inactive
 
 		//If weapons were changed quickly, see if reloading had begun. If not, start it.
 		if(!IsTimerActive('ReloadWeaponTimer') && CurrentAmmoInClip <= 0)
-		{	reloadBeginTime = WorldInfo.TimeSeconds;
+		{	
+			reloadBeginTime = WorldInfo.TimeSeconds;
 			currentReloadTime = ReloadTime[CurrentFireMode];
 			SetTimer( ReloadTime[CurrentFireMode], false, 'ReloadWeaponTimer');
+			CurrentlyReloading=true; 
 			if(bDebugWeapon) 
 			{
 			`log("Set Reload Weapon Timer(Begin State): " @ ReloadTime[CurrentFireMode]); 	
 			}
 		}
-		
+		//SetTimer( 1.0f, false, 'DoubleCheckReloadTimer'); //sets a timer to make sure lag did not screw up the weapon going into reload status
 		
 		Super.BeginState(PreviousStateName);
 	}
@@ -187,10 +189,13 @@ state Reloading
 		bForceHidden = true;
 		Mesh.SetHidden(true);
 		ChangeVisibility(false);
+			if(WorldInfo.Netmode != NM_DedicatedServer && Rx_Pawn(Owner).isFirstPerson() )
+		{
+		Rx_Pawn(Owner).CurrentWeaponAttachment.ChangeVisibility(true);
+		Rx_Pawn(Owner).SetHandIKEnabled(true);
+		Rx_Pawn(Owner).ArmsMesh[0].SetHidden(false);
+		}
 		
-		Rx_Pawn(Owner).CurrentWeaponAttachment.ChangeVisibility(false);
-		Rx_Pawn(Owner).SetHandIKEnabled(false);
-		PlayWeaponReloadAnim();
 	}
 
 	function EndState( name NextState )
@@ -203,52 +208,7 @@ state Reloading
 		Rx_Pawn(Owner).ReloadAnim = '';
 			}
 
-	function PerBulletReloadWeaponTimer()
-	{
-		if (bDebugWeapon)
-		{
-			`log("---"@self$"."$GetStateName()$".PerBulletReloadWeaponTimer()");
-		}
-		if (CurrentReloadState == 0) // Weapon is lowered
-		{
-			if(PendingFire(0) || PendingFire(1) )  
-			{
-				CurrentlyReloading = false;
-				GoToState('WeaponFiring');
-				return;
-			}
-			else
-			{
-				CurrentlyReloading = false;
-				GoToState('Active');
-				return;
-			}
-		}
-		else if (CurrentReloadState == 1) // Weapon currently reloading
-		{
-			if (CurrentAmmoInClip < default.ClipSize && AmmoCount > CurrentAmmoInClip)
-			{
-				CurrentAmmoInClip++;
-				if (bHasInfiniteAmmo)
-				{
-					AmmoCount++;
-				}
-				PostReloadUpdate();
-			}
-			// If the player wants to shoot and has at least one bullet loaded, OR ammo is full, OR all ammo is already reloaded
-			if(((PendingFire(0) || PendingFire(1)) && CurrentAmmoInClip > 0) || CurrentAmmoInClip == default.ClipSize || CurrentAmmoInClip >= AmmoCount) 
-			{
-				CurrentReloadState = 0;
-			}
-		}
-		else // Weapon is raised
-		{
-			CurrentReloadState = 1;
-		}
 
-		PlayWeaponReloadAnim();
-		SetTimer( ReloadTime[CurrentReloadState], false, 'PerBulletReloadWeaponTimer');
-	}
 	function ReloadWeaponTimer()
 	{
 		if (bDebugWeapon)
@@ -284,14 +244,14 @@ state Reloading
 		//SetupArmsAnim();
 		PostReloadUpdate();
 
-		if((PendingFire(0) && CurrentFireMode == 0) || (PendingFire(1) && CurrentFireMode == 1) ) 
+		/**if((PendingFire(0) && CurrentFireMode == 0) || (PendingFire(1) && CurrentFireMode == 1) ) 
 		{
 			RestartWeaponFiringAfterReload();	
 		}
-		else
-		{
+		else*/
+		
 			GotoState('Active');
-		}
+		
 	}
 
 	simulated function bool bReadyToFire()
@@ -508,6 +468,22 @@ simulated function DrawCrosshair( Hud HUD )
 	}
 	DrawHitIndicator(H,x,y);
 }
+
+function DoubleCheckReloadTimer()
+
+{
+	if(!IsTimerActive('ReloadWeaponTimer') && CurrentAmmoInClip <= 0 )
+		{	reloadBeginTime = WorldInfo.TimeSeconds;
+			currentReloadTime = ReloadTime[CurrentFireMode];
+			SetTimer( ReloadTime[CurrentFireMode], false, 'ReloadWeaponTimer');
+			CurrentlyReloading = true;
+			bForceHidden = true;
+			Mesh.SetHidden(true);
+			ChangeVisibility(false);
+		}
+}
+
+simulated function RestartWeaponFiringAfterReload(); //Force the individual to click at the right time.
 
 DefaultProperties
 {

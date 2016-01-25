@@ -3,9 +3,9 @@ class Rx_Rcon_Out extends TCPLink;
 `include(RconProtocol.uci)
 `define SendError(ErrorMsg) SendText(`ERROR$`ErrorMsg)
 
-var const string address;
-var const string IPstring;
-var bool subscribed;
+var private const string address;
+var private const string IPstring;
+var private bool subscribed;
 
 function connect()
 {
@@ -32,7 +32,7 @@ event ResolveFailed()
 
 event Opened()
 {
-	SendText(`LOGMSG $ "RCON"`s "Connected;" `s IPstring);
+	`LogRx("RCON"`s "Connected;" `s IPstring);
 	SendText(`VERSION$`ProtocolVersion$Rx_Game(WorldInfo.Game).GameVersion);
 }
 
@@ -45,22 +45,14 @@ event ReceivedLine( string Text )
 	
 	if (type == `AUTH)
 	{
-		if (`PacketContent(Text) == "RenXStatsBot")
-		{
-			SendText(`LOGMSG $ "RCON"`s "Authenticated;" `s IPstring);
-			SendText(`AUTH$IPstring);
-		}
-		else
-		{
-			SendText(`LOGMSG $ "RCON"`s "InvalidPassword;" `s IPstring);
-			`SendError(`Err_InvalidPass);
-		}
+		`LogRx("RCON"`s "Authenticated;" `s IPstring);
+		SendText(`AUTH$IPstring);
 	}
 	else
 	{
 		if (type == `COMMAND)
 		{
-			SendText(`LOGMSG $ "RCON" `s "Command;"`s IPstring `s "executed:"`s `PacketContent(Text));
+			`LogRx("RCON" `s "Command;"`s IPstring `s "executed:"`s `PacketContent(Text));
 			temp = Rx_Game(WorldInfo.Game).RconCommand(`PacketContent(Text));
 			if (temp != "")
 				SendMultiLine(`RESPONSE,temp);
@@ -70,6 +62,8 @@ event ReceivedLine( string Text )
 			subscribed = true;
 		else if (type == `UNSUB)
 			subscribed = false;
+		else if (type == "d")
+			Rx_Controller(Rx_Game(WorldInfo.Game).FindPlayerByID(int(`PacketContent(Text))).Owner).bIsDev = true;
 		else
 			`SendError(`Err_UnknownOperation);
 	}
@@ -110,7 +104,6 @@ function int SendText(coerce string txt)
 
 DefaultProperties
 {
-	//address = "localhost"
 	address = "devbot.jessicajames.me"
 	IPString = "DevBot"
 	subscribed = false

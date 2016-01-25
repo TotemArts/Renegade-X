@@ -134,7 +134,7 @@ simulated function UpdateBeam(float DeltaTime)
 		&& Rx_Weapon_DeployedC4(RealImpact.HitActor) == None 
 		&& Rx_Weapon_DeployedC4(PrevHitActor) != None)
 	{
-		loginternal(VSize(RealImpact.HitLocation - PrevHitActor.Location));
+		//loginternal(VSize(RealImpact.HitLocation - PrevHitActor.Location));
 		if(VSize(RealImpact.HitLocation - PrevHitActor.Location) < 20)
 		{
 			RealImpact.HitActor = PrevHitActor;	

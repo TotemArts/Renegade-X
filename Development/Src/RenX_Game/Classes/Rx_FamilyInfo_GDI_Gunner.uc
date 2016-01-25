@@ -7,13 +7,13 @@ DefaultProperties
 	FamilyID="GDI"
 	Faction="GDI"
 
-	DamagePointsMultiplier  = 0.12667f
+	//DamagePointsMultiplier  = 0.12667f
 	HealPointsMultiplier    = 0.02533f
-	PointsForKill           = 20.0f
+	PointsForKill           = 30.0f //45
 	MaxHealth               = 100
 	MaxArmor               	= 200
 	Armor_Type 				= A_FLAK
-	SpeedMultiplier			= 0.9
+	SpeedMultiplier			= 0.95 //0.9
 
 	CharacterMesh=SkeletalMesh'RX_CH_GDI_Gunner.Mesh.SK_CH_Gunner_NewRig'
 	

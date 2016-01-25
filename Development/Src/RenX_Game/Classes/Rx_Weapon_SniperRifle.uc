@@ -67,6 +67,10 @@ simulated function FireAmmunition()
 	WeaponPlaySound( WeaponDistantFireSnd );
 }
 
+function bool IsInstantHit()
+{
+	return true; 
+}
 
 DefaultProperties
 {

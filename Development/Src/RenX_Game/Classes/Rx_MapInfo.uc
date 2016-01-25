@@ -19,6 +19,7 @@ var(RenegadeX_Globals) float NightVisionMultiplier;
 var(RenegadeX_Globals) float NightVisionContrast;
 var(RenegadeX_Map_Properties) int MinimapTextureScale;
 var(RenegadeX_Map_Properties) int NumCratesToBeActive;
+var(RenegadeX_Map_Properties) float SoftLevelBoundaryCornerTimeThreshold;
 var int MinimapRadius;
 var int MinimapCurrentZoom;
 var int MinimapNormalZoom;
@@ -43,6 +44,7 @@ DefaultProperties
 	NightVisionContrast=2.0;
 	MinimapTextureScale=128;
 	NumCratesToBeActive=2;
+	SoftLevelBoundaryCornerTimeThreshold=0.0;
 	MinimapCurrentZoom=32;
 	MinimapNormalZoom=44;
 	MinimapRadius=124;

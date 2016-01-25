@@ -6,9 +6,9 @@ DefaultProperties
 	Faction="Nod"
 
 	// TODO: TEMP DATA  Needs Adjustment
-	DamagePointsMultiplier  = 0.036f
+	//DamagePointsMultiplier  = 0.036f
 	HealPointsMultiplier    = 0.0072f
-	PointsForKill           = 10.0f	
+	PointsForKill           = 7.5f	//20
 	MaxHealth               = 100
 	MaxArmor               	= 150
 	Armor_Type 				= A_FLAK
@@ -28,6 +28,7 @@ DefaultProperties
 	ImmuneTo[0] = class'Rx_DmgType_Tiberium'
 	ImmuneTo[1] = class'Rx_DmgType_TiberiumBleed'
 	ImmuneTo[2] = class'Rx_DmgType_ChemicalThrower'
-
+	ImmuneTo[3]	= class'Rx_DmgType_Tiberium_Blue'
+	
 	InvManagerClass = class'Rx_InventoryManager_Nod_ChemicalTrooper' 
 }

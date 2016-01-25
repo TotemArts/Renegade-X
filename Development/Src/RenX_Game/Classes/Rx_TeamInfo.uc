@@ -136,6 +136,12 @@ function AddRenScore( float inScore )
 {
 	RenScore += inScore;
 	ReplicatedRenScore = RenScore;
+
+	if (Rx_Game(WorldInfo.Game).UpcomingScoreEvent != None && Rx_Game(WorldInfo.Game).UpcomingScoreEvent.ScoreRequired < RenScore)
+	{
+		Rx_Game(WorldInfo.Game).UpcomingScoreEvent.ScoreReached(self);
+		Rx_Game(WorldInfo.Game).UpcomingScoreEvent = Rx_Game(WorldInfo.Game).UpcomingScoreEvent.Next;
+	}
 }
 
 simulated function AddKill( optional int numKills = 1 )

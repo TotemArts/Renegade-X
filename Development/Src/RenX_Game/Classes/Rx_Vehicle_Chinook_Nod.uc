@@ -60,13 +60,13 @@ defaultproperties
                 ViewPitchMax=0,
                 MuzzleFlashLightClass=class'RenX_Game.Rx_Light_AutoRifle_MuzzleFlash'
                 )}
-//CGR_ViewSocket,
+
     Seats(2)={( GunClass=class'Rx_Vehicle_Chinook_Weapon_Nod_Right',
 				TurretVarPrefix="GunnerRight",
                 GunSocket=(Fire_Right),
                 TurretControls=(TurretPitch_Right,TurretRotate_Right),
                 GunPivotPoints=(CGR_Yaw),
-                CameraTag=CamView3P ,
+                CameraTag=CGR_ViewSocket ,
                 CameraBaseOffset=(Z=10),
                 CameraOffset=-20,
                 CameraEyeHeight=0,

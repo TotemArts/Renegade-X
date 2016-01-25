@@ -15,7 +15,7 @@ defaultproperties
     lightArmorDmgScaling= 0.45 //0.4
 	AircraftDamageScaling= 0.7 //0.6 //Low flying aircraft be damned. 
     BuildingDamageScaling= 0.5 //0.4
-	MCTDamageScaling= 2.5 
+	MCTDamageScaling= 3.0 //2.5 
 	MineDamageScaling=1.0
 	
 	

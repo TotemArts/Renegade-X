@@ -13,13 +13,13 @@ defaultproperties
 
     CustomTauntIndex=10
     lightArmorDmgScaling=0.2
-	AircraftDamageScaling=0.6 //Low flying aircraft be damned. 
+	AircraftDamageScaling=0.35 //Low flying aircraft be damned. 
     BuildingDamageScaling=0.01
 	MCTDamageScaling=2.5
 	MineDamageScaling=1.0
 	
 	////Infantry Armour Types//////
-	Inf_FLAKDamageScaling = 1.3    //FLAK infantry armour (Standard rule is explosive weapons does  30% less, while gun damage does 30% more)
+	Inf_FLAKDamageScaling = 1.1    //FLAK infantry armour (Standard rule is explosive weapons does  30% less, while gun damage does 30% more)
 	Inf_KevlarDamageScaling = 0.7	//Kevlar (General rule is 15% less damage from direct hits/bullets, but no penalties)
 	Inf_LazarusDamageScaling = 1.0  // Lazarus SBH armour, standard rule is +40% to Electrical damage but likely no other damage modifiers.
 	

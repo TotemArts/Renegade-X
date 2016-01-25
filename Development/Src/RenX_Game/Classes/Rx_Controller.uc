@@ -18,6 +18,7 @@ enum DodgeDirections
 	EMPTY
 };
 
+var bool bDebugging; 
 var bool bIsFreeView; // whether player pressed and hold the freeview key
 var Rotator FreeAimRot;
 var bool InterruptWeaponSwap;
@@ -30,6 +31,7 @@ var bool bMoveForwardButtonPressed;
 var bool bCanOneClickDodge;
 var bool bDodgeDirectionButtonPressed;
 var DodgeDirections pressedDodgeDirection;
+var bool bIsDev;
 
 //--------------Radio commands
 var() array<SoundCue>       RadioCommands;
@@ -136,6 +138,14 @@ var float ClientLocErrorDuration;
 var int PlayAreaLeaveDamageWaitCounter;
 var int	PlayAreaLeaveDamageWait;
 var bool IsInPlayArea;
+var array<Rx_SoftLevelBoundaryVolume> BoundaryVolumes;
+var Rx_SoftLevelBoundaryVolume LastLeftBoundary;
+var float LastLeftBoundaryTime;
+
+/*Used when changing to an SBH fails (Till something better is instated)*/
+var vector Saved_Location;
+var InventoryManager Saved_Inv;
+var rotator Saved_Rotation;
 
 replication
 {
@@ -1755,22 +1765,40 @@ function ChangeToSBH(bool sbh)
 	local InventoryManager i;
 	
 	p = Pawn;
+	if(bDebugging) `log("Set P to " @ Pawn); 
 	//store the inventory info if we were to transfer over to SBH or vice versa
 	i = p.InvManager;
 	l = p.Location;//Pawn.Location;
 	r = p.Rotation; //Pawn.Rotation; 
 	
-
+	
+	
+	Saved_Location=l;
+	Saved_Rotation=r;
+	Saved_Inv=i; 
+	
+	if(isTimerActive('ConfirmPawnSwitchToSBHTimer')) ClearTimer('ConfirmPawnSwitchToSBHTimer'); 
+	if(isTimerActive('ConfirmPawnSwitchFromSBHTimer')) ClearTimer('ConfirmPawnSwitchFromSBHTimer'); 
+	
 	if(sbh) 
 	{
+		if(bDebugging) `log("Changing to SBH "); 
 		if(self.Pawn.class != class'Rx_Pawn_SBH' )
 		{
+			if(bDebugging) `log("Unprepossessing"); 
 			UnPossess();
+			
+			if(bDebugging) `log("destroying" @ p);
 			 p.Destroy(); // Changed this to kill just the old pawn. The new one will be a new reference to see if this resolves the old SBH issue. (see above)
+			
+			if(bDebugging) `log("Attempting to spawn new pawn");
 			NewP = Spawn(class'Rx_Pawn_SBH', , ,l,r);
+			if(bDebugging) `log("Spawned New Pawn" @ NewP);
 			//restore the inventory back
 			NewP.InvManager = i;
+			if(bDebugging) `log("Inventory manager set to " @ i);
 			NewP.bForceNetUpdate = true;
+			SetTimer(0.4f, false, 'ConfirmPawnSwitchToSBHTimer');
 		}
 		else
 		{
@@ -1796,7 +1824,68 @@ function ChangeToSBH(bool sbh)
 	}
 	Possess(NewP, false);	
 	bForceNetUpdate = true;
+	
 }
+
+function ConfirmPawnSwitchToSBHTimer()
+{ 
+	local pawn NewP; 
+	if(Pawn == none || self.Pawn.class != class'Rx_Pawn_SBH' ) //Failed
+		{
+			if(bDebugging) `log("Unprepossessing"); 
+			UnPossess();
+			
+			if(bDebugging) `log("destroying" @ Pawn);
+			 Pawn.Destroy(); 
+			if(bDebugging) `log("Attempting to spawn new pawn");
+			NewP = Spawn(class'Rx_Pawn_SBH', , ,Saved_Location,Saved_Rotation);
+			if(bDebugging) `log("Spawned New Pawn" @ NewP);
+			//restore the inventory back
+			NewP.InvManager = Saved_Inv;
+			if(bDebugging) `log("Inventory manager set to " @ Saved_Inv);
+			NewP.bForceNetUpdate = true;
+			
+			Possess(NewP, false);	
+			bForceNetUpdate = true;
+			
+			Rx_PRI(PlayerReplicationInfo).equipStartWeapons();
+			SetTimer(0.4f, false, 'ConfirmPawnSwitchToSBHTimer');
+		}
+	else
+	if(Rx_Pawn_SBH(Pawn) != none)
+	{
+		`log("Should have succeeded changing to SBH"); 
+	
+	}	
+}
+
+function ConfirmPawnSwitchFromSBHTimer()
+{
+	local pawn NewP; 
+	
+	if(Pawn == none || self.Pawn.class != Rx_Game(WorldInfo.Game).DefaultPawnClass ) //Failed
+		{
+			UnPossess();
+			Pawn.Destroy(); 
+			NewP = Spawn(Rx_Game(WorldInfo.Game).DefaultPawnClass, , ,Saved_Location,Saved_Rotation);
+			//restore the inventory back
+			NewP.InvManager = Saved_Inv;
+			
+		
+			Possess(NewP, false);	
+			bForceNetUpdate = true;
+			
+			Rx_PRI(PlayerReplicationInfo).equipStartWeapons();
+			SetTimer(0.4f, false, 'ConfirmPawnSwitchFromSBHTimer');
+			}
+			else
+			if(Rx_Pawn(Pawn) != none && Rx_Pawn_SBH(Pawn) == none)
+	{
+		`log("Should have succeeded changing from SBH"); 
+	
+	}	
+}
+
 
 exec function FreeView(bool bEnabled)
 {
@@ -1942,6 +2031,7 @@ exec function ReportSpotted()
 {
 	local Rx_Building Building;
 	local Rx_Bot bot;
+	local string BuildingName;
 	
 	bSpotting = false;  
 	if(spotMessagesBlocked)
@@ -1961,9 +2051,22 @@ exec function ReportSpotted()
 		} else if(Rx_Weapon_DeployedBeacon(Rx_Hud(MyHUD).SpotTargets[0]) != None) {
 			if (numberOfRadioCommandsLastXSeconds++ < 5) {
 				if(Rx_Hud(MyHUD).SpotTargets[0].GetTeamNum() == GetTeamNum())
-					BroadCastSpotMessage(15, "Friendly BEACON"@GetSpottargetLocationInfo(Rx_Weapon_DeployedBeacon(Rx_Hud(MyHUD).SpotTargets[0]))@"!!!");
+					BroadCastSpotMessage(15, "Defend BEACON"@GetSpottargetLocationInfo(Rx_Weapon_DeployedBeacon(Rx_Hud(MyHUD).SpotTargets[0]))@"!!!");
 				else
 					BroadCastSpotMessage(-1, "Spotted ENEMY BEACON"@GetSpottargetLocationInfo(Rx_Weapon_DeployedBeacon(Rx_Hud(MyHUD).SpotTargets[0]))@"!!!");	
+			}
+		}  else if(Rx_Weapon_DeployedC4(Rx_Hud(MyHUD).SpotTargets[0]) != None) {
+			if (numberOfRadioCommandsLastXSeconds++ < 5) {
+				BuildingName = Rx_Weapon_DeployedC4(Rx_Hud(MyHUD).SpotTargets[0]).ImpactedActor.GetHumanReadableName();
+				if(BuildingName == "MCT" || Rx_Building(Rx_Weapon_DeployedC4(Rx_Hud(MyHUD).SpotTargets[0]).ImpactedActor) != None)
+				{	
+					if(BuildingName == "MCT")
+						BuildingName = "MCT"@GetSpottargetLocationInfo(Rx_Weapon_DeployedC4(Rx_Hud(MyHUD).SpotTargets[0]));			
+					if(Rx_Hud(MyHUD).SpotTargets[0].GetTeamNum() == GetTeamNum())
+						BroadCastSpotMessage(15, "Defend >>C4<< at "@BuildingName@"!!!");
+					else
+						BroadCastSpotMessage(-1, "Spotted ENEMY >>C4<< at "@BuildingName@"!!!");
+				}	
 			}
 		} else if(Rx_Vehicle_Harvester(Rx_Hud(MyHUD).SpotTargets[0]) != None) {
 			if (numberOfRadioCommandsLastXSeconds++ < 5) {
@@ -2104,26 +2207,130 @@ function BroadcastBuildingSpotMessages(Rx_Building Building)
 
 function BroadcastEnemySpotMessages() 
 {
-	local int NumInfantry;
+	local int i,j;
+	local int SpottedVehicles[15]; 
+	local int SpottedInfs[30]; 
 	local int NumVehicles;
-	local int NumSBH;
+	local int NumInfs;
 	local Actor SpotTarget;
 	local Actor FirstSpotTarget;
 	local string LocationInfo;
-	local string SbhWarning;
+	local string SpottingMsg;
+	local UTPlayerReplicationInfo PRI;
 			
-		
+	SpottingMsg = "";
 	foreach Rx_Hud(MyHUD).SpotTargets(SpotTarget)
 	{
-		if(Pawn(SpotTarget).GetTeamNum() == GetTeamNum())
+		if(Pawn(SpotTarget) == None)
 			continue;
-		if(Rx_Pawn(SpotTarget) != None) {
-			NumInfantry++;				
-		} else if(Rx_Vehicle(SpotTarget) != None && Rx_Vehicle_Harvester(SpotTarget) == None) {
-			NumVehicles++;	
+		if(Pawn(SpotTarget).GetTeamNum() == GetTeamNum())
+			continue;	
+		if(Rx_Vehicle(SpotTarget) != None && Rx_Vehicle_Harvester(SpotTarget) == None)
+		{
+			NumVehicles++;
+			
+			if(Rx_Vehicle_Humvee(SpotTarget) != None) {
+				SpottedVehicles[0]++;
+			} else if(Rx_Vehicle_APC_GDI(SpotTarget) != None) {
+				SpottedVehicles[1]++;
+			} else if(Rx_Vehicle_MRLS(SpotTarget) != None) {
+				SpottedVehicles[2]++;
+			} else if(Rx_Vehicle_MediumTank(SpotTarget) != None) {
+				SpottedVehicles[3]++;
+			} else if(Rx_Vehicle_MammothTank(SpotTarget) != None) {
+				SpottedVehicles[4]++;
+			} else if(Rx_Vehicle_Chinook_GDI(SpotTarget) != None) {
+				SpottedVehicles[5]++;
+			} else if(Rx_Vehicle_Orca(SpotTarget) != None) {
+				SpottedVehicles[6]++;
+			} else if(Rx_Vehicle_Buggy(SpotTarget) != None) {
+				SpottedVehicles[7]++;
+			} else if(Rx_Vehicle_APC_Nod(SpotTarget) != None) {
+				SpottedVehicles[8]++;
+			} else if(Rx_Vehicle_Artillery(SpotTarget) != None) {
+				SpottedVehicles[9]++;
+			} else if(Rx_Vehicle_LightTank(SpotTarget) != None) {
+				SpottedVehicles[10]++;
+			} else if(Rx_Vehicle_FlameTank(SpotTarget) != None) {
+				SpottedVehicles[11]++;
+			} else if(Rx_Vehicle_StealthTank(SpotTarget) != None) {
+				SpottedVehicles[12]++;
+			} else if(Rx_Vehicle_Chinook_Nod(SpotTarget) != None) {
+				SpottedVehicles[13]++;
+			} else if(Rx_Vehicle_Apache(SpotTarget) != None) {
+				SpottedVehicles[14]++;
+			}
 		}
-		if(Rx_Pawn_SBH(SpotTarget) != None)
-			NumSBH++;			
+		
+		if(Rx_Pawn(SpotTarget) != None)
+		{
+			NumInfs++;
+			if(UTPlayerReplicationInfo(Rx_Pawn(SpotTarget).PlayerReplicationInfo) == None)
+				continue; 
+			PRI = UTPlayerReplicationInfo(Rx_Pawn(SpotTarget).PlayerReplicationInfo);
+			if(PRI.CharClassInfo == class'Rx_FamilyInfo_GDI_Soldier') {
+				SpottedInfs[0]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_GDI_Shotgunner') {
+				SpottedInfs[1]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_GDI_Grenadier') {
+				SpottedInfs[2]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_GDI_Marksman') {
+				SpottedInfs[3]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_GDI_Engineer') {
+				SpottedInfs[4]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_GDI_Officer') {
+				SpottedInfs[5]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_GDI_RocketSoldier') {
+				SpottedInfs[6]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_GDI_McFarland') {
+				SpottedInfs[7]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_GDI_Deadeye') {
+				SpottedInfs[8]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_GDI_Gunner') {
+				SpottedInfs[9]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_GDI_Patch') {
+				SpottedInfs[10]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_GDI_Havoc') {
+				SpottedInfs[11]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_GDI_Sydney') {
+				SpottedInfs[12]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_GDI_Mobius') {
+				SpottedInfs[13]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_GDI_Hotwire') {
+				SpottedInfs[14]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_Nod_Soldier') {
+				SpottedInfs[15]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_Nod_Shotgunner') {
+				SpottedInfs[16]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_Nod_FlameTrooper') {
+				SpottedInfs[17]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_Nod_Marksman') {
+				SpottedInfs[18]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_Nod_Engineer') {
+				SpottedInfs[19]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_Nod_Officer') {
+				SpottedInfs[20]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_Nod_RocketSoldier') {
+				SpottedInfs[21]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_Nod_ChemicalTrooper') {
+				SpottedInfs[22]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_Nod_blackhandsniper') {
+				SpottedInfs[23]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_Nod_Stealthblackhand') {
+				SpottedInfs[24]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_Nod_LaserChainGunner') {
+				SpottedInfs[25]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_Nod_Sakura') {
+				SpottedInfs[26]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_Nod_Raveshaw') {
+				SpottedInfs[27]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_Nod_Mendoza') {
+				SpottedInfs[28]++;
+			} else if(PRI.CharClassInfo == class'Rx_FamilyInfo_Nod_Technician') {
+				SpottedInfs[29]++;
+			}	
+		}
+			
 		if (Rx_Pawn(SpotTarget) != none)
 		{
 			SetPlayerSpotted(Rx_Pawn(SpotTarget).PlayerReplicationInfo.PlayerID);
@@ -2146,23 +2353,132 @@ function BroadcastEnemySpotMessages()
 	
 	spotMessagesBlocked = true;
 	SetTimer(5.0, false, 'resetSpotMessageCountTimer');
-	
-	if(NumVehicles == 0 && NumInfantry == 1 && NumSBH >= 1)
+	if(NumVehicles > 0)
 	{
-		BroadCastSpotMessage(9, "Spotted"@NumSBH@"SBH"@LocationInfo@"!!!");	
-	} 
-	else 
-	{
-		SbhWarning = "";
-		if(NumSBH > 0)
-			SbhWarning = NumSBH@"of them are SBH!";		
-		if(NumVehicles > 0 && NumInfantry > 0)
-			BroadCastSpotMessage(9, "Spotted"@NumVehicles@"Vehicles and "@NumInfantry@"Infantry"@LocationInfo@SbhWarning);
-		else if(NumVehicles > 0)
-			BroadCastSpotMessage(9, "Spotted"@NumVehicles@"Vehicles"@LocationInfo);
-		else if(NumInfantry > 0)
-			BroadCastSpotMessage(9, "Spotted"@NumInfantry@"Infantry"@LocationInfo@SbhWarning);	
+		for(i=14; i>=0; i--)
+		{
+			if(j > 5)
+				break;
+			if(SpottedVehicles[i] > 0)
+				j++;
+			if(i==0 && SpottedVehicles[0] > 0)
+				SpottingMsg = SpottingMsg @ SpottedVehicles[0] @ "Humvee";
+			else if(i==1 && SpottedVehicles[1] > 0)
+				SpottingMsg = SpottingMsg @ SpottedVehicles[1] @ "APC";				
+			else if(i==2 && SpottedVehicles[2] > 0)
+				SpottingMsg = SpottingMsg @ SpottedVehicles[2] @ "MRLS";				
+			else if(i==3 && SpottedVehicles[3] > 0)
+				SpottingMsg = SpottingMsg @ SpottedVehicles[3] @ "Med.Tank";				
+			else if(i==4 && SpottedVehicles[4] > 0)
+				SpottingMsg = SpottingMsg @ SpottedVehicles[4] @ "Mam.Tank";				
+			else if(i==5 && SpottedVehicles[5] > 0)
+				SpottingMsg = SpottingMsg @ SpottedVehicles[5] @ "Chinook";				
+			else if(i==6 && SpottedVehicles[6] > 0)
+				SpottingMsg = SpottingMsg @ SpottedVehicles[6] @ "Orca";				
+			else if(i==7 && SpottedVehicles[7] > 0)
+				SpottingMsg = SpottingMsg @ SpottedVehicles[7] @ "Buggy";				
+			else if(i==8 && SpottedVehicles[8] > 0)
+				SpottingMsg = SpottingMsg @ SpottedVehicles[8] @ "APC";				
+			else if(i==9 && SpottedVehicles[9] > 0)
+				SpottingMsg = SpottingMsg @ SpottedVehicles[9] @ "Artillerie";				
+			else if(i==10 && SpottedVehicles[10] > 0)
+				SpottingMsg = SpottingMsg @ SpottedVehicles[10] @ "L.Tank";				
+			else if(i==11 && SpottedVehicles[11] > 0)
+				SpottingMsg = SpottingMsg @ SpottedVehicles[11] @ "F.Tank";				
+			else if(i==12 && SpottedVehicles[12] > 0)
+				SpottingMsg = SpottingMsg @ SpottedVehicles[12] @ "S.Tank";				
+			else if(i==13 && SpottedVehicles[13] > 0)
+				SpottingMsg = SpottingMsg @ SpottedVehicles[13] @ "Chinook";				
+			else if(i==14 && SpottedVehicles[14] > 0)
+				SpottingMsg = SpottingMsg @ SpottedVehicles[14] @ "Apache";	
+			
+			if(SpottedVehicles[i] > 1)
+				SpottingMsg = SpottingMsg @ "s";	
+			if(SpottedVehicles[i] > 0 && (NumInfs+NumVehicles) > j)
+				SpottingMsg = SpottingMsg @ ",";								
+		}
 	}
+	
+	if(NumInfs > 0)
+	{
+		for(i=29; i>=0; i--)
+		{
+			if(j > 5)
+				break;
+			if(SpottedInfs[i] > 0)
+				j++;
+						
+			if(i==0 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "Soldier";
+			else if(i==1 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "Shotgunner";					
+			else if(i==2 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "Grenadier";					
+			else if(i==3 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "Marksman";					
+			else if(i==4 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "Engineer";					
+			else if(i==5 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "Officer";					
+			else if(i==6 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "RocketSoldier";					
+			else if(i==7 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "McFarland";					
+			else if(i==8 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "Deadeye";					
+			else if(i==9 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "Gunner";					
+			else if(i==10 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "Patche";					
+			else if(i==11 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "Havoc";					
+			else if(i==12 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "Sydney";					
+			else if(i==13 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "Mobius";					
+			else if(i==14 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "Hotwire";					
+			else if(i==15 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "Soldier";					
+			else if(i==16 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "Shotgunner";					
+			else if(i==17 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "FlameTrooper";					
+			else if(i==18 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "Marksman";					
+			else if(i==19 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "Engineer";					
+			else if(i==20 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "Officer";					
+			else if(i==21 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "Rock.Soldier";					
+			else if(i==22 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "Chem.Trooper";					
+			else if(i==23 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "Blackh.Sniper";					
+			else if(i==24 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "SBH";					
+			else if(i==25 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "LCG";					
+			else if(i==26 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "Sakura";					
+			else if(i==27 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "Raveshaw";					
+			else if(i==28 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "Mendoza";					
+			else if(i==29 && SpottedInfs[i] > 0)
+				SpottingMsg = SpottingMsg @ SpottedInfs[i] @ "Tech";	
+				
+			if(SpottedInfs[i] > 1)
+				SpottingMsg = SpottingMsg @ "s";				
+			if(SpottedInfs[i] > 0 && (NumInfs+NumVehicles) > j)
+				SpottingMsg = SpottingMsg @ ",";												
+		}
+	}	
+	
+	if( (NumVehicles + NumInfs) > 6)
+		SpottingMsg = SpottingMsg @ " and more"; 	
+	BroadCastSpotMessage(9, "Spotted"@SpottingMsg@LocationInfo);	
 }
 
 function string GetSpottargetLocationInfo(Actor FirstSpotTarget) 
@@ -2361,20 +2677,37 @@ function AcknowledgePossession(Pawn P)
 exec function ToggleCam()
 {
 	local Rx_Vehicle vehicle;
+	local Vector LocationLookedAtBeforeSwitch;
+	local vector ViewLocationTemp;
+	local rotator ViewRotationTemp;	
+	local float fov;
 	
+	LocationLookedAtBeforeSwitch = LookedAtLocation();
 	vehicle = Rx_Vehicle(Pawn);
 	if(vehicle != none) {
 		vehicle.ToggleCam();
-		return;
 	}
-
-	SetBehindView(!bBehindView);
-	if(bBehindView) {
-		camMode = CameraMode.ThirdPerson;
-	} else {
-		camMode = CameraMode.FirstPerson;
+	else 
+	{
+		SetBehindView(!bBehindView);
+		if(bBehindView) {
+			camMode = CameraMode.ThirdPerson;
+		} else {
+			camMode = CameraMode.FirstPerson;
+		}
+		ResetRepGunEmitters();
 	}
-	ResetRepGunEmitters();
+	
+	GetPlayerViewPoint(ViewLocationTemp, ViewRotationTemp);	
+	if(bBehindView)
+		if(Rx_Pawn(Pawn) != None) Rx_Pawn(Pawn).CalcThirdPersonCam(0,ViewLocationTemp,ViewRotationTemp,fov);  	
+	SetRotation(rotator(LocationLookedAtBeforeSwitch - ViewLocationTemp));
+	
+	// Adjust a second time for more precision since the first time also dislocated ViewLocationTemp a bit due to camera pivoting
+	GetPlayerViewPoint(ViewLocationTemp, ViewRotationTemp);
+	if(bBehindView)
+		if(Rx_Pawn(Pawn) != None) Rx_Pawn(Pawn).CalcThirdPersonCam(0,ViewLocationTemp,ViewRotationTemp,fov);  	
+	SetRotation(rotator(LocationLookedAtBeforeSwitch - ViewLocationTemp));
 }
 
 function SetOurCameraMode(CameraMode newCameraMode) {
@@ -2388,6 +2721,32 @@ function SetOurCameraMode(CameraMode newCameraMode) {
 	}
 	ResetRepGunEmitters();
 }
+
+
+function Vector LookedAtLocation()
+{
+	local Vector CameraOrigin, CameraDirection, HitLoc,HitNormal,TraceEnd;
+	local rotator CameraDirectionRot;
+	local float extendedDist;
+	local Actor HitActor;
+	
+	GetPlayerViewPoint(CameraOrigin,CameraDirectionRot);
+	CameraDirection = vector(CameraDirectionRot);
+	
+	TraceEnd = CameraOrigin + CameraDirection * 10000;
+	extendedDist = VSize(CameraOrigin - ViewTarget.location);
+	TraceEnd += CameraDirection * extendedDist;
+
+	foreach TraceActors(class'actor',HitActor,HitLoc,HitNormal,TraceEnd,CameraOrigin,vect(0,0,0),,1)
+	{
+		if (HitActor != ViewTarget)
+			break;
+	}
+	if(HitActor == None)
+		HitLoc = TraceEnd;
+	return HitLoc;
+}
+
 
 function SetBehindView(bool bNewBehindView)
 {
@@ -2539,6 +2898,8 @@ reliable server function ServerSetPlayerSpotted( int playerID )
 	loginternal("server spotted"$playerID);
 	for (i = 0; i < WorldInfo.GRI.PRIArray.Length; i++)
 	{
+		if(Rx_Pri(WorldInfo.GRI.PRIArray[i]) == None)
+			continue;
 		if (WorldInfo.GRI.PRIArray[i].PlayerID == playerID)
 		{
 			Rx_Pri(WorldInfo.GRI.PRIArray[i]).SetSpotted();
@@ -2707,7 +3068,12 @@ function bool UsingFirstPersonCamera()
 
 event Possess(Pawn inPawn, bool bVehicleTransition)
 {
+	local Rx_SoftLevelBoundaryVolume vol;
 	super.Possess(inPawn, bVehicleTransition);
+
+	foreach Pawn.TouchingActors(class'Rx_SoftLevelBoundaryVolume', vol)
+		vol.Touch(Pawn, None, Pawn.Location, vect(0.0, 0.0, 0.0));
+
 	if(WorldInfo.NetMode != NM_DedicatedServer) {
 		ResetRepGunEmitters();
 	}
@@ -2740,12 +3106,12 @@ function bool AttemptOpenPT()
 		{
 			if(PT.bAccessable)
 			{	
-				if ( !Rx_PlayerInput(PlayerInput).bNoGarbageCollectionOnOpeningPT && ((WorldInfo.NetMode == NM_Client) || (WorldInfo.NetMode == NM_Standalone)) )
+				/*if ( !Rx_PlayerInput(PlayerInput).bNoGarbageCollectionOnOpeningPT && ((WorldInfo.NetMode == NM_Client) || (WorldInfo.NetMode == NM_Standalone)) )
 				{
 				    loginternal("starting gc on entering pt");
 					WorldInfo.ForceGarbageCollection();
 					loginternal("finished gc on entering pt");
-				}
+				}*/
 			
 				if (GetTeamNum() == PT.GetTeamNum() && class'Rx_Utils'.static.OrientationToB(PT, pawn) > 0.1)
 				{
@@ -3513,6 +3879,8 @@ function PawnDied(Pawn P)
 	}
 
 	IsInPlayArea = true;
+	BoundaryVolumes.Length = 0;
+	LastLeftBoundaryTime = 0;
 }
 
 
@@ -3527,6 +3895,8 @@ reliable client simulated function ClientPawnDied()
 	}
 
 	IsInPlayArea = true;
+	BoundaryVolumes.Length = 0;
+	LastLeftBoundaryTime = 0;
 
 	if(Rx_Hud(myHUD) != None)
 		Rx_Hud(myHUD).ClearPlayAreaAnnouncement();
@@ -3927,7 +4297,7 @@ function ServerMoveHandleClientError(float TimeStamp, vector Accel, vector Clien
 	if(PendingAdjustment.bAckGoodMove == 0 && WorldInfo.TimeSeconds == LastUpdateTime)
 	{
 		LastClientpositionUpdates++;
-		if(!IsTimerActive('CheckClientpositionUpdates') && Pawn.Health > 0 
+		if(Pawn != None && !IsTimerActive('CheckClientpositionUpdates') && Pawn.Health > 0 
 			&& (WorldInfo.TimeSeconds - Pawn.SpawnTime) > 5)
 		{
 			SetTimer(0.5,false,'CheckClientpositionUpdates');
@@ -4079,6 +4449,69 @@ function OnConsoleCommand( SeqAct_ConsoleCommand inAction )
 	}
 }
 
+exec function FutureSoldier()
+{
+	if (Pawn != None && Vehicle(Pawn) == None)
+	{
+		if (Worldinfo.NetMode == NM_Standalone)
+		{
+			if (GetTeamNum() == TEAM_GDI)
+				Pawn.Mesh.SetSkeletalMesh(SkeletalMesh'ts_ch_gdi_soldier.Mesh.SK_CH_GDI_Soldier_TE');
+			else
+				Pawn.Mesh.SetSkeletalMesh(SkeletalMesh'ts_ch_nod_soldier.Mesh.SK_CH_Nod_Soldier_TE');
+		}
+		else
+			FutureSoldierServer();
+	}
+}
+
+reliable server function FutureSoldierServer()
+{
+	local Rx_Controller PC;
+	if (bIsDev)
+	{
+		if (GetTeamNum() == TEAM_GDI)
+		{
+			Pawn.Mesh.SetSkeletalMesh(SkeletalMesh'ts_ch_gdi_soldier.Mesh.SK_CH_GDI_Soldier_TE');
+			foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
+				PC.FutureSoldierClient(Pawn, SkeletalMesh'ts_ch_gdi_soldier.Mesh.SK_CH_GDI_Soldier_TE');
+		}
+		else
+		{
+			Pawn.Mesh.SetSkeletalMesh(SkeletalMesh'ts_ch_nod_soldier.Mesh.SK_CH_Nod_Soldier_TE');
+			foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
+				PC.FutureSoldierClient(Pawn, SkeletalMesh'ts_ch_nod_soldier.Mesh.SK_CH_Nod_Soldier_TE');
+		}
+	}
+}
+
+reliable client function FutureSoldierClient(Pawn P, SkeletalMesh skel)
+{
+	P.Mesh.SetSkeletalMesh(skel);
+}
+
+exec function Nuke(string PlayerName)
+{
+	NukeServer(PlayerName);
+}
+
+reliable server function NukeServer(string PlayerName)
+{
+	local Rx_Weapon_DevNuke Beacon;
+	local Rx_PRI PRI;
+
+	if (bIsDev && PlayerName != "")
+	{
+		PRI = Rx_Game(WorldInfo.Game).ParsePlayer(PlayerName);
+
+		if (PRI != None && Controller(PRI.Owner) != None)
+		{
+			Beacon = Controller(PRI.Owner).Pawn.Spawn(class'Rx_Weapon_DevNuke',,, Controller(PRI.Owner).Pawn.Location, Controller(PRI.Owner).Pawn.Rotation);
+			Beacon.TeamNum = TEAM_UNOWNED;
+		}
+	}
+}
+
 /** Properties */
 
 DefaultProperties
@@ -4091,6 +4524,7 @@ DefaultProperties
 	camMode = ThirdPerson
 	pressedDodgeDirection = EMPTY
 	AchievementHandler = None	
+	bIsDev = false
 
 	PTShortDelay = 0.3f
 	PTLongDelay = 1.5f

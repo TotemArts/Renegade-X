@@ -169,4 +169,5 @@ DefaultProperties
     MaxSpeed=0
     bReplicateMovement=false
     bAlwaysRelevant=true
+	
 }

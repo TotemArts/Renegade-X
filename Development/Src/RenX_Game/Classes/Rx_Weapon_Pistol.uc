@@ -1,5 +1,10 @@
 class Rx_Weapon_Pistol extends Rx_Weapon_Reloadable;
 
+function bool IsInstantHit()
+{
+	return true; 
+}
+
 DefaultProperties
 {
 	bAutoFire = false
@@ -65,10 +70,10 @@ DefaultProperties
 	WeaponFireTypes(0)=EWFT_InstantHit
 	WeaponFireTypes(1)=EWFT_None
 
-	InstantHitDamage(0)=10
+	InstantHitDamage(0)=12
 	InstantHitDamage(1)=0
 	
-	HeadShotDamageMult=2.5
+	HeadShotDamageMult=3.5
 
 	InstantHitDamageTypes(0)=class'Rx_DmgType_Pistol'
 	InstantHitDamageTypes(1)=None

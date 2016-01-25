@@ -11,8 +11,22 @@ var(Damage) float                  DestroyRewardFactor;
 simulated function PostBeginPlay()
 {
 	super.PostBeginPlay();
-	Planter = InstigatorController; 
+	if(Instigator != none ) Planter = InstigatorController;
+
 }
+
+function KillCheck()
+{
+	if( Role == ROLE_Authority )
+	{
+		// Destroy when player dies
+		if( Instigator == None || Instigator.Health <= 0 )
+			Destroy();
+	}
+}
+
+
+
 
 function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)
 {
@@ -55,6 +69,7 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 event Landed( vector HitNormal, actor FloorActor )
 {
 	super.Landed(HitNormal, FloorActor);
+	SetTimer(1.0, true, 'KillCheck');
 	if (Pawn(FloorActor) != None)
         Detonate();	
 }

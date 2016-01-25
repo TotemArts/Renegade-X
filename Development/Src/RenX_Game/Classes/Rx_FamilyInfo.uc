@@ -31,6 +31,7 @@ enum ENUM_Armor
 
 var const float         DamagePointsMultiplier;
 var const float 		SpeedMultiplier;
+var const float			JumpMultiplier;
 var const float         HealPointsMultiplier;
 var const float         PointsForKill;
 var const int           MaxHealth;
@@ -159,7 +160,9 @@ DefaultProperties
 	MaxHealth = 100
 	MaxArmor  = 100
 	Armor_Type = A_Kevlar
-	SpeedMultiplier=1
+	SpeedMultiplier=1.0
+	JumpMultiplier=1.0
+	DamagePointsMultiplier=0.05 /*Stock, 1 point/credit per 20 damage. That puts a Rifle soldier at giving away 10 points total without a death bonus*/ 
 	
 	bFemale = false; //halo2pac
 

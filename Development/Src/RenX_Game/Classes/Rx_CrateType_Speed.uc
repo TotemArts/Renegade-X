@@ -26,5 +26,5 @@ DefaultProperties
 	BroadcastMessageIndex = 11
 	PickupSound = SoundCue'Rx_Pickups.Sounds.SC_Crate_Refill'
 
-	SpeedIncreasePercent = 10
+	SpeedIncreasePercent = 5 //10
 }

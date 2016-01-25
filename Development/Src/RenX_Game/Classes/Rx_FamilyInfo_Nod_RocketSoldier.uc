@@ -5,13 +5,13 @@ DefaultProperties
 	FamilyID="Nod"
 	Faction="Nod"
 
-	DamagePointsMultiplier  = 0.044f
+	//DamagePointsMultiplier  = 0.044f
 	HealPointsMultiplier    = 0.0088f
-	PointsForKill           = 10.0f
+	PointsForKill           = 9.75f // Solid 20
 	MaxHealth               = 100
 	MaxArmor               	= 125
 	Armor_Type 				= A_FLAK
-	SpeedMultiplier			= 1.0
+	SpeedMultiplier			= 1.05
 	
 	ArmMeshPackageName="RX_CH_Arms"
 	ArmMesh="RX_CH_Arms.Mesh.SK_Arms_Nod_Default"

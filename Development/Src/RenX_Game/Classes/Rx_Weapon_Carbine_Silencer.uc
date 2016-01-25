@@ -1,5 +1,10 @@
 class Rx_Weapon_Carbine_Silencer extends Rx_Weapon_Charged;
 
+function bool IsInstantHit()
+{
+	return true; 
+}
+
 defaultproperties
 {
 	Begin Object class=AnimNodeSequence Name=MeshSequenceA
@@ -65,7 +70,7 @@ defaultproperties
 	EquipTime=0.5
 //	PutDownTime=0.5
 	
-	Spread(0)=0.0055
+	Spread(0)=0.0025
 
 	FiringStatesArray(1)=Active
 /*	
@@ -81,7 +86,7 @@ defaultproperties
 	InstantHitDamage(0)=12
 	InstantHitDamage(1)=12
 	
-	HeadShotDamageMult=2
+	HeadShotDamageMult=2.5
 
 	InstantHitDamageTypes(0)=class'Rx_DmgType_Carbine'
 	InstantHitDamageTypes(1)=class'Rx_DmgType_Carbine'

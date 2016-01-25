@@ -45,6 +45,11 @@ simulated function bool TryHeadshot(byte FiringMode, ImpactInfo Impact)
 	return false;
 }
 
+function bool IsInstantHit()
+{
+	return true; 
+}
+
 defaultproperties
 {
     Begin Object class=AnimNodeSequence Name=MeshSequenceA

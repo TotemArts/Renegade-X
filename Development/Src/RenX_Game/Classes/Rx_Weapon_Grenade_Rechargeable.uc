@@ -3,6 +3,8 @@ class Rx_Weapon_Grenade_Rechargeable extends Rx_Weapon_RechargeableGrenade;
 // EMP Grenades are non-refillable, players must purchase more. EDIT: Rechargeable Grenades are also non-refillable. 
 simulated function PerformRefill();
 
+simulated function ReloadWeapon();
+
 DefaultProperties
 {
 	// Weapon SkeletalMesh
@@ -53,8 +55,8 @@ DefaultProperties
 	ShotCost(1)=1
 	FireInterval(0)=+0.75
 	FireInterval(1)=+0.75
-	ReloadTime(0) = 12
-	ReloadTime(1) = 12
+	ReloadTime(0) = 25
+	ReloadTime(1) = 25
 	DelayFireTime(0) = 0.54375;
 	DelayFireTime(1) = 0.54375;
 	

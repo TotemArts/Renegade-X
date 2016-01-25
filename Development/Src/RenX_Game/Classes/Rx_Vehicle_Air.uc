@@ -197,7 +197,7 @@ function DamageVehicleSurfers()
     	if(self == P)
     		continue;
     	if(p.base == self)	
-    		P.TakeDamage(10, none, P.Location, vect(0,0,1), class'UTDmgType_LinkBeam');	
+    		P.TakeDamage(10, none, P.Location, vect(0,0,1), class'Rx_DmgType_Fell');	
     }
 }
 

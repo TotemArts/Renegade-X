@@ -101,10 +101,10 @@ DefaultProperties
     ShotCost(0)=1
     ShotCost(1)=1
 
-    ReloadTime(0) = 2.0
+    ReloadTime(0) = 3.0//2.0
     ReloadTime(1) = 6.0
     
-    FireInterval(0)=0.25
+    FireInterval(0)= 0.5//0.25
     FireInterval(1)=0.15
     bFastRepeater = true
     

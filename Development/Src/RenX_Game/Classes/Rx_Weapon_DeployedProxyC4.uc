@@ -14,9 +14,10 @@ var float DetonateDelay;
 var PlayerReplicationInfo OwnerPRI;
 
 var int EMPDisarmTime;	// time it takes for the EMP to disarm a full health mine. Note integer and not floating point.
-var int EMPTicks;
+var int EMPTicks, TestHeight;
 var Controller EMPInstigator;
-var Actor EMPActor;
+var Actor EMPActor, DebugActor, hitActor;
+var bool bDebugWeapon;
 
 replication
 {
@@ -61,8 +62,15 @@ function CheckProxy()
 {
 	local Rx_Pawn P;
 	local Rx_Vehicle V;
+	local vector endL, normthing; 
+	local vector ScanLoc;
 	
-	ForEach VisibleCollidingActors(class'Rx_Pawn', P, TriggerRadius,, true)
+	//Store our location, but scan from about 13 units above our location. 
+	ScanLoc=location; 
+	   
+	ScanLoc.z+=TestHeight;
+	   
+	ForEach VisibleCollidingActors(class'Rx_Pawn', P, TriggerRadius,ScanLoc, true)
 	{
       if ((GetTeamNum() != P.GetTeamNum()) && (P.Health > 0) && bDeployed) {
       	Activator = P;
@@ -71,6 +79,13 @@ function CheckProxy()
 		break;
       }
    }
+   if(bDebugWeapon) 
+   {
+	    
+	   hitActor=Trace(endL, normthing, DebugActor.location,ScanLoc, true) ;
+		`log(hitActor); 
+   }
+   
    
 	ForEach OverlappingActors(class'Rx_Vehicle', V, VehicleTriggerRadius,, true)
 	{
@@ -92,6 +107,12 @@ function Detonate()
 
 function Explosion()
 {
+	local Vector ZOffsetLocation;
+	
+	ZOffsetLocation=location; 
+	
+	ZOffsetLocation.z+=TestHeight;
+	
 	if (WorldInfo.NetMode == NM_DedicatedServer || WorldInfo.NetMode == NM_ListenServer) // trigger client replication
 		bExplode = true;
 	if (WorldInfo.NetMode != NM_DedicatedServer)
@@ -99,12 +120,13 @@ function Explosion()
 
 	if ( Role == ROLE_Authority )
 	{
-		if(Activator != None && FastTrace(Activator.location,location))
+	//	if(Activator != None && FastTrace(Activator.location,location))
+		if(Activator != None && FastTrace(Activator.location,ZOffsetLocation))
 		{
 			Activator.TakeDamage(DirectLineOfSightDamage,InstigatorController,Location,vect(0,0,0),ChargeDamageType);
 		}
 			
-		HurtRadius(Damage, DmgRadius, ChargeDamageType, DamageMomentum, Location); /** Applies Radius Damage to all but ImpactedActor */
+		HurtRadius(Damage, DmgRadius, ChargeDamageType, DamageMomentum, ZOffsetLocation); /** Applies Radius Damage to all but ImpactedActor */
 		SetTimer(0.1f, false, 'DestroyMe');
 	}
 }
@@ -212,16 +234,18 @@ defaultproperties
    
     DeployableName="Proximity Mine"
     HP = 200
-    Damage=50
-    DirectLineOfSightDamage=30
+    Damage=80//50
+    DirectLineOfSightDamage=60//30
 	DmgRadius=360
 	DamageMomentum=8000.0
-	TriggerRadius=130	 
+	TriggerRadius=130//130	 
 	VehicleTriggerRadius=5
 	DetonateDelay = 0.0f
 	bUsesMineLimit=true
 	bIsRemoteC4=false
 
+	TestHeight=13  //This keeps mines able to see over most things, even when they're placed in the vent of the powerplant. 
+	
 	ExplosionLightClass=Class'RenX_Game.Rx_Light_Tank_Explosion'
 	ExplosionTemplate=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Small'
 	ExplosionSound=SoundCue'RX_SoundEffects.Explosions.SC_Explosion_ProxyC4'

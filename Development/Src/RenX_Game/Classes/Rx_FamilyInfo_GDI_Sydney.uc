@@ -5,13 +5,13 @@ DefaultProperties
 	FamilyID="GDI"
 	Faction="GDI"
 
-	DamagePointsMultiplier  = 0.157142f
+	//DamagePointsMultiplier  = 0.157142f 
 	HealPointsMultiplier    = 0.031428
-	PointsForKill           = 30.0f
+	PointsForKill           = 52.5f //70
 	MaxHealth               = 100
 	MaxArmor               	= 250
 	Armor_Type 				= A_FLAK
-	SpeedMultiplier			= 0.9
+	SpeedMultiplier			= 0.95 //0.9
 	bFemale					= true; //halo2pac
 
 	CharacterMesh=SkeletalMesh'rx_ch_gdi_sydney.Mesh.SK_CH_Sydney'

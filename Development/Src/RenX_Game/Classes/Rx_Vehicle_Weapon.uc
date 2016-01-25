@@ -385,6 +385,10 @@ simulated function Projectile ProjectileFireOld()
 
 simulated function SetRocketTarget(Rx_Projectile_Rocket Rocket)
 {
+	local vector CameraLocation, HitLocation, HitNormal, DesiredAimPoint;
+	local rotator CameraRotation;	
+	local Controller C;
+	
 	if (bLockedOnTarget && (!SecondaryLockingDisabled || CurrentFireMode != 1 || AIController(UTVehicle(Owner).Controller) != None ))
 	{
 		Rocket.SeekTarget = LockedTarget;
@@ -392,7 +396,24 @@ simulated function SetRocketTarget(Rx_Projectile_Rocket Rocket)
 	}
 	else
 	{
-		Rocket.Target = GetDesiredAimPoint();
+		//Rocket.Target = GetDesiredAimPoint() // The Trace in GetDesiredAimPoint() sometimes wasent accurate enough in all situations and has been modified below
+		
+		C = (MyVehicle != None) ? MyVehicle.Seats[SeatIndex].SeatPawn.Controller : None;
+		if(PlayerController(C) != None)
+		{
+			PlayerController(Instigator.Controller).GetPlayerViewPoint(CameraLocation, CameraRotation);
+			DesiredAimPoint = CameraLocation + Vector(CameraRotation) * GetTraceRange(); 
+			if (GetTraceOwner().Trace(HitLocation, HitNormal, DesiredAimPoint, CameraLocation, true, vect(0,0,0),,TRACEFLAG_Bullet) != None)
+			{
+				DesiredAimPoint = HitLocation;
+			}
+		}
+		else if ( C != None )
+		{
+			DesiredAimPoint = C.GetFocalPoint();
+		}	
+		Rocket.Target = DesiredAimPoint;	
+		
 		Rocket.GotoState('Homing');
 	}
 }

@@ -1,5 +1,10 @@
 class Rx_Weapon_SMG extends Rx_Weapon_Charged;		// Rx_Weapon_Reloadable;
 
+function bool IsInstantHit()
+{
+	return true; 
+}
+
 DefaultProperties
 {
 	bAutoFire = true
@@ -50,7 +55,7 @@ DefaultProperties
 
 	ShotCost(0)=1
 	ShotCost(1)=0
-	FireInterval(0)=+0.08
+	FireInterval(0)=0.10 //+0.08
 	FireInterval(1)=+0.0
 	ReloadTime(0) = 3.0
 	ReloadTime(1) = 3.0
@@ -66,7 +71,7 @@ DefaultProperties
 	InstantHitDamage(0)=8
 	InstantHitDamage(1)=8
 	
-	HeadShotDamageMult=2.5
+	HeadShotDamageMult=3
 
 	InstantHitDamageTypes(0)=class'Rx_DmgType_SMG'
 	InstantHitDamageTypes(1)=class'Rx_DmgType_SMG'
@@ -82,7 +87,7 @@ DefaultProperties
 //	WeaponProjectiles(0)=class'RenX_Game.Rx_Projectile_SMG'
 //	WeaponProjectiles(1)=class'RenX_Game.Rx_Projectile_SMG'
 
-	Spread(0)=0.002
+	Spread(0)=0.0015 //0.002
 	Spread(1)=0.0
 	
 	ClipSize = 30

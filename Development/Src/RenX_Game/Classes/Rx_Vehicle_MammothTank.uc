@@ -276,7 +276,7 @@ DefaultProperties
         TurnInPlaceThrottle=0.35
         TurnMaxGripReduction=0.995 //0.980
         TurnGripScaleRate=0.8
-        MaxEngineTorque=3750
+        MaxEngineTorque=3875//3750
         End Object
     SimObj=SimObject
     Components.Add(SimObject)

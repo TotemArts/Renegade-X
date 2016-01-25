@@ -100,6 +100,7 @@ var int NODDifficulty;
 var int PlayerTeam;
 var int NodAttackingValue;
 var int GDIAttackingValue;
+var bool bInitialBotsCreated; //Checks if the initial bot number was created in Skirmish, so it won't create them 4 times over. 
 
 var int Port;
 var config array<string> SteamLogins;
@@ -155,7 +156,7 @@ var int curIndPinged;
 
 var Rx_Rcon Rcon;
 var Rx_Rcon_Commands_Container RconCommands;
-var Rx_Rcon_Out RconOut;
+var private Rx_Rcon_Out RconOut;
 
 var globalconfig bool bDisableDemoRequests;
 var bool ClientDemoInProgress;
@@ -163,6 +164,9 @@ var bool ClientDemoInProgress;
 var globalconfig float MaxSeamlessTravelServerTime; // If the server has been up longer than this amount, then force a non-seamless travel.
 var bool bForceNonSeamless;
 
+var array<class<Rx_ScoreEvent> > ScoreEvents;
+var Rx_ScoreEvent UpcomingScoreEvent;
+var Rx_ScoreEvent LastScoreEvent;
 
 enum BuildingCheck
 {
@@ -268,6 +272,8 @@ event exec viewmode (string VM)
 function PostBeginPlay()
 {
 	local Rx_Rcon r;
+	local string CappedName;
+	local class<Rx_ScoreEvent> Event;
 	//local Rx_MatchInfo m;
 
 	super.PostBeginPlay();
@@ -332,12 +338,37 @@ function PostBeginPlay()
 		}
 	}
 
-	RecordToMapHistory(string(WorldInfo.GetPackageName()));
+	/* Strip Day/Night from Field/Canyon/Mesa or whatever other map*/
+	
+	CappedName = string(WorldInfo.GetPackageName()); 
 
+	if (right(CappedName, 6) ~= "_NIGHT") CappedName = Left(CappedName, Len(CappedName)-6);   
+
+	if (right(CappedName, 4) ~= "_DAY") CappedName = Left(CappedName, Len(CappedName)-4); 
+ 
+	//RecordToMapHistory(string(WorldInfo.GetPackageName()));
+
+	RecordToMapHistory(CappedName); 
+	
 	if (bFixedMapRotation)
 		Rx_GRI(GameReplicationInfo).SetFixedNextMap(GetNextMapInRotationName());
 	else
 		Rx_GRI(GameReplicationInfo).SetupEndMapVote(BuildMapVoteList(), true);
+
+	/** Initialize score events */
+	foreach ScoreEvents(Event)
+	{
+		if (UpcomingScoreEvent == None)
+		{
+			UpcomingScoreEvent = new Event;
+			LastScoreEvent = UpcomingScoreEvent;
+		}
+		else
+		{
+			LastScoreEvent.Next = new Event;
+			LastScoreEvent = LastScoreEvent.Next;
+		}
+	}
 
 	RxLog("MAP"`s"Loaded;"`s GetPackageName() );
 }
@@ -469,6 +500,7 @@ function bool ChangeTeam(Controller Other, int num, bool bNewTeam)
 		if (Rx_Controller(Other) != None)
 		{
 			Rx_Controller(Other).BindVehicle(None);
+			Rx_Controller(Other).VoteTopString = "";
 		}
 		if (Rx_PRI(Other.PlayerReplicationInfo) != None)
 		{
@@ -551,7 +583,15 @@ function bool AllowedName(string playername)
 function ChangeName(Controller Other, string S, bool bNameChange)
 {
     local Controller APlayer;
+	
+if(bIsCompetitive && bNameChange)
+{
 
+PlayerController(Other).ClientMessage("Can not change name during competitive play");
+
+return; 	
+}	
+	
 	if (bNameChange && Rx_Controller(Other) != None && WorldInfo.TimeSeconds < Rx_Controller(Other).NextNameChangeTime)
 	{
 		PlayerController(Other).ClientMessage("Name change rejected - you changed name too recently.");
@@ -689,7 +729,7 @@ function Array<string> BuildClientList(string seperator)
 }
 
 /** Log messages for Gameplay/Server-management events. Will be written to the logfile with a RenX tag, and sent out to any Log Subscribers over Rcon. */
-function RxLog(string Msg)
+final function RxLog(string Msg)
 {
 	`log(Msg,true,'Rx');
 	if (RconOut != None)
@@ -698,7 +738,7 @@ function RxLog(string Msg)
 		Rcon.SendLog(Msg);
 }
 
-function RxLogPub(string Msg)
+final function RxLogPub(string Msg)
 {
 	`log(Msg,true,'Rx');
 	if (RconOut != None)
@@ -1032,6 +1072,11 @@ function String getPlayerStatsStringFromPri(Rx_Pri pri)
 	return ret;
 }
 
+static function string GuidToHex(Guid in_guid)
+{
+	return class'Rx_RconConnection'.static.intToHex(in_guid.A) $ class'Rx_RconConnection'.static.intToHex(in_guid.B) $ class'Rx_RconConnection'.static.intToHex(in_guid.C) $ class'Rx_RconConnection'.static.intToHex(in_guid.D);
+}
+
 /** Fetches a server variable by name. */
 function string GetGameProperty(string prop)
 {
@@ -1049,6 +1094,11 @@ function string GetGameProperty(string prop)
 	case "PACKAGENAME": // Alias
 	case "GETPACKAGENAME": // Alias(Function)
 		return string(GetPackageName());
+	case "LEVELGUID": // Alias
+	case "MAPGUID": // Alias
+	case "PACKAGEGUID": // Alias
+	case "GUID":
+		return GuidToHex(GetPackageGuid(GetPackageName()));
 	case "PLAYERS": // Alias
 	case "NUMPLAYERS":
 		return string(NumPlayers);
@@ -1163,6 +1213,8 @@ event InitGame( string Options, out string ErrorMessage )
 		FindRefineries(); // Find the refineries so we can give players credits
 	}
 	GDIBotCount = GetIntOption( Options, "GDIBotCount",0);
+	`log("----YOSH'S LOG------ GDI Bots given to RX_Game----" @ GetIntOption( Options, "GDIBotCount",0));
+	
 	NODBotCount = GetIntOption( Options, "NODBotCount",0);
 	AdjustedDifficulty = 5;
 	GDIDifficulty = GetIntOption( Options, "GDIDifficulty",4);
@@ -1176,10 +1228,19 @@ event InitGame( string Options, out string ErrorMessage )
 	VehicleLimit = class'Rx_Game'.default.MapSpecificMineAndVehLimit[MapIndex].VehicleLimit;
 	**/
 	
+	if(WorldInfo.NetMode==NM_DedicatedServer) //Static limits on-line
+	{
 	MineLimit = GetMapMineLimit( string(WorldInfo.GetPackageName()) ) ;
 	VehicleLimit= GetMapVehicleLimit( string(WorldInfo.GetPackageName()) ) ; 
-
-
+	}
+	else 
+	if(WorldInfo.NetMode==NM_Standalone)
+	{
+	MineLimit = GetIntOption( Options, "MineLimit", MineLimit);
+	`log("----YOSH'S LOG------ Credits given to RX_Game----" @ GetIntOption( Options, "MineLimit", MineLimit));
+	VehicleLimit = GetIntOption( Options, "VehicleLimit", VehicleLimit);
+	//AddInitialBots();	
+	}
 	//mapindex = -1;
 	//for (i=0; i < mapdataproviderlist.length; i++) {
 	//	if (mapdataproviderlist[i].mapname != string(worldinfo.getpackagename())) {
@@ -1191,8 +1252,6 @@ event InitGame( string Options, out string ErrorMessage )
 	//VehicleLimit = MapDataProviderList[MapIndex].VehicleLimit;
 
 	InitialCredits = GetIntOption(Options, "StartingCredits", InitialCredits);
-	MineLimit = GetIntOption( Options, "MineLimit", MineLimit);
-	VehicleLimit = GetIntOption( Options, "VehicleLimit", VehicleLimit);
 	PlayerTeam = GetIntOption( Options, "Team",0);
 	GDIAttackingValue = GetIntOption( Options, "GDIAttackingStrengh",0.7);
 	NodAttackingValue = GetIntOption( Options, "NodAttackingStrengh",0.7);
@@ -1246,9 +1305,15 @@ function int InitBotDifficultyFromBaseDifficulty(int Difficulty)
 
 function AddInitialBots()
 {
+	
+if( bInitialBotsCreated) return; 
+
+	`log("----YOSH---- Called Add Initial Bots"); 
+	
 	if(GDIBotCount > 0) {
 		AdjustedDifficulty = GDIDifficulty;
 		AddRedBots(GDIBotCount);
+		
 		loginternal("GDIDifficulty"$GDIDifficulty);
 	}	
 	if(NODBotCount > 0) {
@@ -1256,6 +1321,7 @@ function AddInitialBots()
 		AddBlueBots(NODBotCount);
 		loginternal("NODDifficulty"$NODDifficulty);
 	}
+	bInitialBotsCreated=true; 
 }
 
 function CreateTeam(int TeamIndex) 
@@ -1649,6 +1715,9 @@ function bool IsWinningTeam( TeamInfo T )
 	else return false;
 }
 
+
+
+
 State MatchInProgress
 {
 	function BeginState( Name PreviousState )
@@ -1865,7 +1934,7 @@ function BeginSurrender(int TeamI)
 	switch (TeamI) 
 	{
 		case 0:
-		HR_Team = "Nod" ;
+		HR_Team = "NOD" ;
 		break;
 		
 		case 1:
@@ -2719,7 +2788,7 @@ function string RconCommand(string CommandLine)
 
 function bool MapPackageHasDayNight (string ThePackage)
 {
-	`log("Package: " @ caps(ThePackage));
+	//`log("Package: " @ caps(ThePackage));
 	return 
 	caps(ThePackage) == "CNC-MESA_II" ||
 	caps(ThePackage) == "CNC-FIELD"   ||
@@ -2745,72 +2814,76 @@ if(right(CappedName, 4) ~= "_DAY") CappedName = Left(CappedName, Len(CappedName)
 switch (CappedName)
 	{
 	case "CNC-CANYON" :
-	return 40;
+	return  20 ; //40;
 	break;
 	
 	case "CNC-COMPLEX" :
-	return 40;
+	return 20 ; //40;
 	break;
 	
 	case "CNC-DECK":
-	return 10;
+	return 6 ;//10;
 	break;
 	
 	case "CNC-EYES":
-	return 55;
+	return 30 ;//55;
 	break;
 	
 	case "CNC-FIELD":
-	return 35;
+	return 20 ;//35;
 	break;
 	
 	case "CNC-GOLDRUSH":
-	return 50;
+	return 28 ;//50;
 	break;
 	
 	case "CNC-ISLANDS":
-	return 40;
+	return 20; //40
 	break;
 	
 	case "CNC-LAKESIDE":
-	return 50;
+	return 24 ;//50;
 	break;
 	
 	case "CNC-MESA_II":
-	return 45;
+	return 25; //50
 	break;
 	
 	case "CNC-TRAININGYARD":
-	return 45;
+	return 25; //45
 	break;
 	
 	case "CNC-UNDERREDUX":
-	return 45;
+	return 24; //35
 	break;
 	
 	case "CNC-VALLEY":
-	return 20;
+	return 12; //20
 	break;
 	
 	case "CNC-VOLCANO":
-	return 50;
+	return 22; // 50
 	break;
 	
 	case "CNC-WALLS_FLYING":
-	return 55;
+	return 30; //55;
 	break;
 	
 	case "CNC-WHITEOUT":
-	return 60;
+	return 30; //60;
 	break;
 	
 	case "CNC-XMOUNTAIN":
-	return 50;
+	return 28; //50;
+	break;
+	
+	case "CNC-SNOW":
+	return 10; //50;
 	break;
 	
 	default: 
-	`log("Map not recognized: setting mine limit to default 50");
-	return 50; 
+	`log("Map not recognized: setting mine limit to default 30");
+	return 30; 
 	break; 
 	}
 	
@@ -2831,11 +2904,11 @@ if(right(CappedName, 4) ~= "_DAY") CappedName = Left(CappedName, Len(CappedName)
 switch (CappedName)
 	{
 	case "CNC-CANYON" :
-	return 8;
+	return 10;
 	break;
 	
 	case "CNC-COMPLEX" :
-	return 8;
+	return 10;
 	break;
 	
 	case "CNC-DECK":
@@ -2851,23 +2924,23 @@ switch (CappedName)
 	break;
 	
 	case "CNC-GOLDRUSH":
-	return 8;
+	return 10;
 	break;
 	
 	case "CNC-ISLANDS":
-	return 8;
+	return 10;
 	break;
 	
 	case "CNC-LAKESIDE":
-	return 10;
+	return 11;
 	break;
 	
 	case "CNC-MESA_II":
-	return 10;
+	return 9;
 	break;
 	
 	case "CNC-TRAININGYARD":
-	return 7;
+	return 8;
 	break;
 	
 	case "CNC-UNDERREDUX":
@@ -2883,15 +2956,19 @@ switch (CappedName)
 	break;
 	
 	case "CNC-WALLS_FLYING":
-	return 8;
+	return 9;
 	break;
 	
 	case "CNC-WHITEOUT":
-	return 8;
+	return 9;
 	break;
 	
 	case "CNC-XMOUNTAIN":
 	return 10;
+	break;
+	
+	case "CNC-Snow":
+	return 8;
 	break;
 	
 	default: 
@@ -2900,6 +2977,25 @@ switch (CappedName)
 	break; 
 	}
 	
+}
+
+function bool PickupQuery(Pawn Other, class<Inventory> ItemClass, Actor Pickup)
+{
+	local bool ret;
+	
+	ret = super.PickupQuery(Other,ItemClass,Pickup);
+	if(!ret)
+		return false;
+		
+	if(ItemClass == class'Rx_Weapon_IonCannonBeacon' && Other.GetTeamNum() == TEAM_NOD) 
+	{
+		return false;
+	}
+	if(ItemClass == class'Rx_Weapon_NukeBeacon' && Other.GetTeamNum() == TEAM_GDI) 
+	{
+		return false;
+	}
+	return ret;
 }
 
 DefaultProperties
@@ -2974,4 +3070,7 @@ DefaultProperties
 	/**
 	GameVersion = "Open Beta 1 RC" -> its in the config now
 	*/
+
+	/** Score Events */
+	ScoreEvents.Add(class'Rx_ScoreEvent_IncomeBoost');
 }

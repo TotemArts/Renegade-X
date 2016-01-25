@@ -1,18 +1,21 @@
 class Rx_Weapon_ProxyC4 extends Rx_Weapon_Beacon ;//Rx_Weapon_Deployable;
 
+/**
 simulated function WeaponEmpty()
 {
 	if(AmmoCount <= 0) {
 		Rx_InventoryManager(Instigator.InvManager).RemoveWeaponOfClass(self.Class);
-// 		if (Rx_Controller(Instigator.Controller).PreviousExplosiveTransactionRecords.Find(self.Class) > -1) {
-// 			Rx_Controller(Instigator.Controller).PreviousExplosiveTransactionRecords.RemoveItem(self.Class);
-// 		}
+ 		if (Rx_Controller(Instigator.Controller).PreviousExplosiveTransactionRecords.Find(self.Class) > -1) {
+ 			Rx_Controller(Instigator.Controller).PreviousExplosiveTransactionRecords.RemoveItem(self.Class);
+ 		}
 	if (Rx_Controller(Instigator.Controller).CurrentExplosiveWeapon == self.Class) {
 			Rx_Controller(Instigator.Controller).CurrentExplosiveWeapon = none;
 		}
 	} 
+	
 	super.WeaponEmpty();
-}
+}*/
+
 /**
  * Draw the Crosshairs
  * halo2pac - implemented code that changes crosshair color based on what's targeted. Edit for Proxy mines, tack on the mine limit.
@@ -161,12 +164,46 @@ function bool Deploy()
 }
 
 
+/**
+ * Access to HUD and Canvas. Set bRenderOverlays=true to receive event.
+ * Event called every frame when the item is in the InventoryManager
+ *
+ * @param   HUD H
+ */
+simulated function ActiveRenderOverlays( HUD H )
+{
+   local Canvas C;
+   local float PanX, PanY, PosX, PosY;
 
-// Don't use progress bar.
-simulated function ActiveRenderOverlays( HUD H );
+   super(Rx_Weapon).ActiveRenderOverlays(H);
+   C = H.Canvas;
+
+   if (LastPos != Owner.Location || !bShowLoadPanel || C == none)
+      return;
+
+   // get the draw values
+   PanX = C.SizeX * PanelWidth;
+   PanY = C.SizeY * PanelHeight;
+   // draw the loadpanel border
+   //C.DrawColor = Rx_Hud(H).TeamColors[Owner.GetTeamNum()];
+    C.SetDrawColor (0, 100, 255, 255); //(255,64,64,255);
+   PosX = C.SizeX * 0.5f - PanX * 0.5f;
+   PosY = C.SizeY/2 - PanY ;
+   C.SetPos(PosX, PosY);
+   C.DrawBox(PanX, PanY);
+   // draw the text
+   C.SetPos(PosX+3, PosY+3);
+   
+   //C.DrawText("Planting.....");
+   // draw the loadpanel anim
+   C.DrawColor.A = 128;
+   C.SetPos(PosX + 1, PosY + 1);
+   C.DrawRect(PanX * CurrentProgress - 2, PanY - 2);
+}
 
 simulated function PerformRefill()
 {
+	CurrentAmmoInClip=default.ClipSize;
 	AmmoCount = MaxAmmoCount;
 }
 
@@ -174,7 +211,9 @@ simulated function PerformRefill()
 DefaultProperties
 {
 	DeployedActorClass=class'Rx_Weapon_DeployedProxyC4'
-
+	
+	PanelWidth  = 0.15f
+    PanelHeight = 0.033f
 	// Weapon SkeletalMesh
 	Begin Object class=AnimNodeSequence Name=MeshSequenceA
 	End Object
@@ -196,7 +235,9 @@ DefaultProperties
 	
 	PlayerViewOffset=(X=10.0,Y=0.0,Z=-2.5)
 	FireOffset=(X=25,Y=0,Z=-5)
-	SecondsNeedLoad=1
+	SecondsNeedLoad=1.0
+	
+	bRemoveWhenDepleted = false
 	bBlockDeployCloseToOwnBase=false
 	
 	//-------------- Recoil
@@ -230,7 +271,9 @@ DefaultProperties
     Spread(0)=0.0
 	Spread(1)=0.0
 	
-	ClipSize = 6 //1
+	bDisplayCrosshair=false
+	
+	ClipSize = 3 //6 //1
 	InitalNumClips = 1 //6
 	MaxClips = 1 //6
 	
