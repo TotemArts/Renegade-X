@@ -39,13 +39,18 @@ simulated event ReplicatedEvent(name VarName)
 {
 	if ( VarName == 'CurrentlyReloading' ) 
 	{
-
+	//`log("Replicate Reloading"); 
 		if(CurrentlyReloading == false) 
 		{
 			CurrentAmmoInClipClientside = ClipSize;
+			/**REMOVE when confirmed to work 
 			if( (PendingFire(0) || PendingFire(1)) && CurrentlyFireing) 
 			{
 				GotoState('WeaponFiring');	
+			} */
+			if( (ClientPendingFire[0] && CurrentFireMode == 0) || (ClientPendingFire[1] && CurrentFireMode == 1) && CurrentlyFireing ) 
+			{
+				RestartWeaponFiringAfterReload();	
 			} 
 			else 
 			{
@@ -83,6 +88,18 @@ simulated function Activate()
 	super.Activate();
 }
 
+//Added from Rx_Weapon_Reloadable - May be used 
+simulated function RestartWeaponFiringAfterReload()
+{
+	`log("Fire After Reload"); 
+	if(ROLE < ROLE_Authority || WorldInfo.Netmode == NM_Standalone) 
+	{
+	GotoState('Active');	
+	
+	StartFire(CurrentFireMode);  	
+	}
+}
+
 state Reloading
 {
 	function BeginState( name PreviousState )
@@ -99,6 +116,11 @@ state Reloading
 		currentReloadTime = ReloadTime[CurrentFireMode];
 		SetTimer( ReloadTime[CurrentFireMode], false, 'ReloadWeaponTimer');
 		CurrentlyFireing = false;
+		if(WorldInfo.Netmode == NM_DedicatedServer) 
+			{
+			ClearPendingFire(0);
+			ClearPendingFire(1);			
+			}
 	}
 
 	function EndState( name NextState )
@@ -134,10 +156,21 @@ state Reloading
 		
 		PostReloadUpdate();
 
-		if( (PendingFire(0) || PendingFire(1)) && ShouldRefire() ) 
+		/**if( (PendingFire(0) || PendingFire(1)) && ShouldRefire() ) 
+		
 		{
 			CurrentlyFireing = true;
 			GotoState('WeaponFiring');	
+		}
+		else
+		{
+			GotoState('Active');
+		}
+		bForceNetUpdate = true;*/
+		
+		if((ClientPendingFire[0] && CurrentFireMode == 0) || (ClientPendingFire[1] && CurrentFireMode == 1) )
+		{
+			RestartWeaponFiringAfterReload();	
 		}
 		else
 		{
@@ -148,7 +181,7 @@ state Reloading
 
 	simulated function bool bReadyToFire()
 	{
-		return false;
+		return !CurrentlyReloading; //false;
 	}
 	
 	simulated event bool IsFiring()
@@ -183,7 +216,7 @@ simulated state Active
 
 	simulated function bool bReadyToFire()
 	{
-		return !CurrentlyReloading;
+		return  !IsTimerActive('RefireCheckTimer') && !CurrentlyReloading; //!CurrentlyReloading;
 	}
 
 }
@@ -313,6 +346,7 @@ simulated state WeaponFiring
 		if( bReloadAfterEveryShot && !HasAmmo(CurrentFireMode) )
 		{
 			PlayWeaponReloadAnim();
+			`log("Set reload timer in WeaponFiringState"); 
 			SetTimer(ReloadTime[CurrentFireMode],false,'GoToReloading');
 			return;
 		}	
@@ -383,7 +417,11 @@ simulated state WeaponFiring
 		// Otherwise we're done firing
 		HandleFinishedFiring();
 	}
-
+simulated function bool bReadyToFire()
+	{
+		
+		return true; 
+	}
 
 }
 
@@ -416,10 +454,93 @@ simulated function int GetMaxAmmoInClip()
 	return ClipSize;
 }
 
+simulated function DrawCrosshair( Hud HUD )
+{
+	local vector2d CrosshairSize;
+	local float x,y;	
+	local UTHUDBase H;
+	local Pawn MyPawnOwner;
+	local actor TargetActor;
+	local int targetTeam, rectColor;	
+	
+	H = UTHUDBase(HUD);
+	if ( H == None )
+		return;
+
+ 	CrosshairSize.Y = CrosshairHeight;
+	CrosshairSize.X = CrosshairWidth;
+
+	X = H.Canvas.ClipX * 0.5 - (CrosshairSize.X * 0.5);
+	Y = H.Canvas.ClipY * 0.5 - (CrosshairSize.Y * 0.5);
+
+	
+	MyPawnOwner = Pawn(Owner);
+
+	//determines what we are looking at and what color we should use based on that.
+	if (MyPawnOwner != None)
+	{
+		TargetActor = Rx_Hud(HUD).GetActorWeaponIsAimingAt();
+		
+		if(TargetActor != None)
+		{
+			targetTeam = TargetActor.GetTeamNum();
+			
+			if (targetTeam == 0 || targetTeam == 1) //has to be gdi or nod player
+			{
+				if (targetTeam != MyPawnOwner.GetTeamNum())
+				{
+					if (!TargetActor.IsInState('Stealthed') && !TargetActor.IsInState('BeenShot'))
+						rectColor = 1; //enemy, go red, except if stealthed (else would be cheating ;] )
+				}
+				else
+					rectColor = 2; //Friendly
+			}
+		}
+	}
+	
+	if (!HasAnyAmmo()) //no ammo, go yellow
+		rectColor = 3;
+	else
+	{
+		if ( CurrentlyReloading && bReloadAfterEveryShot) //reloading, go yellow
+			rectColor = 3;
+	}
+
+	CrosshairMIC2.SetScalarParameterValue('ReticleColourSwitcher', rectColor);
+	if ( CrosshairMIC2 != none )
+	{
+		//H.Canvas.SetPos( X+1, Y+1 );
+		H.Canvas.SetPos( X, Y );
+		H.Canvas.DrawMaterialTile(CrosshairMIC2,CrosshairSize.X, CrosshairSize.Y,0.0,0.0,1.0,1.0);
+		DrawHitIndicator(H,x,y);
+	}
+	
+	if(bDebugWeapon)
+	{
+	H.Canvas.DrawText("Reloading: " @ CurrentlyReloading ,true,1,1);
+	Y+=20;
+	H.Canvas.DrawText("Ammo: S: " @ CurrentAmmoInClip @ "C: " @ CurrentAmmoInClipClientSide,true,1,1);
+	Y+=20;
+	H.Canvas.DrawText("PendingFire:" @ PendingFire(0),true,1,1);
+	Y+=20;
+	H.Canvas.DrawText("ClientPendingFire:" @ ClientPendingFire[0],true,1,1);
+	Y+=20;
+	H.Canvas.DrawText("ReadyFire:" @ bReadyToFire(),true,1,1);
+	Y+=20;
+	H.Canvas.DrawText("Has Ammo:" @ HasAmmo(0),true,1,1);
+	Y+=20;
+	H.Canvas.DrawText("State" @ GetStateName(),true,1,1);
+	Y+=20;
+	H.Canvas.DrawText("RefireTimer" @ IsTimerActive('RefireCheckTimer') ,true,1,1);
+	}
+	
+}
+
 DefaultProperties
 {
 	InventoryGroup=6
 	ReloadTime(0) = 1.0f
 	ReloadTime(1) = 1.0f
 	HasInfiniteAmmo = true;
+	bDebugWeapon=false; 
 }

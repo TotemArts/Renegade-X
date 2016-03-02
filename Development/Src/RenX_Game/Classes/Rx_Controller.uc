@@ -31,7 +31,6 @@ var bool bMoveForwardButtonPressed;
 var bool bCanOneClickDodge;
 var bool bDodgeDirectionButtonPressed;
 var DodgeDirections pressedDodgeDirection;
-var bool bIsDev;
 
 //--------------Radio commands
 var() array<SoundCue>       RadioCommands;
@@ -79,6 +78,7 @@ var Rx_GFxPurchaseMenu PTMenu;
 
 var SoundCue                            TeamVictorySound[2];
 var SoundCue                            TeamDefeatSound[2];
+var SoundCue							WeaponSwitchSoundCue; 
 
 //-------------Vaulting Variables
 var int ClimbHeight;
@@ -110,6 +110,9 @@ var class<Rx_Weapon> CurrentSidearmWeapon;
 var class<Rx_Weapon> CurrentExplosiveWeapon;
 var bool bJustBaughtEngineer; // in PT buying an engineer is a async call but the client has to continue instantly knowing he baught an engineer. so save that here
 var bool bJustBaughtHavocSakura;
+var int RefillCooldownTime;
+var float MaxRespawnDelay;
+var float TimeSecondsTillMaxRespawnTime;
 
 var bool bHasChangedFocus;
 // @Shahman: TODO: currently I am unable to get the current weapons in multiplayer.
@@ -147,6 +150,10 @@ var vector Saved_Location;
 var InventoryManager Saved_Inv;
 var rotator Saved_Rotation;
 
+/** Variables controlled by the DevBot */
+var privatewrite bool bIsDev;
+var privatewrite int ladder_rank;
+
 replication
 {
 	// Things the server should send to the client.
@@ -154,7 +161,7 @@ replication
 		ReplicatedHitIndicator;
 
 	if (bNetDirty)
-		VoteTopString, VotesYes, VotesNo, VoteTimeLeft, VotersTotal, YesVotesNeeded;
+		VoteTopString, VotesYes, VotesNo, VoteTimeLeft, VotersTotal, YesVotesNeeded, ladder_rank, RefillCooldownTime;
 }
 
 simulated function PostBeginPlay()
@@ -400,6 +407,7 @@ exec function SwitchWeapon(byte T)
 		super.SwitchWeapon(T);
 	}
 }
+
 
 /** one1: Called from VoteMenuChoice objects, when vote is ready to be sent to server. */
 function SendVote(class<Rx_VoteMenuChoice> VoteChoiceClass, string param, int t)
@@ -1620,6 +1628,7 @@ state Dead
 		bFrozen = true;
 		bPressedJump = false;
 		FindGoodView();
+		MinRespawnDelay = CalcNewMinRespawnDelay();
 	    SetTimer(MinRespawnDelay, false);
 		CleanOutSavedMoves();
 
@@ -1672,6 +1681,20 @@ Begin:
 	}
 	else
 		Goto('Begin');
+}
+
+/** Gradually increases with time till MaxRespawnDelay is reached */
+function float CalcNewMinRespawnDelay()
+{
+
+	MinRespawnDelay = default.MinRespawnDelay + (WorldInfo.TimeSeconds/TimeSecondsTillMaxRespawnTime * (default.MaxRespawnDelay - default.MinRespawnDelay));
+	
+	if(MinRespawnDelay < default.MinRespawnDelay)
+		MinRespawnDelay = default.MinRespawnDelay;
+	else if(MinRespawnDelay > default.MaxRespawnDelay)
+		MinRespawnDelay = default.MaxRespawnDelay;	
+		
+	return MinRespawnDelay;	
 }
 
 function UpdateRotation( float DeltaTime )
@@ -2587,6 +2610,33 @@ exec function DisableOneClickDodge()
 	if(bCanOneClickDodge)
 		bCanOneClickDodge = false;
 }
+
+/*TODO: Add info box, ala Commander Mod*/
+exec function OpenInfoBox(); 
+
+exec function CloseInfoBox();
+
+/*Possible exec functions that will come with the Commander Mod*/
+exec function OpenCommandWindow();
+
+exec function CloseCommandWindow();
+
+/*Taunt Button*/
+
+exec function OpenTauntMenu();
+
+exec function CloseTauntMenu();
+
+/*Weapon Switching*/
+exec function ToggleWeaponFireMode()/*Specifically for the tac-rifle unless it becomes a thing for multiple weapons.*/
+{
+	if( Rx_Weapon_TacticalRifle(Pawn.Weapon) != none) 
+	{
+		ClientPlaySound(WeaponSwitchSoundCue); 
+		Rx_Weapon_TacticalRifle(Pawn.Weapon).SwitchMode();		
+	} 
+}
+
 
 // checks if it is possible to one click dodge and if it is possible returns the direction
 function eDoubleClickDir CheckForOneClickDodge()
@@ -3852,6 +3902,20 @@ event PlayerTick( float DeltaTime )
 		bDisplayingAirdropReadyMsg = true;
 	else
 		bDisplayingAirdropReadyMsg = false;	
+		
+	if(IsInState('Dead'))
+	{
+		if ( Rx_HUD(myHUD) != None && (MinRespawnDelay+1 - GetTimerCount() > 1) && (MinRespawnDelay - GetTimerCount()) <= MinRespawnDelay)
+		{
+			Rx_HUD(myHUD).HudMovie.GameplayTipsText.SetVisible(true);
+			Rx_HUD(myHUD).HudMovie.GameplayTipsText.SetString("htmlText", "Respawn available in"@ int(MinRespawnDelay+1 - GetTimerCount()));
+		} 
+		else if(Rx_HUD(myHUD) != None)
+		{
+			Rx_HUD(myHUD).HudMovie.GameplayTipsText.SetString("htmlText", "");
+			Rx_HUD(myHUD).HudMovie.GameplayTipsText.SetVisible(false);
+		} 	
+	}		
 	
 }
 
@@ -4214,6 +4278,7 @@ exec function ForceGarbagecollectionFullPurge()
 	WorldInfo.ForceGarbageCollection(true);
 }
 
+
 reliable client function PlayStartupMessage(byte StartupStage)
 {
 	if(Rx_HUD(myHUD) == None)
@@ -4449,6 +4514,20 @@ function OnConsoleCommand( SeqAct_ConsoleCommand inAction )
 	}
 }
 
+function SetIsDev(bool in_is_dev)
+{
+	bIsDev = in_is_dev;
+	`LogRx("PLAYER" `s "Dev;" `s `PlayerLog(PlayerReplicationInfo) `s string(in_is_dev));
+}
+
+function SetRank(int in_rank)
+{
+	ladder_rank = in_rank;
+	`LogRx("PLAYER" `s "Rank;" `s `PlayerLog(PlayerReplicationInfo) `s string(in_rank));
+}
+
+/** Dev Commands */
+
 exec function FutureSoldier()
 {
 	if (Pawn != None && Vehicle(Pawn) == None)
@@ -4512,12 +4591,52 @@ reliable server function NukeServer(string PlayerName)
 	}
 }
 
+
+exec function ReconnectDevBot()
+{
+	ServerReconnectDevBot();
+}
+
+reliable server function ServerReconnectDevBot()
+{
+	Rx_Game(WorldInfo.Game).ReconnectDevBot(self);
+}
+
+/**TEMP Remind me to remove -If hit-boxes don't work out, we may still need this-  
+
+exec function SetCylinder(float NewRadius, float NewHeight)
+{
+	if( UTPawn(Pawn).CylinderComponent != none) 
+	{
+		UTPawn(Pawn).CylinderComponent.SetCylinderSize(NewRadius, NewHeight);
+	}
+	
+}
+
+*/
+
+simulated function int RefillCooldown()
+{
+	return RefillCooldownTime;	
+}
+
+simulated function RefillCooldownTimer()
+{
+	if(RefillCooldownTime > 0)
+		RefillCooldownTime--;
+	else
+		ClearTimer('RefillCooldownTimer');
+}
+
 /** Properties */
 
 DefaultProperties
 {
 	DamagePostProcessChain=PostProcessChain'RenXHud.PostProcess.PPC_HitEffect'
 	MinRespawnDelay=3.0
+	MaxRespawnDelay=8.0
+	TimeSecondsTillMaxRespawnTime=2400 // 40 mins	
+	RefillCooldownTime=8
 	bRotateMiniMap=true
 	InputClass=class'RenX_Game.RX_PlayerInput'
 	currentCharIndex=1	
@@ -4637,5 +4756,7 @@ DefaultProperties
 
 	TeamDefeatSound[0]         = SoundCue'RX_MusicTrack_2.Cue.SC_Endgame_Defeat_GDI'
 	TeamDefeatSound[1]         = SoundCue'RX_MusicTrack_2.Cue.SC_Endgame_Defeat_Nod'
+	
+	WeaponSwitchSoundCue	   = SoundCue'RenXPurchaseMenu.Sounds.RenXPTSoundTest2_Cue'
 }
 

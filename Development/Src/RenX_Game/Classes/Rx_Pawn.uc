@@ -230,6 +230,10 @@ var byte HitEnemyForDemorec;
 var byte HitEnemyWithHeadshotForDemoRec;
 var float LastRanInto;
 
+/** used for 3rdperson cam interpolation during demoplayback */
+var float SavedLocationZ[5];
+var int SavedLocationZIter;
+
 
 //-----------------------------------------------------------------------------
 // Pawn control
@@ -239,10 +243,10 @@ replication
 {
 	if ( bNetDirty)
 		Armor, ArmorMax, CurrentBackWeapons, AirstrikeLocation, SpeedUpgradeMultiplier, Armor_Type, JumpHeightMultiplier; 
-	if ( bNetDirty && !bNetOwner)
+	if ( bNetDirty && (!bNetOwner || bDemoRecording))
 		DodgeAnim, ReloadAnim, BoltReloadAnim, ParachuteDeployed, bRepairing, bBeaconDeployAnimating, bBlinkingName, bSprintingServer;
 	// Only replicate if our current weapon is a shotgun. Otherwise this is irrelivant.
-	if ( bNetDirty && !bNetOwner && RemoteRole == ROLE_SimulatedProxy && Rx_Weapon_Shotgun(Weapon) != none)
+	if ( bNetDirty && (!bNetOwner || bDemoRecording) && RemoteRole == ROLE_SimulatedProxy && Rx_Weapon_Shotgun(Weapon) != none)
 		ShotgunPelletHitLocations;
 	if ( bNetDirty && bDemoRecording )
 		HitEnemyForDemorec, HitEnemyWithHeadshotForDemoRec;		
@@ -1218,6 +1222,8 @@ reliable client function ClientStopSprint()
 
 simulated function Tick(float DeltaTime)
 {	
+	local vector TempVect;
+	
 	if (LeftHandIK_SB != None && Rx_Weapon(Weapon) != None)
 	{
 		LeftHandIK_SB.BoneTranslation = Rx_Weapon(Weapon).LeftHandIK_Offset;
@@ -1257,10 +1263,17 @@ simulated function Tick(float DeltaTime)
 			SetGroundSpeed();
 	}
 */
-	//Dodging(DeltaTime);
-
 	TickParachute(DeltaTime);
+	
+	if(WorldInfo.IsPlayingDemo())
+	{
+		/** in demos it proved to reduce playerlag a bit if the location is forced down (This wont lead to players walking in the ground as the physicsengine still puts them on the ground)*/
+		TempVect = location;
+		TempVect.z -= 20;
+		if(Physics == Phys_Walking)
+			setlocation(TempVect);
 
+	}
 	super.Tick(DeltaTime);
 }
 
@@ -1477,18 +1490,22 @@ simulated function ResetRelaxStance(optional bool RestartTimer)
 	}
 }
 
-
+/*Need to clean weapons up pretty bad*/
 simulated function StartFire(byte FireModeNum)
 {
 	if((Rx_Weapon(Weapon).bIronSightCapable
 		|| Rx_Weapon_SniperRifle(Weapon) != None 
 		|| Rx_Weapon_PersonalIonCannon(weapon) != None 
 		|| Rx_Weapon_RamjetRifle(weapon) != None
-		|| Rx_Weapon_Railgun(weapon) != None)
-			&& FireModeNum == 1) 
+		|| Rx_Weapon_Airstrike(weapon) != None
+		|| Rx_Weapon_Railgun(weapon) != None) 
+		&& FireModeNum == 1) 
 	{
+		
 		if(Rx_Weapon_Reloadable(Weapon) != None && Rx_Weapon_Reloadable(Weapon).CurrentlyReloading)
 			return;
+		 
+			
 		if(bSprinting)
 			return;	
 		if(!Rx_Weapon(Weapon).bDisplayCrosshair 
@@ -2439,9 +2456,7 @@ event UpdateEyeHeight( float DeltaTime )
 	local float smooth, MaxEyeHeight, OldEyeHeight, Speed2D, OldBobTime;
 	local Actor HitActor;
 	local vector HitLocation,HitNormal, X, Y, Z;
-	local int m,n;
-
-	
+	local int m,n;	
 
 	if ( bTearOff )
 	{
@@ -2603,6 +2618,30 @@ event UpdateEyeHeight( float DeltaTime )
 		}
 	}
 }
+
+
+simulated function UpdateEyeHeightDemo( float DeltaTime )
+{
+	local int i;
+	local float median;
+
+	OldZ = Location.Z;
+	
+	if(SavedLocationZIter++ > 3)
+		SavedLocationZIter = 0;
+	SavedLocationZ[SavedLocationZIter] = Location.Z;
+	
+	for(i = 0; i < 5; i++)
+	{
+		median += SavedLocationZ[i];	
+	}
+	EyeHeight = BaseEyeHeight + (median/5 - Location.Z);
+	
+	CameraSmoothZOffset = median/5 - Location.Z;
+	if(weapon == none && Weapon(InvManager.InventoryChain) != None)
+		weapon = Weapon(InvManager.InventoryChain);
+}
+
 /* Debug commands for setting up the dynamic camera offset
 exec function CamLowAngle(int i) { CamLowAngleStart = i; }
 exec function CamLowOffset(int i) { CamLowOffsetMax = i; }
@@ -2617,6 +2656,11 @@ simulated function bool CalcThirdPersonCam( float fDeltaTime, out vector out_Cam
 	local vector DesiredCamStart, CamStart, CamEnd, HitLocation, HitNormal, CamDirX, CamDirY, CamDirZ, CurrentCamOffset, AngleOffset;
 	local float DesiredCameraZOffset;
 
+	if(WorldInfo.IsPlayingDemo() && fDeltaTime > 0)
+	{
+		UpdateEyeHeightDemo(fDeltaTime); 
+	}
+		
 	ModifyRotForDebugFreeCam(out_CamRot);
 
 	DesiredCamStart = Location;
@@ -2714,6 +2758,7 @@ simulated function bool CalcThirdPersonCam( float fDeltaTime, out vector out_Cam
 			return false;
 		}
 	}
+	
 	return true;
 }
 
@@ -2733,7 +2778,7 @@ simulated function vector GetSmoothedCamStart(vector DesiredStart)
 	}
 
 	CamStart = DesiredStart;
-	if (CameraLag == 0 || !IsHumanControlled())
+	if (CameraLag == 0 || (!IsHumanControlled() && !WorldInfo.IsPlayingDemo()))
 	{
 		return CamStart;
 	}
@@ -3354,16 +3399,16 @@ DefaultProperties
 		Scale=1.0
 		bUpdateSkelWhenNotRendered=false
 		//bCastHiddenShadow = true
-//		BlockZeroExtent=True				// Uncomment to enable accurate hitboxes (1/3)
-//		CollideActors=true;					// Uncomment to enable accurate hitboxes (2/3)
+		BlockZeroExtent=True				// Uncomment to enable accurate hitboxes (1/3)
+		CollideActors=true;					// Uncomment to enable accurate hitboxes (2/3)
 	End Object
 	Mesh=WPawnSkeletalMeshComponent
 	Components.Add(WPawnSkeletalMeshComponent)
 
 	Begin Object Name=CollisionCylinder
 		CollisionRadius=16
-		CollisionHeight=50		
-//		BlockZeroExtent=False				// Uncomment to enable accurate hitboxes (3/3)
+		CollisionHeight=50 //60		
+		BlockZeroExtent=False				// Uncomment to enable accurate hitboxes (3/3)
 	End Object
 	CrouchHeight=35
 	CrouchRadius=16.0

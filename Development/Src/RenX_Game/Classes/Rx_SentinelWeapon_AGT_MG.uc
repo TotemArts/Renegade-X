@@ -355,8 +355,8 @@ defaultproperties
         Damage=10.0		// 40
         Momentum=0.0
         DamageType=class'Rx_DmgType_AGT_MG'
-        MaxRange=10000.0
-        Spread=0.00
+        MaxRange=7000.0
+        Spread=0.01
         FireSound=SoundCue'RX_BU_AGT.Sounds.SC_AGT_Gun_Fire'
     End Object
     FireInfo=FireInfo0

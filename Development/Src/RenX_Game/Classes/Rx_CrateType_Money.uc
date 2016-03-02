@@ -42,7 +42,7 @@ function float GetProbabilityWeight(Rx_Pawn Recipient, Rx_CratePickup CratePicku
 
 function ExecuteCrateBehaviour(Rx_Pawn Recipient, Rx_PRI RecipientPRI, Rx_CratePickup CratePickup)
 {
-	if(CratePickup.WorldInfo.GRI.ElapsedTime < MinutesToGiveSmallSum * 60.0f) // 100 to 200 credits in 25 interval
+	if(CratePickup.WorldInfo.GRI.ElapsedTime < MinutesToGiveSmallSum * 60.0f) // 100 to 200 credits in 25 intervals
 		credits = 100 + (Rand(5) * 25);
 	else // 100 to 500 credits in 50 interval
 		credits = ((Rand(2)+1) * 100) + (Rand(2) * 50) + (Rand(2) * 50);

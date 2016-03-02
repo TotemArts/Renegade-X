@@ -83,7 +83,7 @@ function ServerInit(Rx_Controller instigator, string param, int t)
 	// Log vote called.
 	params = ParametersLogString();
 	if (params != "")
-		Rx_Game(instigator.WorldInfo.Game).RxLog("VOTE"`s "Called;" `s TeamTypeToString(t) `s class `s "parameters"`s params `s "by" `s `PlayerLog(instigator.PlayerReplicationInfo) );
+		Rx_Game(instigator.WorldInfo.Game).RxLog("VOTE"`s "Called;" `s TeamTypeToString(t) `s class `s "by" `s `PlayerLog(instigator.PlayerReplicationInfo) `s params);
 	else
 		Rx_Game(instigator.WorldInfo.Game).RxLog("VOTE"`s "Called;" `s TeamTypeToString(t) `s class `s "by" `s `PlayerLog(instigator.PlayerReplicationInfo) );
 
@@ -157,7 +157,7 @@ function string ComposeTopString()
 	return VoteInstigator.PlayerReplicationInfo.PlayerName;
 }
 
-/** Syntax: key:value,key:value,key:value */
+/** Syntax: [ key | value [... | key | value ] ] */
 function string ParametersLogString()
 {
 	return "";

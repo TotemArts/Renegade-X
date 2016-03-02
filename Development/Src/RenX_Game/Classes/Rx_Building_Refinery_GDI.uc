@@ -1,6 +1,11 @@
 class Rx_Building_Refinery_GDI extends Rx_Building_Refinery
 	placeable;
 
+simulated function String GetHumanReadableName()
+{
+	return "GDI Refinery";
+}
+
 DefaultProperties
 {
 	TeamID                  = TEAM_GDI

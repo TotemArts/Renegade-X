@@ -1,6 +1,11 @@
 class Rx_Building_Refinery_Nod extends Rx_Building_Refinery
     placeable;
 
+simulated function String GetHumanReadableName()
+{
+	return "Nod Refinery";
+}
+
 DefaultProperties
 {
     TeamID = TEAM_NOD

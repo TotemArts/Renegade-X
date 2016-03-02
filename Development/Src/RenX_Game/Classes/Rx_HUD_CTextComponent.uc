@@ -194,11 +194,7 @@ function DrawFlashText(string Team) //Still not certain why I kept Team around..
 	
 	DrawX = CCenterX - ((TextL/2)*TextScaleX)	;
 	DrawY = CCenterY - ((CCenterY/1.4)+(TextH*TextScaleY+2*ResScaleY)*i)			;
-	//Don't blend the textured rectangle with any color
-		//`log("DrawX: " @ DrawX @ "DrawY: " @ DrawY @ "ResScaleX: " @ ResScaleX @ "ResScaleY: " @ ResScaleY );
 	
-	//Canvas.DrawTile(Texture2D'RenXScoreboard.T_BGLogo_GDI', 64*ResScaleX, 64*ResScaleY, 200, 200,600, 600)	;
-	//Canvas.DrawRect((32*ResScaleX*TextScaleX),(32*ResScaleY*TextScaleY)) ;
 	
 	//Draw Background
 	Canvas.DrawColor=ColorBlack 	;
@@ -206,12 +202,8 @@ function DrawFlashText(string Team) //Still not certain why I kept Team around..
 	Canvas.SetPos(DrawX-(100*ResScaleX),DrawY)		; //Draw off to the left edge of where the text will be.  
 
 	Canvas.DrawRect((TextL*TextScaleX+(190*ResScaleX) ),TextH*TextScaleY+(2*ResScaleY), TextBG) ; //Rectangle should hang off of both sides.
-	//Canvas.DrawRect(TextL*TextScaleX+(200*ResScaleX),TextH*TextScaleY+(5*ResScaleY), TextBG) ;
-	//Canvas.SetPos(DrawX -(100*ResScaleX),DrawY-(5*ResScaleY))	;
-	//Canvas.DrawRect(TextL*TextScaleX,TextH*TextScaleY, TextBG) ;
 	
-	
-	//Draw Flashing text
+	//Draw Text
 	Canvas.SetPos(DrawX,DrawY)				;
 	Canvas.DrawColor=DisplayText[i].FlashTextColor 		;
 	Canvas.DrawColor.A=DisplayText[i].FlashTextAlpha		;

@@ -93,6 +93,7 @@ var int RecoilSpreadCrosshairScaling;
 
 var bool bAutoFire;
 var bool bLogRecoilTemp;
+var array<bool> ClientPendingFire;
 
 var float IronSightMinRecoilDamping;
 var float IronSightMaxRecoilDamping;
@@ -248,6 +249,7 @@ simulated function DrawCrosshair( Hud HUD )
 		H.Canvas.DrawMaterialTile(CrosshairDotMIC2, default.CrosshairWidth, default.CrosshairHeight);
 	}
 	DrawHitIndicator(H,x,y);
+	
 }
 
 simulated function DrawHitIndicator(HUD H, float x, float y)
@@ -1068,7 +1070,7 @@ reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, T
 	// If we don't have a projectile class, and are not an instant hit weapon
 	if (ProjectileClass == none && WeaponFireTypes[CurrentFireMode] != EWFT_InstantHit && !IsInstantHit() ) 
 	{
-		`log("Return with no bullet" @ ProjectileClass @ WeaponFireTypes[CurrentFireMode] @ IsInstantHit() );
+		//`log("Return with no bullet" @ ProjectileClass @ WeaponFireTypes[CurrentFireMode] @ IsInstantHit() );
 		return;
 	}
 
@@ -1501,6 +1503,43 @@ simulated state Active
 	}
 }
 
+simulated function StartFire(byte FireModeNum)
+{
+	if(Rx_Bot(instigator.Controller) != None) 
+	{
+		
+		super.StartFire(FireModeNum); 
+		return; 
+	}
+	
+	if( Instigator == None || !Instigator.bNoWeaponFiring )
+	{
+		
+		if(Rx_Weapon_Reloadable(self) !=none && Rx_Weapon_Reloadable(self).CurrentlyBoltReloading) return; //Don't accept Startfire commands when bolt reloading
+		
+		ClientPendingFire[FireModeNum]=true; 
+		
+		if(bReadyToFire() && (Role < Role_Authority || WorldInfo.NetMode == NM_StandAlone))
+		{
+			// if we're a client, synchronize server
+			//`log("Sending Fire Request"); 
+			ServerStartFire(FireModeNum);
+			BeginFire(FireModeNum);
+			return;
+		}
+
+		// Start fire locally
+		//if(ROLE == Role_Authority) BeginFire(FireModeNum);
+	}
+}
+
+simulated function StopFire(byte FireModeNum)
+{
+	super.StopFire(FireModeNum); 
+	ClientPendingFire[FireModeNum]=false; 
+}
+
+
 function bool IsInstantHit() //Use this to determine if a weapon firing mode is actually instant hit. 
 {
 	return false; 
@@ -1590,4 +1629,6 @@ DefaultProperties
 	InstantHitDamageRadiusDoFull(1) = false
 	InstantHitDamageRadiusIgnoreTeam(0) = false
 	InstantHitDamageRadiusIgnoreTeam(1) = false
+	ClientPendingFire(0)=false
+	ClientPendingFire(1)=false
 }

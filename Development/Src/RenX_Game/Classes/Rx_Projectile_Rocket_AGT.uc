@@ -8,7 +8,7 @@ defaultproperties
 {
     BaseTrackingStrength=20.0;
     Speed=3000;
-    MaxSpeed=5500;
+    MaxSpeed=4500;
     Damage=220.0; //105
     CheckRadius=0.0
     

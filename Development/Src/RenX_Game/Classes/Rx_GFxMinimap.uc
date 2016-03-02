@@ -18,7 +18,7 @@ class Rx_GFxMinimap extends GFxObject;
 var		 Rx_GfxHUD               RxHUD;
 var		 WorldInfo				 ThisWorld;
 var		 Rx_MapInfo				 RxMapInfo;
-var      Rx_Controller           RxPC;
+var      UTPlayerController      RxPC;
 var		 int                     MapTexSize;
 
 var		 GFxObject               DirCompassIcon;
@@ -61,7 +61,7 @@ var     Texture                 DebugBlipTexture;
 function init(Rx_GFxHud h)
 {
 	RxHUD                =  h;
-	RxPC                 =  Rx_Controller(GetPC());
+	RxPC                 =  UTPlayerController(GetPC());
 	ThisWorld            =  RxPC.WorldInfo;
 	RxMapInfo            =  Rx_MapInfo(ThisWorld.GetMapInfo());
 
@@ -113,7 +113,7 @@ function Update()
 
 	//	Scale = 1.0/Scale;
 
-	if (RxPC == None || RxPC.Pawn == none) {
+	if (RxPC == None || Pawn(RxPC.ViewTarget) == none) {
 		return;
 	}
 
@@ -155,7 +155,7 @@ function UpdateCompass()
 	    IconMatrix.WPlane.Y = 0;
 	    IconMatrix.WPlane.Z = 0;
 	    IconMatrix.WPlane.W = 1;
-        IconMatrix.WPlane = TransformVector(IconMatrix, -RxPC.Pawn.Location);
+        IconMatrix.WPlane = TransformVector(IconMatrix, -Pawn(RxPC.ViewTarget).Location);
 	}
 }
 function UpdateMap()
@@ -187,7 +187,7 @@ function UpdateMap()
 		Mtrx.WPlane.W = 1;
 		Mtrx.WPlane = TransformVector(Mtrx, MapOffset);
 		f = Pi*1.5-f;
-		Vect = (RxMapInfo.MapCenter - RxPC.Pawn.Location) * MapTexSize/RxMapInfo.MapExtent;
+		Vect = (RxMapInfo.MapCenter - Pawn(RxPC.ViewTarget).Location) * MapTexSize/RxMapInfo.MapExtent;
 		MapScale = RxMapInfo.MinimapNormalZoom/(2.0 * RxMapInfo.MinimapCurrentZoom); //Scale is calculated by = (normalZoom / 2.0 * currentZoom)
 		Mtrx.WPlane.X += (Vect.X * cos(f) + Vect.Y * sin(f)) * MapScale;
 		Mtrx.WPlane.Y += (Vect.Y * cos(f) - Vect.X * sin(f)) * MapScale;
@@ -203,10 +203,10 @@ function uLog2(string s)
 function UpdatePlayerBlip()
 {
 	local ASDisplayInfo displayInfo;
-	if (Rx_Vehicle(RxPC.Pawn) != none) {
-		//player_icon.GetObject("playerG").GotoAndStop (GetVehicleIconName(Rx_Vehicle(RxPC.Pawn)));
-		if (Rx_Vehicle(RxPC.Pawn).MinimapIconTexture != none) {
-			LoadTexture("img://" $ PathName(Rx_Vehicle(RxPC.Pawn).MinimapIconTexture), player_icon.GetObject("playerG"));
+	if (Rx_Vehicle(Pawn(RxPC.ViewTarget)) != none) {
+		//player_icon.GetObject("playerG").GotoAndStop (GetVehicleIconName(Rx_Vehicle(Pawn(RxPC.ViewTarget))));
+		if (Rx_Vehicle(Pawn(RxPC.ViewTarget)).MinimapIconTexture != none) {
+			LoadTexture("img://" $ PathName(Rx_Vehicle(Pawn(RxPC.ViewTarget)).MinimapIconTexture), player_icon.GetObject("playerG"));
 		} else {
 			LoadTexture("img://" $ PathName(Texture2D'RenxHud.T_Radar_Blip_Vehicle_Player'), player_icon.GetObject("playerG"));
 		}		
@@ -215,7 +215,7 @@ function UpdatePlayerBlip()
 		LoadTexture("img://" $ PathName(Texture2D'RenxHud.T_Radar_Blip_Infantry_Player'), player_icon.GetObject("playerG"));
 	}
 	displayInfo.hasRotation = true;
-	displayInfo.Rotation = RxPC.Pawn.Rotation.Yaw * UnrRotToDeg + DirCompassIcon.GetDisplayInfo().Rotation + 0;
+	displayInfo.Rotation = Pawn(RxPC.ViewTarget).Rotation.Yaw * UnrRotToDeg + DirCompassIcon.GetDisplayInfo().Rotation + 0;
 
 	//player_icon.SetDisplayInfo(displayInfo);
 	player_icon.SetDisplayInfo(displayInfo);
@@ -242,7 +242,7 @@ function UpdateActorBlips()
 			|| (P.Health <= 0) 
 			|| (P.DrivenVehicle != none)
 			//|| P.PlayerReplicationInfo == none    (NOTE: enabling this cause the vehicle to exit early.)
-			|| P == RxPC.Pawn)
+			|| P == Pawn(RxPC.ViewTarget))
 		{ 
 			continue;
 		}
@@ -464,16 +464,13 @@ function UpdateIcons(out array<Actor> Actors, out array<GFxObject> ActorIcons, T
 		displayInfo.Rotation = (Actors[i].Rotation.Yaw * UnrRotToDeg) + DirCompassIcon.GetDisplayInfo().Rotation + IconRotationOffset ;
 
 		//Condition for other blips that is not the same team as the player owner
-		if (rxGRI != none && !ThisWorld.GRI.OnSameTeam(GetPC().Pawn, Actors[i]) ) {
+		if (rxGRI != none && !ThisWorld.GRI.OnSameTeam(Pawn(GetPC().viewtarget), Actors[i]) ) {
 			if (Actors[i].GetTeamNum() == TEAM_GDI || Actors[i].GetTeamNum() == TEAM_NOD ){
 				displayInfo.Visible = false;
 				if (!Actors[i].IsInState('Stealthed') && !Actors[i].IsInState('BeenShot') && !(Rx_Pawn_SBH(Actors[i]) != none && Rx_Pawn_SBH(Actors[i]).bStealthRecoveringFromBeeingShotOrSprinting)) {
 					if (RxHUD.RenxHud.SpotTargets.Find(Actors[i]) != -1) {
 						displayInfo.Visible = true;
 					} 
-// 					else if ( (Rx_Pawn(Actors[i]) != none && Rx_Pawn(Actors[i]).bTargetted ) || (Rx_Vehicle(Actors[i]) != none && Rx_Vehicle(Actors[i]).bTargetted)) {
-// 						displayInfo.Visible = true;
-// 					}
 					else if (RxHUD.RenxHud.TargetingBox.TargetedActor == Actors[i]) {
 						displayInfo.Visible = true;
 					}
@@ -482,30 +479,6 @@ function UpdateIcons(out array<Actor> Actors, out array<GFxObject> ActorIcons, T
 				displayInfo.Visible = false;
 			}
 		}
-
-// 		if (ThisWorld.GRI != none && !ThisWorld.GRI.OnSameTeam(GetPC().Pawn, Actors[i])) {
-// 			if ((Actors[i].GetTeamNum() == TEAM_GDI || Actors[i].GetTeamNum() == TEAM_NOD)) {
-// 				displayInfo.Visible = false;
-// 				if (!Actors[i].IsInState('Stealthed') && !Actors[i].IsInState('BeenShot')) {
-// 					if ( (Rx_Pawn(Actors[i]) != none && Rx_Pri(Rx_Pawn(Actors[i]).PlayerReplicationInfo) != None && Rx_Pri(Rx_Pawn(Actors[i]).PlayerReplicationInfo).isSpotted() )
-// 						|| (Rx_Vehicle(Actors[i]) != none 
-// 								&& Rx_Pawn(Rx_Vehicle(Actors[i]).driver) != None 
-// 								&& Rx_Pri(Rx_Pawn(Rx_Vehicle(Actors[i]).driver).PlayerReplicationInfo) != None
-// 								&& Rx_Pri(Rx_Pawn(Rx_Vehicle(Actors[i]).driver).PlayerReplicationInfo).isSpotted()))
-// 					{
-// 						displayInfo.Visible = true;
-// 					}
-// 					if ((Rx_Pawn(Actors[i]) != none && Rx_Pawn(Actors[i]).bTargetted )
-// 						|| (Rx_Vehicle(Actors[i]) != none && Rx_Vehicle(Actors[i]).bTargetted))
-// 					{
-// 						displayInfo.Visible = true;
-// 					} 
-// 				} else {
-// 					displayInfo.Visible = false;
-// 				}
-// 				
-// 			}		
-// 		}
 	
 		ActorIcons[i].SetDisplayInfo(displayInfo);
 	}

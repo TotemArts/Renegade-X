@@ -160,8 +160,8 @@ DefaultProperties
 	
 	bAutoFire = false
 	BoltActionReload=true
-	BoltReloadTime(0) = 2.0f
-	BoltReloadTime(1) = 2.0f
+	BoltReloadTime(0) = 1.75 //2.0f (Factor in RefireBoltReloadInterrupt) 
+	BoltReloadTime(1) = 1.75 //2.0f
 
 	ReloadAnimName(0) = "weaponreload"
 	ReloadAnimName(1) = "weaponreload"

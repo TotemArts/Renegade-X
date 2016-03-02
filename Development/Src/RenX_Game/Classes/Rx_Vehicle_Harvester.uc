@@ -118,7 +118,8 @@ function Start()
 
 function regenerateHealth()
 {
-	if(Health  < HealthMax/2) {
+	//if(Health  < HealthMax/2) {
+	if(Health  < HealthMax) {
 		Health += 2;
 	}
 }
@@ -169,6 +170,7 @@ event RanInto( Actor Other )
 	local float Speed;
 	local Vector Momentum;
 	local class<UDKEmitCameraEffect> CameraEffect;
+	local bool bEnemyIsInfrontOfMe;		
 	
 	if(Other == DummyDriver)
 		return;
@@ -179,6 +181,10 @@ event RanInto( Actor Other )
 	Speed = VSize(Velocity);
 	if (Speed > MinRunOverSpeed)
 	{
+		bEnemyIsInfrontOfMe = class'Rx_Utils'.static.OrientationOfLocAndRotToBLocation(Location,rotation,Other.location) > 220;
+		if(!bEnemyIsInfrontOfMe)
+			return;
+		
 		Momentum = Velocity * 0.25 * Pawn(Other).Mass;
 		if ( RanOverSound != None )
 			PlaySound(RanOverSound);

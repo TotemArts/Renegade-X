@@ -4,6 +4,49 @@ var() name WeaponThrowGrenadeAnimName[4];
 
 var array<float> DelayFireTime; 
 
+/*Modify RepNotify slightly for when weapons are changed too quickly */
+simulated event ReplicatedEvent(name VarName)
+{
+	if ( VarName == 'CurrentlyReloading' ) 
+	{
+		if(CurrentlyReloading == false) 
+		{
+			CurrentAmmoInClipClientside = ClipSize;
+			PostReloadUpdate();	
+			GotoState('Active');
+				
+		} 
+		else 
+		{
+			reloadBeginTime = WorldInfo.TimeSeconds;
+			currentReloadTime = ReloadTime[CurrentFireMode];		
+			PlayWeaponReloadAnim();
+		}	
+    }
+	else if (VarName == 'CurrentAmmoInClip')
+	{
+		if(CurrentAmmoInClip == ClipSize)
+		{
+			CurrentAmmoInClipClientside = ClipSize;	
+		}
+		else //Grenades can only be 1 or 0 in the clip
+		CurrentAmmoInClipClientside=CurrentAmmoInClip; 
+		
+		UpdateAmmoCounter();
+		if(PerBulletReload && CurrentlyReloading)
+		{
+			PlayWeaponReloadAnim();		
+		}
+	}
+    else 
+    {
+    	super.ReplicatedEvent(VarName);
+    } 
+}
+
+
+
+
 simulated state Active
 {
 // 	simulated event BeginState( Name PreviousStateName )
@@ -18,6 +61,11 @@ simulated state Active
 
 /*There were small instances (mostly with bots) where the Reload timer would be called in the 'active' state. So added logic here.*/
 
+//Apparently the super of this messes with grenades to no end
+simulated function bool bReadyToFire()
+	{
+		return  !CurrentlyReloading && !CurrentlyBoltReloading;
+	}
 
 }
 
@@ -44,9 +92,9 @@ auto simulated state Inactive
 			  PC.SetFOV(PC.DefaultFOV);
 		  }
 		}
-
+//`log("CAIC:" @ CurrentAmmoInClip ); 
 		//If weapons were changed quickly, see if reloading had begun. If not, start it.
-		if(!IsTimerActive('ReloadWeaponTimer') && CurrentAmmoInClip <= 0)
+		if( ROLE == ROLE_Authority && !IsTimerActive('ReloadWeaponTimer') && CurrentAmmoInClip <= 0)
 		{	
 			reloadBeginTime = WorldInfo.TimeSeconds;
 			currentReloadTime = ReloadTime[CurrentFireMode];
@@ -57,10 +105,11 @@ auto simulated state Inactive
 			`log("Set Reload Weapon Timer(Begin State): " @ ReloadTime[CurrentFireMode]); 	
 			}
 		}
-		//SetTimer( 1.0f, false, 'DoubleCheckReloadTimer'); //sets a timer to make sure lag did not screw up the weapon going into reload status
+		SetTimer( 1.0f, false, 'DoubleCheckReloadTimer'); //sets a timer to make sure lag did not screw up the weapon going into reload status
 		
 		Super.BeginState(PreviousStateName);
 	}
+
 
 	
 	
@@ -72,6 +121,7 @@ auto simulated state Inactive
 		return false;
 	}
 }
+
 
 
 simulated state WeaponFiring
@@ -352,122 +402,6 @@ function ReloadWeaponTimer() /*One more for out of state*/
 simulated function PlayWeaponReloadAnim() 
 {} //Do not play reloading animations... as they are utterly creepy in slow motion
 
-simulated function DrawCrosshair( Hud HUD )
-{
-	local float x,y;
-	local UTHUDBase H;
-	local Pawn MyPawnOwner;
-	local actor TargetActor;
-	local int targetTeam, rectColor;
-	local int MineNum, MaxMineNum;
-	local color TempColor;
-	local float MineTextL, MineTextH, MineEmphasisScale;
-	
-	// rectColor is an integer representing what we will pass to the texture's parameter(ReticleColourSwitcher):
-	// 0=Default, 1=Red, 2=Green, 3=Yellow
-	rectColor = 0;	
-	
-	H = UTHUDBase(HUD);
-	if ( H == None )
-		return;
-	
-	
-	MineNum=Rx_HUD(H).HudMovie.CurrentNumMines;
-	MaxMineNum=Rx_HUD(H).HudMovie.CurrentMaxMines;
-	
-	CrosshairWidth = default.CrosshairWidth + RecoilSpread*RecoilSpreadCrosshairScaling;	
-	CrosshairHeight = default.CrosshairHeight + RecoilSpread*RecoilSpreadCrosshairScaling;
-		
-	CrosshairLinesX = H.Canvas.ClipX * 0.5 - (CrosshairWidth * 0.5);
-	CrosshairLinesY = H.Canvas.ClipY * 0.5 - (CrosshairHeight * 0.5);	
-	
-	MyPawnOwner = Pawn(Owner);
-
-	//determines what we are looking at and what color we should use based on that.
-	if (MyPawnOwner != None)
-	{
-		TargetActor = Rx_Hud(HUD).GetActorWeaponIsAimingAt();
-		if (Pawn(TargetActor) == None && Rx_Weapon_DeployedActor(TargetActor) == None && 
-			Rx_Building(TargetActor) == None && Rx_BuildingAttachment(TargetActor) == None)
-		{
-			TargetActor = (TargetActor == None) ? None : Pawn(TargetActor.Base);
-		}
-		
-		if(TargetActor != None)
-		{
-			targetTeam = TargetActor.GetTeamNum();
-			
-			if (targetTeam == 0 || targetTeam == 1) //has to be gdi or nod player
-			{
-				if (targetTeam != MyPawnOwner.GetTeamNum())
-				{
-					if (!TargetActor.IsInState('Stealthed') && !TargetActor.IsInState('BeenShot'))
-						rectColor = 1; //enemy, go red, except if stealthed (else would be cheating ;] )
-				}
-				else
-					rectColor = 2; //Friendly
-			}
-		}
-	}
-	
-	if (!HasAnyAmmo()) //no ammo, go yellow
-		rectColor = 3;
-	else
-	{
-		if (CurrentlyReloading || CurrentlyBoltReloading || BoltActionReload && HasAmmo(CurrentFireMode) && IsTimerActive('BoltActionReloadTimer')) //reloading, go yellow
-			rectColor = 3;
-	}
-
-	CrosshairMIC2. SetScalarParameterValue('ReticleColourSwitcher', rectColor);
-	CrosshairDotMIC2. SetScalarParameterValue('ReticleColourSwitcher', rectColor);
-	
-	H.Canvas.SetPos( CrosshairLinesX, CrosshairLinesY );
-	if(bDisplayCrosshair) {
-		H.Canvas.DrawMaterialTile(CrosshairMIC2, CrosshairWidth, CrosshairHeight);
-	}
-
-	CrosshairLinesX = H.Canvas.ClipX * 0.5 - (default.CrosshairWidth * 0.5);
-	CrosshairLinesY = H.Canvas.ClipY * 0.5 - (default.CrosshairHeight * 0.5);
-	GetCrosshairDotLoc(x, y, H);
-	H.Canvas.SetPos( X, Y );
-	if(bDisplayCrosshair) {
-		H.Canvas.DrawMaterialTile(CrosshairDotMIC2, default.CrosshairWidth, default.CrosshairHeight);
-		
-		//Draw Mine Limit
-		H.Canvas.Font=Font'RenXTargetSystem.T_TargetSystemPercentage';
-		H.Canvas.StrLen("Mines: " $ MineNum $ "/" $ MaxMineNum, MineTextL,MineTextH)	; //I wasn't going to center it.. but baah, I'm going to center it. 
-		
-		TempColor=H.Canvas.DrawColor;
-		if(float(MineNum)/float(MaxMineNum) < 0.5) 
-		{
-			H.Canvas.SetDrawColor(0,255,0,255); //Green
-			MineEmphasisScale=1;
-		}
-		if(float(MineNum)/float(MaxMineNum) >= 0.5) 
-		{
-			H.Canvas.SetDrawColor(255,255,0,255); //Yeller
-			MineEmphasisScale=1.2;
-		}
-		
-		if(float(MineNum/MaxMineNum) >= 0.90)
-		{
-			H.Canvas.SetDrawColor(255,0,0,255); //Red
-			MineEmphasisScale=1.4;
-		}
-		
-		H.Canvas.SetPos(
-		X+(default.CrosshairWidth/2)-(MineTextL*MineEmphasisScale)/2,
-		Y+default.CrosshairHeight/5);
-		
-		
-		if(bDebugWeapon)
-		{
-		H.Canvas.DrawText( (GetTimerRate('ReloadWeaponTimer') - GetTimerCount('ReloadWeaponTimer')) ,true,1,1);
-		H.Canvas.DrawColor=TempColor;
-		}
-	}
-	DrawHitIndicator(H,x,y);
-}
 
 function DoubleCheckReloadTimer()
 
@@ -604,8 +538,7 @@ DefaultProperties
 
 	InventoryGroup=5
 	InventoryMovieGroup=27
-	
-	bDebugWeapon=false
+
 	
 	WeaponIconTexture=Texture2D'RX_WP_Grenade.UI.T_WeaponIcon_Grenade'
 	

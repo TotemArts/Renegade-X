@@ -46,8 +46,8 @@ replication
 {
 	if( bNetDirty && Role == ROLE_Authority)
 		Credits, ReplicatedRenScore, RenTotalKills, bIsSpy, bSpotted, bModeratorOnly, AirdropCounter, bCanMine;
-	if( bNetDirty && Role == ROLE_Authority && bDemoRecording) 
-		ReplicatedNetworkAddress;
+	//if( bNetDirty && Role == ROLE_Authority && bDemoRecording) 
+	//	ReplicatedNetworkAddress; // want to try to live without this, so demos can be shared publically without showing IPs of the players
 }
 
 simulated event ReplicatedEvent(name VarName)
@@ -116,7 +116,7 @@ function SetIsSpy(bool inIsSpy)
 /**
  * Pawn is provided and not calculated from Owner because Owner sometimes takes a while to update
  */
-function SetChar(class<Rx_FamilyInfo> newFamily, Pawn pawn)
+function SetChar(class<Rx_FamilyInfo> newFamily, Pawn pawn, optional bool isFreeClass)
 {
    local Rx_Pawn rxPawn;
 
@@ -154,7 +154,7 @@ if( (WorldInfo.NetMode == NM_ListenServer && RemoteRole == ROLE_SimulatedProxy) 
       return;
    }
    
-   equipStartWeapons();
+   equipStartWeapons(isFreeClass);
 }
 
 function IncrementKills(bool bEnemyKill )
@@ -162,7 +162,67 @@ function IncrementKills(bool bEnemyKill )
 }
 
 /** one1: Modified. */
-function equipStartWeapons() 
+function equipStartWeapons(optional bool FreeClass) 
+{
+   	local Rx_Pawn rxPawn;
+    local class<Rx_FamilyInfo> rxCharInfo;   
+	local float ArmourPCT; 
+
+	rxCharInfo = class<Rx_FamilyInfo>(CharClassInfo);
+	
+	if(UDKBot(Owner) != none) {
+		rxPawn = Rx_Pawn(UDKBot(Owner).Pawn);	
+	} else {
+    	rxPawn = Rx_Pawn(PlayerController(Owner).Pawn);	
+    }
+
+	/** one1: Set starting inventory. */
+	Rx_InventoryManager(rxPawn.InvManager).SetWeaponsForPawn();
+	
+	if(FreeClass) 
+	{
+		/*Give the pawn the same percentage of armour if they switch classes. E.G, switching from a RifleSoldier with 100 health and armour, 
+		to a Grenadier would still make the grenadier have full health/armour*/ 
+		ArmourPCT=float(rxPawn.Armor)/float(rxPawn.ArmorMax); 
+		
+	if(rxPawn.ArmorMax != rxCharInfo.default.MaxArmor) 
+	{
+		rxPawn.ArmorMax  = rxCharInfo.default.MaxArmor;
+		
+		rxPawn.Armor     = rxCharInfo.default.MaxArmor; //rxPawn.Armor > rxCharInfo.default.MaxArmor ? rxCharInfo.default.MaxArmor : rxPawn.Armor;	
+		
+		rxPawn.Armor*=ArmourPCT; 
+	}
+	 	
+	rxPawn.setArmorType(rxCharInfo.default.Armor_Type);
+	
+	rxPawn.SpeedUpgradeMultiplier = rxCharInfo.default.SpeedMultiplier;	
+	rxPawn.JumpHeightMultiplier = rxCharInfo.default.JumpMultiplier; 
+	rxPawn.UpdateRunSpeedNode();
+	rxPawn.SetGroundSpeed();
+	rxPawn.SoundGroupClass = rxCharInfo.default.SoundGroupClass;
+ 	rxPawn.bForceNetUpdate = true;
+	return;
+	}
+	
+	//Set Health
+	rxPawn.HealthMax = rxCharInfo.default.MaxHealth;
+	rxPawn.Health    = rxPawn.HealthMax;
+	//Set armour and type
+	rxPawn.ArmorMax  = rxCharInfo.default.MaxArmor;
+	rxPawn.Armor     = rxPawn.ArmorMax;	 	 	
+	rxPawn.setArmorType(rxCharInfo.default.Armor_Type);
+	
+	rxPawn.SpeedUpgradeMultiplier = rxCharInfo.default.SpeedMultiplier;	
+	rxPawn.JumpHeightMultiplier = rxCharInfo.default.JumpMultiplier; 
+	rxPawn.UpdateRunSpeedNode();
+	rxPawn.SetGroundSpeed();
+	rxPawn.SoundGroupClass = rxCharInfo.default.SoundGroupClass;
+ 	rxPawn.bForceNetUpdate = true;
+}
+
+/** one1: Modified. */
+function equipStartWeaponsFree() 
 {
    	local Rx_Pawn rxPawn;
     local class<Rx_FamilyInfo> rxCharInfo;   

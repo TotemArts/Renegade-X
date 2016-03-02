@@ -50,18 +50,19 @@ function Init()
 	if (MusicComp == none) {
 		MusicComp = class'WorldInfo'.static.GetWorldInfo().CreateAudioComponent(JukeBoxList[0].TheSoundCue, false);
 	}
+	
 	//MusicComp.AdjustVolume(1,0.75f);
 	`log("MusicComp.CurrentVolume? " $ MusicComp.CurrentVolume);
 	MusicComp.bAutoDestroy = false;
 	//MusicComp.AdjustVolume(1,0.75f);
 
 	//if we're playing a music
-	if (MusicComp.IsPlaying()) {
+	if (MusicComp.IsPlaying())
+	{
 		//check if we're playing map song or our track
 		i = JukeBoxList.Find('TheSoundCue', MusicComp.SoundCue);
-		if (i >= 0) {
+		if (i >= 0)
 			CurrentTrack = JukeBoxList[i];
-		}
 	}
 }
 
@@ -69,28 +70,29 @@ function Init()
 function Play(int index) 
 {
 	local byte i;
-	if (!JukeBoxList[index].bSelected) {
-
-		if (index + 1 < JukeBoxList.Length) {
+	if (!JukeBoxList[index].bSelected)
+	{
+		if (index + 1 < JukeBoxList.Length)
 			index++;
-		} else {
+		else
 			index = 0;
-		}
 
-		for (i = index; i < JukeBoxList.Length; i++) {
-			if (JukeBoxList[i].bSelected){
+		for (i = index; i < JukeBoxList.Length; i++)
+		{
+			if (JukeBoxList[i].bSelected)
+			{
 				CurrentTrack = JukeBoxList[i];
 				break;
 			}
 			CurrentTrack.TheSoundCue = none;
 		}
 
-		if (CurrentTrack.TheSoundCue == none) {
+		if (CurrentTrack.TheSoundCue == none)
 			return;
-		}
-	} else {
-		CurrentTrack = JukeBoxList[index];
 	}
+	else
+		CurrentTrack = JukeBoxList[index];
+
 	bStopped = false;
 	MusicComp.SoundCue = CurrentTrack.TheSoundCue;
 	MusicComp.Play();

@@ -1,6 +1,11 @@
 class Rx_Building_PowerPlant_GDI extends Rx_Building_PowerPlant
 	placeable;
 
+simulated function String GetHumanReadableName()
+{
+	return "GDI Power Plant";
+}
+
 DefaultProperties
 {
 	TeamID                  = TEAM_GDI

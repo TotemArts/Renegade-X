@@ -136,16 +136,16 @@ function string ParametersLogString()
 	switch (BotsToTeam)
 	{
 	case 1:
-		teamPram = "gdi";
+		teamPram = "GDI";
 		break;
 	case 2:
-		teamPram = "nod";
+		teamPram = "Nod";
 		break;
 	case 3:
-		teamPram = "both";
+		teamPram = "Both";
 		break;
 	}
-	return "team:"$teamPram$",amount:"$Amount$",skill:"$Skill;
+	return "team" `s teamPram `s "amount" `s Amount `s "skill" `s Skill;
 }
 
 function Execute(Rx_Game game)

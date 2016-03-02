@@ -35,7 +35,9 @@ simulated function PostBeginPlay()
 // Volt Auto Rifle uses a different state for alt-fire, so can't use the super implementation which sends directly to fire.
 simulated function RestartWeaponFiringAfterReload()
 {
-    GotoState('Active');
+    if(CurrentFireMode == 1 ) GotoState('Active');
+	else
+	super.RestartWeaponFiringAfterReload(); 
 }
 
 /**

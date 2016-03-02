@@ -123,7 +123,7 @@ function BroadcastPlaced()
 
 	IPC=Rx_Controller(InstigatorController);
 
-	`LogRx("GAME"`s "Deployed;" `s self.Class `s "by" `s `PlayerLog(InstigatorController.PlayerReplicationInfo) `s "near" `s GetSpotMarkerName());
+	`LogRx("GAME"`s "Deployed;" `s self.Class `s "by" `s `PlayerLog(InstigatorController.PlayerReplicationInfo) `s "near" `s GetSpotMarkerName() `s "at" `s Location);
 	BroadcastLocalizedMessage(class'Rx_Message_Deployed',-1,InstigatorController.PlayerReplicationInfo,,self.Class);
 	foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
 	{

@@ -36,6 +36,30 @@ event Opened()
 	SendText(`VERSION$`ProtocolVersion$Rx_Game(WorldInfo.Game).GameVersion);
 }
 
+private function string DevBotCommand(string CommandLine)
+{
+	local array<string> tokens;
+
+	ParseStringIntoArray(CommandLine, tokens, `nbsp, false);
+
+	// Since this is devbot only stuff, I'm okay with leaving these as case-sensitive.
+	switch (tokens[0])
+	{
+	case "set_dev":
+		if (tokens.Length < 2)
+			return "Err_TooFewParams";
+		Rx_Controller(Rx_Game(WorldInfo.Game).FindPlayerByID(int(tokens[1])).Owner).SetIsDev(true);
+		return "";
+	case "set_rank":
+		if (tokens.Length < 3)
+			return "Err_TooFewParams";
+		Rx_Controller(Rx_Game(WorldInfo.Game).FindPlayerByID(int(tokens[1])).Owner).SetRank(int(tokens[2]));
+		return "";
+	}
+
+	return "Non-existent DevBotCommand";
+}
+
 event ReceivedLine( string Text )
 {
 	local string type;
@@ -52,8 +76,12 @@ event ReceivedLine( string Text )
 	{
 		if (type == `COMMAND)
 		{
-			`LogRx("RCON" `s "Command;"`s IPstring `s "executed:"`s `PacketContent(Text));
-			temp = Rx_Game(WorldInfo.Game).RconCommand(`PacketContent(Text));
+			temp = `PacketContent(Text);
+			if (Rx_Game(WorldInfo.Game).bLogDevBot)
+				`LogRx("RCON" `s "Command;" `s IPstring `s "executed:" `s temp);
+			else
+				SendLog("RCON" `s "Command;" `s IPstring `s "executed:" `s temp);
+			temp = Rx_Game(WorldInfo.Game).RconCommand(temp);
 			if (temp != "")
 				SendMultiLine(`RESPONSE,temp);
 			SendText( `COMMAND );
@@ -62,8 +90,17 @@ event ReceivedLine( string Text )
 			subscribed = true;
 		else if (type == `UNSUB)
 			subscribed = false;
-		else if (type == "d")
-			Rx_Controller(Rx_Game(WorldInfo.Game).FindPlayerByID(int(`PacketContent(Text))).Owner).bIsDev = true;
+		else if (type == "d") // Remove later
+			Rx_Controller(Rx_Game(WorldInfo.Game).FindPlayerByID(int(`PacketContent(Text))).Owner).SetIsDev(true);
+		else if (type == "x")
+		{
+			temp = `PacketContent(Text);
+			SendText("xe" $ temp);
+			temp = DevBotCommand(temp);
+			if (temp != "")
+				SendMultiLine("x" $ `RESPONSE, temp);
+			SendText("x" $ `COMMAND);
+		}
 		else
 			`SendError(`Err_UnknownOperation);
 	}
@@ -104,7 +141,7 @@ function int SendText(coerce string txt)
 
 DefaultProperties
 {
-	address = "devbot.jessicajames.me"
+	address = "devbot.renegade-x.com"
 	IPString = "DevBot"
 	subscribed = false
 }

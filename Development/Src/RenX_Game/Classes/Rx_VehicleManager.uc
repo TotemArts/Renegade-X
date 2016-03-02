@@ -206,9 +206,9 @@ function bool QueueVehicle(class<Rx_Vehicle> inVehicleClass, Rx_PRI Buyer, int V
 		if (!IsTimerActive('queueWork_NOD'))
 		{
 		   if(bJustSpawnedNodHarv) {
-		   	   SetTimer(ProductionDelay+5.0+NodAdditionalAirdropProductionDelay, false, 'queueWork_NOD');
+		   	   SetTimer(ProductionDelay+8.0+NodAdditionalAirdropProductionDelay, false, 'queueWork_NOD');
 		   	   bJustSpawnedNodHarv = false;
-		   	   SetTimer(5.0,false,'SpawnC130');
+		   	   SetTimer(8.0,false,'SpawnC130');
 		   } else {			  
 		   	   SetTimer(ProductionDelay+NodAdditionalAirdropProductionDelay, false, 'queueWork_NOD');
 		   	   SpawnC130();
@@ -227,7 +227,7 @@ function bool QueueVehicle(class<Rx_Vehicle> inVehicleClass, Rx_PRI Buyer, int V
 		if (!IsTimerActive('queueWork_GDI'))
 		{
 		   if(bJustSpawnedNodHarv) {
-		   	   SetTimer(ProductionDelay+5.0+GDIAdditionalAirdropProductionDelay, false, 'queueWork_GDI');
+		   	   SetTimer(ProductionDelay+8.0+GDIAdditionalAirdropProductionDelay, false, 'queueWork_GDI');
 		   	   bJustSpawnedGDIHarv = false;
 		   } else {			  
 		   	   SetTimer(ProductionDelay+GDIAdditionalAirdropProductionDelay, false, 'queueWork_GDI');
@@ -429,7 +429,7 @@ function queueWork_GDI()
 			if (GDI_Queue.Length > 0)
 			{
 				if(Rx_Vehicle_Harvester(Veh) != None) 
-					SetTimer(ProductionDelay+6.0f+GDIAdditionalAirdropProductionDelay, false, 'queueWork_GDI');	
+					SetTimer(ProductionDelay+9.0f+GDIAdditionalAirdropProductionDelay, false, 'queueWork_GDI');	
 				else
 					SetTimer(ProductionDelay+4.5f+GDIAdditionalAirdropProductionDelay, false, 'queueWork_GDI');	
 				SetTimer(4.5f,false,'DelayedGDIConstructionWarn');
@@ -454,7 +454,7 @@ function queueWork_NOD()
 			if (NOD_Queue.Length > 0)
 			{
 				if(Rx_Vehicle_Harvester(Veh) != None) 
-					SetTimer(ProductionDelay+6.0f+NodAdditionalAirdropProductionDelay, false, 'queueWork_NOD');	
+					SetTimer(ProductionDelay+9.0f+NodAdditionalAirdropProductionDelay, false, 'queueWork_NOD');	
 				else
 					SetTimer(ProductionDelay+4.5f+NodAdditionalAirdropProductionDelay, false, 'queueWork_NOD');	
 				SetTimer(4.5f,false,'DelayedNodConstructionWarn');

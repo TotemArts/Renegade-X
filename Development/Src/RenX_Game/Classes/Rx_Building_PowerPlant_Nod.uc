@@ -2,6 +2,11 @@ class Rx_Building_PowerPlant_Nod extends Rx_Building_PowerPlant
 	placeable;
       
 
+simulated function String GetHumanReadableName()
+{
+	return "Nod Power Plant";
+}
+
 DefaultProperties
 {
 	TeamID                  = TEAM_NOD

@@ -6,7 +6,7 @@ defaultproperties
     VehicleMomentumScaling=0.21
     lightArmorDmgScaling=0.21			// 2.5
     BuildingDamageScaling=0.2
-	MCTDamageScaling=3.0
+	MCTDamageScaling=2.0 //20 damage in a full clip
 	MineDamageScaling=2.0
 		////Infantry Armour Types//////
 	Inf_FLAKDamageScaling = 1.3    //FLAK infantry armour (Standard rule is explosive weapons does  30% less, while gun damage does 30% more)

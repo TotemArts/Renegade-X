@@ -83,12 +83,14 @@ simulated event ReplicatedEvent(name VarName)
 			CurrentAmmoInClipClientside = ClipSize;
 			PostReloadUpdate();	
 			
-			if( (PendingFire(0) && CurrentFireMode == 0) || (PendingFire(1) && CurrentFireMode == 1) ) 
+			//if( (PendingFire(0) && CurrentFireMode == 0) || (PendingFire(1) && CurrentFireMode == 1) ) 
+			if( (ClientPendingFire[0] && CurrentFireMode == 0) || (ClientPendingFire[1] && CurrentFireMode == 1) ) 
 			{
 				RestartWeaponFiringAfterReload();	
 			} 
 			else if(!IsInState('WeaponPuttingDown')) 
 			{
+				
 				GotoState('Active');
 			}	
 		} 
@@ -108,11 +110,13 @@ simulated event ReplicatedEvent(name VarName)
 		if(CurrentlyBoltReloading == false) 
 		{
 			PostReloadUpdate();		
+			/** EDIT: Bolt Action weapons ignore pending fire outside of not being able to shoot 
 			if( PendingFire(0) || PendingFire(1) ) 
 			{
 				GotoState('WeaponFiring');	
 			} 
-			else if(!IsInState('WeaponPuttingDown'))  
+			else*/
+			if(!IsInState('WeaponPuttingDown'))  
 			{
 				GotoState('Active');
 			}	
@@ -130,10 +134,11 @@ simulated event ReplicatedEvent(name VarName)
     }
 	else if (VarName == 'CurrentAmmoInClip')
 	{
-		if(CurrentAmmoInClip == ClipSize)
-		{
-			CurrentAmmoInClipClientside = ClipSize;	
-		}
+		/*if(CurrentAmmoInClip < ClipSize)
+		{}*/
+		
+		CurrentAmmoInClipClientside = CurrentAmmoInClip;	
+		
 		UpdateAmmoCounter();
 		if(PerBulletReload && CurrentlyReloading)
 		{
@@ -148,7 +153,13 @@ simulated event ReplicatedEvent(name VarName)
 
 simulated function RestartWeaponFiringAfterReload()
 {
-	GotoState('WeaponFiring');
+	
+	
+	GotoState('Active');	
+	if(ROLE < ROLE_Authority || WorldInfo.Netmode == NM_Standalone) 
+	{
+	StartFire(CurrentFireMode);  	
+	}
 }
 
 simulated function UpdateAmmoCounter(); // Needs overloaded if you need to update on weapon counteres
@@ -204,6 +215,12 @@ state Reloading
 			reloadBeginTime = WorldInfo.TimeSeconds;
 			currentReloadTime = ReloadTime[CurrentFireMode];
 			SetTimer( ReloadTime[CurrentFireMode], false, 'ReloadWeaponTimer');
+			/*if(WorldInfo.Netmode == NM_DedicatedServer) 
+			{	
+			}*/
+		
+			ClearPendingFire(0);
+			ClearPendingFire(1);
 		}
 
 		if(bIronsightActivated)
@@ -305,12 +322,16 @@ state Reloading
 		CurrentlyReloading = false;
 		PostReloadUpdate();
 
-		if((PendingFire(0) && CurrentFireMode == 0) || (PendingFire(1) && CurrentFireMode == 1) ) 
+		//if((PendingFire(0) && CurrentFireMode == 0) || (PendingFire(1) && CurrentFireMode == 1) ) 
+		
+		if((ClientPendingFire[0] && CurrentFireMode == 0) || (ClientPendingFire[1] && CurrentFireMode == 1) )
 		{
+			
 			RestartWeaponFiringAfterReload();	
 		}
 		else
 		{
+			
 			GotoState('Active');
 		}
 	}
@@ -365,9 +386,11 @@ simulated state Active
 
 	simulated function bool bReadyToFire()
 	{
-		return !CurrentlyReloading && !CurrentlyBoltReloading;
+		return  !IsTimerActive('RefireCheckTimer') && ( !CurrentlyReloading && !CurrentlyBoltReloading);
 	}
 
+	
+	
 }
 
 function ConsumeAmmo( byte FireModeNum )
@@ -568,7 +591,8 @@ simulated state WeaponFiring
 			{
 				if( !IsTimerActive('RefireCheckTimer') )
 				{
-					SetTimer( GetFireInterval(FireModeNum), true, nameof(RefireCheckTimer) );
+					SetTimer( 0.5, true, nameof(RefireCheckTimer) );
+					//SetTimer( GetFireInterval(FireModeNum), true, nameof(RefireCheckTimer) );
 				}
 			} 
 			Global.TimeWeaponFiring(FireModeNum);
@@ -599,12 +623,23 @@ simulated state WeaponFiring
 		
 		if( CurrentAmmoInClip <= 0 && HasAnyAmmoOfType(CurrentFireMode) )
 		{
+			
 			GotoState('Reloading');
+			
 			return;
 		}
 
 		// Otherwise we're done firing
 		HandleFinishedFiring();
+	}
+	
+	
+	simulated function bool bReadyToFire()
+	{
+		
+		if(!bAutoFire) return  !IsTimerActive('RefireCheckTimer');
+		else
+		return true; 
 	}
 }
 
@@ -614,6 +649,13 @@ simulated function BoltActionReloadTimer()
 	{
 		`log("BoltActionReloadTimer");
 	}
+	
+	//Once Bolt Action reloading is instated, disallow holding down the fire button. 
+	ClientPendingFire[0] = false; 
+	ClientPendingFire[1] = false; 
+	ClearPendingFire(0); 
+	ClearPendingFire(1);  
+	
 	if(!BoltActionReload)
 		return;
 	if( HasAmmo(CurrentFireMode) )
@@ -622,9 +664,9 @@ simulated function BoltActionReloadTimer()
 		RefireCheckTimer();
 }
 
-state BoltActionReloading
+simulated state BoltActionReloading
 {
-	function BeginState( name PreviousState )
+	 function BeginState( name PreviousState )
 	{
 		if (bDebugWeapon)
 		{
@@ -646,9 +688,11 @@ state BoltActionReloading
 			}
 		} 
 		CurrentlyBoltReloading = true;
+		
+		
 	}
 
-	function EndState( name NextState )
+	 function EndState( name NextState )
 	{
 		if (bDebugWeapon)
 		{
@@ -659,7 +703,7 @@ state BoltActionReloading
 		ClearTimer('ReloadWeaponTimer');
 	}
 
-	function ReloadWeaponTimer()
+	simulated function ReloadWeaponTimer()
 	{
 		if (bDebugWeapon)
 		{
@@ -669,7 +713,8 @@ state BoltActionReloading
 		CurrentlyBoltReloading = false;
 		PostReloadUpdate();
 
-		if(  (PendingFire(0) || PendingFire(1)) && ShouldRefire() ) 
+		//if(  (PendingFire(0) || PendingFire(1)) && ShouldRefire() ) 
+		if(  (ClientPendingFire[0] || ClientPendingFire[1]) && ShouldRefire() ) 
 		{
 			GotoState('WeaponFiring');	
 		}
@@ -681,7 +726,7 @@ state BoltActionReloading
 
 	simulated function bool bReadyToFire()
 	{
-		return true;
+		return false ; //return true;
 	}
 	
 	simulated function BeginFire( Byte FireModeNum )
@@ -723,7 +768,118 @@ simulated function PlayWeaponBoltReloadAnim()
 	}
 }
 
+simulated function DrawCrosshair( Hud HUD )
+{
+	local float x,y;
+	local UTHUDBase H;
+	local Pawn MyPawnOwner;
+	local actor TargetActor;
+	local int targetTeam, rectColor;
+	
+	// rectColor is an integer representing what we will pass to the texture's parameter(ReticleColourSwitcher):
+	// 0=Default, 1=Red, 2=Green, 3=Yellow
+	rectColor = 0;	
+	
+	H = UTHUDBase(HUD);
+	if ( H == None )
+		return;
+		
+	CrosshairWidth = default.CrosshairWidth + RecoilSpread*RecoilSpreadCrosshairScaling;	
+	CrosshairHeight = default.CrosshairHeight + RecoilSpread*RecoilSpreadCrosshairScaling;
+		
+	CrosshairLinesX = H.Canvas.ClipX * 0.5 - (CrosshairWidth * 0.5);
+	CrosshairLinesY = H.Canvas.ClipY * 0.5 - (CrosshairHeight * 0.5);	
+	
+	MyPawnOwner = Pawn(Owner);
 
+	//determines what we are looking at and what color we should use based on that.
+	if (MyPawnOwner != None)
+	{
+		TargetActor = Rx_Hud(HUD).GetActorWeaponIsAimingAt();
+		if (Pawn(TargetActor) == None && Rx_Weapon_DeployedActor(TargetActor) == None && 
+			Rx_Building(TargetActor) == None && Rx_BuildingAttachment(TargetActor) == None)
+		{
+			TargetActor = (TargetActor == None) ? None : Pawn(TargetActor.Base);
+		}
+		
+		if(TargetActor != None)
+		{
+			targetTeam = TargetActor.GetTeamNum();
+			
+			if (targetTeam == 0 || targetTeam == 1) //has to be gdi or nod player
+			{
+				if (targetTeam != MyPawnOwner.GetTeamNum())
+				{
+					if (!TargetActor.IsInState('Stealthed') && !TargetActor.IsInState('BeenShot'))
+						rectColor = 1; //enemy, go red, except if stealthed (else would be cheating ;] )
+				}
+				else
+					rectColor = 2; //Friendly
+			}
+		}
+	}
+	
+	if (!HasAnyAmmo()) //no ammo, go yellow
+		rectColor = 3;
+	else
+	{
+		if (CurrentlyReloading 
+				|| (CurrentlyBoltReloading || (BoltActionReload && HasAmmo(CurrentFireMode) && IsTimerActive('BoltActionReloadTimer')))) //reloading, go yellow
+			rectColor = 3;
+	}
+
+	CrosshairMIC2. SetScalarParameterValue('ReticleColourSwitcher', rectColor);
+	CrosshairDotMIC2. SetScalarParameterValue('ReticleColourSwitcher', rectColor);
+	
+	H.Canvas.SetPos( CrosshairLinesX, CrosshairLinesY );
+	if(bDisplayCrosshair) {
+		H.Canvas.DrawMaterialTile(CrosshairMIC2, CrosshairWidth, CrosshairHeight);
+	}
+
+	CrosshairLinesX = H.Canvas.ClipX * 0.5 - (default.CrosshairWidth * 0.5);
+	CrosshairLinesY = H.Canvas.ClipY * 0.5 - (default.CrosshairHeight * 0.5);
+	GetCrosshairDotLoc(x, y, H);
+	H.Canvas.SetPos( X, Y );
+	if(bDisplayCrosshair) {
+		H.Canvas.DrawMaterialTile(CrosshairDotMIC2, default.CrosshairWidth, default.CrosshairHeight);
+	}
+	DrawHitIndicator(H,x,y);
+	
+	
+	if(bDebugWeapon)
+	{
+	H.Canvas.DrawText("Reloading: " @ CurrentlyReloading ,true,1,1);
+	Y+=20;
+	H.Canvas.DrawText("Ammo: S: " @ CurrentAmmoInClip @ "C: " @ CurrentAmmoInClipClientSide,true,1,1);
+	Y+=20;
+	H.Canvas.DrawText("PendingFire:" @ PendingFire(0),true,1,1);
+	Y+=20;
+	H.Canvas.DrawText("ClientPendingFire:" @ ClientPendingFire[0],true,1,1);
+	Y+=20;
+	H.Canvas.DrawText("ReadyFire:" @ bReadyToFire(),true,1,1);
+	Y+=20;
+	H.Canvas.DrawText("Has Ammo:" @ HasAmmo(0),true,1,1);
+	Y+=20;
+	H.Canvas.DrawText("State" @ GetStateName(),true,1,1);
+	Y+=20;
+	H.Canvas.DrawText("RefireTimer" @ IsTimerActive('RefireCheckTimer') ,true,1,1);
+	}
+	
+}
+
+simulated function DrawHitIndicator(HUD H, float x, float y)
+{
+	local vector2d CrosshairSize;
+	
+	if(Rx_Hud(H).GetHitEffectAplha() <= 0.0) {
+		return;
+	}	
+    CrosshairSize.Y = default.CrosshairHeight;
+    CrosshairSize.X = default.CrosshairWidth;
+    H.Canvas.SetPos(x, y);
+    HitIndicatorCrosshairMIC2.SetScalarParameterValue('Reticle_Opacity', Rx_Hud(H).GetHitEffectAplha()/100.0);
+    H.Canvas.DrawMaterialTile(HitIndicatorCrosshairMIC2,CrosshairSize.X, CrosshairSize.Y,0.0,0.0,1.0,1.0);
+}
 /**
  * Called when the weapon runs out of ammo during firing
  */
@@ -755,7 +911,8 @@ DefaultProperties
 	ReloadTime(1) = 1.0f
 	ReloadAnim3PName(0) = "H_M_Autorifle_Reload"
 	ReloadAnim3PName(1) = "H_M_Autorifle_Reload"
-
+	bDebugWeapon = true
+	
 	BoltActionReload=false
 	BoltReloadTime(0) = 1.0f
 	BoltReloadTime(1) = 1.0f

@@ -415,7 +415,7 @@ simulated function bool isAirstrikeProjectile()
 simulated function Explode(vector HitLocation, vector HitNormal)
 {
 	if (bLogExplosion && WorldInfo.NetMode != NM_Client)
-		`LogRxPub("GAME"`s "Exploded;" `s self.Class `s "at" `s HitLocation `s "by" `s `PlayerLog(InstigatorController.PlayerReplicationInfo));
+		`LogRxPub("GAME"`s "ProjectileExploded;" `s self.Class `s "at" `s HitLocation `s "by" `s `PlayerLog(InstigatorController.PlayerReplicationInfo));
 	super.Explode(HitLocation, HitNormal);
 }
 

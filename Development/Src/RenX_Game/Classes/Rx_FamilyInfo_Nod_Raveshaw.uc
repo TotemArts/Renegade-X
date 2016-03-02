@@ -11,7 +11,7 @@ DefaultProperties
 	MaxHealth               = 100
 	MaxArmor               	= 225
 	Armor_Type 				= A_FLAK
-	SpeedMultiplier			= 1.05 //1.0
+	SpeedMultiplier			= 1.0 //1.05
 
 	CharacterMesh=SkeletalMesh'RX_CH_Nod_Raveshaw.Mesh.SK_CH_Raveshaw'
 

@@ -112,6 +112,8 @@ simulated state Charging
    {
       if (isMoving() || Instigator.Physics == PHYS_Falling)
       {
+         ClearPendingFire(0);
+		 ClearPendingFire(1);
          bShowLoadPanel = false;
          GotoState('Active');
 		 return;
@@ -140,6 +142,8 @@ simulated state Charging
 		}*/
 		if (isMoving())
 		{
+			ClearPendingFire(0);
+			ClearPendingFire(1);
 			GotoState('Active');
 		}
 		else if (!bCharging)
@@ -195,6 +199,8 @@ simulated function CustomFire()
 function bool Deploy()
    {
       local Rotator FlatAim;
+      local vector spawnLoc;
+      local bool bNonSimplePlacementCollision;
 	  
 	  if(!isValidPosition())
 	  {
@@ -204,8 +210,20 @@ function bool Deploy()
       FlatAim.Yaw = 0;
       FlatAim.Pitch = 0;
       FlatAim.Roll = 0;
+	  
+      spawnLoc = FindGoodSpawnLoc();	
+	  
+	  /** when no specific spawnloc could be found make sure beacon doesent collide per poly on placing, so that it can't be squeezed into tiny places */
+	  if(spawnLoc == vect(0,0,0) || spawnLoc == Owner.Location)
+	  {
+	  	spawnLoc = Owner.Location;
+	  	bNonSimplePlacementCollision = true;
+  	  }
 
-      DeployedActor = Spawn(DeployedActorClass, Pawn(Owner).Controller,, Owner.Location, FlatAim);
+      DeployedActor = Spawn(DeployedActorClass, Pawn(Owner).Controller,, spawnLoc, FlatAim); 
+      
+      if(bNonSimplePlacementCollision)
+      	DeployedActor.bCollideComplex=false;
 
       //bFired = true;
 	  ClientFire();
@@ -221,8 +239,48 @@ function bool Deploy()
          return false;
       }
       return true;
-   }
+}
 
+function vector FindGoodSpawnLoc()
+{
+    local Rotator r1;
+    local int i;
+    local vector spawnLoc;
+    	
+	// if player center is over a ledge try to find ground near the player center to place the beacon on
+	spawnLoc = Owner.Location + normal(vect(0,0,-1))*60;
+	//DrawDebugLine(Owner.Location,spawnLoc,0,0,255,true);
+	if(FastTrace(Owner.Location, Owner.Location + normal(vect(0,0,-1))*60))
+	{
+		r1 = rot(0,0,0);
+		for(i = 0; i < 50; i++)
+		{	  		
+			r1.yaw += i * 200;
+			spawnLoc = Owner.Location + vector(r1)*10;	  		  		
+			if(IsValidGround(spawnLoc)) return spawnLoc;
+			spawnLoc = Owner.Location + vector(r1)*20;
+			if(IsValidGround(spawnLoc)) return spawnLoc;	
+			spawnLoc = Owner.Location + vector(r1)*25;
+			if(IsValidGround(spawnLoc)) return spawnLoc;
+		}
+	}
+	else
+		return Owner.location;
+			
+	return vect(0,0,0);
+}
+
+function bool IsValidGround(vector v1)
+{
+	if(!FastTrace(v1, v1 + normal(vect(0,0,-1))*60))
+	{
+		if(FastTrace(Owner.Location, v1))
+		{
+			return true;	
+		}
+	}
+	return false;
+}
 reliable server function ServerDeploy()
 {
 	Deploy();
@@ -234,6 +292,7 @@ function bool IsValidPosition()
 	local Actor HitActor;
 	local float ZDistToBuildingCenter;
 	
+	
 	if(bBlockDeployCloseToOwnBase && GetNearestSpottargetLocationIsOwnTeamBuilding())
 	{
 	  Rx_Controller(Pawn(Owner).Controller).ClientMessage("Planting Beacon failed: This location is too close to your base!");
@@ -244,7 +303,6 @@ function bool IsValidPosition()
 	off.z -= 100;  
 	HitActor = Trace(HitLocation, HitNormal, off, Pawn(Owner).location, true);
 	ZDistToBuildingCenter = abs(Rx_Building(HitActor).location.z - Pawn(Owner).location.z);
-	loginternal(ZDistToBuildingCenter);
 	if((Rx_Building(HitActor) != None && ZDistToBuildingCenter > 440) && !(Rx_Building_WeaponsFactory(HitActor) != None && ZDistToBuildingCenter < 800) )
 	{
 		Rx_Controller(Pawn(Owner).Controller).ClientMessage("Planting Beacon failed: This location is invalid!");

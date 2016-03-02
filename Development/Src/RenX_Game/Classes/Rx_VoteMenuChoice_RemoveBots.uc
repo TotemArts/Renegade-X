@@ -135,7 +135,7 @@ function string ParametersLogString()
 		teamPram = "Both";
 		break;
 	}
-	return "team:"$teamPram$",amount:"$Amount;
+	return "team" `s teamPram `s "amount" `s Amount;
 }
 
 function Execute(Rx_Game game)

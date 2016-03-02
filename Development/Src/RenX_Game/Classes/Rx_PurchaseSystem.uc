@@ -175,7 +175,7 @@ function PurchaseWeapon(Rx_Controller Buyer, int TeamID, int WeaponID)
 		
 	}
 }
-function  PurchaseCharacter(Rx_Controller Buyer, int TeamID, int CharID)
+function PurchaseCharacter(Rx_Controller Buyer, int TeamID, int CharID)
 {
 	if (AreHighTierPayClassesDisabled(TeamID) && CharID > 7)
 	{
@@ -185,9 +185,14 @@ function  PurchaseCharacter(Rx_Controller Buyer, int TeamID, int CharID)
 	if (FFloor(Rx_PRI(Buyer.PlayerReplicationInfo).GetCredits()) >= GetClassPrices(TeamID,CharID) )
 	{
 		Rx_PRI(Buyer.PlayerReplicationInfo).RemoveCredits(GetClassPrices(TeamID,CharID));
-		Rx_PRI(Buyer.PlayerReplicationInfo).SetChar(GetFamilyClass(TeamID,CharID),Buyer.Pawn);
+		
+		if(CharID < 5) Rx_PRI(Buyer.PlayerReplicationInfo).SetChar(GetFamilyClass(TeamID,CharID),Buyer.Pawn, true); //Free class
+		else
+		Rx_PRI(Buyer.PlayerReplicationInfo).SetChar(GetFamilyClass(TeamID,CharID),Buyer.Pawn, false); //Not a free class
+		
 		`LogRxPub("GAME" `s "Purchase;" `s "character" `s Rx_PRI(Buyer.PlayerReplicationInfo).CharClassInfo.name `s "by" `s `PlayerLog(Buyer.PlayerReplicationInfo));
 		Rx_PRI(Buyer.PlayerReplicationInfo).SetIsSpy(false); // if spy, after new char should be gone
+		
 	}
 }
 
@@ -224,6 +229,10 @@ function bool PurchaseVehicle(Rx_PRI Buyer, int TeamID, int VehicleID )
 function PerformRefill( Rx_Controller cont )
 {
 	local Rx_Pawn p;
+	
+	if(cont.RefillCooldown() > 0)
+		return;
+	
 	p = Rx_Pawn(cont.Pawn);
 
 	if ( p != none )
@@ -234,6 +243,8 @@ function PerformRefill( Rx_Controller cont )
 		p.ClientSetStamina(p.MaxStamina);
 		if(Rx_Pawn_SBH(p) != None)
 			Rx_Pawn_SBH(p).ChangeState('WaitForSt');
+		cont.RefillCooldownTime = cont.default.RefillCooldownTime;
+		cont.SetTimer(1.0,true,'RefillCooldownTimer');	
 	}
 
 	if(Rx_InventoryManager(p.InvManager) != none )
@@ -396,11 +407,20 @@ simulated function string GetFactoryDescription(byte teamID, string menuName, Rx
 		} else if (teamID == TEAM_NOD) {
 			factoryName = HandOfNod != none ? Caps(HandOfNod.GetHumanReadableName()) : "HAND OF NOD";
 		}
+		
 		factoryStatus = "STATUS: " $ AreHighTierPayClassesDisabled(teamID) ? "LIMITED" : "ACTIVE";
 		outputText = "<font size='9'>" $factoryName $"</font>"
 		$ "\n<font size='11'><b>" $factoryStatus $"</b></font>" 		
 		$ "\n<font size='10'>Advanced Characters" 
 		$ "\nAdvanced Weapons</font>";
+	} else if (menuName == "REFILL") {
+		factoryStatus = rxPC.RefillCooldown() > 0 ? "Available in<font size='12'><b>"@rxPC.RefillCooldown()@"</font>" : "AVAILABLE";
+		outputText = "<font size='9'>" $factoryName $"</font>"
+		$ "\n<font size='11'><b>" $factoryStatus $"</b></font>" 		
+		$ "\n<font size='9'>Refill Health" 
+		$ "\nRefill Armour"
+		$ "\nRefill Ammo"
+		$ "\nRefill Stamina</font>";
 	}
 
 

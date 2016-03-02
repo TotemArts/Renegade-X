@@ -1830,6 +1830,8 @@
     <Compile Include="RenX_Game\Classes\Rx_Building_Barracks.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Building_Barracks_Internals.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Building_Barracks_Ramps.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Building_CommCentre.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Building_CommCentre_Internals.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Building_HandOfNod.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Building_HandOfNod_Internals.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Building_HandOfNod_Ramps.uc" />
@@ -1912,6 +1914,15 @@
     <Compile Include="RenX_Game\Classes\Rx_Defence_Turret.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Defence_Turret_Projectile.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Defence_Turret_Weapon.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_DestroyableObstacle.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_DestroyableObstacle_C130_Front.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_DestroyableObstacle_C130_Middle.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_DestroyableObstacle_C130_Rear.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_DestroyableObstacle_Chinook_Nod_Front.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_DestroyableObstacle_Chinook_Nod_Middle.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_DestroyableObstacle_Chinook_Nod_Rear.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_DestroyableObstacle_MammothTank.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_DestroyableObstacle_MediumTank.uc" />
     <Compile Include="RenX_Game\Classes\Rx_DmgType.uc" />
     <Compile Include="RenX_Game\Classes\Rx_DmgType_A10_Missile.uc" />
     <Compile Include="RenX_Game\Classes\Rx_DmgType_AATower.uc" />
@@ -1994,6 +2005,7 @@
     <Compile Include="RenX_Game\Classes\Rx_DmgType_Special.uc" />
     <Compile Include="RenX_Game\Classes\Rx_DmgType_StealthTank.uc" />
     <Compile Include="RenX_Game\Classes\Rx_DmgType_TacticalRifle.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_DmgType_TacticalRifleGrenade.uc" />
     <Compile Include="RenX_Game\Classes\Rx_DmgType_Tiberium.uc" />
     <Compile Include="RenX_Game\Classes\Rx_DmgType_TiberiumAutoRifle.uc" />
     <Compile Include="RenX_Game\Classes\Rx_DmgType_TiberiumAutoRifle_Blue.uc" />
@@ -2206,6 +2218,7 @@
     <Compile Include="RenX_Game\Classes\Rx_Projectile_SmokeGrenade.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Projectile_SniperRifle.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Projectile_TacticalRifle.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Projectile_TacticalRifleGrenade.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Projectile_TiberiumAutoRifle.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Projectile_TiberiumAutoRifle_Blue.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Projectile_TiberiumFlechetteRifle.uc" />
@@ -2220,6 +2233,7 @@
     <Compile Include="RenX_Game\Classes\Rx_RconConnection.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Commands_Container.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_AddMap.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_BotList.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_BotVarList.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_BuildingInfo.uc" />
@@ -2256,6 +2270,7 @@
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_Ping.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_PlayerInfo.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_RecordDemo.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_RemoveMap.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_Rotation.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_ServerInfo.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Rcon_Command_SpectateMode.uc" />
@@ -2307,6 +2322,7 @@
     <Compile Include="RenX_Game\Classes\Rx_SeqAct_CameraLookAt.uc" />
     <Compile Include="RenX_Game\Classes\Rx_SeqAct_GetCredits.uc" />
     <Compile Include="RenX_Game\Classes\Rx_SeqAct_RemoveCredits.uc" />
+    <Compile Include="RenX_Game\Classes\Rx_SetStartupMovie.uc" />
     <Compile Include="RenX_Game\Classes\Rx_SmokeScreen.uc" />
     <Compile Include="RenX_Game\Classes\Rx_SoftLevelBoundaryVolume.uc" />
     <Compile Include="RenX_Game\Classes\Rx_Speaker.uc" />

@@ -221,7 +221,7 @@ defaultproperties
         Damage=220.0
         Momentum=0.0
         DamageType=class'Rx_DmgType_AGT_Rocket'
-        MaxRange=20000.0
+        MaxRange=8000.0
         Spread=0.00
         FireSound=SoundCue'RX_BU_AGT.Sounds.SC_AGT_Missile_Fire'
     End Object

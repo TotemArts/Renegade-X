@@ -236,6 +236,7 @@ function bool IsValidTarget (actor potentialTarget)
 		(Rx_Vehicle(potentialTarget) != none && Rx_Vehicle(potentialTarget).Health > 0) ||
 		(Rx_Weapon_DeployedActor(potentialTarget) != none && Rx_Weapon_DeployedActor(potentialTarget).GetHealth() > 0) ||
 		(Rx_Pawn(potentialTarget) != none && Rx_Pawn(potentialTarget).Health > 0)||
+		(Rx_DestroyableObstacle(potentialTarget) !=none && Rx_DestroyableObstacle(potentialTarget).GetHealth() > 0) ||
 		(Rx_CratePickup(potentialTarget) != none && !Rx_CratePickup(potentialTarget).bPickupHidden)
 		)
 	{
@@ -279,6 +280,10 @@ function UpdateTargetHealthPercent ()
 	{
 		TargetHealthPercent = float(Rx_Weapon_DeployedActor(TargetedActor).GetHealth()) / float(Rx_Weapon_DeployedActor(TargetedActor).GetMaxHealth());
 	}
+	else if (Rx_DestroyableObstacle(TargetedActor) != none)
+	{
+		TargetHealthPercent = float(Rx_DestroyableObstacle(TargetedActor).GetHealth()) / float(Rx_DestroyableObstacle(TargetedActor).GetMaxHealth());
+	}
 	else if (Rx_BuildingAttachment(TargetedActor) != none && Rx_BuildingAttachment_PT(TargetedActor) == none)
 	{
 		TargetHealthPercent = Rx_BuildingAttachment(TargetedActor).getBuildingHealthPct();
@@ -299,7 +304,7 @@ function UpdateTargetHealthPercent ()
 		
 	if(Rx_Building_Techbuilding(TargetedActor) != None || Rx_CapturableMCT(TargetedActor) != None
 		|| (Rx_BuildingAttachment(TargetedActor) != none 
-			&& (Rx_Building_Techbuilding(Rx_BuildingAttachment(TargetedActor).OwnerBuilding.BuildingVisuals) != None || Rx_CapturableMCT(Rx_BuildingAttachment(TargetedActor).OwnerBuilding.BuildingVisuals) != None)) )
+			&& Rx_BuildingAttachment(TargetedActor).OwnerBuilding != None && (Rx_Building_Techbuilding(Rx_BuildingAttachment(TargetedActor).OwnerBuilding.BuildingVisuals) != None || Rx_CapturableMCT(Rx_BuildingAttachment(TargetedActor).OwnerBuilding.BuildingVisuals) != None)) )
 	{
 		bHasArmor = false;
 	}	

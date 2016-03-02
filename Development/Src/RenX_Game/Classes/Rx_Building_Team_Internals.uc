@@ -10,7 +10,8 @@ var int                     RepairedHPLevel;    // Repaired message will not pla
 var int 					RepairedArmorLevel; //Same but for armour.  
 var float                   SavedDmg;           // Since infantry weapons will do fractions of damage it is added here and once it is greater than 1 point of damage it is applied to health
 var const float             HealPointsScale;    // How many points per healed HP
-var const float             DamagePointsScale;  // How many points per damaged HP 
+var const float             HDamagePointsScale; // How many points per damaged HP 
+var const float				ADamagePointsScale; // How many points per damaged Armor
 var float				Destroyed_Score	;	//Total points given when the building is destroyed. 1/2 is given to the player that destroyed it, whilst the other is just added to the team score. 
 
 struct Attacker
@@ -187,19 +188,11 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 		    }			
 			
 		}
-		if(CurDmg > float(Health+Armor)) Scr = float(Health+Armor)*DamagePointsScale; //Don't give ridiculously high points for putting an ion on a building. 
+
+		/*if(CurDmg > float(Health+Armor))
+			Scr = float(Health+Armor)*DamagePointsScale; //Don't give ridiculously high points for putting an ion on a building. 
 		else
-		Scr = CurDmg * DamagePointsScale;
-		
-		
-		
-		
-		
-		// add score (or sub, if bIsFriendlyFire is on)
-		if (GetTeamNum() != EventInstigator.GetTeamNum() && Rx_PRI(EventInstigator.PlayerReplicationInfo) != None)
-		{
-			Rx_PRI(EventInstigator.PlayerReplicationInfo).AddScoreToPlayerAndTeam(Scr);
-		}
+			Scr = CurDmg * DamagePointsScale;*/
 	}
 
 
@@ -210,31 +203,38 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 	{
 		if(DamageAmount - Armor > 0)
 		{
-			
 			//Track health damage and who dun it (When breaking armour)
-			
-		InstigatorIndex=DamagingParties.Find('PPRI',EventInstigator.PlayerReplicationInfo);
+
+			InstigatorIndex=DamagingParties.Find('PPRI',EventInstigator.PlayerReplicationInfo);
 		
 			if(InstigatorIndex == -1)  //New damager
 			{
-			TempAttacker.PPRI=EventInstigator.PlayerReplicationInfo;
-			TempAttacker.DamageDone = Min(DamageAmount - Armor, Health);
+				TempAttacker.PPRI=EventInstigator.PlayerReplicationInfo;
+				TempAttacker.DamageDone = Min(DamageAmount - Armor, Health);
 			
-			DamagingParties.AddItem(TempAttacker) ;
+				DamagingParties.AddItem(TempAttacker);
 			}
 			else
 			{
-				if(CurDmg <= float(Health+Armor)) DamagingParties[InstigatorIndex].DamageDone+=DamageAmount-Armor;
+				if(CurDmg <= float(Health+Armor))
+					DamagingParties[InstigatorIndex].DamageDone+=DamageAmount-Armor;
 				else
-				DamagingParties[InstigatorIndex].DamageDone+=Health;
-				
+					DamagingParties[InstigatorIndex].DamageDone+=Health;
 			}
-			;
 		
-		//End tracking health damage
+			//End tracking health damage
+
+			/** Set score based on damage */
+			if (DamageAmount > float(Health+Armor)) // Building insta-kill
+				Scr = float(Health) * HDamagePointsScale + float(Armor) * ADamagePointsScale;
+			else
+				Scr = Armor * ADamagePointsScale + (DamageAmount - Armor) * HDamagePointsScale;
 			
 			Health = Max(Health - (DamageAmount - Armor), 0);	 
 		}	
+		else // Damaging only armor
+			Scr = float(DamageAmount) * ADamagePointsScale;
+
 		Armor = Max(Armor - DamageAmount, 0);	
 	}
 	else
@@ -242,24 +242,35 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 		//Track health damage and who dun it
 		InstigatorIndex=DamagingParties.Find('PPRI',EventInstigator.PlayerReplicationInfo);
 		
-			if(InstigatorIndex == -1)  //New damager
-			{
+		if(InstigatorIndex == -1)  //New damager
+		{
 			TempAttacker.PPRI=EventInstigator.PlayerReplicationInfo;
 			TempAttacker.DamageDone = Min(DamageAmount, Health);
-			
+		
 			DamagingParties.AddItem(TempAttacker) ;
-			}
+		}
+		else
+		{
+			if(CurDmg <= float(Health+Armor))
+				DamagingParties[InstigatorIndex].DamageDone+=DamageAmount;
 			else
-			{
-			if(CurDmg <= float(Health+Armor)) DamagingParties[InstigatorIndex].DamageDone+=DamageAmount;
-				else
 				DamagingParties[InstigatorIndex].DamageDone+=Health;
-			}
+		}
 			
 		//End tracking health damage
+
+		/** Set score based on damage */
+		if (DamageAmount > float(Health)) // Building kill
+			Scr = float(Health) * HDamagePointsScale;
+		else
+			Scr = float(DamageAmount) * HDamagePointsScale;
 		
 		Health = Max(Health - DamageAmount, 0);
 	}
+
+	// Add score
+	if (GetTeamNum() != EventInstigator.GetTeamNum() && Rx_PRI(EventInstigator.PlayerReplicationInfo) != None)
+		Rx_PRI(EventInstigator.PlayerReplicationInfo).AddScoreToPlayerAndTeam(Scr);
 
 	if (Health <= 0) 
 	{
@@ -272,10 +283,10 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 
 		foreach DamagingParties(PRII)
 		{
-		if(PRII.PPRI != none)
+			if (PRII.PPRI != none)
 			{
-			Rx_PRI(PRII.PPRI).AddScoreToPlayerAndTeam( default.Destroyed_Score*(PRII.DamageDone/TrueHealthMax)) ;
-			Destroyed_Score -= default.Destroyed_Score*(PRII.DamageDone/TrueHealthMax);
+				Rx_PRI(PRII.PPRI).AddScoreToPlayerAndTeam( default.Destroyed_Score*(PRII.DamageDone/TrueHealthMax)) ;
+				Destroyed_Score -= default.Destroyed_Score*(PRII.DamageDone/TrueHealthMax);
 			}
 		}
 		if(Destroyed_Score > 0) //If there's leftover score, just add it to the team
@@ -284,16 +295,17 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 			Destroyed_Score=0; 
 		}
 			
-			/*Show message where people will actually see it -Yosh (Remember the outrage when destruction and beacon messages were moved to the middle left? Yeah.. neither do the people that ranted about it.)*/
-	foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
-   {
-	  if(StarPC == none) PC.CTextMessage("GDI",180, Caps("The"@BuildingVisuals.GetHumanReadableName()@ "was destroyed!"),C_RED,255, 255, false, 1);
-	  else
-     if(PC.GetTeamNum() == StarPC.GetTeamNum()) PC.CTextMessage("GDI",180, Caps("The"@BuildingVisuals.GetHumanReadableName()@ "was destroyed!"),C_GREEN,255, 255, false, 1);
-	 else
-	PC.CTextMessage("GDI",180, Caps("The"@BuildingVisuals.GetHumanReadableName()@ "was destroyed!"),C_RED,255, 255, false, 1);
-   }
-//End show message where people will actually look at it.
+		/*Show message where people will actually see it -Yosh (Remember the outrage when destruction and beacon messages were moved to the middle left? Yeah.. neither do the people that ranted about it.)*/
+		foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
+		{
+			if (StarPC == none)
+				PC.CTextMessage("GDI",180, Caps("The"@BuildingVisuals.GetHumanReadableName()@ "was destroyed!"),C_RED,255, 255, false, 1);
+			else if (PC.GetTeamNum() == StarPC.GetTeamNum())
+				PC.CTextMessage("GDI",180, Caps("The"@BuildingVisuals.GetHumanReadableName()@ "was destroyed!"),C_GREEN,255, 255, false, 1);
+			else
+				PC.CTextMessage("GDI",180, Caps("The"@BuildingVisuals.GetHumanReadableName()@ "was destroyed!"),C_RED,255, 255, false, 1);
+		}
+		//End show message where people will actually look at it.
 
 		Rx_Game(WorldInfo.Game).LogBuildingDestroyed(Destroyer, self, DamageType);
 
@@ -706,9 +718,11 @@ DefaultProperties
 	/***************************************************/
 	/*               Building Variables                */
 	/***************************************************/	
-	DamagePointsScale       = 0.10f
-	HealPointsScale         = 0.06f
-	Destroyed_Score			= 2000 // Total number of points divided out when  
+	HDamagePointsScale		= 0.50f
+	ADamagePointsScale		= 0.05f
+
+	HealPointsScale         = 0.04f
+	Destroyed_Score			= 1000 // Total number of points divided out when  
 	
 	HealthMax               = 4000
 	BA_HealthMax			= 4800 //Slightly more health for building armour, but obviously with half of it being unrepairable. 

@@ -466,6 +466,12 @@ function UpdateTips()
 
 	RxPC = Rx_Controller(GetPC());
 	
+	if(RxPC == None)
+	{
+		GameplayTipsText.SetString("htmlText", "");
+		return;
+	}
+	
 	bindKey = Caps(UDKPlayerInput(GetPC().PlayerInput).GetUDKBindNameFromCommand("GBA_Use"));
 	jumpKey = Caps(UDKPlayerInput(GetPC().PlayerInput).GetUDKBindNameFromCommand("GBA_Jump"));
 	
@@ -547,7 +553,7 @@ function UpdateTips()
 			}
 		}
 	}
-	else if (GameplayTipsText.GetText() != "")
+	else if (GameplayTipsText.GetText() != "" && InStr(GameplayTipsText.GetText(), "Respawn available in") < 0)
 	{					
 		GameplayTipsText.SetString("htmlText", "");
 		GameplayTipsText.SetVisible(false);
@@ -555,7 +561,7 @@ function UpdateTips()
 	}
 }
 
-function SetLivingHUDVisible(bool visible)
+exec function SetLivingHUDVisible(bool visible)
 {
 	//ObjectiveMC.SetVisible(visible);
 	Minimap.SetVisible(visible);

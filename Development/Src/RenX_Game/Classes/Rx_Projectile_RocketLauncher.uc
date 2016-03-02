@@ -55,4 +55,6 @@ DefaultProperties
        ProjectileLightClass=class'RenX_Game.Rx_Light_Rocket'
 	ExplosionLightClass=Class'RenX_Game.Rx_Light_Tank_Explosion'
     bSuppressExplosionFX=False // Do not spawn hit effect in mid air
+	
+	 bBlockedByInstigator=false
 }

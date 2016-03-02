@@ -1,6 +1,8 @@
 class Rx_CapturableMCT extends Rx_Building_Techbuilding
    placeable;
 
+var() StaticMeshComponent Mesh;
+
 simulated function String GetHumanReadableName()
 {
 	return "MCT";
@@ -34,4 +36,6 @@ defaultproperties
     End Object
 	StaticMeshPieces.Add(SiloScreens)
 	Components.Add(SiloScreens)
+	
+	Mesh = SiloScreens
 }

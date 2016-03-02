@@ -9,9 +9,9 @@ DefaultProperties
 	HealPointsMultiplier    = 0.005f
 	PointsForKill           = 5.0f
 	MaxHealth               = 100
-	MaxArmor               	= 100
+	MaxArmor               	= 125 //100
 	Armor_Type 				= A_FLAK
-	SpeedMultiplier			= 0.95
+	SpeedMultiplier			= 1.0//0.95
 
 	CharacterMesh=SkeletalMesh'rx_ch_gdi_soldier.Mesh.SK_CH_GDI_Grenadier'
 	

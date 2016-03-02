@@ -190,7 +190,7 @@ function OnViewLoaded(Rx_GFxPauseMenu Menu)
 	if (GetPC().WorldInfo.MusicComp == none) {
 		GetPC().WorldInfo.MusicComp = Rx_HUD(GetPC().myHUD).JukeBox.MusicComp;
 	}
-	GetPC().WorldInfo.MusicComp.OnAudioFinished = MusicPlayerOnAudioFinished;
+	GetPC().WorldInfo.MusicComp.OnAudioFinished = Rx_HUD(GetPC().myHUD).MusicPlayerOnAudioFinished;
 
 }
 
@@ -1875,46 +1875,6 @@ function OnPlayerControlGroupChange(GFxClikWidget.EventData ev)
 //			GetPC().ClientMessage("Default Name? " $ SelectedItem.GetString("_name"));
 			return;
 	}
-}
-
-function MusicPlayerOnAudioFinished(AudioComponent AC)
-{
-	local int i;
-	`log("MusicPlayerOnAudioFinished :: bStopped? "$ Rx_HUD(GetPC().myHUD).JukeBox.bStopped $" | AC? " $ AC.Name $" | SoundCue? "$ AC.SoundCue );
-	if (Rx_HUD(GetPC().myHUD).JukeBox.bStopped) {
-		return;
-	}
-	//find the current index
-	
-	i = Rx_HUD(GetPC().myHUD).JukeBox.JukeBoxList.Find('TheSoundCue', GetPC().WorldInfo.MusicComp.SoundCue);
-	if (i<0) {
-		return;
-	}
-
-	//check if we're shuffling
-	if (Rx_HUD(GetPC().myHUD).JukeBox.bShuffled) {
-		Rx_HUD(GetPC().myHUD).JukeBox.Play(Rand(Rx_HUD(GetPC().myHUD).JukeBox.JukeBoxList.Length));
-	} else {
-		if (i+1 < Rx_HUD(GetPC().myHUD).JukeBox.JukeBoxList.Length) {
-			Rx_HUD(GetPC().myHUD).JukeBox.Play(i+1);
-		} else {
-			Rx_HUD(GetPC().myHUD).JukeBox.Play(0);
-		}
-	}
-
-
-	i = Rx_HUD(GetPC().myHUD).JukeBox.JukeBoxList.Find('TheSoundCue', GetPC().WorldInfo.MusicComp.SoundCue);
-	if (MusicTracklist != none) {
-		MusicTracklist.SetInt("selectedIndex", i);
-	}
-	if (TrackNameLabel != none) {
-		if (i>=0) {
-			TrackNameLabel.SetText(Rx_HUD(GetPC().myHUD).JukeBox.JukeBoxList[i].TrackName);
-		} else {
-			TrackNameLabel.SetText("");
-		}
-	}
-
 }
 
 // function OnPlayButtonSelect(GFxClikWidget.EventData ev){

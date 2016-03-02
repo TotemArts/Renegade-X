@@ -4,11 +4,11 @@ class Rx_SeqAct_Modify_Interface extends SequenceAction;
 
 var string BuildingName;
 var int TeamNumber;
+var Rx_Building_Interface TestActor;
 
 event Activated()
 {
 local SeqVar_Object ObjVar;
-local Rx_Building_Interface TestActor;
 
 	foreach LinkedVariables(class'SeqVar_Object', ObjVar, "ModifiedActor")
 	{
@@ -26,6 +26,6 @@ defaultproperties
    ObjCategory="Ren X"
    Variablelinks(2)=(ExpectedType=class'SeqVar_Int', LinkDesc="Team Number",MinVars=1,MaxVars=1,PropertyName=TeamNumber)
    Variablelinks(1)=(ExpectedType=class'SeqVar_String', LinkDesc="Building Name",MinVars=1,MaxVars=1,PropertyName=BuildingName)
-   Variablelinks(0)=(ExpectedType=class'SeqVar_Object', LinkDesc="Modified Actor",PropertyName=ModifiedActor)
+   Variablelinks(0)=(ExpectedType=class'SeqVar_Object', LinkDesc="ModifiedActor",PropertyName=ModifiedActor)
    bCallHandler=false
 }

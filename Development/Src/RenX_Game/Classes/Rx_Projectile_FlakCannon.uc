@@ -75,7 +75,7 @@ DefaultProperties
     bBounce=false
     bNetTemporary=false
     bRotationFollowsVelocity=true
-    bBlockedByInstigator=true
+    bBlockedByInstigator=false
     bSuppressExplosionFX=false // Do not spawn hit effect in mid air
 	bWaitForEffectsAtEndOfLifetime = true
     bWaitForEffects=true

@@ -71,7 +71,7 @@ defaultproperties
 
     ShotCost(0)=1
     ShotCost(1)=0
-    FireInterval(0)=+2.2
+    FireInterval(0)=+2.0
     FireInterval(1)=+0.0
     
     EquipTime=1.0

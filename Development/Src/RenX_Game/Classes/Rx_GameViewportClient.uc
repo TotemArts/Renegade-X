@@ -2,15 +2,30 @@ class Rx_GameViewportClient extends UTGameViewportClient;
 
 var Rx_GFXFrontEnd FrontEnd;
 
+function SetStartupMovie(string leaving_level, string loading_level)
+{
+	local Rx_SetStartupMovie movie_handler;
+	movie_handler = new class'Rx_SetStartupMovie';
+	movie_handler.SetStartupMovie(leaving_level, loading_level);
+}
+
 function DrawTransition(Canvas Canvas)
 {
+	local string MapName;
+	local int pos;
 
-	// if we are doing a loading transition, set up the text overlays for the loading movie
 	if (Outer.TransitionType == TT_Loading)
 	{
-	
+		MapName = Outer.TransitionDescription;
+
+		// Ensure no file extension is included
+		pos = InStr(MapName, ".");
+		if (pos != -1)
+			MapName = Left(MapName, pos);
+
+		SetStartupMovie(string(class'Engine'.static.GetCurrentWorldInfo().GetPackageName()), MapName);
 	}
-	else 
+	else
 	{
 		super.DrawTransition(Canvas);
 	}

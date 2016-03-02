@@ -208,11 +208,12 @@ function init_() {
     SetTimer(0.5f, true, 'regenerateHealth'); 
 }
  
-
+//Is it really OP to regenerate 2 health per second back to full?? I.. don't think so, at all. 
 function regenerateHealth()
 {
-    if(Health  < HealthMax/2) {
-        Health += 1;
+    //if(Health  < HealthMax/2) {
+    if(Health  < HealthMax) {    
+		Health += 1;
     }
 }
     
@@ -276,7 +277,7 @@ DefaultProperties
         TurnInPlaceThrottle=0.35
         TurnMaxGripReduction=0.995 //0.980
         TurnGripScaleRate=0.8
-        MaxEngineTorque=3875//3750
+        MaxEngineTorque=3975//3875
         End Object
     SimObj=SimObject
     Components.Add(SimObject)

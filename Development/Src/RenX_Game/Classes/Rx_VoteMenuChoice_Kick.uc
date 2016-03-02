@@ -74,7 +74,9 @@ function string ComposeTopString()
 
 function string ParametersLogString()
 {
-	return "pid:"$KickID;
+	if (KickC == None)
+		return "";
+	return "player" `s `PlayerLog(KickC.PlayerReplicationInfo);
 }
 
 function Execute(Rx_Game game)

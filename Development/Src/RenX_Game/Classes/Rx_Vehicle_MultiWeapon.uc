@@ -41,15 +41,13 @@ simulated event ReplicatedEvent( name VarName )
 			//`log("Set Primary to Reload" @ primaryReloadBeginTime);
 		}
 		else
-		{
+		{			
+			CurrentAmmoInClipClientside[0] = ClipSize[0];
 			
-			if(isTimerActive('PrimaryReloadTimer')) 
+			if( (ClientPendingFire[0] && CurrentFireMode == 0) ) 
 			{
-				ClearTimer('PrimaryReloadTimer'); 
-				ReloadWeapon(0);
-			}
-			else
-			ReloadWeapon(0);
+				RestartWeaponFiringAfterReload(0);	
+			} 
 			//`log("Set Current Ammo in Clip" @ CurrentAmmoInClipClientside[0]);
 		}
 	}
@@ -64,6 +62,11 @@ simulated event ReplicatedEvent( name VarName )
 		else
 		{
 			CurrentAmmoInClipClientside[1] = ClipSize[1];
+			
+			if( (ClientPendingFire[1] && CurrentFireMode == 1) ) 
+			{
+				RestartWeaponFiringAfterReload(1);	
+			} 
 			//`log("Set Secondary ClipSize" @ CurrentAmmoInClipClientside[1]);
 		}
 	} 
@@ -100,6 +103,20 @@ event PreBeginPlay()
 	bForceNetUpdate = true;
 	super.PreBeginPlay();
 }
+
+//Added from Rx_Weapon_Reloadable - May be used 
+simulated function RestartWeaponFiringAfterReload(byte FireModeNum)
+{
+
+	if(ROLE < ROLE_Authority || WorldInfo.Netmode == NM_Standalone) 
+	{
+	//`log("Fire After Reload" @ "FireModeNum"); 
+	GotoState('Active');	
+	
+	StartFire(FireModeNum);  	
+	}
+}
+
 
 simulated function Activate()
 {
@@ -211,11 +228,11 @@ simulated state Active
 	// make sure that one weapon isnt reloading
 	simulated function bool bReadyToFire()
 	{
-		//`log("ReadyToFire Called");
-		//`log("Primary Reloading" @ PrimaryReloading);
-		//`log("Secondary Reloading" @ SecondaryReloading);
-		return true;
-		//(!PrimaryReloading || !SecondaryReloading);
+		//return true;
+		if(CurrentFireMode == 0) return !PrimaryReloading && !IsTimerActive('RefireCheckTimer') ;
+		else
+		if(CurrentFireMode == 1) return !SecondaryReloading && !IsTimerActive('RefireCheckTimer');
+		 
 	}
 
 		/** Override BeginFire so that it will enter the firing state right away. */
@@ -230,19 +247,35 @@ simulated state Active
 			//If there is no ammo, check to see if the reload timer is set
 			//if the reload timer isn't set, go ahead and set it
 			//This addresses a bug in the system where firing may cancel the reload timer
-			if( PendingFire(FireModeNum) && HasAmmo(FireModeNum) && !IsReloading(FireModeNum) )
+			
+			
+			if(PendingFire(FireModeNum) && HasAmmo(FireModeNum) && !IsReloading(FireModeNum) )
 			{
 				SendToFiringState(FireModeNum);
 			}
-			// Go to reload for Primary
-			else if( CurrentFireMode == 0 && CurrentAmmoInClip[0] <= 0 && !PrimaryReloading )
+			else 
+			//if( CurrentFireMode == 0 && CurrentAmmoInClip[0] <= 0 && !PrimaryReloading )
+			if(CurrentAmmoInClip[0] <= 0 && !PrimaryReloading )
 			{
 				PrimaryReload();
+				
+				if(WorldInfo.Netmode == NM_DedicatedServer) 
+				{
+					//`log("Call clearPendingFireIn BeginFire");
+				ClearPendingFire(0);
+				}
+				
 			}
 			// Go to Reload for Secondary
-			else if( CurrentFireMode == 1 && CurrentAmmoInClip[1] <= 0 && !SecondaryReloading )
+			else// if( CurrentFireMode == 1 && CurrentAmmoInClip[1] <= 0 && !SecondaryReloading )
+			if(CurrentAmmoInClip[1] <= 0 && !SecondaryReloading )
 			{
 				SecondaryReload();
+				if(WorldInfo.Netmode == NM_DedicatedServer) 
+				{
+				ClearPendingFire(1);
+				}
+				
 			}
 
 		}
@@ -328,25 +361,41 @@ simulated state WeaponFiring
 			return;
 		}
 		// if we have no ammo then check to see if we can reload
-		if( !IsReloading(CurrentFireMode) && !HasAmmo(CurrentFireMode) )
-		{
-			//ClearTimer(nameof(RefireCheckTimer));
-			// Go to reload for Primary
-			if( CurrentFireMode == 0 && !PrimaryReloading )
+		
+		if( !IsReloading(0) && !HasAmmo(0) && !PrimaryReloading)
+		
 			{
 				//`log("Reloading Primary");
 				PrimaryReload();
+				
+				if(WorldInfo.Netmode == NM_DedicatedServer) 
+				{
+				//`log("Call clearPendingFireIn RefirceCheckTimer"); 
+				ClearPendingFire(0);
+				}
+				
 			}
 			// Go to Reload for Secondary
-			else if( CurrentFireMode == 1 && !SecondaryReloading )
+			if( !IsReloading(1) && !HasAmmo(1) && !SecondaryReloading )
 			{
 				//`log("Reloading Secondary");
 				SecondaryReload();
+					if(WorldInfo.Netmode == NM_DedicatedServer) 
+				{
+				//`log("Call clearPendingFireIn RefirceCheckTimer"); 
+				ClearPendingFire(1);
+				}
 			}
-		}
+		
 
 		// Otherwise we're done firing
 		HandleFinishedFiring();
+	}
+	
+	simulated function bool bReadyToFire()
+	{
+		//`log("Check Refire - Ammo " @ CurrentAmmoInClip[0]);
+		return !IsTimerActive('RefireCheckTimer') ; 
 	}
 }
 
@@ -476,11 +525,12 @@ simulated function SecondaryReloadTimer()
 	ReloadWeapon(1);
 	//`log("Secondary Reloaded");
 }
-simulated function ReloadWeapon( byte FireMode )
+
+function ReloadWeapon( byte FireMode )
 {
 
 	CurrentAmmoInClip[FireMode] = ClipSize[FireMode];
-	CurrentAmmoInClipClientSide[FireMode] = ClipSize[FireMode];
+	//CurrentAmmoInClipClientSide[FireMode] = ClipSize[FireMode];
 
 	if( FireMode == 0 )
 	{
@@ -491,11 +541,12 @@ simulated function ReloadWeapon( byte FireMode )
 		SecondaryReloading = false;
 	}
 
-	if( PendingFire(FireMode) ) 
+	if(ClientPendingFire[FireMode] ) 
 	{
-		SetCurrentFireMode(FireMode);
-		//`log("Held mouse button detected: fire mode is" @ FireMode);
-		GotoState('WeaponFiring');	
+		RestartWeaponFiringAfterReload(FireMode); 
+		/**SetCurrentFireMode(FireMode);
+		/`log("Held mouse button detected: fire mode is" @ FireMode);
+		GotoState('WeaponFiring');*/	
 	}
 	else if(!PrimaryReloading && !SecondaryReloading)
 	{
@@ -616,6 +667,8 @@ simulated function DrawCrosshair( Hud HUD )
 	Y+=20;
 	H.Canvas.DrawText("PendingFire:" @ PendingFire(0),true,1,1);
 	Y+=20;
+	H.Canvas.DrawText("ClientPendingFire:" @ ClientPendingFire[0],true,1,1);
+	Y+=20;
 	H.Canvas.DrawText("ReFire:" @ ShouldRefire(),true,1,1);
 	Y+=20;
 	H.Canvas.DrawText("Has Ammo:" @ HasAmmo(0),true,1,1);
@@ -623,9 +676,44 @@ simulated function DrawCrosshair( Hud HUD )
 	H.Canvas.DrawText("State" @ GetStateName(),true,1,1);
 	Y+=20;
 	H.Canvas.DrawText("CRCS" @ CurrentlyReloadingClientside,true,1,1);
+	Y+=20;
+	H.Canvas.DrawText("ReadyToFire" @ bReadyToFire(),true,1,1);
 	}
 	
 }
+
+
+
+//Inject to keep server and client in sync with reloading weapons 
+simulated function StartFire(byte FireModeNum)
+{
+	if(Rx_Bot(instigator.Controller) != None) 
+	{
+		super.StartFire(FireModeNum); 
+		return; 
+	}
+	
+	if( Instigator == None || !Instigator.bNoWeaponFiring )
+	{
+		/*For Multi Weapons, set the firing mode earlier than usual so it can change even when reloading*/
+		SetCurrentFireMode(FireModeNum);
+		
+		ClientPendingFire[FireModeNum]=true; 
+		
+		if(bReadyToFire() && (Role < Role_Authority || WorldInfo.NetMode == NM_StandAlone))
+		{
+			// if we're a client, synchronize server
+			//`log("Sending Fire Request[Vehicle]"); 
+			ServerStartFire(FireModeNum);
+			BeginFire(FireModeNum);
+			return;
+		}
+
+		// Start fire locally
+		//if(ROLE == Role_Authority) BeginFire(FireModeNum);
+	}
+}
+
 
 DefaultProperties
 {

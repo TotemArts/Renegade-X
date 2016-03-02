@@ -35,6 +35,8 @@ var Rx_HUD_TargetingBox TargetingBox;
 var Rx_Hud_PlayerNames PlayerNames;
 var Rx_HUD_CaptureProgress CaptureProgress;
 var Rx_HUD_CTextComponent CommandText;
+var bool DrawCText, DrawTargetBox,DrawPlayerNames,DrawCaptureProgress, DrawDamageSystem, DrawFlashHUD; 
+
 
 /** GFx movie used for displaying damage system */
 var Rx_GFxDamageSystem DamageSystemMovie;
@@ -112,7 +114,6 @@ function Actor GetActorWeaponIsAimingAt()
 
 function UpdateScreenCentreActor()
 {
-	local Vector2d screenCentre;
 	local Vector CameraOrigin, CameraDirection, HitLoc,HitNormal,TraceRange;
 	local float ClosestHit, extendedDist, tempDist;
 	local Actor HitActor, PotentialTarget;
@@ -121,10 +122,7 @@ function UpdateScreenCentreActor()
 	WeaponAimingActor = none;
 	ClosestHit = GetWeaponTargetingRange();
 
-	screenCentre.X = canvas.SizeX/2;
-	screenCentre.Y = canvas.SizeY/2;
-
-	canvas.DeProject(screenCentre,CameraOrigin,CameraDirection);
+	GetCameraOriginAndDirection(CameraOrigin,CameraDirection);
 	
 	TraceRange = CameraOrigin + CameraDirection * GetWeaponTargetingRange();
 	extendedDist = VSize(CameraOrigin - PlayerOwner.ViewTarget.location);
@@ -143,10 +141,21 @@ function UpdateScreenCentreActor()
 				WeaponAimingActor = HitActor;
 			PotentialTarget = HitActor;
 			TargetingBox.TargetActorHitLoc = HitLoc;
+			break;
 		}
 	}
 
 	ScreenCentreActor = PotentialTarget;
+}
+
+function GetCameraOriginAndDirection(out vector CameraOrigin, out vector CameraDirection)
+{
+	local Vector2d screenCentre;
+	
+	screenCentre.X = SizeX/2;
+	screenCentre.Y = SizeY/2;
+
+	canvas.DeProject(screenCentre,CameraOrigin,CameraDirection);	
 }
 
 function float GetWeaponTargetingRange()
@@ -318,6 +327,8 @@ simulated function PostBeginPlay()
 	if (JukeBox == none) {
 		JukeBox = new class'Rx_Jukebox';
 		JukeBox.Init();
+		WorldInfo.MusicComp = JukeBox.MusicComp;
+		WorldInfo.MusicComp.OnAudioFinished = MusicPlayerOnAudioFinished;
 
 		`log ("<Rx_HUD log> SystemSettingsHandler.bAutostartMusic? " $ SystemSettingsHandler.bAutostartMusic);
 		//Disable this if we do not want to play on start.
@@ -333,6 +344,40 @@ simulated function PostBeginPlay()
 // 	GetPC().WorldInfo.MusicComp.bAutoDestroy = false;
 
 	CreateUIInterface();
+}
+
+function MusicPlayerOnAudioFinished(AudioComponent AC)
+{
+	local int i;
+	`log("MusicPlayerOnAudioFinished :: bStopped? "$ JukeBox.bStopped $" | AC? " $ AC.Name $" | SoundCue? "$ AC.SoundCue );
+	if (JukeBox.bStopped)
+		return;
+
+	//find the current index
+	i = JukeBox.JukeBoxList.Find('TheSoundCue', WorldInfo.MusicComp.SoundCue);
+	if (i < 0)
+		return;
+
+	//check if we're shuffling
+	if (JukeBox.bShuffled)
+		JukeBox.Play(Rand(JukeBox.JukeBoxList.Length));
+	else if (i + 1 < JukeBox.JukeBoxList.Length)
+		JukeBox.Play(i+1);
+	else
+		JukeBox.Play(0);
+
+	i = JukeBox.JukeBoxList.Find('TheSoundCue', WorldInfo.MusicComp.SoundCue);
+	
+	if (RxPauseMenuMovie.SettingsView.MusicTracklist != none)
+		RxPauseMenuMovie.SettingsView.MusicTracklist.SetInt("selectedIndex", i);
+
+	if (RxPauseMenuMovie.SettingsView.TrackNameLabel != none)
+	{
+		if (i >= 0)
+			RxPauseMenuMovie.SettingsView.TrackNameLabel.SetText(JukeBox.JukeBoxList[i].TrackName);
+		else
+			RxPauseMenuMovie.SettingsView.TrackNameLabel.SetText("");
+	}
 }
 
 //Create and initialize the UI Interface.
@@ -371,18 +416,18 @@ function CreateHudCompoenents()
 
 function UpdateHudCompoenents(float DeltaTime, Rx_HUD HUD)
 {
-	TargetingBox.Update(DeltaTime,HUD);  // Targetting box isn't fully seperated from this class yet so we can't update it here.
-	PlayerNames.Update(DeltaTime,HUD);
-	CaptureProgress.Update(DeltaTime,HUD);
-	CommandText.Update(DeltaTime,HUD);
+if(DrawTargetBox)	TargetingBox.Update(DeltaTime,HUD);  // Targetting box isn't fully seperated from this class yet so we can't update it here.
+if(DrawPlayerNames)	PlayerNames.Update(DeltaTime,HUD);
+if(DrawCaptureProgress) CaptureProgress.Update(DeltaTime,HUD);
+if(DrawCText)	CommandText.Update(DeltaTime,HUD);
 }
 
 function DrawHudCompoenents()
 {
-	TargetingBox.Draw(); // Targeting box isn't fully separated from this class yet so we can't draw it here.
-	PlayerNames.Draw();
-	CaptureProgress.Draw();
-	CommandText.Draw(); 
+if(DrawTargetBox)	TargetingBox.Draw(); // Targeting box isn't fully separated from this class yet so we can't draw it here.
+if(DrawPlayerNames)	PlayerNames.Draw();
+if(DrawCaptureProgress)	CaptureProgress.Draw();
+if(DrawCText)	CommandText.Draw(); 
 }
 
 //Create and initialize the Damage System.
@@ -499,12 +544,12 @@ event PostRender()
 	local font TempFont;
 	
 	
-	if(HudMovie != None && HudMovie.bMovieIsOpen)
+	if(HudMovie != None && HudMovie.bMovieIsOpen && DrawFlashHUD)
 		HudMovie.TickHUD(); //Draw flash HUD
 	if(Scoreboard != None && Scoreboard.bMovieIsOpen)
 		Scoreboard.Draw(); 	
 	
-	if (DamageSystemMovie != None && DamageSystemMovie.bMovieIsOpen)
+	if (DamageSystemMovie != None && DamageSystemMovie.bMovieIsOpen && DrawDamageSystem)
 		DamageSystemMovie.TickHud(PlayerOwner); //Draw flash damage screen
 
 	//TODO: find another way to do this
@@ -839,7 +884,7 @@ function DrawNewScorePanel()
 	local String TempStr;
 	local int TempCredits;
 
-
+	
 	// If we have no GRI, no point in drawing the score panel.
 	if(WorldInfo.GRI == none)
 		return;
@@ -1908,4 +1953,11 @@ DefaultProperties
 	PrivateFromColor    = "#2288FF"
 	PrivateToColor      = "#0055FF"
 	HostColor           = "#22BBFF"
+	
+	DrawCText = true 
+	DrawTargetBox = true 
+	DrawPlayerNames = true 
+	DrawCaptureProgress = true 
+	DrawDamageSystem = true 
+	DrawFlashHUD = true 
 }

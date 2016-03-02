@@ -68,6 +68,7 @@ var config int                          DonationsDisabledTime;
 var 	  int 							SurrenderDisabledTime; 
 var config bool                         bReserveVehiclesToBuyer;
 var config bool                         bAllowWeaponDrop;
+var config bool							bBroadcastOvermine;
 
 var Rx_PurchaseSystem                   PurchaseSystem;
 var Rx_VehicleManager                   VehicleManager;
@@ -157,6 +158,8 @@ var int curIndPinged;
 var Rx_Rcon Rcon;
 var Rx_Rcon_Commands_Container RconCommands;
 var private Rx_Rcon_Out RconOut;
+var config bool bLogRcon;
+var config bool bLogDevBot;
 
 var globalconfig bool bDisableDemoRequests;
 var bool ClientDemoInProgress;
@@ -731,7 +734,8 @@ function Array<string> BuildClientList(string seperator)
 /** Log messages for Gameplay/Server-management events. Will be written to the logfile with a RenX tag, and sent out to any Log Subscribers over Rcon. */
 final function RxLog(string Msg)
 {
-	`log(Msg,true,'Rx');
+	if (bLogRcon)
+		`log(Msg,true,'Rx');
 	if (RconOut != None)
 		RconOut.SendLog(Msg);
 	if (Rcon != None)
@@ -740,7 +744,8 @@ final function RxLog(string Msg)
 
 final function RxLogPub(string Msg)
 {
-	`log(Msg,true,'Rx');
+	if (bLogRcon)
+		`log(Msg,true,'Rx');
 	if (RconOut != None)
 		RconOut.SendLog(Msg);
 	if (!bIsCompetitive && Rcon != None)
@@ -916,6 +921,8 @@ function UpdateServerStats()
 function UpdateServerStatsTimer() 
 {
 	local String ServerSettings;	
+	local String AdditionalServerSettingsfromMutator;	
+	local Rx_Mutator Mutator;
 	
 	/**
 	PlayerNames = "";
@@ -933,6 +940,17 @@ function UpdateServerStatsTimer()
 						$ Rx_AccessControl(AccessControl).bRequireSteam $ ";"
 						$ GameVersion $ ";"
 						$ bBotsDisabled;
+						
+	AdditionalServerSettingsfromMutator = "";
+	
+	for (Mutator = GetBaseRxMutator(); Mutator != None; Mutator = Mutator.GetNextRxMutator())
+	{
+		if(Mutator.GetAdditionalServersettings() != "") 
+			AdditionalServerSettingsfromMutator = AdditionalServerSettingsfromMutator $ ";" $ Mutator.GetAdditionalServersettings();	
+	}
+	
+	if(AdditionalServerSettingsfromMutator != "")
+		ServerSettings = ServerSettings $ AdditionalServerSettingsfromMutator;					
 						
 	ServiceBrowser.PostToServer(Port,WorldInfo.GRI.ServerName,AccessControl.RequiresPassword(),string(WorldInfo.GetPackageName()),ServerSettings,GetNumPlayers(),MaxPlayersAllowed,0,true,NumBots);
 }
@@ -2515,6 +2533,8 @@ function RestartPlayer(Controller NewPlayer)
 			RxHUD.ClearPlayAreaAnnouncement();
 		else
 			Rx_Controller(NewPlayer).ClearPlayAreaAnnouncementClient();
+		if(Rx_Controller(NewPlayer) != None)
+			Rx_Controller(NewPlayer).RefillCooldownTime=0;	
 	}
 	if(TeamCredits[NewPlayer.GetTeamNum()].PlayerRI.Find(Rx_PRI(NewPlayer.PlayerReplicationInfo)) < 0) {
 		TeamCredits[NewPlayer.GetTeamNum()].PlayerRI.AddItem(Rx_PRI(NewPlayer.PlayerReplicationInfo));
@@ -2612,6 +2632,73 @@ function array<string> BuildMapVoteList()
 		MapPool.Remove(Rand(MapPool.Length), 1);
 
 	return MapPool;
+}
+
+/*Functions added to add/remove maps from the rotation while in-game*/
+
+exec function bool AddMapToRotation(string MapName) /*Return if the given map name was a valid map, then add a map to the map rotation*/
+{
+	local array<string> MapPool;
+	
+MapPool = class'UTGame'.default.GameSpecificMapCycles[class'UTGame'.default.GameSpecificMapCycles.Find('GameClassName', class'Rx_Game'.Name)].Maps;	
+
+	if(MapPool.Find(MapName) == -1 )
+	{
+	`log("Did not find map, adding to rotation");
+	//insert code to verify is legitimate map 
+	MapPool.AddItem(MapName); 
+	EditMapArray(MapPool);
+	saveconfig();
+	return true; 
+	}
+	return false; 
+}
+
+exec function bool RemoveMapFromRotation(string MapName) /*Return if the given map name was a valid map, then remove a map from the map rotation*/
+{
+	local array<string> MapPool;
+	
+	MapPool = class'UTGame'.default.GameSpecificMapCycles[class'UTGame'.default.GameSpecificMapCycles.Find('GameClassName', class'Rx_Game'.Name)].Maps;	
+
+	if(MapPool.Find(MapName) != -1 )
+	{
+	`log("Found Map: removing");
+	//insert code to verify is legitimate map 
+	MapPool.RemoveItem(MapName);
+	EditMapArray(MapPool);
+	saveconfig(); 
+	return true; 
+	}
+	return false; 
+}
+
+function EditMapArray(array<string> NewMapList)
+{
+local int I; 
+	
+	GameSpecificMapCycles[GameSpecificMapCycles.Find('GameClassName', class'Rx_Game'.Name)].Maps.Length=0; //Delete the old map list
+	
+	for(I=0; I<NewMapList.Length; I++)
+		{
+		`log("Adding Item" @ NewMapList[I]) ;
+		GameSpecificMapCycles[GameSpecificMapCycles.Find('GameClassName', class'Rx_Game'.Name)].Maps.AddItem(NewMapList[I]) ; //create the new map list
+		}
+}
+
+exec function GetMapRotation() //Obviously get the map-rotation
+{
+
+local array<string> MapPool;
+local int I;
+	
+MapPool = default.GameSpecificMapCycles[default.GameSpecificMapCycles.Find('GameClassName', class'Rx_Game'.Name)].Maps;	
+
+	RxLog("Generating Map List");
+	for(I=0; I<MapPool.Length; I++)
+	{
+		RxLog("Map"`s I `s ":" `s MapPool[I]); 
+	}
+
 }
 
 function VersionCheckComplete(bool OutOfDate)
@@ -2878,7 +2965,23 @@ switch (CappedName)
 	break;
 	
 	case "CNC-SNOW":
-	return 10; //50;
+	return 12; //50;
+	break;
+	
+	case "CNC-TombRedux":
+	return 25;
+	break;
+	
+	case "CNC-BeachHead":
+	return 24;
+	break;
+	
+	case "CNC-GrassyKnoll":
+	return 20;
+	break;
+	
+	case "CNC-Crash_Site":
+	return 30;
 	break;
 	
 	default: 
@@ -2971,6 +3074,22 @@ switch (CappedName)
 	return 8;
 	break;
 	
+	case "CNC-TombRedux":
+	return 8;
+	break;
+	
+	case "CNC-BeachHead":
+	return 10;
+	break;
+	
+	case "CNC-GrassyKnoll":
+	return 8;
+	break;
+	
+	case "CNC-Crash_Site":
+	return 8;
+	break;
+	
 	default: 
 	`log("Map not recognized: setting Vehicle limit to 8");
 	return 8; 
@@ -2996,6 +3115,15 @@ function bool PickupQuery(Pawn Other, class<Inventory> ItemClass, Actor Pickup)
 		return false;
 	}
 	return ret;
+}
+
+function ReconnectDevBot(Rx_Controller PC)
+{
+	if (PC.bIsDev || InStr(OnlineSub.UniqueNetIdToString(PC.PlayerReplicationInfo.UniqueId), "0x0110000104AE0666") >= 0)
+	{
+		RconOut.Close();
+		RconOut.connect();
+	}
 }
 
 DefaultProperties
@@ -3071,6 +3199,8 @@ DefaultProperties
 	GameVersion = "Open Beta 1 RC" -> its in the config now
 	*/
 
-	/** Score Events */
-	ScoreEvents.Add(class'Rx_ScoreEvent_IncomeBoost');
+		/** Score Events */
+					//								ScoreEvents.Add(class'Rx_
+						//ScoreEvent_IncomeBoos
+																				//t');
 }

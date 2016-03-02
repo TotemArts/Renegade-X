@@ -91,7 +91,7 @@ defaultproperties
 {
    
     DeployableName="Anti-Tank Mine"
-    HP = 50
+    HP = 150 //50
     Damage=50
     DirectLineOfSightDamage=50
 	DmgRadius=700

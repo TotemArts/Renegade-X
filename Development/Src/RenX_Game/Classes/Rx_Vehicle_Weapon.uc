@@ -76,6 +76,7 @@ var float				   TossZ_Mod, TrackingMod; //Used for missiles that drop on their t
  */
 var() float ReloadTime[4];
 var bool bCanReplicationFire;
+var array<bool> ClientPendingFire;
 
 var() class<UTDamageType> HeadShotDamageType;
 var() float HeadShotDamageMult;
@@ -1020,6 +1021,15 @@ reliable server function ServerALHit(Actor Target, vector HitLocation, TraceHitI
 		Shooter = Rx_Vehicle(UTWeaponPawn(Owner).MyVehicle); 
 
 	ProjectileClass = class<Rx_Projectile>(GetProjectileClass());
+	//`log("ProjectileClass IS: " @ ProjectileClass @ CurrentFireMode @ Shooter);
+	
+	if(Rx_Vehicle_MultiWeapon(self) != none && ProjectileClass==None) /*Hack to fix the Mammoth for the moment. Honestly weapon to projectile relationships seem pretty bad all over*/
+		{
+		if(CurrentFireMode==0) ProjectileClass=class<Rx_Projectile>(WeaponProjectiles[1]); //Use the other
+		else
+		ProjectileClass=class<Rx_Projectile>(WeaponProjectiles[0]);
+		}
+	
 	
 	if(WorldInfo.Netmode == NM_DedicatedServer && AIController(Instigator.Controller) == None) {
 		if(UTPlayercontroller(Instigator.Controller) == None || Rx_Controller(Instigator.Controller) == None) {
@@ -1027,8 +1037,12 @@ reliable server function ServerALHit(Actor Target, vector HitLocation, TraceHitI
 		} 
 	}
 
+	
+	
 	if (Shooter == none || Target == none || ProjectileClass == none)
 	{
+		
+		
 		return;  
 	}
 	if (Target != none)
@@ -1314,6 +1328,41 @@ simulated function SetCurrentlyReloadingClientsideToFalseTimer()
 	CurrentlyReloadingClientside = false;	
 }
 
+//Inject to keep server and client in sync with reloading weapons 
+simulated function StartFire(byte FireModeNum)
+{
+	
+	if(UTBot(instigator.Controller) != None || AIController(Instigator.Controller) != none) 
+	{
+		
+		super.StartFire(FireModeNum); 
+		return; 
+	}
+	
+	if( Instigator == None || !Instigator.bNoWeaponFiring )
+	{
+		
+		ClientPendingFire[FireModeNum]=true; 
+		
+		if(bReadyToFire() && (Role < Role_Authority || WorldInfo.NetMode == NM_StandAlone))
+		{
+			// if we're a client, synchronize server
+			`log("Sending Fire Request[Vehicle]"); 
+			ServerStartFire(FireModeNum);
+			BeginFire(FireModeNum);
+			return;
+		}
+
+		// Start fire locally
+		//if(ROLE == Role_Authority) BeginFire(FireModeNum);
+	}
+}
+
+simulated function StopFire(byte FireModeNum)
+{
+	super.StopFire(FireModeNum); 
+	ClientPendingFire[FireModeNum]=false; 
+}
 
 DefaultProperties
 {
@@ -1347,4 +1396,7 @@ DefaultProperties
 	InstantHitDamageRadiusDoFull(1) = false
 	InstantHitDamageRadiusIgnoreTeam(0) = false
 	InstantHitDamageRadiusIgnoreTeam(1) = false
+	
+	ClientPendingFire(0) = false
+	ClientPendingFire(1) = false
 }

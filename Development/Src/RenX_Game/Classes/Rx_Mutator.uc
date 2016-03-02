@@ -15,4 +15,5 @@ function Rx_Mutator GetNextRxMutator()
 	return None;
 }
 
+function String GetAdditionalServersettings();
 function InitRconCommands();

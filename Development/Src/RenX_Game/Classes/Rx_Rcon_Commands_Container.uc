@@ -48,6 +48,8 @@ function InitRconCommands()
 	SpawnCommand(class'Rx_Rcon_command_TeamInfo');
 	SpawnCommand(class'Rx_Rcon_Command_SpectateMode');
 	SpawnCommand(class'Rx_Rcon_Command_NormalMode');
+	SpawnCommand(class'Rx_Rcon_Command_AddMap');
+	SpawnCommand(class'Rx_Rcon_Command_RemoveMap');
 	if (!Rx_Game(WorldInfo.Game).bIsCompetitive)
 	{
 		SpawnCommand(class'Rx_Rcon_Command_Kill');

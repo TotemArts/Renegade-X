@@ -75,7 +75,7 @@ function string ComposeTopString()
 
 function string ParametersLogString()
 {
-	return "text:\""$SurveyText$"\"";
+	return "text" `s SurveyText;
 }
 
 function Execute(Rx_Game game)

@@ -141,6 +141,22 @@ simulated function CustomFire()
 	}
 }
 
+function OvermineBroadcast()
+{
+	local Rx_Controller PC;
+	local string Message;
+
+	if (Rx_Game(WorldInfo.Game).bBroadcastOvermine)
+	{
+		Message = Instigator.Controller.PlayerReplicationInfo.PlayerName $ " is over-mining " $ Rx_Controller(Instigator.Controller).GetSpottargetLocationInfo(self);
+		foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
+			if (Instigator.GetTeamNum() == PC.GetTeamNum())
+				PC.ClientMessage(Message, 'EVA');
+	}
+
+	`LogRx("GAME" `s "OverMine;" `s `PlayerLog(Instigator.Controller.PlayerReplicationInfo) `s "near" `s Rx_Controller(Instigator.Controller).GetSpottargetLocationInfo(self));
+}
+
 function destroyOldMinesIfMinelimitReached() {
 
 	local Rx_TeamInfo teamInfo;
@@ -166,6 +182,7 @@ function destroyOldMinesIfMinelimitReached() {
 			}
 		}
 		oldestMine.Destroy();
+		OvermineBroadcast();
 	}
 }
 

@@ -76,9 +76,9 @@ simulated function PerformDeploy()
 			SetBase(ImpactedActor,FloorNormal);
 		}
 		if (Rx_Pawn(ImpactedActor) != None && Rx_Pawn(ImpactedActor).PlayerReplicationInfo != None)
-			`LogRxPub("GAME" `s "Deployed;" `s self.class `s "by" `s `PlayerLog(InstigatorController.PlayerReplicationInfo) `s "on" `s `PlayerLog(Rx_Pawn(ImpactedActor).PlayerReplicationInfo) `s "near" `s GetSpotMarkerName());
+			`LogRxPub("GAME" `s "Deployed;" `s self.class `s "by" `s `PlayerLog(InstigatorController.PlayerReplicationInfo) `s "on" `s `PlayerLog(Rx_Pawn(ImpactedActor).PlayerReplicationInfo) `s "near" `s GetSpotMarkerName() `s "at" `s Location);
 		else
-			`LogRxPub("GAME" `s "Deployed;" `s self.class `s "by" `s `PlayerLog(InstigatorController.PlayerReplicationInfo) `s "on" `s ImpactedActor.Class.name `s "near" `s GetSpotMarkerName());
+			`LogRxPub("GAME" `s "Deployed;" `s self.class `s "by" `s `PlayerLog(InstigatorController.PlayerReplicationInfo) `s "on" `s ImpactedActor.Class.name `s "near" `s GetSpotMarkerName() `s "at" `s Location);
 	}
 	else if (Base != none)
 		Base.Attach(self);
@@ -109,9 +109,9 @@ simulated function PlayExplosionEffect()
 function Explosion()
 {
 	if (InstigatorController != None && InstigatorController.PlayerReplicationInfo != None)
-		`LogRxPub("GAME" `s "Exploded;" `s self.Class `s "at" `s self.Location `s "by" `s `PlayerLog(InstigatorController.PlayerReplicationInfo));
+		`LogRxPub("GAME" `s "Exploded;" `s self.Class `s "near" `s GetSpotMarkerName() `s "at" `s self.Location `s "by" `s `PlayerLog(InstigatorController.PlayerReplicationInfo));
 	else
-		`LogRxPub("GAME" `s "Exploded;" `s self.Class `s "at" `s self.Location);
+		`LogRxPub("GAME" `s "Exploded;" `s self.Class `s "near" `s GetSpotMarkerName() `s "at" `s self.Location);
 	if (WorldInfo.NetMode == NM_DedicatedServer || WorldInfo.NetMode == NM_ListenServer) // trigger client replication
 		bExplode = true;
 	if (WorldInfo.NetMode != NM_DedicatedServer)

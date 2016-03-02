@@ -16,6 +16,12 @@ defaultproperties
     BuildingDamageScaling=0.5 //0.33		// 0.495		// 3.96 hp per shot
 	MCTDamageScaling=2.8 //3.0
 	
+	////Infantry Armour Types//////
+	Inf_FLAKDamageScaling = 0.9   //FLAK infantry armour (Standard rule is explosive weapons does  30% less, while gun damage does 30% more)
+	Inf_KevlarDamageScaling = 0.9	//Kevlar (General rule is 15% less damage from direct hits/bullets, but no penalties)
+	Inf_LazarusDamageScaling = 0.9  // Lazarus SBH armour, standard rule is +40% to Electrical damage but likely no other damage modifiers.
+	
+	
 	MineDamageScaling=2.0
     
     bPiercesArmor=false

@@ -24,6 +24,7 @@ defaultproperties
 	Inf_LazarusDamageScaling = 1.0  // Lazarus SBH armour, standard rule is +40% to Electrical damage but likely no other damage modifiers.
 	
     bPiercesArmor=false
+	bCausesBleed=false
 	
 	BleedDamageFactor=0
 	BleedCount=0

@@ -414,7 +414,7 @@ defaultproperties
         Damage=300.0
         //Momentum=5000.0
         DamageType=class'Rx_DmgType_Obelisk'
-        MaxRange=11000.0
+        MaxRange=7000.0
         //Spread=0.03
         FireSound=SoundCue'RX_BU_Oblisk.Sounds.SC_Obelisk_Fire'
     End Object
