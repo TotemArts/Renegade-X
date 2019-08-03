@@ -215,8 +215,11 @@ pip-log.txt
 #Mr Developer
 .mr.developer.cfg
 /Development/Flash
+/Development/DLLBind
 /Binaries
 /Engine
 /ExampleAssets
 /Launcher
-/UDKGame
+/UDKGame/*
+!/UDKGame/Config
+/UDKGame/Config/UDK*.ini

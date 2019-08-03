@@ -1,0 +1,115 @@
+<?xml version="1.0"?>
+<ProfileData xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <mPipeline>
+    <TargetPlatformType>IPhone</TargetPlatformType>
+    <Steps>
+      <Step xsi:type="MakeScript">
+        <ShouldSkipThisStep>false</ShouldSkipThisStep>
+        <RebootBeforeStep>true</RebootBeforeStep>
+      </Step>
+      <Step xsi:type="Cook">
+        <ShouldSkipThisStep>false</ShouldSkipThisStep>
+        <RebootBeforeStep>true</RebootBeforeStep>
+      </Step>
+      <Step xsi:type="PackageIOS">
+        <ShouldSkipThisStep>false</ShouldSkipThisStep>
+        <RebootBeforeStep>true</RebootBeforeStep>
+      </Step>
+      <Step xsi:type="DeployIOS">
+        <ShouldSkipThisStep>false</ShouldSkipThisStep>
+        <RebootBeforeStep>true</RebootBeforeStep>
+      </Step>
+    </Steps>
+  </mPipeline>
+  <mActiveTargets />
+  <mCooking_MapsToCook>
+    <UnrealMap>
+      <Name>SimpleCourtyard.udk</Name>
+    </UnrealMap>
+  </mCooking_MapsToCook>
+  <mLaunchDefaultMap>false</mLaunchDefaultMap>
+  <mMapToPlay>
+    <Name>SimpleCourtyard.udk</Name>
+  </mMapToPlay>
+  <mLaunch_ExtraOptions />
+  <mUseExecCommands>false</mUseExecCommands>
+  <mLaunch_ExecCommands />
+  <mCooking_AdditionalOptions />
+  <mLaunch_NoVSync>false</mLaunch_NoVSync>
+  <mLaunch_ClearUCWindow>true</mLaunch_ClearUCWindow>
+  <mLaunch_EncryptedSockets>false</mLaunch_EncryptedSockets>
+  <mLaunch_CaptureFPSChartInfo>false</mLaunch_CaptureFPSChartInfo>
+  <mMobile_UseNetworkFileLoader>false</mMobile_UseNetworkFileLoader>
+  <mMobile_PackagingMode>FastIterationAndSign</mMobile_PackagingMode>
+  <mCooking_UseSeekFreeData>false</mCooking_UseSeekFreeData>
+  <mTargets_CopyFilesRequiredForSymbolLookup>true</mTargets_CopyFilesRequiredForSymbolLookup>
+  <mCooking_LanguagesToCookAndSync>
+    <Content>
+      <LangOption>
+        <Name>INT</Name>
+        <IsEnabled>true</IsEnabled>
+      </LangOption>
+      <LangOption>
+        <Name>FRA</Name>
+        <IsEnabled>false</IsEnabled>
+      </LangOption>
+      <LangOption>
+        <Name>ITA</Name>
+        <IsEnabled>false</IsEnabled>
+      </LangOption>
+      <LangOption>
+        <Name>DEU</Name>
+        <IsEnabled>false</IsEnabled>
+      </LangOption>
+      <LangOption>
+        <Name>ESN</Name>
+        <IsEnabled>false</IsEnabled>
+      </LangOption>
+      <LangOption>
+        <Name>ESM</Name>
+        <IsEnabled>false</IsEnabled>
+      </LangOption>
+      <LangOption>
+        <Name>PTB</Name>
+        <IsEnabled>false</IsEnabled>
+      </LangOption>
+      <LangOption>
+        <Name>RUS</Name>
+        <IsEnabled>false</IsEnabled>
+      </LangOption>
+      <LangOption>
+        <Name>POL</Name>
+        <IsEnabled>false</IsEnabled>
+      </LangOption>
+      <LangOption>
+        <Name>HUN</Name>
+        <IsEnabled>false</IsEnabled>
+      </LangOption>
+      <LangOption>
+        <Name>CZE</Name>
+        <IsEnabled>false</IsEnabled>
+      </LangOption>
+      <LangOption>
+        <Name>SLO</Name>
+        <IsEnabled>false</IsEnabled>
+      </LangOption>
+      <LangOption>
+        <Name>JPN</Name>
+        <IsEnabled>false</IsEnabled>
+      </LangOption>
+      <LangOption>
+        <Name>KOR</Name>
+        <IsEnabled>false</IsEnabled>
+      </LangOption>
+      <LangOption>
+        <Name>CHN</Name>
+        <IsEnabled>false</IsEnabled>
+      </LangOption>
+    </Content>
+  </mCooking_LanguagesToCookAndSync>
+  <mLaunchConfiguration>Release_32</mLaunchConfiguration>
+  <mCommandletConfiguration>Release_32</mCommandletConfiguration>
+  <mScriptConfiguration>ReleaseScript</mScriptConfiguration>
+  <mSelectedGameName>UDKGame</mSelectedGameName>
+  <mTargetPlatformType>IPhone</mTargetPlatformType>
+</ProfileData>
