@@ -1,6 +1,5 @@
-class Rx_Attachment_AutoRifle extends Rx_WeaponAttachment;
-/*
-var ParticleSystem BeamTemplate;
+class Rx_Attachment_AutoRifle extends Rx_WeaponAttachment_Varying;
+
 var class<UDKExplosionLight> ImpactLightClass;
 
 var int CurrentPath;
@@ -43,6 +42,9 @@ simulated function FirstPersonFireEffects(Weapon PawnWeapon, vector HitLocation)
 	local vector EffectLocation;
 
 	Super.FirstPersonFireEffects(PawnWeapon, HitLocation);
+	
+	if(Rx_Weapon(PawnWeapon).WeaponFireTypes[Instigator.FiringMode] != 0) return; //Projectiles can handle their own effects
+
 
 	if (Instigator.FiringMode == 0 || Instigator.FiringMode == 3)
 	{
@@ -60,19 +62,24 @@ simulated function ThirdPersonFireEffects(vector HitLocation)
 {
 
 	Super.ThirdPersonFireEffects(HitLocation);
+	
+		
+			if(Instigator.Controller != none && (Instigator.Weapon == none || Instigator.Weapon.WeaponFireTypes[Instigator.FiringMode] != 0)) return; //Projectiles can handle their own effects
 
+	
 	if ((Instigator.FiringMode == 0 || Instigator.FiringMode == 3))
 	{
 		SpawnBeam(GetEffectLocation(), HitLocation, false);
 	}
 }
-*/
-/*
-simulated function ThirdPersonFireEffects(vector HitLocation)
+
+
+/**simulated function ThirdPersonFireEffects(vector HitLocation)
 {
 	super.ThirdPersonFireEffects(HitLocation);
 }
 */
+
 DefaultProperties
 {
 	Begin Object Name=SkeletalMeshComponent0
@@ -81,7 +88,7 @@ DefaultProperties
 //		Rotation=(Yaw=1000)
 		Scale=1.0
 	End Object
-/*	
+
 	DefaultImpactEffect=(ParticleTemplate=ParticleSystem'RX_FX_Munitions2.Particles.bullets.P_Bullet_Impact_Stone',Sound=SoundCue'RX_SoundEffects.Bullet_Impact.SC_BulletImpact_Stone')
 
 	ImpactEffects(0)=(MaterialType=Dirt, ParticleTemplate=ParticleSystem'RX_FX_Munitions2.Particles.bullets.P_Bullet_Impact_Dirt',Sound=SoundCue'RX_SoundEffects.Bullet_Impact.SC_BulletImpact_Dirt')
@@ -106,9 +113,9 @@ DefaultProperties
 	ImpactEffects(19)=(MaterialType=SnowStone, ParticleTemplate=ParticleSystem'RX_FX_Munitions2.Particles.bullets.P_Bullet_Impact_Snow',Sound=SoundCue'RX_SoundEffects.Bullet_Impact.SC_BulletImpact_Stone')
 	
 	BulletWhip=SoundCue'RX_SoundEffects.Bullet_WhizBy.SC_Bullet_WhizBy'
-//	BeamTemplate=ParticleSystem'RX_FX_Munitions.Beams.P_InstantHit_Tracer_GDI'
+	BeamTemplate=ParticleSystem'RX_FX_Munitions.Beams.P_InstantHit_Tracer_GDI'
+	BeamTemplate_Heroic=ParticleSystem'RX_FX_Munitions.Beams.P_InstantHit_Tracer_GDI_Large_Heroic'
 
-*/
 	WeaponClass = class'Rx_Weapon_AutoRifle_GDI'
 	MuzzleFlashSocket=MuzzleFlashSocket
 	MuzzleFlashPSCTemplate=ParticleSystem'RX_WP_AutoRifle.Effects.MuzzleFlash'

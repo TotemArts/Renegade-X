@@ -24,7 +24,7 @@ simulated function Tick(float DeltaTime)
  */
 function bool IsOutsideMinimalDistToOwner(Pawn possibleTarget)
 {
-	return (VSize(possibleTarget.Location - AgtLocation) > 500);
+	return (VSize(possibleTarget.Location - AgtLocation) > MinimumRange);
 }
 
 simulated function DoRotation()
@@ -88,7 +88,7 @@ simulated function SetWeapon(Rx_SentinelWeapon NewWeapon)
 	SWeapon = NewWeapon;
 
 	SWeapon.InitializeWeaponComponent(WeaponComponent);
-
+	SetTimer(0.2,false,'UpdateRange'); 
 	UpdateDamageEffects();
 	WeaponComponent.PlaySpawnEffect();
 	WeaponComponent.SetTranslation(vect(0.0,0.0,-150.0));
@@ -101,6 +101,7 @@ defaultproperties
 {
 	Team = 0// GDI AGT Sentinel
 
+	
     //MenuName="AGT Rocket"
 	//ShortMenuName="AGT Rocket"
 
@@ -127,4 +128,6 @@ defaultproperties
 
 	TargetingSound=None
 	WaitingSound=None
+	
+	MinimumRange = 1000
 }

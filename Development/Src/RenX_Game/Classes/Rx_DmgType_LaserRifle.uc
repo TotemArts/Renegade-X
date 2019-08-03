@@ -24,4 +24,5 @@ defaultproperties
 
 	IconTextureName="T_WeaponIcon_LaserRifle"
 	IconTexture=Texture2D'RX_WP_LaserRifle.UI.T_WeaponIcon_LaserRifle'
+	bUnsourcedDamage=false
 }

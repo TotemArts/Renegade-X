@@ -20,6 +20,7 @@ var SoundCue DeployFailedSoundCue;
 var Rx_Weapon_DeployedActor DeployedActor;
 
 
+
 static function class<Actor> GetTeamDeployable(int TeamNum)
 {
 	return default.DeployedActorClass;
@@ -37,7 +38,7 @@ simulated function vector GetPhysicalFireStartLoc(optional vector AimDir)
 }
 
 //Given an actor, its position and a radius determine if we are near any deployables
-static function bool DeployablesNearby(Actor MyActor, vector MyLocation, float CheckRadiusSq)
+static function bool DeployablesNearby(Actor MyActor, vector MyLocation, float CheckRadiusSq, optional out Rx_Weapon_DeployedActor Deployed)
 {
 	local float DistSqr;
 	local Rx_Weapon_DeployedActor Actor;
@@ -55,6 +56,7 @@ static function bool DeployablesNearby(Actor MyActor, vector MyLocation, float C
 			DistSqr = VSizeSq(Actor.Location - MyLocation);
 			if (DistSqr < CheckRadiusSq)
 			{
+				Deployed = Actor;
 				return TRUE;
 			}
 		}
@@ -79,6 +81,10 @@ function bool Deploy()
 	
 	if (DeployedActor != None)
 	{
+		DeployedActor.VRank=VRank; 
+		
+		//ClientSubtractAmmo();
+		
 		if ( AmmoCount <= 0 )
 		{
 			bForceHidden = true;
@@ -89,6 +95,13 @@ function bool Deploy()
 	}
 
 	return false;
+}
+
+reliable client function ClientSubtractAmmo() //Used to get around Deployables being mostly server-side.. At least visually shows correctly
+{
+	if(WorldInfo.Netmode != NM_Client) return; 
+	else
+	ConsumeAmmo(0); //Unless someday deployables have more than one fire mode. 
 }
 
 /** called when User tries to deploy us and fails for some reason */
@@ -146,13 +159,10 @@ function OvermineBroadcast()
 	local Rx_Controller PC;
 	local string Message;
 
-	if (Rx_Game(WorldInfo.Game).bBroadcastOvermine)
-	{
-		Message = Instigator.Controller.PlayerReplicationInfo.PlayerName $ " is over-mining " $ Rx_Controller(Instigator.Controller).GetSpottargetLocationInfo(self);
-		foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
-			if (Instigator.GetTeamNum() == PC.GetTeamNum())
-				PC.ClientMessage(Message, 'EVA');
-	}
+	Message = Instigator.Controller.PlayerReplicationInfo.PlayerName $ " is over-mining " $ Rx_Controller(Instigator.Controller).GetSpottargetLocationInfo(self);
+	foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
+		if (Instigator.GetTeamNum() == PC.GetTeamNum())
+			PC.ClientMessage(Message, 'EVA');
 
 	`LogRx("GAME" `s "OverMine;" `s `PlayerLog(Instigator.Controller.PlayerReplicationInfo) `s "near" `s Rx_Controller(Instigator.Controller).GetSpottargetLocationInfo(self));
 }
@@ -205,6 +215,26 @@ function bool CanAttack(Actor Other)
 	return Instigator.Controller.LineOfSightTo(Other);
 }
 
+function PromoteWeapon(byte rank)
+{
+super(Rx_Weapon).PromoteWeapon(rank);  
+//if(Rx_Pawn(Instigator).PawnInFriendlyBase("", Instigator)) PerformRefill();  
+}
+
+simulated state WeaponPuttingDown
+{
+    simulated event BeginState( Name PreviousState )
+    {
+        if (bDebugWeapon)
+        {
+            `log("---"@self$"."$GetStateName()$".BeginState("$PreviousState$")");
+        }
+        ClearFlashLocation(); //Reset the flash location so other weapons don't use it when they're switched to
+        super.BeginState(PreviousState);
+    }
+
+}
+
 defaultproperties
 {
 	WeaponFireTypes[0]=EWFT_Custom
@@ -219,6 +249,8 @@ defaultproperties
 	MaxDesireability=0.0
 	AIRating=+0.6
 	CurrentRating=0.0
+	bUseClientAmmo = false 
+	bMeleeWeapon = true
 
 	DeployCheckRadiusSq=0.0;
 
@@ -230,4 +262,10 @@ defaultproperties
 
 	EquipTime=1.0
 	PutDownTime=0.01
+	
+	bRefillonPromotion = false 
+	
+	bUseHandIKWhenRelax=false
+	bByPassHandIK=true
+	
 }

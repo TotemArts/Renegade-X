@@ -11,38 +11,38 @@ function string trigger(string parameters)
 	pos = InStr(parameters," ",,true);
 	if (pos != -1)
 	{
-		player = WorldInfo.Game.AccessControl.GetControllerFromString(Left(parameters,pos));
+		player = `WorldInfoObject.Game.AccessControl.GetControllerFromString(Left(parameters,pos));
 		if (player == None)
 			return "Error: Player not found.";
 
 		if (UTBot(player) != None)
 		{
-			UTGame(WorldInfo.Game).DesiredPlayerCount = WorldInfo.Game.NumPlayers + WorldInfo.Game.NumBots - 1;
-			UTGame(WorldInfo.Game).KillBot(UTBot(player));
+			UTGame(`WorldInfoObject.Game).DesiredPlayerCount = `WorldInfoObject.Game.NumPlayers + `WorldInfoObject.Game.NumBots - 1;
+			UTGame(`WorldInfoObject.Game).KillBot(UTBot(player));
 			return "";
 		}
 		if (PlayerController(player) == None)
 			return "Error: Player not found. (Non-PlayerController returned)";
 
 		parameters = Mid(parameters, pos+1);
-		Rx_AccessControl(WorldInfo.Game.AccessControl).KickBanPlayer(PlayerController(player), parameters);
+		Rx_AccessControl(`WorldInfoObject.Game.AccessControl).KickBanPlayer(PlayerController(player), parameters);
 	}
 	else
 	{
-		player = WorldInfo.Game.AccessControl.GetControllerFromString(parameters);
+		player = `WorldInfoObject.Game.AccessControl.GetControllerFromString(parameters);
 		if (player == None)
 			return "Error: Player not found.";
 
 		if (UTBot(player) != None)
 		{
-			UTGame(WorldInfo.Game).DesiredPlayerCount = WorldInfo.Game.NumPlayers + WorldInfo.Game.NumBots - 1;
-			UTGame(WorldInfo.Game).KillBot(UTBot(player));
+			UTGame(`WorldInfoObject.Game).DesiredPlayerCount = `WorldInfoObject.Game.NumPlayers + `WorldInfoObject.Game.NumBots - 1;
+			UTGame(`WorldInfoObject.Game).KillBot(UTBot(player));
 			return "";
 		}
 		if (PlayerController(player) == None)
 			return "Error: Player not found. (Non-PlayerController returned)";
 
-		Rx_AccessControl(WorldInfo.Game.AccessControl).KickBanPlayer(PlayerController(player), WorldInfo.Game.AccessControl.DefaultKickReason);
+		Rx_AccessControl(`WorldInfoObject.Game.AccessControl).KickBanPlayer(PlayerController(player), `WorldInfoObject.Game.AccessControl.DefaultKickReason);
 	}
 
 	return "";

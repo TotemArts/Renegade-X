@@ -61,8 +61,8 @@ DefaultProperties
     ShotCost(0)=1
     ShotCost(1)=1
     
-    ReloadTime(0) = 4.0
-    ReloadTime(1) = 4.0
+    ReloadTime(0) = 5.0
+    ReloadTime(1) = 5.0
     
     ReloadAnimName(0) = "weaponreload"
     ReloadAnimName(1) = "weaponreload"
@@ -101,6 +101,7 @@ DefaultProperties
     CrosshairMIC = MaterialInstanceConstant'RenX_AssetBase.UI.MI_Reticle_Tank_Type5'
     
     // AI
+    bOkAgainstLightVehicles = True
     bRecommendSplashDamage=True
 
     //==========================================
@@ -115,8 +116,42 @@ DefaultProperties
     ConsoleLockAim       = 0.992000
     LockAim              = 0.997000
     LockCheckTime        = 0.1
-    LockAcquireTime      = 0.2 // change this!!!!!!!!!
+    LockAcquireTime      = 0.01 //0.2 // change this!!!!!!!!!
     StayLocked           = 0.1 // change this, too
 
     bTargetLockingActive = true;
+	
+	
+	/****************************************/
+	/*Veterancy*/
+	/****************************************/
+	
+	//*X (Applied to instant-hits only) Modify Projectiles separately
+	Vet_DamageModifier(0)=1  //Normal
+	Vet_DamageModifier(1)=1.10  //Veteran
+	Vet_DamageModifier(2)=1.25  //Elite
+	Vet_DamageModifier(3)=1.50  //Heroic
+	
+	//*X Reverse percentage (0.75 is 25% increase in speed)
+	Vet_ROFModifier(0) = 1 //Normal
+	Vet_ROFModifier(1) = 1  //Veteran
+	Vet_ROFModifier(2) = 1  //Elite
+	Vet_ROFModifier(3) = 1  //Heroic
+ 
+	//+X
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)
+	Vet_ClipSizeModifier(1)=0 //Veteran 
+	Vet_ClipSizeModifier(2)=1 //Elite
+	Vet_ClipSizeModifier(3)=2 //Heroic
+
+	//*X Reverse percentage (0.75 is 25% increase in speed)
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.90 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.80 //Elite
+	Vet_ReloadSpeedModifier(3)=0.70 //Heroic
+	
+
+	/********************************/
+
+
 }

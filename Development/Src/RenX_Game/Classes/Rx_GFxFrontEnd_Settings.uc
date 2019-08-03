@@ -18,16 +18,18 @@ var GFxClikWidget AntiAliasingDropDown;
 var GFxClikWidget TextureFilteringDropDown;
 var GFxClikWidget BrightnessSlider;
 var GFxClikWidget BrightnessLabel;
+var GFxClikWidget FPSSlider;
+var GFxClikWidget FPSLabel;
 var GFxClikWidget VSyncCheckBox;
 var GFxClikWidget Dx10CheckBox;
 var GFxClikWidget MotionBlurCheckBox;
 var GFxClikWidget DynamicLightsCheckBox;
 var GFxClikWidget DynamicShadowsCheckBox;
-var GFxClikWidget TextureDetailDropDown;
-var GFxClikWidget DetailLevelDropDown;
-var GFxClikWidget CharacterLODDropDown;
-var GFxClikWidget EffectsLODDropDown;
-var GFxClikWidget ShadowQualityDropDown;
+var Rx_GFxDropDown TextureDetailDropDown;
+var Rx_GFxDropDown DetailLevelDropDown;
+var Rx_GFxDropDown CharacterLODDropDown;
+var Rx_GFxDropDown EffectsLODDropDown;
+var Rx_GFxDropDown ShadowQualityDropDown;
 /** formerly known as ReducedGore. values must be flipped!*/
 var GFxClikWidget EnabledGoreCheckBox;
 var GFxClikWidget FOVSlider;
@@ -85,12 +87,24 @@ var GFxClikWidget InvertYCheckBox;
 var GFxClikWidget WeaponHandDropDown;
 var GFxClikWidget TankReverseCheckBox;
 var GFxClikWidget ToggleADSCheckBox;
+var GFxClikWidget ToggleCrouchCheckBox;
+var GFxClikWidget ToggleSprintCheckBox;
 var GFxClikWidget UseClassicTeamNameColorsCheckBox;
 var GFxClikWidget KeyBindingList;
 var GFxClikWidget BindingPrimaryList;
 var GFxClikWidget BindingSecondaryList;
 var GFxClikWidget keyBindScroll;
 var GFxClikWidget SettingsInputActionBar;
+
+//nBab
+var GFxClikWidget TechBuildingIconDropDown;
+var GFxClikWidget BeaconIconDropDown;
+var GFxClikWidget CrosshairColorDropDown;
+var GFxClikWidget AllowD3D9MSAACheckBox;
+var GFxClikWidget UseHardwarePhysicsCheckBox;
+var GFxClikWidget KillSoundDropDown;
+var GFxClikWidget MusicCheckBoxlist;
+var GFxClikWidget KillSoundPlayButton;
 
 struct SettingsVideoOption
 {
@@ -100,6 +114,7 @@ struct SettingsVideoOption
 	var int AntiAliasingItemPosition;
 	var int TextureFilteringItemPosition;
 	var int BrightnessValue;
+	var int FPSValue;
 	var bool bVSync;
 	var bool bDx10;
 	var bool bMotionBlur;
@@ -110,7 +125,7 @@ struct SettingsVideoOption
 	var int CharacterLODItemPosition;
 	var int EffectsLODItemPosition;
 	var int ShadowQualityItemPosition;
-	var bool bReducedGore;
+	var bool bEnableGore;
 	var int FOVValue;
 	var bool bLightEnvironmentShadows;
 	var bool bCompositeDynamicLights;
@@ -124,6 +139,9 @@ struct SettingsVideoOption
 	var bool bStaticDecals;
 	var bool bDynamicDecals;
 	var bool bFramerateSmoothing;
+	//nBab
+	var bool bAllowD3D9MSAA;
+	var bool bUseHardwarePhysics;
 };
 var SettingsVideoOption SettingsCurrentVideo;
 
@@ -137,6 +155,8 @@ struct SettingsAudioOption
 	var float AnnouncerVolumeValue;
 	var bool bHardwareOpenAL;
 	var bool bAutostartMusic;
+	//nBab
+	var int KillSound;
 };
 var SettingsAudioOption SettingsCurrentAudio;
 
@@ -149,10 +169,16 @@ struct SettingsInputOption
 	var int WeaponHandItemPosition;
 	var bool bTankReverse;
 	var bool bADS;
+	var bool bToggleCrouch;
+	var bool bToggleSprint;
 	var bool bNicknamesUseTeamColors;
 	var int KeyBingdingItemPosition;
 	var int BindingPrimaryItemPosition;
 	var int BindingSecondaryItemPosition;
+	//nBab
+	var int TechBuildingIcon;
+	var int BeaconIcon;
+	var int CrosshairColor;
 };
 var SettingsInputOption SettingsCurrentInput;
 
@@ -199,8 +225,11 @@ function OnViewLoaded(Rx_GFXFrontEnd FrontEnd)
 
 	PlayerControlGroup = InitButtonGroupWidget("PlayerControlGroup", MainFrontEnd.SettingsView);
 	PlayerControlGroup.AddEventListener('CLIK_change', OnPlayerControlGroupChange);
+	SetSelectedButton(StopButton);
 
 	GetPC().WorldInfo.MusicComp.OnAudioFinished = MusicPlayerOnAudioFinished;
+
+	ActionScriptVoid("validateNow");
 }
 
 
@@ -215,7 +244,7 @@ function OnViewLoaded(Rx_GFXFrontEnd FrontEnd)
  */
 function GFxClikWidget InitButtonGroupWidget(string groupName, GFxObject scope)
 {
-	return GFxClikWidget(ActionScriptConstructor("gfx.controls.ButtonGroup"));
+	return GFxClikWidget(ActionScriptConstructor("scaleform.clik.controls.ButtonGroup"));
 }
 
 function DeselectPlayerButtonGroup() 
@@ -223,14 +252,25 @@ function DeselectPlayerButtonGroup()
 	SetSelectedButton(none);
 }
 
-function SetSelectedButton  (GFxClikWidget button)
+function SetSelectedButton  (GFxClikWidget button, bool selected=true)
 {
-	PlayerControlGroup.ActionScriptVoid("setSelectedButton");
+	PlayerControlGroup.ActionScriptVoid("updateSelectedButton");
+}
+
+function validateNow(GFxObject event=none)
+{
+	ActionScriptVoid("validateNow");
 }
 
 function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widget)
 {
 	local int i;
+	local bool bWasHandled;
+
+	`log("Rx_GFxFrontEnd_Settings::WidgetInitialized"@`showvar(WidgetName),true,'DevGFxUI');
+
+	bWasHandled = false;
+
 	switch(WidgetName)
 	{
 
@@ -240,7 +280,8 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 				SettingsVideoActionBar = GFxClikWidget(Widget);
 			}
 			SetUpDataProvider(SettingsVideoActionBar);
-			SettingsVideoActionBar.AddEventListener('CLIK_itemClick', OnSettingsVideoActionItemClick);
+			SettingsVideoActionBar.AddEventListener('CLIK_buttonClick', OnSettingsVideoActionItemClick);
+			bWasHandled = true;
 			break;
 
 		case 'ScreenResolutionDropDown':
@@ -250,6 +291,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			SetUpDataProvider(ScreenResolutionDropDown);
 			GetLastSelection(ScreenResolutionDropDown);
 			ScreenResolutionDropDown.AddEventListener('CLIK_change', OnScreenResolutionDropDownChange);
+			bWasHandled = true;
 			break;
 		case 'ScreenModeDropDown':
 			if (ScreenModeDropDown == none || ScreenModeDropDown != Widget) {
@@ -258,6 +300,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			SetUpDataProvider(ScreenModeDropDown);
 			GetLastSelection(ScreenModeDropDown);
 			ScreenModeDropDown.AddEventListener('CLIK_change', OnScreenModeDropDownChange);
+			bWasHandled = true;
 			break;
 		case 'GraphicPresetsDropDown':
 			if (GraphicPresetsDropDown == none || GraphicPresetsDropDown != Widget) {
@@ -266,6 +309,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			SetUpDataProvider(GraphicPresetsDropDown);
 			GetLastSelection(GraphicPresetsDropDown);
 			GraphicPresetsDropDown.AddEventListener('CLIK_change', OnGraphicPresetsDropDownChange);
+			bWasHandled = true;
 			break;
 		case 'AntiAliasingDropDown':
 			if (AntiAliasingDropDown == none || AntiAliasingDropDown != Widget) {
@@ -274,6 +318,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			SetUpDataProvider(AntiAliasingDropDown);
 			GetLastSelection(AntiAliasingDropDown);
 			AntiAliasingDropDown.AddEventListener('CLIK_change', OnAntiAliasingDropDownChange);
+			bWasHandled = true;
 			break;
 		case 'TextureFilteringDropDown':  
 			if (TextureFilteringDropDown == none || TextureFilteringDropDown != Widget) {
@@ -282,19 +327,35 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			SetUpDataProvider(TextureFilteringDropDown);
 			GetLastSelection(TextureFilteringDropDown);
 			TextureFilteringDropDown.AddEventListener('CLIK_change', OnTextureFilteringDropDownChange);
+			bWasHandled = true;
 			break;
 		case 'BrightnessSlider':    
 			if (BrightnessSlider == none || BrightnessSlider != Widget) {
 				BrightnessSlider = GFxClikWidget(Widget);
 			}
 			GetLastSelection(BrightnessSlider);
-			BrightnessSlider.AddEventListener('CLIK_change', OnBrightnessSliderChange);
+			BrightnessSlider.AddEventListener('CLIK_valueChange', OnBrightnessSliderChange);
+			bWasHandled = true;
 			break;
 		case 'BrightnessLabel':
 			if (BrightnessLabel == none || BrightnessLabel != Widget) {
 				BrightnessLabel = GFxClikWidget(Widget);
 			}
 			BrightnessLabel.SetText(SettingsCurrentVideo.BrightnessValue);
+			bWasHandled = true;
+			break;
+		case 'FPSSlider':    
+			if (FPSSlider == none || FPSSlider != Widget) {
+				FPSSlider = GFxClikWidget(Widget);
+			}
+			GetLastSelection(FPSSlider);
+			FPSSlider.AddEventListener('CLIK_valueChange', OnFPSSliderChange);
+			break;
+		case 'FPSLabel':
+			if (FPSLabel == none || FPSLabel != Widget) {
+				FPSLabel = GFxClikWidget(Widget);
+			}
+			FPSLabel.SetText(SettingsCurrentVideo.FPSValue);
 			break;
 		case 'VSyncCheckBox':
 			if (VSyncCheckBox == none || VSyncCheckBox != Widget) {
@@ -302,6 +363,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			GetLastSelection(VSyncCheckBox);
 			VSyncCheckBox.AddEventListener('CLIK_select', OnVSyncCheckBoxSelect);
+			bWasHandled = true;
 			break;
 		case 'Dx10CheckBox': //need to remove this.
 			if (Dx10CheckBox == none || Dx10CheckBox != Widget) {
@@ -309,8 +371,27 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			GetLastSelection(Dx10CheckBox);
 			Dx10CheckBox.AddEventListener('CLIK_select', OnDx10CheckBoxSelect);
-			Dx10CheckBox.SetBool("disabled", true); //Temporary
+			Dx10CheckBox.SetBool("enabled", false); //Temporary
 			Dx10CheckBox.SetVisible(false);
+			bWasHandled = true;
+			break;
+		//nBab
+		case 'AllowD3D9MSAACheckBox': 
+			if (AllowD3D9MSAACheckBox == none || AllowD3D9MSAACheckBox != Widget) {
+				AllowD3D9MSAACheckBox = GFxClikWidget(Widget);
+			}
+			GetLastSelection(AllowD3D9MSAACheckBox);
+			AllowD3D9MSAACheckBox.AddEventListener('CLIK_select', OnAllowD3D9MSAACheckBoxSelect);
+			bWasHandled = true;
+			break;
+		//nBab
+		case 'UseHardwarePhysicsCheckBox': 
+			if (UseHardwarePhysicsCheckBox == none || UseHardwarePhysicsCheckBox != Widget) {
+				UseHardwarePhysicsCheckBox = GFxClikWidget(Widget);
+			}
+			GetLastSelection(UseHardwarePhysicsCheckBox);
+			UseHardwarePhysicsCheckBox.AddEventListener('CLIK_select', OnUseHardwarePhysicsCheckBoxSelect);
+			bWasHandled = true;
 			break;
 		case 'MotionBlurCheckBox':
 			if (MotionBlurCheckBox == none || MotionBlurCheckBox != Widget) {
@@ -318,6 +399,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			GetLastSelection(MotionBlurCheckBox);
 			MotionBlurCheckBox.AddEventListener('CLIK_select', OnMotionBlurCheckBoxSelect);
+			bWasHandled = true;
 			break;
 		case 'DynamicLightsCheckBox':
 			if (DynamicLightsCheckBox == none || DynamicLightsCheckBox != Widget) {
@@ -325,6 +407,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			GetLastSelection(DynamicLightsCheckBox);
 			DynamicLightsCheckBox.AddEventListener('CLIK_select', OnDynamicLightsCheckBoxSelect);
+			bWasHandled = true;
 			break;
 		case 'DynamicShadowsCheckBox':
 			if (DynamicShadowsCheckBox == none || DynamicShadowsCheckBox != Widget) {
@@ -333,46 +416,52 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			GetLastSelection(DynamicShadowsCheckBox);
 			DynamicShadowsCheckBox.AddEventListener('CLIK_select', OnDynamicShadowsCheckBoxSelect);
 			//addeventlistener here
+			bWasHandled = true;
 			break;
 		case 'TextureDetailDropDown':
 			if (TextureDetailDropDown == none || TextureDetailDropDown != Widget) {
-				TextureDetailDropDown = GFxClikWidget(Widget);
+				TextureDetailDropDown = Rx_GFxDropDown(Widget);
 			}
 			SetUpDataProvider(TextureDetailDropDown);
 			GetLastSelection(TextureDetailDropDown);
 			TextureDetailDropDown.AddEventListener('CLIK_change', OnTextureDetailDropDownChange);
+			bWasHandled = true;
 			break;
 		case 'DetailLevelDropDown':
 			if (DetailLevelDropDown == none || DetailLevelDropDown != Widget) {
-				DetailLevelDropDown = GFxClikWidget(Widget);
+				DetailLevelDropDown = Rx_GFxDropDown(Widget);
 			}
 			SetUpDataProvider(DetailLevelDropDown);
 			GetLastSelection(DetailLevelDropDown);
 			DetailLevelDropDown.AddEventListener('CLIK_change', OnDetailLevelDropDownChange);
+			bWasHandled = true;
 			break;
 		case 'CharacterLODDropDown':
 			if (CharacterLODDropDown == none || CharacterLODDropDown != Widget) {
-				CharacterLODDropDown = GFxClikWidget(Widget);
+				CharacterLODDropDown = Rx_GFxDropDown(Widget);
 			}
 			SetUpDataProvider(CharacterLODDropDown);
 			GetLastSelection(CharacterLODDropDown);
 			CharacterLODDropDown.AddEventListener('CLIK_change', OnCharacterLODDropDownChange);
+			bWasHandled = true;
 			break;
 		case 'EffectsLODDropDown':
 			if (EffectsLODDropDown == none || EffectsLODDropDown != Widget) {
-				EffectsLODDropDown = GFxClikWidget(Widget);
+				EffectsLODDropDown = Rx_GFxDropDown(Widget);
 			}
 			SetUpDataProvider(EffectsLODDropDown);
 			GetLastSelection(EffectsLODDropDown);
 			EffectsLODDropDown.AddEventListener('CLIK_change', OnEffectsLODDropDownChange);
+			bWasHandled = true;
 			break;
 		case 'ShadowQualityDropDown':
 			if (ShadowQualityDropDown == none || ShadowQualityDropDown != Widget) {
-				ShadowQualityDropDown = GFxClikWidget(Widget);
+				ShadowQualityDropDown = Rx_GFxDropDown(Widget);
 			}
 			SetUpDataProvider(ShadowQualityDropDown);
 			GetLastSelection(ShadowQualityDropDown);
 			ShadowQualityDropDown.AddEventListener('CLIK_change', OnShadowQualityDropDownChange);
+			bWasHandled = true;
 			break;
 		case 'EnabledGoreCheckBox':
 			if (EnabledGoreCheckBox == none || EnabledGoreCheckBox != Widget) {
@@ -380,19 +469,22 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			GetLastSelection(EnabledGoreCheckBox);
 			EnabledGoreCheckBox.AddEventListener('CLIK_select', OnEnabledGoreCheckBoxSelect);
+			bWasHandled = true;
 			break;
 		case 'FOVSlider':
 			if (FOVSlider == none || FOVSlider != Widget) {
 				FOVSlider = GFxClikWidget(Widget);
 			}
 			GetLastSelection(FOVSlider);
-			FOVSlider.AddEventListener('CLIK_change', OnFOVSliderChange);
+			FOVSlider.AddEventListener('CLIK_valueChange', OnFOVSliderChange);
+			bWasHandled = true;
 			break;
 		case 'FOVLabel':
 			if (FOVLabel == none || FOVLabel != Widget) {
 				FOVLabel = GFxClikWidget(Widget);
 			}
 			FOVLabel.SetText(SettingsCurrentVideo.FOVValue);
+			bWasHandled = true;
 			break;
 		case 'LightEnvironmentShadowsCheckBox':
 			if (LightEnvironmentShadowsCheckBox == none || LightEnvironmentShadowsCheckBox != Widget) {
@@ -400,6 +492,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			GetLastSelection(LightEnvironmentShadowsCheckBox);
 			LightEnvironmentShadowsCheckBox.AddEventListener('CLIK_select', OnLightEnvironmentShadowsCheckBoxSelect);
+			bWasHandled = true;
 			break;
 		case 'CompositeDynamicLightsCheckBox':
 			if (CompositeDynamicLightsCheckBox == none || CompositeDynamicLightsCheckBox != Widget) {
@@ -407,6 +500,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			GetLastSelection(CompositeDynamicLightsCheckBox);
 			CompositeDynamicLightsCheckBox.AddEventListener('CLIK_select', OnCompositeDynamicLightsCheckBoxSelect);
+			bWasHandled = true;
 			break;
 		case 'DirectionalLightmapsCheckBox':
 			if (DirectionalLightmapsCheckBox == none || DirectionalLightmapsCheckBox != Widget) {
@@ -414,6 +508,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			GetLastSelection(DirectionalLightmapsCheckBox);
 			DirectionalLightmapsCheckBox.AddEventListener('CLIK_select', OnDirectionalLightmapsCheckBoxSelect);
+			bWasHandled = true;
 			break;
 		case 'BloomDoFCheckBox'://should bloom
 			if (BloomDoFCheckBox == none || BloomDoFCheckBox != Widget) {
@@ -421,19 +516,22 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			GetLastSelection(BloomDoFCheckBox);
 			BloomDoFCheckBox.AddEventListener('CLIK_select', OnBloomDoFCheckBoxSelect);
+			bWasHandled = true;
 			break;
 		case 'BloomSlider':
 			if (BloomSlider == none || BloomSlider != Widget) {
 				BloomSlider = GFxClikWidget(Widget);
 			}
 			GetLastSelection(BloomSlider);
-			BloomSlider.AddEventListener('CLIK_change', OnBloomSliderChange);
+			BloomSlider.AddEventListener('CLIK_valueChange', OnBloomSliderChange);
+			bWasHandled = true;
 			break;
 		case 'BloomLabel':
 			if (BloomLabel == none || BloomLabel != Widget) {
 				BloomLabel = GFxClikWidget(Widget);
 			}
 			BloomLabel.SetText(Left(""$SettingsCurrentVideo.BloomValue, InStr(""$SettingsCurrentVideo.BloomValue, ".")+3));
+			bWasHandled = true;
 			break;
 		case 'AmbientOcclusionCheckBox'://should doF
 			if (AmbientOcclusionCheckBox == none || AmbientOcclusionCheckBox != Widget) {
@@ -441,6 +539,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			GetLastSelection(AmbientOcclusionCheckBox);
 			AmbientOcclusionCheckBox.AddEventListener('CLIK_select', OnAmbientOcclusionCheckBoxSelect);
+			bWasHandled = true;
 			break;
 		case 'LensFlaresCheckBox':
 			if (LensFlaresCheckBox == none || LensFlaresCheckBox != Widget) {
@@ -448,6 +547,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			GetLastSelection(LensFlaresCheckBox);
 			LensFlaresCheckBox.AddEventListener('CLIK_select', OnLensFlaresCheckBoxSelect);
+			bWasHandled = true;
 			break;
 		case 'DistortionCheckBox':
 			if (DistortionCheckBox == none || DistortionCheckBox != Widget) {
@@ -455,6 +555,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			GetLastSelection(DistortionCheckBox);
 			DistortionCheckBox.AddEventListener('CLIK_select', OnDistortionCheckBoxSelect);
+			bWasHandled = true;
 			break;
 		case 'ParticleDistortionDroppingCheckBox':
 			if (ParticleDistortionDroppingCheckBox == none || ParticleDistortionDroppingCheckBox != Widget) {
@@ -462,6 +563,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			GetLastSelection(ParticleDistortionDroppingCheckBox);
 			ParticleDistortionDroppingCheckBox.AddEventListener('CLIK_select', OnParticleDistortionDroppingCheckBoxSelect);
+			bWasHandled = true;
 			break;
 		case 'StaticDecalsCheckBox':
 			if (StaticDecalsCheckBox == none || StaticDecalsCheckBox != Widget) {
@@ -469,6 +571,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			GetLastSelection(StaticDecalsCheckBox);
 			StaticDecalsCheckBox.AddEventListener('CLIK_select', OnStaticDecalsCheckBoxSelect);
+			bWasHandled = true;
 			break;
 		case 'DynamicDecalsCheckBox':
 			if (DynamicDecalsCheckBox == none || DynamicDecalsCheckBox != Widget) {
@@ -476,6 +579,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			GetLastSelection(DynamicDecalsCheckBox);
 			DynamicDecalsCheckBox.AddEventListener('CLIK_select', OnDynamicDecalsCheckBoxSelect);
+			bWasHandled = true;
 			break;
 		case 'FramerateSmoothingCheckBox':
 			if (FramerateSmoothingCheckBox == none || FramerateSmoothingCheckBox != Widget) {
@@ -483,6 +587,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			GetLastSelection(FramerateSmoothingCheckBox);
 			FramerateSmoothingCheckBox.AddEventListener('CLIK_select', OnFramerateSmoothingCheckBoxSelect);
+			bWasHandled = true;
 			break;
 
 		/************************************* [Settings - Audio] *****************************************/
@@ -491,65 +596,75 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 				SFXVolumeSlider = GFxClikWidget(Widget);
 			}
 			GetLastSelection(SFXVolumeSlider);
-			SFXVolumeSlider.AddEventListener('CLIK_change', OnSFXVolumeSliderChange);
+			SFXVolumeSlider.AddEventListener('CLIK_valueChange', OnSFXVolumeSliderChange);
+			bWasHandled = true;
 			break;
 		case'SFXVolumeLabel':
 			if (SFXVolumeLabel == none || SFXVolumeLabel != Widget) {
 				SFXVolumeLabel = GFxClikWidget(Widget);
 			}
 			SFXVolumeLabel.SetText(int(SettingsCurrentAudio.SFXVolumeValue*100) $"%");
+			bWasHandled = true;
 			break;
 		case'MusicVolumeSlider':
 			if (MusicVolumeSlider == none || MusicVolumeSlider != Widget) {
 				MusicVolumeSlider = GFxClikWidget(Widget);
 			}
 			GetLastSelection(MusicVolumeSlider);
-			MusicVolumeSlider.AddEventListener('CLIK_change', OnMusicVolumeSliderChange);
+			MusicVolumeSlider.AddEventListener('CLIK_valueChange', OnMusicVolumeSliderChange);
+			bWasHandled = true;
 			break;
 		case'MusicVolumeLabel':
 			if (MusicVolumeLabel == none || MusicVolumeLabel != Widget) {
 				MusicVolumeLabel = GFxClikWidget(Widget);
 			}
 			MusicVolumeLabel.SetText(int(SettingsCurrentAudio.MusicVolumeValue*100) $"%");
+			bWasHandled = true;
 			break;  
 		case'AmbianceVolumeSlider':
 			if (AmbianceVolumeSlider == none || AmbianceVolumeSlider != Widget) {
 				AmbianceVolumeSlider = GFxClikWidget(Widget);
 			}
 			GetLastSelection(AmbianceVolumeSlider);
-			AmbianceVolumeSlider.AddEventListener('CLIK_change', OnAmbianceVolumeSliderChange);
+			AmbianceVolumeSlider.AddEventListener('CLIK_valueChange', OnAmbianceVolumeSliderChange);
+			bWasHandled = true;
 			break;
 		case'AmbianceVolumeLabel':
 			if (AmbianceVolumeLabel == none || AmbianceVolumeLabel != Widget) {
 				AmbianceVolumeLabel = GFxClikWidget(Widget);
 			}
 			AmbianceVolumeLabel.SetText(int(SettingsCurrentAudio.AmbianceVolumeValue*100) $"%");
+			bWasHandled = true;
 			break;
 		case'DialogueVolumeSlider':
 			if (DialogueVolumeSlider == none || DialogueVolumeSlider != Widget) {
 				DialogueVolumeSlider = GFxClikWidget(Widget);
 			}
 			GetLastSelection(DialogueVolumeSlider);
-			DialogueVolumeSlider.AddEventListener('CLIK_change', OnCharacterVolumeSliderChange);
+			DialogueVolumeSlider.AddEventListener('CLIK_valueChange', OnCharacterVolumeSliderChange);
+			bWasHandled = true;
 			break;
 		case'DialogueVolumeLabel':
 			if (DialogueVolumeLabel == none || DialogueVolumeLabel != Widget) {
 				DialogueVolumeLabel = GFxClikWidget(Widget);
 			}
 			DialogueVolumeLabel.SetText(int(SettingsCurrentAudio.CharacterVolumeValue*100) $"%");
+			bWasHandled = true;
 			break;
 		case'AnnouncerVolumeSlider':
 			if (AnnouncerVolumeSlider == none || AnnouncerVolumeSlider != Widget) {
 				AnnouncerVolumeSlider = GFxClikWidget(Widget);
 			}
 			GetLastSelection(AnnouncerVolumeSlider);
-			AnnouncerVolumeSlider.AddEventListener('CLIK_change', OnAnnouncerVolumeSliderChange);
+			AnnouncerVolumeSlider.AddEventListener('CLIK_valueChange', OnAnnouncerVolumeSliderChange);
+			bWasHandled = true;
 			break;
 		case'AnnouncerVolumeLabel':
 			if (AnnouncerVolumeLabel == none || AnnouncerVolumeLabel != Widget) {
 				AnnouncerVolumeLabel = GFxClikWidget(Widget);
 			}
 			AnnouncerVolumeLabel.SetText(int(SettingsCurrentAudio.AnnouncerVolumeValue*100) $"%");
+			bWasHandled = true;
 			break;
 		case'HardwareOpenALCheckBox':
 			if (HardwareOpenALCheckBox == none || HardwareOpenALCheckBox != Widget) {
@@ -557,7 +672,8 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			GetLastSelection(HardwareOpenALCheckBox);
 			HardwareOpenALCheckBox.AddEventListener('CLIK_select', OnHardwareOpenALCheckBoxSelect);
-			HardwareOpenALCheckBox.SetBool("disabled", true);
+			HardwareOpenALCheckBox.SetBool("enabled", false);
+			bWasHandled = true;
 			break;
 		case'AutoplayMusicCheckBox':
 			if (AutoplayMusicCheckBox == none || AutoplayMusicCheckBox != Widget) {
@@ -565,54 +681,65 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			GetLastSelection(AutoplayMusicCheckBox);
 			AutoplayMusicCheckBox.AddEventListener('CLIK_select', OnAutoplayMusicCheckBoxSelect);
+			bWasHandled = true;
 			break;
 		case'PlayButton':
-			`log("PlayButton found");
 			if (PlayButton == none || PlayButton != Widget) {
 				PlayButton = GFxClikWidget(Widget);
  				PlayButton.SetObject("group", PlayerControlGroup);
 			}
  			GetLastSelection(PlayButton);
-			PlayButton.SetBool("disabled", true);
+			//PlayButton.SetBool("enabled", false);
+			bWasHandled = true;
 			break;
 		case'StopButton':
-			`log("StopButton found");
 			if (StopButton == none || StopButton != Widget) {
 				StopButton = GFxClikWidget(Widget);
 				StopButton.SetObject("group", PlayerControlGroup);
 			}
 			GetLastSelection(StopButton);
-			StopButton.SetBool("disabled", true);
+			//StopButton.SetBool("enabled", false);
+			bWasHandled = true;
 			break;
 		case'ShuffleButton':
-			`log("ShuffleButton found");
 			if (ShuffleButton == none || ShuffleButton != Widget) {
 				ShuffleButton = GFxClikWidget(Widget);
 			}
  			GetLastSelection(ShuffleButton);
- 			ShuffleButton.AddEventListener('CLIK_select', OnShuffleButtonSelect);
-			ShuffleButton.SetBool("disabled", true);
+ 			ShuffleButton.AddEventListener('CLIK_itemClick', OnShuffleButtonSelect);
+			//ShuffleButton.SetBool("enabled", false);
+			bWasHandled = true;
 			break;
 		case'MusicTrackScrollBar':
-			`log("MusicTrackScrollBar found");
 			if (MusicTrackScrollBar == none || MusicTrackScrollBar != Widget) {
 				MusicTrackScrollBar = GFxClikWidget(Widget);
 			}
 			GetLastSelection(MusicTrackScrollBar);
-			MusicTrackScrollBar.SetBool("disabled", true);
+			//MusicTrackScrollBar.SetBool("enabled", false);
+			bWasHandled = true;
 			break;
 		case'MusicTracklist':
-			`log("MusicTracklist found");
 			if (MusicTracklist == none || MusicTracklist != Widget) {
 				MusicTracklist = GFxClikWidget(Widget);
 			}
 			SetUpDataProvider(MusicTracklist);
  			GetLastSelection(MusicTracklist);
  			MusicTracklist.AddEventListener('CLIK_itemClick', OnMusicTracklistItemClick);
-			MusicTracklist.SetBool("disabled", true);
+			//nBab
+			//MusicTracklist.SetBool("disabled", true);
+			bWasHandled = true;
+			break;
+		//nBab
+		case'MusicCheckBoxlist':
+			if (MusicCheckBoxlist == none || MusicCheckBoxlist != Widget) {
+				MusicCheckBoxlist = GFxClikWidget(Widget);
+			}
+			SetUpDataProvider(MusicCheckBoxlist);
+ 			GetLastSelection(MusicCheckBoxlist);
+ 			MusicCheckBoxlist.AddEventListener('CLIK_itemClick', OnMusicCheckBoxlistItemClick);
+			bWasHandled = true;
 			break;
 		case'TrackNameLabel':
-			`log("TrackNameLabel found");
 			if (TrackNameLabel == none || TrackNameLabel != Widget) {
 				TrackNameLabel = GFxClikWidget(Widget);
 			}
@@ -627,13 +754,34 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 					TrackNameLabel.SetText("");				
 				}
 			}
+			bWasHandled = true;
 			break;
 		case'SettingsAudioActionBar':
 			if (SettingsAudioActionBar == none || SettingsAudioActionBar != Widget) {
 				SettingsAudioActionBar = GFxClikWidget(Widget);
 			}
 			SetUpDataProvider(SettingsAudioActionBar);
-			SettingsAudioActionBar.AddEventListener('CLIK_itemClick', OnSettingsAudioActionBarChange);
+			SettingsAudioActionBar.AddEventListener('CLIK_buttonClick', OnSettingsAudioActionBarChange);
+			bWasHandled = true;
+			break;
+		//setting kill sound widget (nBab)
+		case 'KillSoundDropDown':
+			if (KillSoundDropDown == none || KillSoundDropDown != Widget) {
+				KillSoundDropDown = GFxClikWidget(Widget);
+			}
+			SetUpDataProvider(KillSoundDropDown);
+			GetLastSelection(KillSoundDropDown);
+			KillSoundDropDown.AddEventListener('CLIK_change', OnKillSoundDropDownChange);
+			bWasHandled = true;
+			break;
+		//setting kill sound play button widget (nBab)
+		case 'KillSoundPlayButton':
+			if (KillSoundPlayButton == none || KillSoundPlayButton != Widget) {
+				KillSoundPlayButton = GFxClikWidget(Widget);
+			}
+			GetLastSelection(KillSoundPlayButton);
+			KillSoundPlayButton.AddEventListener('CLIK_click', OnKillSoundPlayButtonChange);
+			bWasHandled = true;
 			break;
 
 		/************************************* [Settings - Input] *****************************************/
@@ -643,7 +791,8 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 				MouseSensitivitySlider = GFxClikWidget(Widget);
 			}
 			GetLastSelection(MouseSensitivitySlider);
-			MouseSensitivitySlider.AddEventListener('CLIK_change', OnMouseSensitivitySliderChange);
+			MouseSensitivitySlider.AddEventListener('CLIK_valueChange', OnMouseSensitivitySliderChange);
+			bWasHandled = true;
 			break;
 		case 'MouseSensitivityInput':
 			if (MouseSensitivityInput == none || MouseSensitivityInput != Widget) {
@@ -653,14 +802,16 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			MouseSensitivityInput.AddEventListener('CLIK_focusIn', OnMouseSensitivityInputFocusIn);
 			MouseSensitivityInput.AddEventListener('CLIK_focusOut', OnMouseSensitivityInputFocusOut);
 			MouseSensitivityInput.AddEventListener('CLIK_textChange', OnMouseSensitivityInputTextChange);
+			bWasHandled = true;
 			break;
 		case 'GamepadSensitivitySlider':
 			if (GamepadSensitivitySlider == none || GamepadSensitivitySlider != Widget) {
 				GamepadSensitivitySlider = GFxClikWidget(Widget);
 			}
 			GetLastSelection(GamepadSensitivitySlider);
-			GamepadSensitivitySlider.AddEventListener('CLIK_change', OnGamepadSensitivitySliderChange);
-			GamepadSensitivitySlider.SetBool("disabled", true);
+			GamepadSensitivitySlider.AddEventListener('CLIK_valueChange', OnGamepadSensitivitySliderChange);
+			GamepadSensitivitySlider.SetBool("enabled", false);
+			bWasHandled = true;
 			break;
 		case 'GamepadSensitivityInput':
 			if (GamepadSensitivityInput == none || GamepadSensitivityInput != Widget) {
@@ -670,7 +821,8 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			GamepadSensitivityInput.AddEventListener('CLIK_focusIn', OnGamepadSensitivityInputFocusIn);
 			GamepadSensitivityInput.AddEventListener('CLIK_focusOut', OnGamepadSensitivityInputFocusOut);
 			GamepadSensitivityInput.AddEventListener('CLIK_textChange', OnGamepadSensitivityInputTextChange);
-			GamepadSensitivityInput.SetBool("disabled", true);
+			GamepadSensitivityInput.SetBool("enabled", false);
+			bWasHandled = true;
 			break;
 		case 'MouseSmoothingCheckBox':
 			if (MouseSmoothingCheckBox == none || MouseSmoothingCheckBox != Widget) {
@@ -678,6 +830,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			GetLastSelection(MouseSmoothingCheckBox);
 			MouseSmoothingCheckBox.AddEventListener('CLIK_select', OnMouseSmoothingCheckBoxSelect);
+			bWasHandled = true;
 			break;
 		case 'InvertYCheckBox':
 			if (InvertYCheckBox == none || InvertYCheckBox != Widget) {
@@ -685,6 +838,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			GetLastSelection(InvertYCheckBox);
 			InvertYCheckBox.AddEventListener('CLIK_select', OnInvertYCheckBoxSelect);
+			bWasHandled = true;
 			break;
 		case 'WeaponHandDropDown':
 			if (WeaponHandDropDown == none || WeaponHandDropDown != Widget) {
@@ -693,6 +847,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			SetUpDataProvider(WeaponHandDropDown);
 			GetLastSelection(WeaponHandDropDown);
 			WeaponHandDropDown.AddEventListener('CLIK_change', OnWeaponHandDropDownChange);
+			bWasHandled = true;
 			break;
 		case 'TankReverseCheckBox':
 			if (TankReverseCheckBox == none || TankReverseCheckBox != Widget) {
@@ -700,6 +855,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			GetLastSelection(TankReverseCheckBox);
 			TankReverseCheckBox.AddEventListener('CLIK_select', OnTankReverseCheckBoxSelect);
+			bWasHandled = true;
 			break;
 		case 'ToggleADSCheckBox':
 			if (ToggleADSCheckBox == none || ToggleADSCheckBox != Widget) {
@@ -707,6 +863,23 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			GetLastSelection(ToggleADSCheckBox);
 			ToggleADSCheckBox.AddEventListener('CLIK_select', OnToggleADSCheckBoxSelect);
+			bWasHandled = true;
+			break;
+		case 'ToggleCrouchCheckBox':
+			if (ToggleCrouchCheckBox == none || ToggleCrouchCheckBox != Widget) {
+				ToggleCrouchCheckBox = GFxClikWidget(Widget);
+			}
+			GetLastSelection(ToggleCrouchCheckBox);
+			ToggleCrouchCheckBox.AddEventListener('CLIK_select', OnToggleCrouchCheckBoxSelect);
+			bWasHandled = true;
+			break;
+		case 'ToggleSprintCheckBox':
+			if (ToggleSprintCheckBox == none || ToggleSprintCheckBox != Widget) {
+				ToggleSprintCheckBox = GFxClikWidget(Widget);
+			}
+			GetLastSelection(ToggleSprintCheckBox);
+			ToggleSprintCheckBox.AddEventListener('CLIK_select', OnToggleSprintCheckBoxSelect);
+			bWasHandled = true;
 			break;
 		case 'UseClassicTeamNameColorsCheckBox':
 			if (UseClassicTeamNameColorsCheckBox == none || UseClassicTeamNameColorsCheckBox != Widget) {
@@ -714,6 +887,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			GetLastSelection(UseClassicTeamNameColorsCheckBox);
 			UseClassicTeamNameColorsCheckBox.AddEventListener('CLIK_select', OnUseClassicTeamNameColorsCheckBoxSelect);
+			bWasHandled = true;
 			break;
 		case 'KeyBindingList':
 			if (KeyBindingList == none || KeyBindingList != Widget) {
@@ -721,6 +895,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			SetUpDataProvider(KeyBindingList);
 			GetLastSelection(KeyBindingList);
+			bWasHandled = true;
 			break;
 		case 'BindingPrimaryList':
 			if (BindingPrimaryList == none || BindingPrimaryList != Widget) {
@@ -728,7 +903,8 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			SetUpDataProvider(BindingPrimaryList);
 			GetLastSelection(BindingPrimaryList);
-			BindingPrimaryList.AddEventListener('CLIK_itemClick', OnBindingPrimaryListItemClick);
+			BindingPrimaryList.AddEventListener('CLIK_listIndexChange', OnBindingPrimaryListItemClick);
+			bWasHandled = true;
 			break;
 		case 'BindingSecondaryList':
 			if (BindingSecondaryList == none || BindingSecondaryList != Widget) {
@@ -736,28 +912,91 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			SetUpDataProvider(BindingSecondaryList);
 			GetLastSelection(BindingSecondaryList);
-			BindingSecondaryList.AddEventListener('CLIK_itemClick', OnBindingSecondaryListItemClick);
-			BindingSecondaryList.SetBool("disabled", true);
+			BindingSecondaryList.AddEventListener('CLIK_listIndexChange', OnBindingSecondaryListItemClick);
+			BindingSecondaryList.SetBool("enabled", false);
 			BindingSecondaryList.SetVisible(false);
+			bWasHandled = true;
 			break;
 		case 'keyBindScroll':
 			if (keyBindScroll == none || keyBindScroll != Widget) {
 				keyBindScroll = GFxClikWidget(Widget);
 			}
 			keyBindScroll.SetVisible(false);
+			bWasHandled = true;
 			break;
 		case 'SettingsInputActionBar':
 			if (SettingsInputActionBar == none || SettingsInputActionBar != Widget) {
 				SettingsInputActionBar = GFxClikWidget(Widget);
 			}
 			SetUpDataProvider(SettingsInputActionBar);
-			SettingsInputActionBar.AddEventListener('CLIK_itemClick', OnSettingsInputActionBarChange);
+			SettingsInputActionBar.AddEventListener('CLIK_buttonClick', OnSettingsInputActionBarChange);
+			bWasHandled = true;
+			break;
+		//setting tech building icon widget (nBab)
+		case 'TechBuildingIconDropDown':
+			if (TechBuildingIconDropDown == none || TechBuildingIconDropDown != Widget) {
+				TechBuildingIconDropDown = GFxClikWidget(Widget);
+			}
+			SetUpDataProvider(TechBuildingIconDropDown);
+			GetLastSelection(TechBuildingIconDropDown);
+			TechBuildingIconDropDown.AddEventListener('CLIK_change', OnTechBuildingIconDropDownChange);
+			bWasHandled = true;
+			break;
+		//setting beacon icon widget (nBab)
+		case 'BeaconIconDropDown':
+			if (BeaconIconDropDown == none || BeaconIconDropDown != Widget) {
+				BeaconIconDropDown = GFxClikWidget(Widget);
+			}
+			SetUpDataProvider(BeaconIconDropDown);
+			GetLastSelection(BeaconIconDropDown);
+			BeaconIconDropDown.AddEventListener('CLIK_change', OnBeaconIconDropDownChange);
+			bWasHandled = true;
+			break;
+		//setting crosshair color widget (nBab)
+		case 'CrosshairColorDropDown':
+			if (CrosshairColorDropDown == none || CrosshairColorDropDown != Widget) {
+				CrosshairColorDropDown = GFxClikWidget(Widget);
+			}
+			SetUpDataProvider(CrosshairColorDropDown);
+			GetLastSelection(CrosshairColorDropDown);
+			CrosshairColorDropDown.AddEventListener('CLIK_change', OnCrosshairColorDropDownChange);
+			bWasHandled = true;
+			break;
+		//setting crosshair color text widget (nBab)
+		case 'CrosshairColorText':
+			Widget.setText("Crosshair Color:");
+			bWasHandled = true;
+			break;
+		//setting beacon icon text widget (nBab)
+		case 'BeaconIconText':
+			Widget.setText("Beacon Icon:");
+			bWasHandled = true;
+			break;
+		//setting tech building icon text widget (nBab)
+		case 'TechBuildingIconText':
+			Widget.setText("Tech Building Icon:");
+			bWasHandled = true;
+			break;
+		//setting use hardware physics text widget (nBab)
+		case 'UseHardwarePhysicsText':
+			Widget.setText("Use Hardware PhysX:");
+			bWasHandled = true;
+			break;
+		//setting allow d3d9msaa text widget (nBab)
+		case 'AllowD3D9MSAAText':
+			Widget.setText("Allow D3D9 MSAA:");
+			bWasHandled = true;
+			break;
+		//setting kill sound text widget (nBab)
+		case 'KillSoundText':
+			Widget.setText("Kill Sound:");
+			bWasHandled = true;
 			break;
 		default:
 			`log("Unknown Widget: " $ WidgetName);
 			break;
 	}
-	return false;
+	return bWasHandled;
 }
 
 function SetUpDataProvider(GFxClikWidget Widget)
@@ -766,15 +1005,23 @@ function SetUpDataProvider(GFxClikWidget Widget)
 	local GFxObject DataProvider;
 	local GFxObject TempObj;
 
-	DataProvider = CreateArray();
+	`log("Rx_GFxFrontEnd_Settings::SetupDataProvider"@Widget.GetString("name"),true,'DevGFxUI');
+
+	DataProvider = CreateObject("scaleform.clik.data.DataProvider");
 	switch (Widget)
 	{
 
 		/************************************* [Settings - Video] *****************************************/
 
 		case (SettingsVideoActionBar) :
-			DataProvider.SetElementString(0, "BACK");
-			DataProvider.SetElementString(1, "APPLY");
+			TempObj = CreateObject("Object");
+			TempObj.SetString("label", "BACK");
+			TempObj.SetString("action", "back");
+			DataProvider.SetElementObject(0, TempObj);
+			TempObj = CreateObject("Object");
+			TempObj.SetString("label", "APPLY");
+			TempObj.SetString("action", "apply");
+			DataProvider.SetElementObject(1, TempObj);
 			break;
 
 		case (ScreenResolutionDropDown) :
@@ -853,8 +1100,14 @@ function SetUpDataProvider(GFxClikWidget Widget)
 		/************************************* [Settings - Audio] *****************************************/
 
 		case (SettingsAudioActionBar):
-			DataProvider.SetElementString(0, "BACK");
-			DataProvider.SetElementString(1, "APPLY");
+			TempObj = CreateObject("Object");
+			TempObj.SetString("label", "BACK");
+			TempObj.SetString("action", "back");
+			DataProvider.SetElementObject(0, TempObj);
+			TempObj = CreateObject("Object");
+			TempObj.SetString("label", "APPLY");
+			TempObj.SetString("action", "apply");
+			DataProvider.SetElementObject(1, TempObj);
 			break;
 		case (MusicTracklist):
 			//TODO: find a way to get the audio data
@@ -881,10 +1134,32 @@ function SetUpDataProvider(GFxClikWidget Widget)
 			for(i=0; i < MainFrontEnd.JukeBox.JukeBoxList.Length; i++) {
 				TempObj = CreateObject("Object");
  				TempObj.SetString("label", (i+1) $ " - " $ MainFrontEnd.JukeBox.JukeBoxList[i].TrackName);
- 				TempObj.SetBool("toggled", MainFrontEnd.JukeBox.JukeBoxList[i].bSelected);
+ 				//removed toggle since we're using a separate checkbox list (nBab)
+ 				//TempObj.SetBool("toggled", MainFrontEnd.JukeBox.JukeBoxList[i].bSelected);
 				DataProvider.SetElementObject(i, TempObj);
 			}
-
+			break;
+		//setting music checkbox list data provider (nBab)
+		case (MusicCheckBoxlist):
+			for(i=0; i < MainFrontEnd.JukeBox.JukeBoxList.Length; i++) {
+				TempObj = CreateObject("Object");
+				TempObj.SetBool("toggled", MainFrontEnd.JukeBox.JukeBoxList[i].bSelected);
+				DataProvider.SetElementObject(i, TempObj);
+			}
+			break;
+		//setting kill sound data provider (nBab)
+		case (KillSoundDropDown):
+			DataProvider.SetElementString(0, "BOINK");
+			DataProvider.SetElementString(1, "MODERN");
+			DataProvider.SetElementString(2, "KILL ALERT");
+			DataProvider.SetElementString(3, "HAVOC");
+			DataProvider.SetElementString(4, "MCFARLAND");
+			DataProvider.SetElementString(5, "GOTCHYA");
+			DataProvider.SetElementString(6, "AWW TOO EASY");
+			DataProvider.SetElementString(7, "FOR KANE");
+			DataProvider.SetElementString(8, "DIE INFIDEL");
+			DataProvider.SetElementString(9, "GOAT");
+			DataProvider.SetElementString(10, "NONE");
 			break;
 
 		/************************************* [Settings - Input] *****************************************/
@@ -948,8 +1223,33 @@ function SetUpDataProvider(GFxClikWidget Widget)
 			DataProvider.SetElementString(1, "LEFT");
 			break;
 		case (SettingsInputActionBar):
-			DataProvider.SetElementString(0, "BACK");
-			DataProvider.SetElementString(1, "APPLY");
+			TempObj = CreateObject("Object");
+			TempObj.SetString("label", "BACK");
+			TempObj.SetString("action", "back");
+			DataProvider.SetElementObject(0, TempObj);
+			TempObj = CreateObject("Object");
+			TempObj.SetString("label", "APPLY");
+			TempObj.SetString("action", "apply");
+			DataProvider.SetElementObject(1, TempObj);
+			break;
+		//setting tech building icon data provider (nBab)
+		case (TechBuildingIconDropDown):
+			DataProvider.SetElementString(0, "ANIMATING");
+			DataProvider.SetElementString(1, "COLOR CHANGING");
+			DataProvider.SetElementString(2, "NONE");
+			break;
+		//setting beacon icon data provider (nBab)
+		case (BeaconIconDropDown):
+			DataProvider.SetElementString(0, "NUKE/ION");
+			DataProvider.SetElementString(1, "STAR");
+			break;
+		//setting crosshair color data provider (nBab)
+		case (CrosshairColorDropDown):
+			DataProvider.SetElementString(0, "WHITE");
+			DataProvider.SetElementString(1, "ORANGE");
+			DataProvider.SetElementString(2, "VIOLET");
+			DataProvider.SetElementString(3, "BLUE");
+			DataProvider.SetElementString(4, "CYAN");
 			break;
 		default:
 			return;
@@ -983,11 +1283,22 @@ function GetLastSelection(GFxClikWidget Widget)
 			case (BrightnessSlider) :
 				Widget.SetInt("value", SettingsCurrentVideo.BrightnessValue);
 				break;
+			case (FPSSlider) :
+				Widget.SetInt("value", SettingsCurrentVideo.FPSValue);
+				break;
 			case (VSyncCheckBox):
 				Widget.SetBool("selected", SettingsCurrentVideo.bVSync);
 				break;
 			case (Dx10CheckBox):
 				Widget.SetBool("selected", SettingsCurrentVideo.bDx10);
+				break;
+			//nBab
+			case (AllowD3D9MSAACheckBox):
+				Widget.SetBool("selected", SettingsCurrentVideo.bAllowD3D9MSAA);
+				break;
+			//nBab
+			case (UseHardwarePhysicsCheckBox):
+				Widget.SetBool("selected", SettingsCurrentVideo.bUseHardwarePhysics);
 				break;
 			case (MotionBlurCheckBox):
 				Widget.SetBool("selected", SettingsCurrentVideo.bMotionBlur);
@@ -1000,21 +1311,26 @@ function GetLastSelection(GFxClikWidget Widget)
 				break;
 			case (TextureDetailDropDown):
 				Widget.SetInt("selectedIndex", SettingsCurrentVideo.TextureDetailItemPosition);
+				Rx_GFxDropDown(Widget).validateNow();
 				break;
 			case (DetailLevelDropDown):
 				Widget.SetInt("selectedIndex", SettingsCurrentVideo.DetailLevelItemPosition);
+				Rx_GFxDropDown(Widget).validateNow();
 				break;
 			case (CharacterLODDropDown):
 				Widget.SetInt("selectedIndex", SettingsCurrentVideo.CharacterLODItemPosition);
+				Rx_GFxDropDown(Widget).validateNow();
 				break;
 			case (EffectsLODDropDown):
 				Widget.SetInt("selectedIndex", SettingsCurrentVideo.EffectsLODItemPosition);
+				Rx_GFxDropDown(Widget).validateNow();
 				break;
 			case (ShadowQualityDropDown):
 				Widget.SetInt("selectedIndex", SettingsCurrentVideo.ShadowQualityItemPosition);
+				Rx_GFxDropDown(Widget).validateNow();
 				break;
 			case (EnabledGoreCheckBox):
-				Widget.SetBool("selected",!SettingsCurrentVideo.bReducedGore);
+				Widget.SetBool("selected",SettingsCurrentVideo.bEnableGore);
 				break;
 			case (FOVSlider):
 				Widget.SetInt("value", SettingsCurrentVideo.FOVValue);
@@ -1115,15 +1431,41 @@ function GetLastSelection(GFxClikWidget Widget)
 				break;
 			case (MusicTracklist):
 
-				if (Widget.GetBool("disabled")) {
+				if (!Widget.GetBool("enabled")) {
 					return;
 				}
+				//added check in case nothing is playing (nBab)
+				if (MainFrontEnd.JukeBox.CurrentTrack.TheSoundCue == none)
+					return;
 				 i = MainFrontEnd.JukeBox.JukeBoxList.Find('TheSoundCue', GetPC().WorldInfo.MusicComp.SoundCue);
 				if (i >=0){
 					Widget.SetInt("selectedIndex", i);
 				} else {
 					Widget.SetInt("selectedIndex", 0);
 				}
+				break;
+			//nBab
+			case (MusicCheckBoxlist):
+
+				if (!Widget.GetBool("enabled")) {
+					return;
+				}
+				if (MainFrontEnd.JukeBox.CurrentTrack.TheSoundCue == none)
+					return;
+				i = MainFrontEnd.JukeBox.JukeBoxList.Find('TheSoundCue', GetPC().WorldInfo.MusicComp.SoundCue);
+				if (i >=0){
+					Widget.SetInt("selectedIndex", i);
+				} else {
+					Widget.SetInt("selectedIndex", 0);
+				}
+				break;
+			//nBab
+			case (KillSoundDropDown) :
+				Widget.SetInt("selectedIndex", SettingsCurrentAudio.KillSound);
+				break;
+			//nBab
+			case (KillSoundPlayButton) :
+				Widget.SetBool("selected", false);
 				break;
 			/************************************* [Settings - Input] *****************************************/
 
@@ -1154,6 +1496,12 @@ function GetLastSelection(GFxClikWidget Widget)
 			case (ToggleADSCheckBox) :
 				Widget.SetBool("selected", SettingsCurrentInput.bADS);
 				break;
+			case (ToggleCrouchCheckBox) :
+				Widget.SetBool("selected", SettingsCurrentInput.bToggleCrouch);
+				break;
+			case (ToggleSprintCheckBox) :
+				Widget.SetBool("selected", SettingsCurrentInput.bToggleSprint);
+				break;
 			case (UseClassicTeamNameColorsCheckBox) :
 				Widget.SetBool("selected", SettingsCurrentInput.bNicknamesUseTeamColors);
 				break;
@@ -1166,10 +1514,23 @@ function GetLastSelection(GFxClikWidget Widget)
 			case (BindingSecondaryList) :
 				Widget.SetInt("selectedIndex", -1);
 				break;
+			//nBab
+			case (TechBuildingIconDropDown) :
+				Widget.SetInt("selectedIndex", SettingsCurrentInput.TechBuildingIcon);
+				break;
+			//nBab
+			case (BeaconIconDropDown) :
+				Widget.SetInt("selectedIndex", SettingsCurrentInput.BeaconIcon);
+				break;
+			//nBab
+			case (CrosshairColorDropDown) :
+				Widget.SetInt("selectedIndex", SettingsCurrentInput.CrosshairColor);
+				break;
 			default:
 				return;
 		}
 	}
+	validateNow();
 }
 
 function ResetSettingsVideoOption()
@@ -1198,8 +1559,13 @@ function ResetSettingsVideoOption()
 	SettingsCurrentVideo.TextureDetailItemPosition = MainFrontEnd.SystemSettingsHandler.TexturePresetLevel;
 
 	SettingsCurrentVideo.BrightnessValue = MainFrontEnd.SystemSettingsHandler.GetGammaSettings() * 20;
+	SettingsCurrentVideo.FPSValue = MainFrontEnd.SystemSettingsHandler.GetFPSSetting();
 	SettingsCurrentVideo.bVSync = MainFrontEnd.SystemSettingsHandler.UseVsync;
 	SettingsCurrentVideo.bDx10 = MainFrontEnd.SystemSettingsHandler.AllowD3D10;                                                                 // Useful for Dx10...not working ATM
+	//nBab
+	SettingsCurrentVideo.bAllowD3D9MSAA = MainFrontEnd.SystemSettingsHandler.bAllowD3D9MSAA;
+	//nBab
+	SettingsCurrentVideo.bUseHardwarePhysics = !MainFrontEnd.SystemSettingsHandler.GetDisablePhysXHardwareSupport();
 	SettingsCurrentVideo.bMotionBlur = MainFrontEnd.SystemSettingsHandler.MotionBlur;
 	SettingsCurrentVideo.bDynamicLights = MainFrontEnd.SystemSettingsHandler.DynamicLights;
 	SettingsCurrentVideo.bDynamicShadows = MainFrontEnd.SystemSettingsHandler.DynamicShadows;
@@ -1207,7 +1573,7 @@ function ResetSettingsVideoOption()
 	SettingsCurrentVideo.CharacterLODItemPosition = (3 - MainFrontEnd.SystemSettingsHandler.SkeletalMeshLODBias) ;
 	SettingsCurrentVideo.EffectsLODItemPosition = (3 - MainFrontEnd.SystemSettingsHandler.ParticleLODBias);
 	SettingsCurrentVideo.ShadowQualityItemPosition = (3 - MainFrontEnd.SystemSettingsHandler.ShadowFilterQualityBias);
-	SettingsCurrentVideo.bReducedGore = MainFrontEnd.SystemSettingsHandler.GetReducedGore();                                                                                                  //TODO:disable this
+	SettingsCurrentVideo.bEnableGore = MainFrontEnd.SystemSettingsHandler.GetEnableGore();                                                                                                  //TODO:disable this
 	SettingsCurrentVideo.FOVValue = MainFrontEnd.SystemSettingsHandler.GetFOV();
 	SettingsCurrentVideo.bLightEnvironmentShadows = MainFrontEnd.SystemSettingsHandler.LightEnvironmentShadows;
 	SettingsCurrentVideo.bCompositeDynamicLights = MainFrontEnd.SystemSettingsHandler.CompositeDynamicLights;
@@ -1235,11 +1601,16 @@ function ResetSettingsAudioOption()
 
 	SettingsCurrentAudio.bHardwareOpenAL = false;                                                                                               //TODO: Research Hardware AL Settings
 	SettingsCurrentAudio.bAutostartMusic = MainFrontEnd.SystemSettingsHandler.bAutostartMusic;
+
+	//nBab
+	SettingsCurrentAudio.KillSound = MainFrontEnd.SystemSettingsHandler.GetKillSound();
 }
 
 function ResetSettingsInputOption()
 {
 	SettingsCurrentInput.bADS = MainFrontEnd.SystemSettingsHandler.GetToggleADS();
+	SettingsCurrentInput.bToggleSprint = MainFrontEnd.SystemSettingsHandler.GetToggleSprint();
+	SettingsCurrentInput.bToggleCrouch = MainFrontEnd.SystemSettingsHandler.GetToggleCrouch();
 	SettingsCurrentInput.bNicknamesUseTeamColors = MainFrontEnd.SystemSettingsHandler.GetNicknamesUseTeamColors();
 	SettingsCurrentInput.BindingPrimaryItemPosition = -1;
 	SettingsCurrentInput.BindingSecondaryItemPosition = -1;
@@ -1250,6 +1621,10 @@ function ResetSettingsInputOption()
 	SettingsCurrentInput.GamepadSensitivityValue = 0;                                                                                           //need to figure out 
 	SettingsCurrentInput.MouseSensitivityValue = MainFrontEnd.SystemSettingsHandler.GetMouseSensitivity();
 	SettingsCurrentInput.WeaponHandItemPosition = MainFrontEnd.SystemSettingsHandler.GetWeaponHand();                                           //will be basing on UTPC Weapon Hand Preference
+	//nBab
+	SettingsCurrentInput.TechBuildingIcon = MainFrontEnd.SystemSettingsHandler.GetTechBuildingIcon();
+	SettingsCurrentInput.BeaconIcon = MainFrontEnd.SystemSettingsHandler.GetBeaconIcon();
+	SettingsCurrentInput.CrosshairColor = MainFrontEnd.SystemSettingsHandler.GetCrosshairColor();
 }
 
 function OpenConfirmApplyVideoSettingsDialog()
@@ -1320,17 +1695,18 @@ function ApplyPresetSettings()
 			SettingsCurrentVideo.FOVValue = 90;
 			SettingsCurrentVideo.bFramerateSmoothing = true;
 			SettingsCurrentVideo.bAmbientOcclusion = false;
-			SettingsCurrentVideo.bReducedGore = true;
+			SettingsCurrentVideo.bEnableGore = true;
 			break;
 		case 2:
 			SettingsCurrentVideo.AntiAliasingItemPosition = 0; // MSAA 2X
 			SettingsCurrentVideo.TextureFilteringItemPosition = 1;
 			SettingsCurrentVideo.TextureDetailItemPosition = 1;
 			SettingsCurrentVideo.BrightnessValue = 50;
+			SettingsCurrentVideo.FPSValue = 45;
 			SettingsCurrentVideo.FOVValue = 90;
 			SettingsCurrentVideo.bFramerateSmoothing = true;
 			SettingsCurrentVideo.bAmbientOcclusion = false;
-			SettingsCurrentVideo.bReducedGore = true;
+			SettingsCurrentVideo.bEnableGore = true;
 			break;
 		case 3:
 			SettingsCurrentVideo.AntiAliasingItemPosition = 0; // MSAA 4X
@@ -1340,7 +1716,7 @@ function ApplyPresetSettings()
 			SettingsCurrentVideo.FOVValue = 90;
 			SettingsCurrentVideo.bFramerateSmoothing = true;
 			SettingsCurrentVideo.bAmbientOcclusion = false;
-			SettingsCurrentVideo.bReducedGore = true;
+			SettingsCurrentVideo.bEnableGore = true;
 			break;
 		case 4:
 			SettingsCurrentVideo.AntiAliasingItemPosition = 3; //MSAA 8X
@@ -1350,7 +1726,7 @@ function ApplyPresetSettings()
 			SettingsCurrentVideo.FOVValue = 90;
 			SettingsCurrentVideo.bFramerateSmoothing = false;
 			SettingsCurrentVideo.bAmbientOcclusion = false;
-			SettingsCurrentVideo.bReducedGore = true;
+			SettingsCurrentVideo.bEnableGore = true;
 			break;
 		case 5:
 			if (MainFrontEnd.GraphicAdapterCheck != none) {
@@ -1369,7 +1745,7 @@ function ApplyPresetSettings()
 			SettingsCurrentVideo.FOVValue = 90;
 			SettingsCurrentVideo.bFramerateSmoothing = false;
 			SettingsCurrentVideo.bAmbientOcclusion = false;
-			SettingsCurrentVideo.bReducedGore = false;
+			SettingsCurrentVideo.bEnableGore = false;
 			break;
 		case 6:
 			if (MainFrontEnd.GraphicAdapterCheck != none) {
@@ -1388,7 +1764,7 @@ function ApplyPresetSettings()
 			SettingsCurrentVideo.FOVValue = 90;
 			SettingsCurrentVideo.bFramerateSmoothing = false;
 			SettingsCurrentVideo.bAmbientOcclusion = true;
-			SettingsCurrentVideo.bReducedGore = false;
+			SettingsCurrentVideo.bEnableGore = false;
 			break;
 		default:
 			break;
@@ -1412,10 +1788,11 @@ function ApplyPresetSettings()
 
 	
 	MainFrontEnd.SystemSettingsHandler.SetGammaSettings(float(SettingsCurrentVideo.BrightnessValue)*0.05);
+	MainFrontEnd.SystemSettingsHandler.SetFPSSetting(SettingsCurrentVideo.FPSValue);
 	MainFrontEnd.SystemSettingsHandler.SetFOV(float(SettingsCurrentVideo.FOVValue));
 	MainFrontEnd.SystemSettingsHandler.SetAmbientOcclusion(SettingsCurrentVideo.bAmbientOcclusion);
 	MainFrontEnd.SystemSettingsHandler.SetEnableSmoothFramerate(SettingsCurrentVideo.bFramerateSmoothing);
-	MainFrontEnd.SystemSettingsHandler.SetReducedGore(SettingsCurrentVideo.bReducedGore);
+	MainFrontEnd.SystemSettingsHandler.SetEnableGore(SettingsCurrentVideo.bEnableGore);
 
 	MainFrontEnd.SystemSettingsHandler.GraphicsPresetLevel = SettingsCurrentVideo.GraphicPresetsItemPosition;
 	MainFrontEnd.SystemSettingsHandler.TexturePresetLevel = SettingsCurrentVideo.TextureDetailItemPosition;
@@ -1434,6 +1811,14 @@ function ApplyPresetSettings()
 	if (BrightnessLabel != none) {
 		BrightnessLabel.SetText(SettingsCurrentVideo.BrightnessValue $ "%");
 	}
+	GetLastSelection(FPSSlider);
+	if (FPSLabel != none) {
+		FPSLabel.SetText(SettingsCurrentVideo.FPSValue $ "%");
+	}
+	//nBab
+	GetLastSelection(AllowD3D9MSAACheckBox);
+	//nBab
+	GetLastSelection(UseHardwarePhysicsCheckBox);
 	GetLastSelection(VSyncCheckBox);
 	GetLastSelection(MotionBlurCheckBox);
 	GetLastSelection(DynamicLightsCheckBox);
@@ -1497,8 +1882,17 @@ function ApplyCustomSettings()
 	//Gamma
 	MainFrontEnd.SystemSettingsHandler.SetGammaSettings(float(SettingsCurrentVideo.BrightnessValue)*0.05);
 
+	// Max FPS 
+	MainFrontEnd.SystemSettingsHandler.SetFPSSetting(SettingsCurrentVideo.FPSValue);
+
 	//Vsync
 	MainFrontEnd.SystemSettingsHandler.SetUseVsync(SettingsCurrentVideo.bVSync);
+
+	//AllowD3D9MSAA (nBab)
+	MainFrontEnd.SystemSettingsHandler.SetbAllowD3D9MSAA(SettingsCurrentVideo.bAllowD3D9MSAA);
+
+	//UseHardwarePhysics (nBab)
+	MainFrontEnd.SystemSettingsHandler.SetDisablePhysXHardwareSupport(!SettingsCurrentVideo.bUseHardwarePhysics);
 
 	//MainFrontEnd.SystemSettingsHandler.SetAllowD3D10(SettingsCurrentVideo.bDx10);
 
@@ -1512,7 +1906,7 @@ function ApplyCustomSettings()
 	MainFrontEnd.SystemSettingsHandler.SetSkeletalMeshLODBias(3- (SettingsCurrentVideo.CharacterLODItemPosition));
 	MainFrontEnd.SystemSettingsHandler.SetParticleLODBias(3 - (SettingsCurrentVideo.EffectsLODItemPosition));
 	MainFrontEnd.SystemSettingsHandler.SetShadowFilterQualityBias(3 - (SettingsCurrentVideo.ShadowQualityItemPosition));
-	MainFrontEnd.SystemSettingsHandler.SetReducedGore(SettingsCurrentVideo.bReducedGore);
+	MainFrontEnd.SystemSettingsHandler.SetEnableGore(SettingsCurrentVideo.bEnableGore);
 	MainFrontEnd.SystemSettingsHandler.SetFOV(float(SettingsCurrentVideo.FOVValue));
 	MainFrontEnd.SystemSettingsHandler.SetLightEnvironmentShadows(SettingsCurrentVideo.bLightEnvironmentShadows);
 	MainFrontEnd.SystemSettingsHandler.SetCompositeDynamicLights(SettingsCurrentVideo.bCompositeDynamicLights);
@@ -1551,6 +1945,9 @@ function ApplyAudioSettings()
 	//SettingsCurrentAudio.bHardwareOpenAL
 	MainFrontEnd.SystemSettingsHandler.bAutostartMusic = SettingsCurrentAudio.bAutostartMusic;
 
+	//nBab
+	MainFrontEnd.SystemSettingsHandler.SetKillSound(SettingsCurrentAudio.KillSound);
+
 	MainFrontEnd.SystemSettingsHandler.SaveConfig();
 	
 }
@@ -1570,8 +1967,15 @@ function ApplyInputSettings()
 	MainFrontEnd.SystemSettingsHandler.SetToggleTankReverse(SettingsCurrentInput.bTankReverse);
 	//case 'EnableGamepadCheckBox':
 	MainFrontEnd.SystemSettingsHandler.SetToggleADS(SettingsCurrentInput.bADS);
+	MainFrontEnd.SystemSettingsHandler.SetToggleCrouch(SettingsCurrentInput.bToggleCrouch);
+	MainFrontEnd.SystemSettingsHandler.SetToggleSprint(SettingsCurrentInput.bToggleSprint);
 	//case 'NicknamesUseTeamColors'
 	MainFrontEnd.SystemSettingsHandler.SetNicknamesUseTeamColors(SettingsCurrentInput.bNicknamesUseTeamColors);
+
+	//nBab
+	MainFrontEnd.SystemSettingsHandler.SetTechBuildingIcon(SettingsCurrentInput.TechBuildingIcon);
+	MainFrontEnd.SystemSettingsHandler.SetBeaconIcon(SettingsCurrentInput.BeaconIcon);
+	MainFrontEnd.SystemSettingsHandler.SetCrosshairColor(SettingsCurrentInput.CrosshairColor);
 
 	//case 'KeyBindingList':
 	//case 'BindingPrimaryList':
@@ -1587,208 +1991,315 @@ function SetGraphicPresetsToCustom()
 
 function OnScreenResolutionDropDownChange(GFxClikWidget.EventData ev) 
 {
-	SettingsCurrentVideo.ScreenResolutionItemPosition = ev.index;
+	SettingsCurrentVideo.ScreenResolutionItemPosition = ev._this.GetObject("target").GetInt("selectedIndex");
 }
 function OnScreenModeDropDownChange(GFxClikWidget.EventData ev)
 {
-	SettingsCurrentVideo.ScreenModeItemPosition = ev.index;
+	SettingsCurrentVideo.ScreenModeItemPosition = ev._this.GetObject("target").GetInt("selectedIndex");
 }
 function OnGraphicPresetsDropDownChange(GFxClikWidget.EventData ev)
 {
-	SettingsCurrentVideo.GraphicPresetsItemPosition = ev.index;
+	SettingsCurrentVideo.GraphicPresetsItemPosition = ev._this.GetObject("target").GetInt("selectedIndex");
 }
 function OnAntiAliasingDropDownChange(GFxClikWidget.EventData ev)
 {
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.AntiAliasingItemPosition = ev.index;
+	SettingsCurrentVideo.AntiAliasingItemPosition = ev._this.GetObject("target").GetInt("selectedIndex");
 }
 function OnTextureFilteringDropDownChange(GFxClikWidget.EventData ev)
 {
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.TextureFilteringItemPosition = ev.index;
+	SettingsCurrentVideo.TextureFilteringItemPosition = ev._this.GetObject("target").GetInt("selectedIndex");
 }
 function OnBrightnessSliderChange(GFxClikWidget.EventData ev)
 {
 	local float outGammaValue;
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.BrightnessValue = ev.target.GetInt("value"); 
+	SettingsCurrentVideo.BrightnessValue = ev._this.GetObject("target").GetInt("value"); 
 	BrightnessLabel.SetText(SettingsCurrentVideo.BrightnessValue $ "%");
-	outGammaValue = FClamp((ev.target.GetFloat("value") * 0.05), 0.5, 5);
+	outGammaValue = FClamp((ev._this.GetObject("target").GetFloat("value") * 0.05), 0.5, 5);
 	MainFrontEnd.SystemSettingsHandler.SetGammaSettings(outGammaValue);
 	ConsoleCommand("Gamma " $MainFrontEnd.SystemSettingsHandler.GetGammaSettings());
+}
+function OnFPSSliderChange(GFxClikWidget.EventData ev)
+{
+	SetGraphicPresetsToCustom();
+	SettingsCurrentVideo.FPSValue = ev._this.GetObject("target").GetInt("value"); 
+	FPSLabel.SetText(SettingsCurrentVideo.FPSValue);
 }
 function OnVSyncCheckBoxSelect(GFxClikWidget.EventData ev)
 {
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.bVSync = ev._this.GetBool("selected");
+	SettingsCurrentVideo.bVSync = ev._this.GetObject("target").GetBool("selected");
 }
 function OnDx10CheckBoxSelect(GFxClikWidget.EventData ev)
 {
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.bDx10 = ev._this.GetBool("selected");
+	SettingsCurrentVideo.bDx10 = ev._this.GetObject("target").GetBool("selected");
+}
+//nBab
+function OnAllowD3D9MSAACheckBoxSelect(GFxClikWidget.EventData ev)
+{
+	SetGraphicPresetsToCustom();
+	SettingsCurrentVideo.bAllowD3D9MSAA = ev._this.GetObject("target").GetBool("selected");
+}
+//nBab
+function OnUseHardwarePhysicsCheckBoxSelect(GFxClikWidget.EventData ev)
+{
+	SetGraphicPresetsToCustom();
+	SettingsCurrentVideo.bUseHardwarePhysics = ev._this.GetObject("target").GetBool("selected");
 }
 function OnMotionBlurCheckBoxSelect(GFxClikWidget.EventData ev)
 {
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.bMotionBlur = ev._this.GetBool("selected");
+	SettingsCurrentVideo.bMotionBlur = ev._this.GetObject("target").GetBool("selected");
 }
 function OnDynamicLightsCheckBoxSelect(GFxClikWidget.EventData ev)
 {
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.bDynamicLights = ev._this.GetBool("selected");
+	SettingsCurrentVideo.bDynamicLights = ev._this.GetObject("target").GetBool("selected");
 }
 function OnDynamicShadowsCheckBoxSelect(GFxClikWidget.EventData ev)
 {
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.bDynamicShadows = ev._this.GetBool("selected");
+	SettingsCurrentVideo.bDynamicShadows = ev._this.GetObject("target").GetBool("selected");
 }
 function OnTextureDetailDropDownChange(GFxClikWidget.EventData ev)
 {
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.TextureDetailItemPosition = ev.index;
+	SettingsCurrentVideo.TextureDetailItemPosition = ev._this.GetObject("target").GetInt("selectedIndex");
 }
 function OnDetailLevelDropDownChange(GFxClikWidget.EventData ev)
 {
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.DetailLevelItemPosition = ev.index;
+	SettingsCurrentVideo.DetailLevelItemPosition = ev._this.GetObject("target").GetInt("selectedIndex");
 }
 function OnCharacterLODDropDownChange(GFxClikWidget.EventData ev)
 {
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.CharacterLODItemPosition = ev.index;
+	SettingsCurrentVideo.CharacterLODItemPosition = ev._this.GetObject("target").GetInt("selectedIndex");
 }
 function OnEffectsLODDropDownChange(GFxClikWidget.EventData ev)
 {
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.EffectsLODItemPosition = ev.index;
+	SettingsCurrentVideo.EffectsLODItemPosition = ev._this.GetObject("target").GetInt("selectedIndex");
 }
 function OnShadowQualityDropDownChange(GFxClikWidget.EventData ev)
 {
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.ShadowQualityItemPosition = ev.index;
+	SettingsCurrentVideo.ShadowQualityItemPosition = ev._this.GetObject("target").GetInt("selectedIndex");
 }
 function OnEnabledGoreCheckBoxSelect(GFxClikWidget.EventData ev)
 {
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.bReducedGore = !ev._this.GetBool("selected");
+	SettingsCurrentVideo.bEnableGore = ev._this.GetObject("target").GetBool("selected");
 }
 function OnFOVSliderChange(GFxClikWidget.EventData ev)
 {
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.FOVValue = ev.target.GetInt("value");
-	FOVLabel.SetText(ev.target.GetInt("value"));
+	SettingsCurrentVideo.FOVValue = ev._this.GetObject("target").GetInt("value");
+	FOVLabel.SetText(ev._this.GetObject("target").GetInt("value"));
 }
 function OnLightEnvironmentShadowsCheckBoxSelect(GFxClikWidget.EventData ev)
 {
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.bLightEnvironmentShadows = ev._this.GetBool("selected");
+	SettingsCurrentVideo.bLightEnvironmentShadows = ev._this.GetObject("target").GetBool("selected");
 }
 function OnCompositeDynamicLightsCheckBoxSelect(GFxClikWidget.EventData ev)
 {
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.bCompositeDynamicLights = ev._this.GetBool("selected");
+	SettingsCurrentVideo.bCompositeDynamicLights = ev._this.GetObject("target").GetBool("selected");
 }
 function OnDirectionalLightmapsCheckBoxSelect(GFxClikWidget.EventData ev)
 {
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.bDirectionalLightmaps = ev._this.GetBool("selected");
+	SettingsCurrentVideo.bDirectionalLightmaps = ev._this.GetObject("target").GetBool("selected");
 }
 function OnBloomDoFCheckBoxSelect(GFxClikWidget.EventData ev)
 {
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.bBloomDoF = ev._this.GetBool("selected");
+	SettingsCurrentVideo.bBloomDoF = ev._this.GetObject("target").GetBool("selected");
 }
 function OnBloomSliderChange(GFxClikWidget.EventData ev)
 {
 	local string text;
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.BloomValue = ev.target.GetFloat("value") / 100;
-	text = "" $ (ev.target.GetFloat("value") / 100);
+	SettingsCurrentVideo.BloomValue = ev._this.GetObject("target").GetFloat("value") / 100;
+	text = "" $ (ev._this.GetObject("target").GetFloat("value") / 100);
 	BloomLabel.SetText(Left(text, InStr(text, ".") + 3));
 }
 function OnAmbientOcclusionCheckBoxSelect(GFxClikWidget.EventData ev)
 {
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.bAmbientOcclusion = ev._this.GetBool("selected");
+	SettingsCurrentVideo.bAmbientOcclusion = ev._this.GetObject("target").GetBool("selected");
 }
 function OnLensFlaresCheckBoxSelect(GFxClikWidget.EventData ev)
 {
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.bLensFlares = ev._this.GetBool("selected");
+	SettingsCurrentVideo.bLensFlares = ev._this.GetObject("target").GetBool("selected");
 }
 function OnDistortionCheckBoxSelect(GFxClikWidget.EventData ev)
 {
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.bDistortion = ev._this.GetBool("selected");
+	SettingsCurrentVideo.bDistortion = ev._this.GetObject("target").GetBool("selected");
 }
 function OnParticleDistortionDroppingCheckBoxSelect(GFxClikWidget.EventData ev)
 {
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.bParticleDistortionDropping = ev._this.GetBool("selected");
+	SettingsCurrentVideo.bParticleDistortionDropping = ev._this.GetObject("target").GetBool("selected");
 }
 function OnStaticDecalsCheckBoxSelect(GFxClikWidget.EventData ev)
 {
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.bStaticDecals = ev._this.GetBool("selected");
+	SettingsCurrentVideo.bStaticDecals = ev._this.GetObject("target").GetBool("selected");
 }
 function OnDynamicDecalsCheckBoxSelect(GFxClikWidget.EventData ev)
 {
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.bDynamicDecals = ev._this.GetBool("selected");
+	SettingsCurrentVideo.bDynamicDecals = ev._this.GetObject("target").GetBool("selected");
 }
 function OnFramerateSmoothingCheckBoxSelect(GFxClikWidget.EventData ev)
 {
 	SetGraphicPresetsToCustom();
-	SettingsCurrentVideo.bFramerateSmoothing = ev._this.GetBool("selected");
+	SettingsCurrentVideo.bFramerateSmoothing = ev._this.GetObject("target").GetBool("selected");
 }
 
 function OnSFXVolumeSliderChange(GFxClikWidget.EventData ev)
 {
-	SettingsCurrentAudio.SFXVolumeValue = ev.target.GetInt("value") * 0.01;
+	SettingsCurrentAudio.SFXVolumeValue = ev._this.GetObject("target").GetInt("value") * 0.01;
 	GetPC().ConsoleCommand("SetAudioGroupVolume SFX " $SettingsCurrentAudio.SFXVolumeValue);
-	SFXVolumeLabel.SetText(ev.target.GetInt("value") $"%");
+	SFXVolumeLabel.SetText(ev._this.GetObject("target").GetInt("value") $"%");
 }
 function OnMusicVolumeSliderChange(GFxClikWidget.EventData ev)
 {
-	SettingsCurrentAudio.MusicVolumeValue = ev.target.GetInt("value") * 0.01;
+	SettingsCurrentAudio.MusicVolumeValue = ev._this.GetObject("target").GetInt("value") * 0.01;
 	GetPC().ConsoleCommand("SetAudioGroupVolume Music " $SettingsCurrentAudio.MusicVolumeValue);
 	//ConsoleCommand("MODIFYSOUNDCLASS Music VOL=" $SettingsCurrentAudio.MusicVolumeValue);
-	MusicVolumeLabel.SetText(ev.target.GetInt("value") $"%");
+	MusicVolumeLabel.SetText(ev._this.GetObject("target").GetInt("value") $"%");
 }
 function OnAmbianceVolumeSliderChange(GFxClikWidget.EventData ev)
 {
-	SettingsCurrentAudio.AmbianceVolumeValue = ev.target.GetInt("value") * 0.01;
+	SettingsCurrentAudio.AmbianceVolumeValue = ev._this.GetObject("target").GetInt("value") * 0.01;
 	GetPC().ConsoleCommand("SetAudioGroupVolume Ambient " $SettingsCurrentAudio.AmbianceVolumeValue);
-	AmbianceVolumeLabel.SetText(ev.target.GetInt("value") $"%");
+	AmbianceVolumeLabel.SetText(ev._this.GetObject("target").GetInt("value") $"%");
 }
 function OnCharacterVolumeSliderChange(GFxClikWidget.EventData ev)
 {
-	SettingsCurrentAudio.CharacterVolumeValue = ev.target.GetInt("value") * 0.01;
+	SettingsCurrentAudio.CharacterVolumeValue = ev._this.GetObject("target").GetInt("value") * 0.01;
 	GetPC().ConsoleCommand("SetAudioGroupVolume Voice " $SettingsCurrentAudio.CharacterVolumeValue);
-	DialogueVolumeLabel.SetText(ev.target.GetInt("value") $"%");
+	DialogueVolumeLabel.SetText(ev._this.GetObject("target").GetInt("value") $"%");
 }
 function OnAnnouncerVolumeSliderChange(GFxClikWidget.EventData ev)
 {
-	SettingsCurrentAudio.AnnouncerVolumeValue = ev.target.GetInt("value") * 0.01;
+	SettingsCurrentAudio.AnnouncerVolumeValue = ev._this.GetObject("target").GetInt("value") * 0.01;
 	GetPC().ConsoleCommand("SetAudioGroupVolume Announcer " $SettingsCurrentAudio.AnnouncerVolumeValue);
-	AnnouncerVolumeLabel.SetText(ev.target.GetInt("value") $"%");
+	AnnouncerVolumeLabel.SetText(ev._this.GetObject("target").GetInt("value") $"%");
 }
 function OnHardwareOpenALCheckBoxSelect(GFxClikWidget.EventData ev)
 {
-	SettingsCurrentAudio.bHardwareOpenAL = ev._this.GetBool("selected");
+	SettingsCurrentAudio.bHardwareOpenAL = ev._this.GetObject("target").GetBool("selected");
 }
 
 function OnAutoplayMusicCheckBoxSelect(GFxClikWidget.EventData ev)
 {
-	SettingsCurrentAudio.bAutostartMusic = ev._this.GetBool("selected");
+	SettingsCurrentAudio.bAutostartMusic = ev._this.GetObject("target").GetBool("selected");
 }
 
 function OnMusicTracklistItemClick(GFxClikWidget.EventData ev)
 {
-	local GFxObject item;
+	//disabled toggling because it's done by check box list now (nBab)
+	/*local GFxObject item;
 
 	item = ev._this.GetObject("item" );
-	MainFrontEnd.JukeBox.JukeBoxList[ev.index].bSelected = item.GetBool("toggled");
+	
+	MainFrontEnd.JukeBox.JukeBoxList[ev.index].bSelected = item.GetBool("toggled");*/
+}
+//nBab
+function OnMusicCheckBoxlistItemClick(GFxClikWidget.EventData ev)
+{
+	local GFxObject item;
+	local int index;
+
+	item = ev._this.GetObject("target").GetObject("itemRenderer");
+	index = MusicCheckBoxList.GetInt("selectedIndex");
+
+	//toggle the checkbox
+	if (item.GetBool("toggled"))
+		item.SetBool("toggled", false);
+	else
+		item.SetBool("toggled", true);
+
+	//enable/disable the track based on the checkbox
+	MainFrontEnd.JukeBox.JukeBoxList[index].bSelected = item.GetBool("toggled");
+	
+	//old code to disable the track which was commented because the clik component was buggy.
+	//MusicTracklist.GetObject("dataProvider").GetElementObject(index).SetBool("disabled",!item.GetBool("toggled"));
+	//if the same track is selected, deselect it.
+	//if (MusicTracklist.GetInt("selectedIndex") == index)
+	//	MusicTracklist.SetInt("selectedIndex",-1);
+	
+	//if the same track is being played, play the next bSelected track
+	if (MainFrontEnd.JukeBox.JukeBoxList[index].TheSoundCue == GetPC().WorldInfo.MusicComp.SoundCue)
+	{
+		MainFrontEnd.JukeBox.Stop();
+		MainFrontEnd.JukeBox.play(index);
+
+		//if there's any enabled tracks
+		if (MainFrontEnd.JukeBox.CurrentTrack.TheSoundCue != none)
+		{
+			index = MainFrontEnd.JukeBox.JukeBoxList.Find('TheSoundCue', GetPC().WorldInfo.MusicComp.SoundCue);
+			TrackNameLabel.SetText(MainFrontEnd.JukeBox.JukeBoxList[index].TrackName);
+		}
+		else
+		{
+			TrackNameLabel.SetText("");
+			DeselectPlayerButtonGroup();
+		}
+	}
+
+	//save config
+	MainFrontEnd.JukeBox.saveconfig();
+
+}
+//nBab
+function OnKillSoundPlayButtonChange (GFxClikWidget.EventData ev)
+{
+	switch(KillSoundDropDown.GetInt("selectedIndex"))
+	{
+		case 0:		
+			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.SFX.SC_Boink');
+			break;
+		case 1:
+			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.SC_Boink_Modern');
+			break;
+		case 2:
+			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Kill_Alert_Cue');
+			break;
+		case 3:
+			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.SC_Havoc');
+			break;
+		case 4:
+			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.SC_McFarland');
+			break;
+		case 5:
+			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Gotchya_Cue');
+			break;
+		case 6:
+			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Aww_Too_Easy_Cue');
+			break;
+		case 7:
+			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_For_Kane_Cue');
+			break;
+		case 8:
+			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Die_Infidel_Cue');
+			break;
+		case 9:
+			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Goat_Cue');
+			break;	
+		default:
+			break;
+	}
+	ev._this.GetObject("target").SetBool("selected",false);
 }
 function OnPlayerControlGroupChange(GFxClikWidget.EventData ev)
 {
@@ -1796,14 +2307,12 @@ function OnPlayerControlGroupChange(GFxClikWidget.EventData ev)
 	local int SelectedIndex;
 	local int i;
 
-
-	SelectedItem = GFxClikWidget(ev._this.GetObject("item", class'GFxClikWidget'));
-
+	SelectedItem = GFxClikWidget(ev._this.GetObject("target").GetObject("selectedButton", class'GFxClikWidget'));
 	
 // 	GetPC().ClientMessage("Group Length? " $ PlayerControlGroup.GetInt("length"));
 // 	GetPC().ClientMessage("SelectedItem?  " $ SelectedItem);
 
-	switch (SelectedItem.GetString("_name"))
+	switch (SelectedItem.GetString("name"))
 	{
 
 		case "PlayButton":
@@ -1819,38 +2328,79 @@ function OnPlayerControlGroupChange(GFxClikWidget.EventData ev)
 				//get selected index of our music tracklist
 				SelectedIndex = MusicTracklist.GetInt("selectedIndex");
 
-				//if the music tracklist is not selected, select the default (0)
-				if (SelectedIndex < 0) {
-					SelectedIndex = 0;
-		 			MusicTracklist.SetInt("selectedIndex", SelectedIndex);
-				}
+				if (SelectedIndex >= 0 && MainFrontEnd.JukeBox.JukeBoxList[SelectedIndex].bSelected)
+				{
 
-				i = (MainFrontEnd.JukeBox.JukeBoxList.Find('TheSoundCue', GetPC().WorldInfo.MusicComp.SoundCue));
-				//then check if we're playing our track AND if we're playing the same track as selected AND if we're playing
-				if (i >= 0 && SelectedIndex == i && GetPC().WorldInfo.MusicComp.IsPlaying()) {
-					return;
-				}
-				//~then we're playing a different track OR we're not playing our track.
-				
-				//stop the track, and play our selected track
-				MainFrontEnd.JukeBox.Stop();
+					//old code (nBab)
+					//if the music tracklist is not selected, select the default (0)
+					/*if (SelectedIndex < 0) {
+						SelectedIndex = 0;
+			 			MusicTracklist.SetInt("selectedIndex", SelectedIndex);
+					}*/
 
-				//check if the selected track is selected
-				if (MainFrontEnd.JukeBox.JukeBoxList[SelectedIndex].bSelected) {
-					//play this
-					MainFrontEnd.JukeBox.Play(SelectedIndex);
-		 			TrackNameLabel.SetText(MainFrontEnd.JukeBox.JukeBoxList[selectedIndex].TrackName);
-				} else {
-		 			//loop through list if there is anything to be played.
-		 			SelectedIndex = MainFrontEnd.JukeBox.JukeBoxList.Find('bSelected', true);
-					if (SelectedIndex >= 0) {
-						MainFrontEnd.JukeBox.Play(SelectedIndex);
-		 				MusicTracklist.SetInt("selectedIndex", SelectedIndex);
-		 				TrackNameLabel.SetText(MainFrontEnd.JukeBox.JukeBoxList[selectedIndex].TrackName);
-					} else {
+					//if nothing is selected, select the first enabled track (nBab)
+					if (SelectedIndex < 0) {
+						for (i=0;i<MainFrontEnd.JukeBox.JukeBoxList.length;i++)
+						{
+							if(MainFrontEnd.JukeBox.JukeBoxList[i].bSelected)
+							{
+								SelectedIndex = i;
+								MusicTracklist.SetInt("selectedIndex", SelectedIndex);
+								break;
+							}
+						}
+					}
+					//if all tracks were disabled (nBab)
+					if (SelectedIndex < 0)
+					{
+						MainFrontEnd.JukeBox.Stop();
 						TrackNameLabel.SetText("");
 						DeselectPlayerButtonGroup();
+						return;
 					}
+
+					i = (MainFrontEnd.JukeBox.JukeBoxList.Find('TheSoundCue', GetPC().WorldInfo.MusicComp.SoundCue));
+					//then check if we're playing our track AND if we're playing the same track as selected AND if we're playing
+					if (i >= 0 && SelectedIndex == i && GetPC().WorldInfo.MusicComp.IsPlaying()) {
+						return;
+					}
+					//~then we're playing a different track OR we're not playing our track.
+					
+					//stop the track, and play our selected track
+					MainFrontEnd.JukeBox.Stop();
+
+					//old code (nBab)
+					//check if the selected track is selected
+					/*if (MainFrontEnd.JukeBox.JukeBoxList[SelectedIndex].bSelected) {
+						//play this
+						MainFrontEnd.JukeBox.Play(SelectedIndex);
+			 			TrackNameLabel.SetText(MainFrontEnd.JukeBox.JukeBoxList[selectedIndex].TrackName);
+					} else {
+			 			//loop through list if there is anything to be played.
+			 			SelectedIndex = MainFrontEnd.JukeBox.JukeBoxList.Find('bSelected', true);
+						if (SelectedIndex >= 0) {
+							MainFrontEnd.JukeBox.Play(SelectedIndex);
+			 				MusicTracklist.SetInt("selectedIndex", SelectedIndex);
+			 				TrackNameLabel.SetText(MainFrontEnd.JukeBox.JukeBoxList[selectedIndex].TrackName);
+						} else {
+							TrackNameLabel.SetText("");
+							DeselectPlayerButtonGroup();
+						}
+					}*/
+
+					//set tracknamelable if there's a track playing, else set it to empty and deselect tracks (nBab)
+					MainFrontEnd.JukeBox.Play(SelectedIndex);
+					if(MainFrontEnd.JukeBox.CurrentTrack.TheSoundCue != none)
+					{
+						SelectedIndex = (MainFrontEnd.JukeBox.JukeBoxList.Find('TheSoundCue', GetPC().WorldInfo.MusicComp.SoundCue));
+						MusicTracklist.SetInt("selectedIndex", SelectedIndex);
+			 			TrackNameLabel.SetText(MainFrontEnd.JukeBox.JukeBoxList[selectedIndex].TrackName);
+		 			}else
+		 			{
+		 				MusicTracklist.SetInt("selectedIndex", -1);
+		 				TrackNameLabel.SetText("");
+		 				DeselectPlayerButtonGroup();
+		 			}
 				}
 			}
 			break;
@@ -1863,7 +2413,7 @@ function OnPlayerControlGroupChange(GFxClikWidget.EventData ev)
 				}
 				
 				TrackNameLabel.SetText("");
-				DeselectPlayerButtonGroup();
+				//DeselectPlayerButtonGroup();
 			}
 			break;
 		default:
@@ -1923,31 +2473,31 @@ function MusicPlayerOnAudioFinished(AudioComponent AC)
 // }
 
 function OnShuffleButtonSelect(GFxClikWidget.EventData ev){
-	MainFrontEnd.JukeBox.bShuffled = ev._this.GetBool("selected");
+	MainFrontEnd.JukeBox.bShuffled = ev._this.GetObject("target").GetBool("selected");
 }
 function OnMouseSensitivitySliderChange(GFxClikWidget.EventData ev)
 {
-	SettingsCurrentInput.MouseSensitivityValue = ev.target.GetInt("value");
-	MouseSensitivityInput.SetText(""$ev.target.GetInt("value"));
+	SettingsCurrentInput.MouseSensitivityValue = ev._this.GetObject("target").GetInt("value");
+	MouseSensitivityInput.SetText(""$ev._this.GetObject("target").GetInt("value"));
 }
 function OnMouseSensitivityInputTextChange(GFxClikWidget.EventData ev)
 {
-	if (int(ev.target.GetText()) != Clamp(int(ev.target.GetText()), MouseSensitivitySlider.GetInt("minimum"), MouseSensitivitySlider.GetInt("maximum")))
-		ev.target.SetText(""$Clamp(int(ev.target.GetText()), MouseSensitivitySlider.GetInt("minimum"), MouseSensitivitySlider.GetInt("maximum")));
-	SettingsCurrentInput.MouseSensitivityValue = int(ev.target.GetText());
-	MouseSensitivitySlider.SetInt("value", int(ev.target.GetText()));
+	if (int(ev._this.GetObject("target").GetText()) != Clamp(int(ev._this.GetObject("target").GetText()), MouseSensitivitySlider.GetInt("minimum"), MouseSensitivitySlider.GetInt("maximum")))
+		ev._this.GetObject("target").SetText(""$Clamp(int(ev._this.GetObject("target").GetText()), MouseSensitivitySlider.GetInt("minimum"), MouseSensitivitySlider.GetInt("maximum")));
+	SettingsCurrentInput.MouseSensitivityValue = int(ev._this.GetObject("target").GetText());
+	MouseSensitivitySlider.SetInt("value", int(ev._this.GetObject("target").GetText()));
 }
 function OnGamepadSensitivitySliderChange(GFxClikWidget.EventData ev)
 {
-	SettingsCurrentInput.GamepadSensitivityValue = ev.target.GetInt("value");
-	GamepadSensitivityInput.SetText(""$ev.target.GetInt("value"));
+	SettingsCurrentInput.GamepadSensitivityValue = ev._this.GetObject("target").GetInt("value");
+	GamepadSensitivityInput.SetText(""$ev._this.GetObject("target").GetInt("value"));
 }
 function OnGamepadSensitivityInputTextChange(GFxClikWidget.EventData ev)
 {
-	if (int(ev.target.GetText()) != Clamp(int(ev.target.GetText()), GamepadSensitivitySlider.GetInt("minimum"), GamepadSensitivitySlider.GetInt("maximum")))
-		ev.target.SetText(""$Clamp(int(ev.target.GetText()), GamepadSensitivitySlider.GetInt("minimum"), GamepadSensitivitySlider.GetInt("maximum")));
-	SettingsCurrentInput.GamepadSensitivityValue = int(ev.target.GetText());
-	GamepadSensitivitySlider.SetInt("value", int(ev.target.GetText()));
+	if (int(ev._this.GetObject("target").GetText()) != Clamp(int(ev._this.GetObject("target").GetText()), GamepadSensitivitySlider.GetInt("minimum"), GamepadSensitivitySlider.GetInt("maximum")))
+		ev._this.GetObject("target").SetText(""$Clamp(int(ev._this.GetObject("target").GetText()), GamepadSensitivitySlider.GetInt("minimum"), GamepadSensitivitySlider.GetInt("maximum")));
+	SettingsCurrentInput.GamepadSensitivityValue = int(ev._this.GetObject("target").GetText());
+	GamepadSensitivitySlider.SetInt("value", int(ev._this.GetObject("target").GetText()));
 }
 
 function OnMouseSensitivityInputFocusIn(GFxClikWidget.EventData ev)
@@ -1985,49 +2535,77 @@ function IgnoreAlphabeticals(GFxClikWidget.EventData ev)
 
 function OnMouseSmoothingCheckBoxSelect(GFxClikWidget.EventData ev)
 {
-	SettingsCurrentInput.bMouseSmoothing = ev.target.GetBool("selected");
+	SettingsCurrentInput.bMouseSmoothing = ev._this.GetObject("target").GetBool("selected");
 }
 
 function OnInvertYCheckBoxSelect(GFxClikWidget.EventData ev)
 {
-	SettingsCurrentInput.bInvertY = ev.target.GetBool("selected");
+	SettingsCurrentInput.bInvertY = ev._this.GetObject("target").GetBool("selected");
 }
 function OnWeaponHandDropDownChange(GFxClikWidget.EventData ev)
 {
-	SettingsCurrentInput.WeaponHandItemPosition = ev.index;
+	SettingsCurrentInput.WeaponHandItemPosition = ev._this.GetObject("target").GetInt("selectedIndex");
+}
+//nBab
+function OnTechBuildingIconDropDownChange(GFxClikWidget.EventData ev)
+{
+	SettingsCurrentInput.TechBuildingIcon =ev._this.GetObject("target").GetInt("selectedIndex");
+}
+//nBab
+function OnBeaconIconDropDownChange(GFxClikWidget.EventData ev)
+{
+	SettingsCurrentInput.BeaconIcon = ev._this.GetObject("target").GetInt("selectedIndex");
+}
+//nBab
+function OnCrosshairColorDropDownChange(GFxClikWidget.EventData ev)
+{
+	SettingsCurrentInput.CrosshairColor = ev._this.GetObject("target").GetInt("selectedIndex");
+}
+//nBab
+function OnKillSoundDropDownChange(GFxClikWidget.EventData ev)
+{
+	SettingsCurrentAudio.KillSound = ev._this.GetObject("target").GetInt("selectedIndex");
 }
 function OnTankReverseCheckBoxSelect(GFxClikWidget.EventData ev)
 {
-	SettingsCurrentInput.bTankReverse = ev.target.GetBool("selected");
+	SettingsCurrentInput.bTankReverse = ev._this.GetObject("target").GetBool("selected");
 }
 function OnToggleADSCheckBoxSelect(GFxClikWidget.EventData ev)
 {
-	SettingsCurrentInput.bADS = ev.target.GetBool("selected");
+	SettingsCurrentInput.bADS = ev._this.GetObject("target").GetBool("selected");
+}
+function OnToggleCrouchCheckBoxSelect(GFxClikWidget.EventData ev)
+{
+	SettingsCurrentInput.bToggleCrouch = ev._this.GetObject("target").GetBool("selected");
+}
+function OnToggleSprintCheckBoxSelect(GFxClikWidget.EventData ev)
+{
+	SettingsCurrentInput.bToggleSprint = ev._this.GetObject("target").GetBool("selected");
 }
 function OnUseClassicTeamNameColorsCheckBoxSelect(GFxClikWidget.EventData ev)
 {
-	SettingsCurrentInput.bNicknamesUseTeamColors = ev.target.GetBool("selected");
+	SettingsCurrentInput.bNicknamesUseTeamColors = ev._this.GetObject("target").GetBool("selected");
 }
 
 function OnBindingPrimaryListItemClick(GFxClikWidget.EventData ev)
 {
-	SettingsCurrentInput.BindingPrimaryItemPosition = ev.index;
+	SettingsCurrentInput.BindingPrimaryItemPosition = ev._this.GetInt("index");
 
 	if (CurrentPrimaryListItemRenderer != none) {
 		if (CurrentPrimaryListItemRenderer.GetString("label") == "???") {
-			//SetUpDataProvider(ev.target);
+			//SetUpDataProvider(ev._this.GetObject("target"));
 			CurrentPrimaryListItemRenderer.SetString("label", PreviousPrimaryListKey);
 		}
 	}
 
-	if (ev.index != Clamp(ev.index, 0, BindingList.Length-1)) { //(ev.index < 0 || ev.index > totalBinding - 1) 
+	if (ev._this.GetInt("index") != Clamp(ev._this.GetInt("index"), 0, BindingList.Length-1)) { //(ev.index < 0 || ev.index > totalBinding - 1) 
 		return;
 	}
 
-	CurrentPrimaryListItemRenderer = GFxClikWidget(ev._this.GetObject("renderer", class'GFxClikWidget'));
+	CurrentPrimaryListItemRenderer = GFxClikWidget(ev._this.GetObject("target").GetObject("itemRenderer", class'GFxClikWidget'));
 	PreviousPrimaryListKey = CurrentPrimaryListItemRenderer.GetString("label");
 	CurrentPrimaryListItemRenderer.SetString("label", "???");
-	ev.target.GetObject("dataProvider").SetElementString(ev.index, "???");
+	ev._this.GetObject("target").GetObject("dataProvider").SetElementString(ev._this.GetInt("index"), "???");
 	ClearFocusIgnoreKeys();
 }
 function OnBindingSecondaryListItemClick(GFxClikWidget.EventData ev)
@@ -2041,7 +2619,7 @@ function OnBindingSecondaryListItemClick(GFxClikWidget.EventData ev)
 	}
 
 	
-	if (ev.index != Clamp(ev.index, 0, BindingList.Length-1))//(ev.index < 0 || ev.index > totalBinding - 1)
+	if (ev._this.GetInt("index") != Clamp(ev._this.GetInt("index"), 0, BindingList.Length-1))//(ev.index < 0 || ev.index > totalBinding - 1)
 	{
 		return;
 	}
@@ -2050,7 +2628,7 @@ function OnBindingSecondaryListItemClick(GFxClikWidget.EventData ev)
 	CurrentSecondaryListItemRenderer = ev._this.GetObject("renderer");
 	PreviousSecondaryListKey = CurrentSecondaryListItemRenderer.GetString("label");
 	CurrentSecondaryListItemRenderer.SetString("label", "???");
-	ev.target.SetInt("selectedIndex", -1);
+	ev._this.GetObject("target").SetInt("selectedIndex", -1);
 	ClearFocusIgnoreKeys();
 }
 
@@ -2075,7 +2653,6 @@ function name GetBoundKey(string Command)
 /** Called whenever a button is pressed **/
 function bool FilterButtonInput(int ControllerId, name ButtonName, EInputEvent InputEvent)
 {
-	//`log("ControllerId: "$ControllerId $", ButtonName: "$ButtonName $", InputEvent: "$InputEvent);
 	//local array<string> Konami;
 	//Konami = ["Up", "Up", "Down", "Down", "Left", "Right", "Left", "Right", "B", "A", "Enter"];
 	// Only handle keypress if we are expecting one
@@ -2083,17 +2660,18 @@ function bool FilterButtonInput(int ControllerId, name ButtonName, EInputEvent I
 	if (CurrentPrimaryListItemRenderer != none ) {
 		if (SettingsCurrentInput.BindingPrimaryItemPosition > -1 && CurrentPrimaryListItemRenderer.GetString("label") == "???" && InputEvent == IE_Pressed) {
 			if (ButtonName == 'Escape') {
-				CurrentPrimaryListItemRenderer.SetBool("selected", false);
 				SetUpDataProvider(BindingPrimaryList);
-				BindingPrimaryList.SetInt("focused", 0);
+				BindingPrimaryList.SetInt("selectedIndex", -1);
+				//CurrentPrimaryListItemRenderer = none;
 				return false;
 			}
 			BindKey(ButtonName, BindingList[SettingsCurrentInput.BindingPrimaryItemPosition].Command);
 			
-			CurrentPrimaryListItemRenderer.SetBool("selected", false);
 			BindingPrimaryList.GetObject("dataProvider").SetElementString(SettingsCurrentInput.BindingPrimaryItemPosition, UDKPlayerInput(GetPC().PlayerInput).GetUDKBindNameFromCommand(BindingList[SettingsCurrentInput.BindingPrimaryItemPosition].Command));
 			SetUpDataProvider(BindingPrimaryList);
-			BindingPrimaryList.SetInt("focused", 0);
+			CurrentPrimaryListItemRenderer.SetString("label", "test");
+			BindingPrimaryList.SetInt("selectedIndex", -1);
+			//CurrentPrimaryListItemRenderer = none;
 			return true;
 		}
 	}
@@ -2158,23 +2736,26 @@ function UnbindKey(name BindName)
 
 function OnSettingsVideoActionItemClick(GFxClikWidget.EventData ev)
 {
-	switch (ev.index)
+	switch (ev._this.GetObject("target").GetObject("data").GetString("action"))
 	{
-	  case 0: MainFrontEnd.ReturnToBackground(); break;
-	  case 1: OpenConfirmApplyVideoSettingsDialog();/*ApplyVideoSettings();*/ break;
-	  default: break;
+		case "back": MainFrontEnd.ReturnToBackground(); break;
+		case "apply":
+			OpenConfirmApplyVideoSettingsDialog();
+			//MainFrontEnd.ReturnToBackground();
+		break;
+		default: break;
 	}
 }
 function OnSettingsAudioActionBarChange(GFxClikWidget.EventData ev)
 {
-	switch (ev.index)
+	switch (ev._this.GetObject("target").GetObject("data").GetString("action"))
 	{
-	  case 0: MainFrontEnd.ReturnToBackground(); break;
-	  case 1: 
-	  	ApplyAudioSettings(); 
-	  	//ApplyVideoSettings();
-		//ApplyInputSettings();
-		//MainFrontEnd.ReturnToBackground();
+	  case "back": MainFrontEnd.ReturnToBackground(); break;
+	  case "apply": 
+	  		ApplyAudioSettings(); 
+	  		//ApplyVideoSettings();
+			//ApplyInputSettings();
+			MainFrontEnd.ReturnToBackground();
 	  	break;
 	  default: break;
 	}
@@ -2182,14 +2763,14 @@ function OnSettingsAudioActionBarChange(GFxClikWidget.EventData ev)
 
 function OnSettingsInputActionBarChange(GFxClikWidget.EventData ev)
 {
-	switch (ev.index)
+	switch (ev._this.GetObject("target").GetObject("data").GetString("action"))
 	{
-	  case 0: MainFrontEnd.ReturnToBackground(); break;
-	  case 1: 
-	  	//ApplyAudioSettings(); 
-	  	//ApplyVideoSettings();
-		ApplyInputSettings();
-		//MainFrontEnd.ReturnToBackground();
+		case "back": MainFrontEnd.ReturnToBackground(); break;
+		case "apply": 
+	  		//ApplyAudioSettings(); 
+	  		//ApplyVideoSettings();
+			ApplyInputSettings();
+			MainFrontEnd.ReturnToBackground();
 	  	break;
 	  default: break;
 	}
@@ -2205,16 +2786,18 @@ DefaultProperties
 	SubWidgetBindings.Add((WidgetName="TextureFilteringDropDown",WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="BrightnessSlider",WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="BrightnessLabel",WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="FPSSlider",WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="FPSLabel",WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="VSyncCheckBox",WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="Dx10CheckBox",WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="MotionBlurCheckBox",WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="DynamicLightsCheckBox",WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="DynamicShadowsCheckBox",WidgetClass=class'GFxClikWidget'))
-	SubWidgetBindings.Add((WidgetName="TextureDetailDropDown",WidgetClass=class'GFxClikWidget'))
-	SubWidgetBindings.Add((WidgetName="DetailLevelDropDown",WidgetClass=class'GFxClikWidget'))
-	SubWidgetBindings.Add((WidgetName="CharacterLODDropDown",WidgetClass=class'GFxClikWidget'))
-	SubWidgetBindings.Add((WidgetName="EffectsLODDropDown",WidgetClass=class'GFxClikWidget'))
-	SubWidgetBindings.Add((WidgetName="ShadowQualityDropDown",WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="TextureDetailDropDown",WidgetClass=class'Rx_GFxDropDown'))
+	SubWidgetBindings.Add((WidgetName="DetailLevelDropDown",WidgetClass=class'Rx_GFxDropDown'))
+	SubWidgetBindings.Add((WidgetName="CharacterLODDropDown",WidgetClass=class'Rx_GFxDropDown'))
+	SubWidgetBindings.Add((WidgetName="EffectsLODDropDown",WidgetClass=class'Rx_GFxDropDown'))
+	SubWidgetBindings.Add((WidgetName="ShadowQualityDropDown",WidgetClass=class'Rx_GFxDropDown'))
 	SubWidgetBindings.Add((WidgetName="EnabledGoreCheckBox",WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="FOVSlider",WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="FOVLabel",WidgetClass=class'GFxClikWidget'))
@@ -2262,10 +2845,21 @@ DefaultProperties
 	SubWidgetBindings.Add((WidgetName="WeaponHandDropDown", WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="TankReverseCheckBox", WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="ToggleADSCheckBox", WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="ToggleCrouchCheckBox", WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="ToggleSprintCheckBox", WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="UseClassicTeamNameColorsCheckBox", WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="KeyBindingList", WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="BindingPrimaryList", WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="BindingSecondaryList", WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="keyBindScroll",WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="SettingsInputActionBar",WidgetClass=class'GFxClikWidget'))
+	//nBab
+	SubWidgetBindings.Add((WidgetName="TechBuildingIconDropDown", WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="BeaconIconDropDown", WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="CrosshairColorDropDown", WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="AllowD3D9MSAACheckBox",WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="UseHardwarePhysicsCheckBox",WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="KillSoundDropDown", WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="MusicCheckBoxlist",WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="KillSoundPlayButton",WidgetClass=class'GFxClikWidget'))
 }

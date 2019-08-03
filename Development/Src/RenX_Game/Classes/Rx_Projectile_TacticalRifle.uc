@@ -2,7 +2,6 @@ class Rx_Projectile_TacticalRifle extends Rx_Projectile;
 
 DefaultProperties
 {
-
     ProjFlightTemplate=ParticleSystem'RX_FX_Munitions.Bullets.P_Bullet_Incendiary'
 	
 	AmbientSound=SoundCue'RX_SoundEffects.Bullet_WhizBy.SC_Bullet_WhizBy'
@@ -27,16 +26,15 @@ DefaultProperties
 	ImpactEffects(17)=(MaterialType=YellowStone, ParticleTemplate=ParticleSystem'RX_FX_Munitions2.Particles.bullets.P_Bullet_Incendiary_YellowSand',Sound=SoundCue'RX_WP_TacticalRifle.Sounds.Impact.SC_BulletImpact_Stone')
 	ImpactEffects(18)=(MaterialType=Snow, ParticleTemplate=ParticleSystem'RX_FX_Munitions2.Particles.bullets.P_Bullet_Incendiary_Snow',Sound=SoundCue'RX_WP_TacticalRifle.Sounds.Impact.SC_BulletImpact_Dirt')
 	ImpactEffects(19)=(MaterialType=SnowStone, ParticleTemplate=ParticleSystem'RX_FX_Munitions2.Particles.bullets.P_Bullet_Incendiary_Snow',Sound=SoundCue'RX_WP_TacticalRifle.Sounds.Impact.SC_BulletImpact_Stone')
-
 	
     DrawScale= 1.0f
 
     bCollideComplex=true
-//    bCollideWorld=true
+    //bCollideWorld=true
     Speed=20000 //18000 //14000
     MaxSpeed=20000 //18000 //14000
     AccelRate=0
-    LifeSpan=0.777
+    LifeSpan=0.4 //0.777
     Damage=16
     DamageRadius=80
 	HeadShotDamageMult=2.5
@@ -48,4 +46,25 @@ DefaultProperties
     ProjectileLightClass=class'Rx_Light_Bullet_GDI'
     ExplosionLightClass=class'Rx_Light_AutoRifle_MuzzleFlash'
     MyDamageType=class'Rx_DmgType_TacticalRifle'
+	
+	/*************************/
+	/*VETERANCY*/
+	/************************/
+	
+	Vet_DamageIncrease(0)=1 //Normal (should be 1)
+	Vet_DamageIncrease(1)=1.10 //Veteran 
+	Vet_DamageIncrease(2)=1.25 //Elite
+	Vet_DamageIncrease(3)=1.50 //Heroic
+
+	Vet_SpeedIncrease(0)=1 //Normal (should be 1)
+	Vet_SpeedIncrease(1)= 1.25 //1.5 //Veteran 
+	Vet_SpeedIncrease(2)= 1.5 //3.0 //4.0 //Elite
+	Vet_SpeedIncrease(3)=2.0 //6.0 //Heroic ..Moot point.. Hit-scan at heroic
+	
+	Vet_LifespanModifier(0)=1 //Normal (should be 1)
+	Vet_LifespanModifier(1)=0.85 //Veteran 
+	Vet_LifespanModifier(2)=0.75 //Elite
+	Vet_LifespanModifier(3)=1 //Heroic (Uses hitscan )
+	
+	/***********************/
 }

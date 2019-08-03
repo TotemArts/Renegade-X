@@ -5,6 +5,9 @@ var float BounceDamping;
 var float BounceDampingZ;
 var bool bExplodeOnPawnImpact;
 
+var int	PopVelocity; //Velocity Z to pop off of the ground before exploding for maximum explodey effectiveness [e.g bouncing betty style]
+var	class<Rx_StatModifierInfo>	StatEffectClass ; 
+
 /**
  * Set the initial velocity and cook time
  */
@@ -23,6 +26,7 @@ function Init(vector Direction)
     Velocity.Z += TossZ;
     Acceleration = AccelRate * Normal(Velocity);
 }
+
 
 /** to make sure final location gets replicated : Testing to see if there is indeed a disconnect here that is the reason EMP nades don't always hit mines.
 function ReplicatePositionAfterLanded()
@@ -47,7 +51,7 @@ simulated function Timer()
 	ZOffsetLocation.z+=40; 
 
 		
-    Explode(ZOffsetLocation,vect(0,0,10)) ;// vect(0,0,1));
+    Explode(ZOffsetLocation,vect(0,0,0)) ;// vect(0,0,1));
 }
 
 
@@ -138,12 +142,19 @@ simulated function bool HurtRadius
 
 	foreach OverlappingActors( class'Pawn', Victim, DamageRadius, HurtOrigin, true) //foreach OverlappingActors( class'Pawn', Victim, DamageRadius, HurtOrigin, true)
 	{
+		
 		if(Victim == ImpactedActor || GetTeamNum() == Victim.GetTeamNum() ) {
 			continue;
 		}
 		if ( (Victim != IgnoredActor) && (Victim.bCanBeDamaged || Victim.bProjTarget) )
 		{
 			Victim.TakeRadiusDamage(InstigatedByController, DamageAmount, InDamageRadius, DamageType, Momentum, HurtOrigin, bDoFullDamage, self);
+			if(StatEffectClass != none) 
+			{
+				if(Rx_Controller(Victim.Controller) != none) Rx_Controller(Victim.Controller).AddActiveModifier(StatEffectClass);
+				else
+				if(Rx_Bot(Victim.Controller) != none) Rx_Bot(Victim.Controller).AddActiveModifier(StatEffectClass);
+			}
 			bCausedDamage = bCausedDamage || Victim.bProjTarget;
 		}
 	}
@@ -151,17 +162,8 @@ simulated function bool HurtRadius
 	return bCausedDamage;
 }
 
-// Uncomment this if we don't want to projectile translate the hurt origin seeing as it hits thru walls.
 
-simulated function bool ProjectileHurtRadius( vector HurtOrigin, vector HitNormal)
-{
-	//`log("PHR" @ HurtOrigin) ; 
-	
-	
-	return super.ProjectileHurtRadius(HurtOrigin, HitNormal);
-	
-	//HurtRadius(Damage, DamageRadius, MyDamageType, MomentumTransfer, AltOrigin);
-}
+
 
 
 DefaultProperties
@@ -211,8 +213,8 @@ DefaultProperties
     MaxSpeed=1500
     AccelRate=0
     LifeSpan=2.0
-    Damage=200
-    DamageRadius=350
+    Damage=150 //100
+    DamageRadius=450//350
     MomentumTransfer=50000
 
     bCollideComplex=true
@@ -225,4 +227,21 @@ DefaultProperties
 	bWaitForEffectsAtEndOfLifetime=true
 
 	ExplosionLightClass=Class'RenX_Game.Rx_Light_Tank_Explosion'
+	
+	
+	/*************************/
+	/*VETERANCY*/
+	/************************/
+	
+	Vet_DamageIncrease(0)=1 //Normal (should be 1)
+	Vet_DamageIncrease(1)=1.10 //Veteran 
+	Vet_DamageIncrease(2)=1.25 //Elite
+	Vet_DamageIncrease(3)=1.50 //Heroic
+
+	Vet_SpeedIncrease(0)=1 //Normal (should be 1)
+	Vet_SpeedIncrease(1)=1.1 //Veteran 
+	Vet_SpeedIncrease(2)=1.2 //Elite
+	Vet_SpeedIncrease(3)=1.3 //Heroic 
+	
+	/***********************/
 }

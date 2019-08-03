@@ -1,6 +1,6 @@
 class Rx_Weapon_TiberiumAutoRifle_Blue extends Rx_Weapon_Reloadable;
 
-function bool IsInstantHit()
+simulated function bool IsInstantHit()
 {
 	return CurrentFireMode == 0; 
 }
@@ -30,8 +30,14 @@ defaultproperties
 	
 	PlayerViewOffset=(X=0.0,Y=0.0,Z=0.0)
 	
-	LeftHandIK_Offset=(X=0.5,Y=-1,Z=3)
+	LeftHandIK_Offset=(X=0.0,Y=0.0,Z=0.0)
 	RightHandIK_Offset=(X=0,Y=0,Z=0)
+	
+	LeftHandIK_Relaxed_Offset = (X=0.0,Y=0.0,Z=0.0)
+	LeftHandIK_Relaxed_Rotation = (Pitch=-1456,Yaw=-3458,Roll=-2366)
+	RightHandIK_Relaxed_Offset = (X=-2.0,Y=2.0,Z=-5.0)
+	RightHandIK_Relaxed_Rotation = (Pitch=-3822,Yaw=182,Roll=9284)
+
 
 	ArmsAnimSet = AnimSet'RX_WP_TiberiumAutoRifle.Anims.AS_TiberiumAutoRifle_Arms'
 	
@@ -73,8 +79,8 @@ defaultproperties
     EquipTime=1.0
 //	PutDownTime=0.7
 
-    Spread(0)=0.02 //0.01
-    Spread(1)=0.01
+    Spread(0)=0.025 //0.01
+    Spread(1)=0.001
     
     WeaponRange=3000.0
 
@@ -89,6 +95,9 @@ defaultproperties
 
 	WeaponProjectiles(0)=class'Rx_Projectile_TiberiumAutoRifle_Blue'
     WeaponProjectiles(1)=class'Rx_Projectile_TiberiumAutoRifle_Blue'
+    
+    WeaponProjectiles_Heroic(0)=class'Rx_Projectile_TiberiumAutoRifle_Red'
+    WeaponProjectiles_Heroic(1)=class'Rx_Projectile_TiberiumAutoRifle_Red'
 
     InstantHitDamageTypes(0)=class'Rx_DmgType_TiberiumAutoRifle_Flechette_Blue'
 	InstantHitDamageTypes(1)=class'Rx_DmgType_TiberiumAutoRifle_Blue' //Stand in to make headshots still able to track damage types. 
@@ -118,8 +127,10 @@ defaultproperties
 	MuzzleFlashSocket=MuzzleFlashSocket
 	FireSocket=MuzzleFlashSocket
 	MuzzleFlashPSCTemplate=ParticleSystem'RX_WP_TiberiumAutoRifle.Effects.P_MuzzleFlash_1P_Blue'
+	MuzzleFlashPSCTemplate_Heroic=ParticleSystem'RX_WP_TiberiumAutoRifle.Effects.P_MuzzleFlash_1P_Red'
 	MuzzleFlashDuration=0.1
 	MuzzleFlashLightClass=class'Rx_Light_Blue_MuzzleFlash'
+	MuzzleFlashLightClass_Heroic=class'Rx_Light_TiberiumFlechetteRifle_MuzzleFlashRed'
 
 	CrosshairMIC = MaterialInstanceConstant'RenXHud.MI_Reticle_AutoRifle'
 	
@@ -159,4 +170,37 @@ defaultproperties
 
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_TiberiumAutoRifle_Blue'
+	
+	/*******************/
+	/*Veterancy*/
+	/******************/
+	
+	Vet_DamageModifier(0)=1  //Applied to instant-hits only
+	Vet_DamageModifier(1)=1.10 
+	Vet_DamageModifier(2)=1.25 
+	Vet_DamageModifier(3)=1.50 
+	
+	Vet_ROFModifier(0) = 1
+	Vet_ROFModifier(1) = 0.95 
+	Vet_ROFModifier(2) = 0.90  
+	Vet_ROFModifier(3) = 0.85  
+	
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)	
+	Vet_ClipSizeModifier(1)=0 //Veteran 
+	Vet_ClipSizeModifier(2)=0 //Elite
+	Vet_ClipSizeModifier(3)=0 //Heroic
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.90 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+	/**********************/
+	
+	bLocSync = true; 
+	LocSyncIncrement = 15; 
+	
+	Elite_Building_DamageMod = 1.15 //1.33
+
+	bOkAgainstBuildings=true
+	bOkAgainstVehicles=true
 }

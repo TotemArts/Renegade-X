@@ -78,7 +78,7 @@ var Rx_SentinelUpgradeManager UpgradeManager;
 
 /** Controller of owning player. */
 var Controller InstigatorController;
-
+var Rx_Building MyBuilding;
 
 /** Just to avoid repetetive casting when accessing controller. */
 var Rx_SentinelController SController;
@@ -150,6 +150,8 @@ var bool bIsInvisible;
 var bool bTrackingCloseRange;
 
 var	repnotify byte Team;
+
+var float MinimumRange;
 
 ///** Class containing ammo classes to use. */
 //var() class<UTLRI_Sentinel> LRIClass;
@@ -320,7 +322,7 @@ simulated function SetWeapon(Rx_SentinelWeapon NewWeapon)
 	SWeapon = NewWeapon;
 
 	SWeapon.InitializeWeaponComponent(WeaponComponent);
-
+	SetTimer(0.2,false,'UpdateRange'); //Check if map settings change
 	UpdateDamageEffects();
 	WeaponComponent.SetTeamColour();
 	WeaponComponent.PlaySpawnEffect();
@@ -519,39 +521,7 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
 
 function TakeDamage(int Damage, Controller InstigatedBy, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)
 {
-	local int OriginalDamage;
-
-	if(Role < ROLE_Authority || Health <= 0 || Controller.IsInState('Spawning') || bDeleteMe)
-		return;
-
-	OriginalDamage = Damage;
-
-	//Treat Sentinel as a vehicle for damage scaling.
-	Damage *= DamageType.default.VehicleDamageScaling;
-	//A fraction of damage is absorbed by the Sentinel's standard armour.
-	Damage *= SentinelDamageScaling;
-
-//	//Prevent owner from causing damage in non-team games.
-//	if(InstigatorController != none && InstigatedBy == InstigatorController)
-//		Damage = 0;
-
-	//Let upgrades modify damage, or spawn effects.
-	UpgradeManager.NotifyTakeDamage(Damage, InstigatedBy, HitLocation, Momentum, DamageType);
-
-	super.TakeDamage(Damage, InstigatedBy, HitLocation, Momentum, DamageType, HitInfo, DamageCauser);
-
-	if((WorldInfo.TimeSeconds - LastDamageEffectTime) > MinDamageEffectInterval && OriginalDamage > 0)
-	{
-		LastTakeHitInfo.Damage = Damage;
-		LastTakeHitInfo.HitLocation = HitLocation;
-		LastTakeHitInfo.DamageType = DamageType;
-		LastDamageEffectTime = WorldInfo.TimeSeconds;
-
-		PlayTakeHitEffects();
-	}
-
-	RepHealth = Health;
-	UpdateDamageEffects();
+	return;
 }
 
 //Overriden to make HitLocation more meaningful.
@@ -783,7 +753,7 @@ simulated function Tick(float DeltaTime)
 	if(target != none) {	
 		CalculateRotation(DeltaTime);
 		DoRotation();
-		AdjustRotationSounds(DeltaTime);
+		//AdjustRotationSounds(DeltaTime);
 	}
 //	}
 }
@@ -1028,6 +998,21 @@ function float GetRange()
 	return SWeapon.bCanFireBlind ? SWeapon.FireInfo.MaxRange : FMin(SightRadius, SWeapon.FireInfo.MaxRange);
 }
 
+function UpdateRange() //Updates based on possible map settings
+{
+	if(Rx_Building_Defense(MyBuilding) == none) 
+	{
+		SetTimer(0.2,false,'UpdateRange'); 
+		return; 
+	}
+	else
+	{
+		SWeapon.FireInfo.MaxRange*=Rx_Building_Defense(MyBuilding).Range_Multiplier;
+		SightRadius*=Rx_Building_Defense(MyBuilding).Range_Multiplier;
+	}
+	
+}
+
 /**
  * Returns the minimal distance to owner that a target could possibly be attacked at.
  */
@@ -1255,13 +1240,19 @@ ignores Bump, HitWall, HeadVolumeChange, PhysicsVolumeChange, Falling, BreathTim
 
 simulated function Destroyed()
 {
-	loginternal("Sentinel destroyed...");
+	//loginternal("Sentinel destroyed...");
 	if(UpgradeManager != none)
 	{
 		UpgradeManager.Destroy();
 	}
 
 	super.Destroyed();
+}
+
+
+simulated function Vector GetTargetLocation(optional Actor RequestedBy, optional bool bRequestAlternateLoc)
+{
+	return bRequestAlternateLoc ? BaseComponent.GetPosition() : WeaponComponent.GetPosition();
 }
 
 simulated function DisplayDebug(HUD HUD, out float out_YL, out float out_YPos)

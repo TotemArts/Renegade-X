@@ -27,6 +27,16 @@ static function PlayBodyExplosion(Pawn P){
 // play no sound
 }
 
+static function PlayFallingDamageLandSound(Pawn P)
+{
+	// play no sound
+}
+
+static function PlayDyingSound(Pawn P)
+{
+	// play no sound
+}
+
 defaultproperties
 {
 	DodgeSound=SoundCue'RX_SoundEffects.FootSteps.Dirt.SC_Jump_Dirt'

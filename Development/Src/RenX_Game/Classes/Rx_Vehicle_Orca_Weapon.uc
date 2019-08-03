@@ -61,7 +61,7 @@ DefaultProperties
   
     InventoryGroup=19
     
-    ClipSize(0) = 4
+    ClipSize(0) = 8
 	ClipSize(1) = 100
     
     ShotCost(0)=1
@@ -70,8 +70,8 @@ DefaultProperties
     ReloadTime(0) = 8.0
 	ReloadTime(1) = 3.0
         
-    FireInterval(0)=0.5
-	FireInterval(1)=0.06
+    FireInterval(0)=0.4
+	FireInterval(1)=0.05
     
     Spread(0)=0.05
 	Spread(1)=0.015
@@ -89,7 +89,7 @@ DefaultProperties
  
     VehicleClass=Class'RenX_Game.Rx_Vehicle_Orca'
 
-    WeaponFireSnd(0)     = SoundCue'RX_VH_Apache.Sounds.SC_Apache_Missile'
+    WeaponFireSnd(0)     = SoundCue'RX_VH_Orca.Sounds.SC_Orca_Missile'
     WeaponFireTypes(0)   = EWFT_Projectile
     WeaponProjectiles(0) = Class'Rx_Vehicle_Orca_Missile'
 	WeaponFireSnd(1)     = none // SoundCue'RX_VH_APC_GDI.Sounds.SC_APC_Fire'
@@ -99,7 +99,12 @@ DefaultProperties
 //	ReloadSound(0)=SoundCue'RX_VH_Apache.Sounds.SC_Reload_Missiles'
 //	ReloadSound(1)=SoundCue'RX_VH_Apache.Sounds.SC_Reload_Gun'
 	
-	WeaponDistantFireSnd(0)=SoundCue'RX_SoundEffects.Missiles.SC_Missile_DistantFire'
+	WeaponProjectiles_Heroic(0)= Class'Rx_Vehicle_Orca_Missile_Heroic'
+	WeaponProjectiles_Heroic(1)= Class'Rx_Vehicle_Orca_Gun'
+ 
+	WeaponFireSounds_Heroic(0)=SoundCue'RX_VH_Orca.Sounds.SC_Orca_Missile_Heroic'
+	
+	WeaponDistantFireSnd(0)=SoundCue'RX_VH_Orca.Sounds.SC_Missile_DistantFire'
 	WeaponDistantFireSnd(1)=None		// The gun sound is being handled in the vehicle class
 	
 	
@@ -172,4 +177,53 @@ DefaultProperties
      // AI
     bRecommendSplashDamage=True
     bTargetLockingActive = true;
+	
+/***********************/
+/*Veterancy*/
+/**********************/
+Vet_ClipSizeModifier(0)=0 //Normal +X
+Vet_ClipSizeModifier(1)=0 //Veteran 
+Vet_ClipSizeModifier(2)=2 //Elite
+Vet_ClipSizeModifier(3)=2 //Heroic
+
+
+Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
+Vet_ReloadSpeedModifier(1)=0.90 //Veteran 
+Vet_ReloadSpeedModifier(2)=0.85 //Elite
+Vet_ReloadSpeedModifier(3)=0.75 //Heroic
+
+Vet_SecondaryClipSizeModifier(0)=0 //Normal +X
+Vet_SecondaryClipSizeModifier(1)=20 //Veteran 
+Vet_SecondaryClipSizeModifier(2)=50 //Elite
+Vet_SecondaryClipSizeModifier(3)=100 //Heroic
+
+
+Vet_SecondaryReloadSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
+Vet_SecondaryReloadSpeedModifier(1)=1.0 //Veteran 
+Vet_SecondaryReloadSpeedModifier(2)=0.90 //Elite
+Vet_SecondaryReloadSpeedModifier(3)=0.80 //Heroic 
+
+//missiles
+Vet_ROFSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
+Vet_ROFSpeedModifier(1)=0.9 //Veteran 
+Vet_ROFSpeedModifier(2)=0.85 //Elite
+Vet_ROFSpeedModifier(3)=0.85 //Heroic
+
+//Gun
+Vet_SecondaryROFSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
+Vet_SecondaryROFSpeedModifier(1)=1 //Veteran 
+Vet_SecondaryROFSpeedModifier(2)=1 //Elite
+Vet_SecondaryROFSpeedModifier(3)=1 //Heroic
+
+/***********************************/
+
+SF_Tolerance = 120; //For now, till it becomes an issue
+
+
+FM0_ROFTurnover = 4; //9 for most automatics. Single shot weapons should be more, except the shotgun
+FM1_ROFTurnover = 6; 
+
+    bOkAgainstLightVehicles = True
+    bOkAgainstArmoredVehicles = True
+    bOkAgainstBuildings = True
 }

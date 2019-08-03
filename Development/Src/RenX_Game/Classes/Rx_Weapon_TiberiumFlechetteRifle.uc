@@ -1,5 +1,11 @@
 class Rx_Weapon_TiberiumFlechetteRifle extends Rx_Weapon_Charged;	
 
+simulated function bool IsInstantHit()
+{
+	return true; 
+}
+
+
 DefaultProperties
 {
 	bAutoFire = true
@@ -27,26 +33,34 @@ DefaultProperties
 	AttachmentClass = class'Rx_Attachment_TiberiumFlechetteRifle'
 	
 	PlayerViewOffset=(X=5.0,Y=-3,Z=2.0)
+
+	LeftHandIK_Offset=(X=-2.0,Y=-4.75,Z=0.0)
+	LeftHandIK_Rotation=(Pitch=-5461,Yaw=1638,Roll=-1820)
+	RightHandIK_Offset=(X=3,Y=-3,Z=-7.5)
+	bUseHandIKWhenRelax=False
+	bOverrideLeftHandAnim=true
+	LeftHandAnim=H_M_Hands_Closed
 	
-	LeftHandIK_Offset=(X=1,Y=8,Z=1)
-	RightHandIK_Offset=(X=2,Y=-2,Z=-5)
+	LeftHandIK_Relaxed_Offset = (X=0.748000,Y=-7.189700,Z=2.362900)
+	LeftHandIK_Relaxed_Rotation = (Pitch=2366,Yaw=4915,Roll=18568)
+	
 	
 	FireOffset=(X=20,Y=8,Z=-8)
 	
 	//-------------- Recoil
 	RecoilDelay = 0.02
-	MinRecoil = 65.0						// 50.0			120
-	MaxRecoil = 70.0						// 45.0			150
-	MaxTotalRecoil = 5000.0					// 1000.0
-	RecoilYawModifier = 0.5 				// will be a random value between 0 and this value for every shot
-	RecoilInterpSpeed = 15.0				// 37.0			50
-	RecoilDeclinePct = 0.6
-	RecoilDeclineSpeed = 6.0				// 4.0
-	MaxSpread = 0.05						// 0.06			0.08
-	RecoilSpreadIncreasePerShot = 0.0015	// 0.002		0.006
-	RecoilSpreadDeclineSpeed = 0.2			// 0.1
+	MinRecoil = 120.0
+	MaxRecoil = 150.0
+	MaxTotalRecoil = 5000.0
+	RecoilYawModifier = 0.5 
+	RecoilInterpSpeed = 40.0
+	RecoilDeclinePct = 0.25
+	RecoilDeclineSpeed = 4.0
+	MaxSpread = 0.04
+	RecoilSpreadIncreasePerShot = 0.0025	
+	RecoilSpreadDeclineSpeed = 0.8
 	RecoilSpreadDecreaseDelay = 0.15
-	RecoilSpreadCrosshairScaling = 3000;	// 2500
+	RecoilSpreadCrosshairScaling = 1000;
 	
 	CrosshairWidth = 210 	// 256
 	CrosshairHeight = 210 	// 256
@@ -68,10 +82,10 @@ DefaultProperties
 	WeaponFireTypes(0)=EWFT_InstantHit
 	WeaponFireTypes(1)=EWFT_None
 
-	InstantHitDamage(0)=14
-	InstantHitDamage(1)=14
+	InstantHitDamage(0)=10 //14
+	InstantHitDamage(1)=10 //14
 	
-	HeadShotDamageMult=2.5
+	HeadShotDamageMult=3.0
 
 	InstantHitDamageTypes(0)=class'Rx_DmgType_TiberiumFlechetteRifle'
 	InstantHitDamageTypes(1)=class'Rx_DmgType_TiberiumFlechetteRifle'
@@ -90,13 +104,13 @@ DefaultProperties
 	Spread(0)=0.006
 	Spread(1)=0.0
 	
-	ClipSize = 35
+	ClipSize = 30 //35
 	InitalNumClips = 7
 	MaxClips = 7
 	
 	FireDelayTime = 0.01
 	bCharge = true
-	bHasInfiniteAmmo = false;
+	bHasInfiniteAmmo = true //false;
 
 	ReloadAnimName(0) = "weaponreload"
 	ReloadAnimName(1) = "weaponreload"
@@ -141,6 +155,7 @@ DefaultProperties
 
 	MuzzleFlashSocket="MuzzleFlashSocket"
 	MuzzleFlashPSCTemplate=ParticleSystem'RX_WP_TiberiumFlechetteRifle.Effects.P_MuzzleFlash_1P'
+	MuzzleFlashPSCTemplate_Heroic=ParticleSystem'RX_WP_TiberiumAutoRifle.Effects.P_MuzzleFlash_3P_Blue'
 	MuzzleFlashDuration=3.3667
 	MuzzleFlashLightClass=class'Rx_Light_TiberiumFlechetteRifle_MuzzleFlash'
 
@@ -172,4 +187,32 @@ DefaultProperties
 
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_TiberiumFlechetteRifle'
+	
+	/*******************/
+	/*Veterancy*/
+	/******************/
+	
+	Vet_DamageModifier(0)=1  //Applied to instant-hits only
+	Vet_DamageModifier(1)=1.10 
+	Vet_DamageModifier(2)=1.25 
+	Vet_DamageModifier(3)=1.50 
+	
+	Vet_ROFModifier(0) = 1
+	Vet_ROFModifier(1) = 1 
+	Vet_ROFModifier(2) = 1  
+	Vet_ROFModifier(3) = 1  
+	
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)	
+	Vet_ClipSizeModifier(1)=5 //Veteran 
+	Vet_ClipSizeModifier(2)=10 //Elite
+	Vet_ClipSizeModifier(3)=15 //Heroic
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.9 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+	/**********************/
+	
+	bLocSync = true; 
+	LocSyncIncrement = 20; 
 }

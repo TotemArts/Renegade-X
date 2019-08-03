@@ -8,7 +8,7 @@ function string trigger(string parameters)
 	if (parameters == "")
 		return "Error: Too few parameters." @ getSyntax();
 
-	PRI = Rx_Game(WorldInfo.Game).ParsePlayer(parameters, error);
+	PRI = Rx_Game(`WorldInfoObject.Game).ParsePlayer(parameters, error);
 	
 	if (PRI == None)
 		return error;
@@ -20,10 +20,10 @@ function string trigger(string parameters)
 		Controller(PRI.Owner).Pawn.KilledBy(None);
 	
 	Controller(PRI.Owner).Reset();
-	if (Rx_Game(WorldInfo.Game).Teams[1].Size >= Rx_Game(WorldInfo.Game).Teams[0].Size)
-		Rx_Game(WorldInfo.Game).Teams[0].AddToTeam(Controller(PRI.Owner));
+	if (Rx_Game(`WorldInfoObject.Game).Teams[1].Size >= Rx_Game(`WorldInfoObject.Game).Teams[0].Size)
+		Rx_Game(`WorldInfoObject.Game).Teams[0].AddToTeam(Controller(PRI.Owner));
 	else
-		Rx_Game(WorldInfo.Game).Teams[1].AddToTeam(Controller(PRI.Owner));
+		Rx_Game(`WorldInfoObject.Game).Teams[1].AddToTeam(Controller(PRI.Owner));
 	Controller(PRI.Owner).GotoState('Dead');
 
 	return "";

@@ -16,10 +16,25 @@ class Rx_Vehicle_Chinook_GDI extends Rx_Vehicle_Chinook
     placeable;
 
 
+	
 defaultproperties
 {
 
+/************************/
+/*Veterancy Multipliers*/
+/***********************/
 
+Vet_HealthMod(0)=1 //500
+Vet_HealthMod(1)=1.10 //550 
+Vet_HealthMod(2)=1.30 //650
+Vet_HealthMod(3)=1.60 //800
+	
+Vet_SprintSpeedMod(0)=1
+Vet_SprintSpeedMod(1)=1.05
+Vet_SprintSpeedMod(2)=1.10
+Vet_SprintSpeedMod(3)=1.15
+
+/**********************/
 //========================================================\\
 //*************** Vehicle Visual Properties **************\\
 //========================================================\\

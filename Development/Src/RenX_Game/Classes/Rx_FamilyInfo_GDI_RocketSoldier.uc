@@ -1,4 +1,4 @@
-class Rx_FamilyInfo_GDI_RocketSoldier extends Rx_FamilyInfo;
+class Rx_FamilyInfo_GDI_RocketSoldier extends Rx_FamilyInfo_GDI;
 
 DefaultProperties
 {
@@ -19,11 +19,49 @@ DefaultProperties
 	ArmSkinPackageName="RX_CH_Arms"
 
 	CharacterMesh=SkeletalMesh'rx_ch_gdi_officer.Mesh.SK_CH_RocketSoldier'
+	PawnVoiceClass=class'Rx_Pawn_VoiceClass_GDI_RocketSoldier'
 	
-	//StartWeapons[0] = class'Rx_Weapon_MissileLauncher'
-	//StartWeapons[1] = class'Rx_Weapon_Pistol'
-	//StartWeapons[2] = class'Rx_Weapon_TimedC4'
-	//StartWeapons[3] = class'Rx_Weapon_Grenade'
+	/*PT Block Info*/
+	/*------------*/
+	BasePurchaseCost	= 225
+	bHighTier			= false
+	PT_Damage			= 4
+	PT_Range			= 6
+	PT_RateOfFire		= 1
+	PT_MagazineCapacity = 1
+	PT_Icon				= Texture2D'RenXPurchaseMenu.T_Icon_Weapon_MissileLauncher'
+	/*---------------*/
 
 	InvManagerClass = class'Rx_InventoryManager_GDI_RocketSoldier'
+	
+	/***********/
+	/*Veterancy*/
+	/***********/
+	
+	VPCost(0) = 15
+	VPCost(1) = 30
+	VPCost(2) = 55
+	
+	VPReward(0)=3
+	VPReward(1)=4
+	VPReward(2)=5
+	VPReward(3)=8
+	
+	//+X
+	Vet_HealthMod(0)=0
+	Vet_HealthMod(1)=25
+	Vet_HealthMod(2)=50
+	Vet_HealthMod(3)=100
+	
+	//+X
+	Vet_SprintSpeedMod(0)=0
+	Vet_SprintSpeedMod(1)=0.025
+	Vet_SprintSpeedMod(2)=0.05
+	Vet_SprintSpeedMod(3)=0.1
+	
+	/******************/
+
+	PowerUpClasses.Add(class'Rx_Pickup_HealthMedium');
+	PowerUpClasses.Add(class'Rx_Pickup_ArmourMedium');
+	PTString="Buy Char - Rocket"
 }

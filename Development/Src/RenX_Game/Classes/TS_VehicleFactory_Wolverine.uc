@@ -17,7 +17,7 @@ class TS_VehicleFactory_Wolverine extends UTVehicleFactory;
 DefaultProperties
 {
 	Begin Object Name=SVehicleMesh
-		SkeletalMesh=SkeletalMesh'TS_VH_Wolverine.Mesh.SK_VH_Wolverine'
+		SkeletalMesh=SkeletalMesh'TS_VH_Wolverine.Mesh.SK_VH_Wolverine_Reborn'
 		Translation=(X=-40.0,Y=0.0,Z=-70.0)
 	End Object
 

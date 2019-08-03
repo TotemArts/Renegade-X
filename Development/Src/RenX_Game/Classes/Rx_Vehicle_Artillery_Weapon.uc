@@ -100,6 +100,37 @@ DefaultProperties
     ReloadSound(0)=SoundCue'RX_VH_LightTank.Sounds.SC_LightTank_Reload'
     ReloadSound(1)=SoundCue'RX_VH_LightTank.Sounds.SC_LightTank_Reload'
         
+	/****************************************/
+	/*Veterancy*/
+	/****************************************/
+	
+	//*X (Applied to instant-hits only) Modify Projectiles separately
+	Vet_DamageModifier(0)=1  //Normal
+	Vet_DamageModifier(1)=1.10  //Veteran
+	Vet_DamageModifier(2)=1.25  //Elite
+	Vet_DamageModifier(3)=1.50  //Heroic
+	
+	//*X Reverse percentage (0.75 is 25% increase in speed)
+	Vet_ROFModifier(0) = 1 //Normal
+	Vet_ROFModifier(1) = 1  //Veteran
+	Vet_ROFModifier(2) = 1  //Elite
+	Vet_ROFModifier(3) = 1  //Heroic
+ 
+	//+X
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)
+	Vet_ClipSizeModifier(1)=0 //Veteran 
+	Vet_ClipSizeModifier(2)=0 //Elite
+	Vet_ClipSizeModifier(3)=0 //Heroic
+
+	//*X Reverse percentage (0.75 is 25% increase in speed)
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.9 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+	
+	
+	/********************************/	
+		
     // gun config
    FireTriggerTags(0)="MainGun"
    AltFireTriggerTags(0)="MainGun"
@@ -121,6 +152,13 @@ DefaultProperties
    WeaponFireTypes(1)   = EWFT_Projectile
    WeaponProjectiles(1) = Class'Rx_Vehicle_Artillery_Projectile_Arc' //_Arc
    
+   //Heroic Modifiers
+	WeaponProjectiles_Heroic(0)= Class'Rx_Vehicle_Artillery_Projectile_Arc_Heroic'
+	WeaponProjectiles_Heroic(1)= Class'Rx_Vehicle_Artillery_Projectile_Arc_Heroic'
+	
+	WeaponFireSounds_Heroic(0)=SoundCue'RX_VH_Artillery.Sounds.Arty_FireCue_Heroic'
+	WeaponFireSounds_Heroic(1)=SoundCue'RX_VH_Artillery.Sounds.Arty_FireCue_Heroic'
+   
    WeaponDistantFireSnd=SoundCue'RX_SoundEffects.Cannons.SC_Cannon_DistantFire'
 
    // CrosshairMIC = MaterialInstanceConstant'RenX_AssetBase.UI.MI_Reticle_Tank_Artillery'
@@ -131,4 +169,10 @@ DefaultProperties
    
     // AI
    bRecommendSplashDamage=True
+   
+   FM0_ROFTurnover = 2; //9 for most automatics. Single shot weapons should be more, except the shotgun
+
+    bOkAgainstLightVehicles = True
+	bOkAgainstArmoredVehicles = True
+	bOkAgainstBuildings = True
 }

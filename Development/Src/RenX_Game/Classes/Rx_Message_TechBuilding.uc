@@ -15,4 +15,5 @@ static function SoundNodeWave AnnouncementSound(int MessageIndex, Object Optiona
 
 DefaultProperties
 {
+	AnnouncementVolume=5.0
 }

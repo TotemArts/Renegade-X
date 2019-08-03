@@ -4,11 +4,13 @@ class Rx_Weapon_Reloadable extends Rx_Weapon
 var() int ClipSize;
 var() int InitalNumClips;
 var() int MaxClips;
+var() int ClientAmmoCount;
 
-var repnotify int CurrentAmmoInClip;
+var  int CurrentAmmoInClip; //repnotify
 var int CurrentAmmoInClipClientside; // localy have a copy of ammo to update immediatly, so independant of lag 
 var repnotify bool CurrentlyReloading;
 var repnotify bool CurrentlyBoltReloading;
+
 
 /**
  * For reload time and Reload Anim name's 
@@ -23,6 +25,16 @@ var() name ReloadAnimName[4];
 var() name ReloadAnim3PName[4];
 var() name ReloadArmAnimName[4];
 var() SoundCue ReloadSound[4];
+
+//Partial Reload System
+var bool bUsePartialReload; //Does this make use of a partial reloading system? 
+var bool bLoseAmmoOnMagDrop; //When the animation drops the old magazine [Assumed on the 1st notification], do we lose that ammo and have to finish reloading?   
+var byte ReloadParts; //Number of parts there are to the reload. Usually 3 (Taking out the magazine. Replacing the Magazine. Charging the weapon)
+var byte CurrentReloadPart; 
+var array<float> ReloadPointTimes; // Times (of the animation played at 1.0 speed) of the various partial reload states.  //Handled in code through animation notifies
+var float	BaseReloadAnimTime; //Pulled from our reload animation. It's the standard length of the animation played at 1x 
+
+var bool	bCanReloadWhileSprinting; //Generally yes for Ren-X. Changeable in mutators if you want 
 
 var bool PerBulletReload;
 var int CurrentReloadState;
@@ -52,21 +64,54 @@ var bool bUnzoomDuringBoltActionReloading;
 var float reloadBeginTime;
 var float currentReloadTime;
 
+//Used to tell when a refill has occured and stops certain minor tasks from happening until Server and client are synced afterward 
+var repnotify bool RefillStateFlag; 
+
+//Veterancy
+var float Vet_ReloadSpeedModifier[4]; //*X
+var int Vet_ClipSizeModifier[4];  //+X
+var bool bRefillonPromotion; 
+var int Ammo_Increment; //1 by default. This is used by ammo boxes and veterancy to multiply how many extra clips are given to a weapon on promotion or picking up ammo
+
+var bool bOverrideFireIntervalForReload; //If FALSE then this will wait until the length of fire interval to reload after firing the last shot in the clip
+
+
 //returns partial bot damage
 simulated function float GetBotDamagePercentage()
 {
 	return BotDamagePercentage;
 }
 
-replication
+
+
+/**replication
 {
 	if( bNetDirty && bNetOwner && Role == ROLE_Authority)
 		CurrentAmmoInClip, CurrentlyReloading, CurrentlyBoltReloading, CurrentReloadState;
 }
+*/
 
-event PreBeginPlay()
+replication
 {
+	//Need only to have info to play animations
+	if( bNetDirty && (!bNetOwner || !bUseClientAmmo) && Role == ROLE_Authority)
+		CurrentlyReloading, CurrentlyBoltReloading, CurrentReloadState;
+	
+	if( bNetDirty && bNetOwner && Role == ROLE_Authority)
+		RefillStateFlag;
+	
+	if(!bUseClientAmmo && bNetDirty && bNetOwner && Role == ROLE_Authority)
+		CurrentAmmoInClip; 
+}
+
+simulated event PreBeginPlay()
+{
+	//Get our reloading partials 
+	if(bUsePartialReload)
+		BuildPartialReloadFromAnimation(); 
+	
 	AmmoCount = ClipSize * InitalNumClips;
+	ClientAmmoCount = ClipSize * InitalNumClips;
 	MaxAmmoCount = ClipSize * MaxClips;
 	CurrentAmmoInClip = ClipSize;
 	CurrentAmmoInClipClientside = ClipSize;
@@ -88,9 +133,11 @@ simulated event ReplicatedEvent(name VarName)
 			{
 				RestartWeaponFiringAfterReload();	
 			} 
-			else if(!IsInState('WeaponPuttingDown')) 
+			//else if(!IsInState('WeaponPuttingDown') && !IsInState('Inactive') && !IsInState('Active') && !IsInState('WeaponEquipping')) 
+			else
+			if(IsInState('Reloading'))
 			{
-				
+				//`log("Call Active from CR Replication" @ GetStateName() ); 
 				GotoState('Active');
 			}	
 		} 
@@ -101,7 +148,7 @@ simulated event ReplicatedEvent(name VarName)
 				EndZoom(UTPlayerController(Instigator.Controller));
 			}
 			reloadBeginTime = WorldInfo.TimeSeconds;
-			currentReloadTime = ReloadTime[CurrentFireMode];		
+			currentReloadTime = ReloadTime[CurrentFireMode]*GetReloadSpeedModifier() ;//Vet_ReloadSpeedModifier[VRank];		
 			PlayWeaponReloadAnim();
 		}	
     }
@@ -116,8 +163,14 @@ simulated event ReplicatedEvent(name VarName)
 				GotoState('WeaponFiring');	
 			} 
 			else*/
-			if(!IsInState('WeaponPuttingDown'))  
+			if( (ClientPendingFire[0] && CurrentFireMode == 0) || (ClientPendingFire[1] && CurrentFireMode == 1) ) 
 			{
+				RestartWeaponFiringAfterReload();	
+			} 
+			//if(!IsInState('WeaponPuttingDown'))  
+			if(IsInState('BoltActionReloading'))
+			{
+				//`log("Call Active from BoltReload Replication" @ GetStateName() ); 
 				GotoState('Active');
 			}	
 		} 
@@ -127,12 +180,17 @@ simulated event ReplicatedEvent(name VarName)
 			{
 				EndZoom(UTPlayerController(Instigator.Controller));
 			}
-			SetTimer(GetFireInterval(CurrentFireMode) * default.RefireBoltReloadInterrupt[CurrentFireMode],false,'PlayWeaponBoltReloadAnim');
+			SetTimer(GetFireInterval(CurrentFireMode) * GetROFModifier() * (default.RefireBoltReloadInterrupt[CurrentFireMode]),false,'PlayWeaponBoltReloadAnim');
 			reloadBeginTime = WorldInfo.TimeSeconds;
 			currentReloadTime = BoltReloadTime[CurrentFireMode];		
 		}	
     }
-	else if (VarName == 'CurrentAmmoInClip')
+	else if ( VarName == 'RefillStateFlag' ) 
+	{
+		if(RefillStateFlag) ServerConfirmRefill(); //Got it
+	}
+	else 
+	if (VarName == 'CurrentAmmoInClip')
 	{
 		/*if(CurrentAmmoInClip < ClipSize)
 		{}*/
@@ -145,20 +203,26 @@ simulated event ReplicatedEvent(name VarName)
 			PlayWeaponReloadAnim();		
 		}
 	}
+
     else 
     {
     	super.ReplicatedEvent(VarName);
     } 
 }
 
+
+
 simulated function RestartWeaponFiringAfterReload()
 {
-	
+	//`log("Pushed Restart Weapon Fire" @ GetStateName() ); 
+	if(IsInState('WeaponEquipping')) 
+		return; 
 	
 	GotoState('Active');	
+	
 	if(ROLE < ROLE_Authority || WorldInfo.Netmode == NM_Standalone) 
 	{
-	StartFire(CurrentFireMode);  	
+		StartFire(CurrentFireMode);  	
 	}
 }
 
@@ -167,6 +231,13 @@ simulated function UpdateAmmoCounter(); // Needs overloaded if you need to updat
 simulated function PerformRefill()
 {
 	AmmoCount = MaxAmmoCount;
+	CurrentAmmoInClip = ClipSize;
+	ClientRefill(); 
+}
+
+reliable client function ClientRefill() 
+{
+	ClientAmmoCount = MaxAmmoCount ; 
 	CurrentAmmoInClip = ClipSize;
 	CurrentAmmoInClipClientside = ClipSize;
 }
@@ -196,34 +267,55 @@ simulated function RestartReloadingTimer()
 		GotoState('Reloading',, true);
 }
 
-state Reloading
+simulated state Reloading
 {
-	function BeginState( name PreviousState )
+	simulated function BeginState( name PreviousState )
 	{
 		if (bDebugWeapon)
 		{
 			`log("---"@self$"."$GetStateName()$".BeginState("$PreviousState$")");
 		}
-
+		//Possibly unnecessary. Needs playtest, but also nothing uses this yet 
+		if(bUsePartialReload)
+			BuildPartialReloadFromAnimation();
+		
+		if(WorldInfo.Netmode == NM_Client && bUseClientAmmo) 
+			NotifyServerOfReload(ClientAmmoCount); //Add audit info
+			
 		if (PerBulletReload)
 		{
 			CurrentReloadState = 2;
-			SetTimer( ReloadTime[CurrentReloadState], false, 'PerBulletReloadWeaponTimer');
+			SetTimer( ReloadTime[CurrentReloadState]*GetReloadSpeedModifier(), false, 'PerBulletReloadWeaponTimer');
+		}
+		else if(bUsePartialReload)
+		{
+			reloadBeginTime = WorldInfo.TimeSeconds;
+			currentReloadTime = ReloadTime[CurrentFireMode]*GetReloadSpeedModifier(); //*Vet_ReloadSpeedModifier[VRank];
+			
+			if(CurrentReloadPart != 0 && CurrentReloadPart != ReloadParts+1){
+				SetTimer(ReloadTime[CurrentFireMode]*GetReloadSpeedModifier() - (ReloadPointTimes[CurrentReloadPart]*((ReloadTime[CurrentFireMode]*GetReloadSpeedModifier())/ReloadTime[CurrentFireMode])), false, 'ReloadWeaponTimer');
+			}
+			else if(CurrentReloadPart == ReloadParts+1)
+			{
+				ReloadWeaponTimer() ; //Finished, just call it reloaded. 
+			}
+			else
+				SetTimer(ReloadTime[CurrentFireMode]*GetReloadSpeedModifier(), false, 'ReloadWeaponTimer');
+			
+			ClearPendingFire(0);
+			ClearPendingFire(1);			
 		}
 		else
 		{
 			reloadBeginTime = WorldInfo.TimeSeconds;
-			currentReloadTime = ReloadTime[CurrentFireMode];
-			SetTimer( ReloadTime[CurrentFireMode], false, 'ReloadWeaponTimer');
-			/*if(WorldInfo.Netmode == NM_DedicatedServer) 
-			{	
-			}*/
-		
+			currentReloadTime = ReloadTime[CurrentFireMode]*GetReloadSpeedModifier(); //*Vet_ReloadSpeedModifier[VRank];
+			SetTimer(ReloadTime[CurrentFireMode]*GetReloadSpeedModifier(), false, 'ReloadWeaponTimer');
+
 			ClearPendingFire(0);
 			ClearPendingFire(1);
 		}
 
-		if(bIronsightActivated)
+		if(bIronsightActivated || GetZoomedState() == ZST_Zoomed)
 		{
 			if(WorldInfo.Netmode != NM_DedicatedServer)
 			{
@@ -238,21 +330,36 @@ state Reloading
 		PlayWeaponReloadAnim();
 	}
 
-	function EndState( name NextState )
+	simulated function EndState( name NextState )
 	{
 		if (bDebugWeapon)
 		{
 			`log("---"@self$"."$GetStateName()$".EndState("$NextState$")");
 		}
+		
+		if(bIronsightActivated || GetZoomedState() != ZST_NotZoomed) //If for some odd reason we didn't unzoom, zoom out
+		{
+			//Kill LOG
+			//`log(GetZoomedState() != ZST_NotZoomed ); 
+			if(WorldInfo.Netmode != NM_DedicatedServer)
+			{
+				if(UTPlayerController(Instigator.Controller) != None)
+				{
+					UTPlayerController(Instigator.Controller).EndZoom();
+				}
+			}
+		} 
+		
 		CurrentlyReloading = false;
-		CurrentlyBoltReloading = false;
-		Rx_Pawn(Owner).SetHandIKEnabled(true);
+			//CurrentlyBoltReloading = false; // if we're just switching weapons, don't suddenly take off the bolt reload. 
 		Rx_Pawn(Owner).ReloadAnim = '';
+		Rx_Pawn(Owner).SetHandIKEnabled(true);
+		
 		ClearTimer('PerBulletReloadWeaponTimer');
 		ClearTimer('ReloadWeaponTimer');
 	}
 
-	function PerBulletReloadWeaponTimer()
+	simulated function PerBulletReloadWeaponTimer()
 	{
 		if (bDebugWeapon)
 		{
@@ -275,18 +382,21 @@ state Reloading
 		}
 		else if (CurrentReloadState == 1) // Weapon currently reloading
 		{
-			if (CurrentAmmoInClip < default.ClipSize && AmmoCount > CurrentAmmoInClip)
+			if (CurrentAmmoInClip < ClipSize && AmmoCount > CurrentAmmoInClip)
 			{
 				CurrentAmmoInClip++;
+				if(bUseClientAmmo && WorldInfo.NetMode == NM_Client) CurrentAmmoInClipClientSide++;
 				if (bHasInfiniteAmmo)
 				{
 					AmmoCount++;
+					ClientAmmoCount++; 
 				}
 				PostReloadUpdate();
 			}
 			// If the player wants to shoot and has at least one bullet loaded, OR ammo is full, OR all ammo is already reloaded
-			if(((PendingFire(0) || PendingFire(1)) && CurrentAmmoInClip > 0) || CurrentAmmoInClip == default.ClipSize || CurrentAmmoInClip >= AmmoCount) 
+			if(((PendingFire(0) || PendingFire(1)) && CurrentAmmoInClip > 0) || CurrentAmmoInClip == ClipSize || CurrentAmmoInClip >= AmmoCount) 
 			{
+				CurrentlyBoltReloading = false; 
 				CurrentReloadState = 0;
 			}
 		}
@@ -296,9 +406,9 @@ state Reloading
 		}
 
 		PlayWeaponReloadAnim();
-		SetTimer( ReloadTime[CurrentReloadState], false, 'PerBulletReloadWeaponTimer');
+		SetTimer( ReloadTime[CurrentReloadState]*GetReloadSpeedModifier(), false, 'PerBulletReloadWeaponTimer');
 	}
-	function ReloadWeaponTimer()
+	simulated function ReloadWeaponTimer()
 	{
 		if (bDebugWeapon)
 		{
@@ -308,37 +418,46 @@ state Reloading
 		if (bHasInfiniteAmmo) 
 		{
 			AmmoCount = MaxAmmoCount;
-			CurrentAmmoInClip = default.ClipSize;
+			CurrentAmmoInClip = ClipSize ; // default.ClipSize;
+			if(bUseClientAmmo && WorldInfo.NetMode == NM_Client) 
+			{
+				CurrentAmmoInClipClientSide = ClipSize;
+				ClientAmmoCount = MaxAmmoCount ; 
+			}
 		}
-		else if( AmmoCount >= default.ClipSize )
+		else if( AmmoCount >= ClipSize)  //default.ClipSize )
 		{
-			CurrentAmmoInClip = default.ClipSize;
+			CurrentAmmoInClip = ClipSize ; //default.ClipSize;
+			if(bUseClientAmmo && WorldInfo.NetMode == NM_Client) CurrentAmmoInClipClientSide = ClipSize;
 		}
 		else
 		{
 			CurrentAmmoInClip = AmmoCount;
+			if(bUseClientAmmo && WorldInfo.NetMode == NM_Client) CurrentAmmoInClipClientSide = AmmoCount;
 		}
 
 		CurrentlyReloading = false;
+		CurrentlyBoltReloading=false; 
 		PostReloadUpdate();
+		CurrentReloadPart = 0; //Done reloading 
 
 		//if((PendingFire(0) && CurrentFireMode == 0) || (PendingFire(1) && CurrentFireMode == 1) ) 
 		
-		if((ClientPendingFire[0] && CurrentFireMode == 0) || (ClientPendingFire[1] && CurrentFireMode == 1) )
+		if( bUseClientAmmo && ((ClientPendingFire[0] && CurrentFireMode == 0) || (ClientPendingFire[1] && CurrentFireMode == 1))) 
 		{
 			
 			RestartWeaponFiringAfterReload();	
 		}
 		else
 		{
-			
+			//`log("Call Active from ReloadWeapnTimer"); 
 			GotoState('Active');
 		}
 	}
 
 	simulated function bool bReadyToFire()
 	{
-		return false;
+		return PerBulletReload && AmmoCount != 0;
 	}
 
 	// Undo reload
@@ -347,7 +466,38 @@ state Reloading
 		ClearTimer('ReloadWeaponTimer');
 		ClearTimer('PerBulletReloadWeaponTimer');
 		CurrentlyReloading = false;
+		CurrentlyBoltReloading=false; 
+		//Finished the last reload... Let the weapon just be reloaded
+		if(CurrentReloadPart == ReloadParts+1)
+		{
+			ReloadWeaponTimer();
+		}			
 		super.PutDownWeapon();
+	}
+	
+	//Handle our infantry just having started to sprint 
+	simulated function OnSprintStart()
+	{
+		if(bCanReloadWhileSprinting){
+			super.OnSprintStart();
+			return; 
+		}
+		
+		//Can't reload this weapon whilst sprinting. 
+		ClearTimer('ReloadWeaponTimer');
+		ClearTimer('PerBulletReloadWeaponTimer');
+		CurrentlyReloading = false;
+		
+		//Kill off the reload animation on the owning pawn  
+		Rx_Pawn(Owner).TopHalfAnimSlot.StopCustomAnim(0.15);
+		//Finished the last reload... Let the weapon just be reloaded
+		if(CurrentReloadPart == ReloadParts+1)
+		{
+			ReloadWeaponTimer();
+		}
+		
+		global.OnSprintStart();
+		GoToState('Active');
 	}
 	
 	simulated event bool IsFiring()
@@ -364,10 +514,13 @@ simulated state Active
 {
 	simulated function BeginState(Name PrevStateName)
 	{
-		if( BoltActionReload && CurrentlyBoltReloading && HasAmmo(CurrentFireMode) )
-			GoToState('BoltActionReloading');
-		else if( CurrentAmmoInClip <= 0 && HasAnyAmmoOfType(CurrentFireMode) )
-			GoToState('Reloading');
+		if(GetWeaponCanReload()){
+			if( BoltActionReload && CurrentlyBoltReloading && HasAmmo(CurrentFireMode) )
+				GoToState('BoltActionReloading');
+			else if(CurrentAmmoInClip <= 0 && HasAnyAmmoOfType(CurrentFireMode) )
+				GoToState('Reloading');
+		}
+		
 		if (bDebugWeapon)
 		{
 			`log("---"@self$"."$GetStateName()$".EndState("$PrevStateName$")");
@@ -393,35 +546,41 @@ simulated state Active
 	
 }
 
-function ConsumeAmmo( byte FireModeNum )
+simulated function ConsumeAmmo( byte FireModeNum )
 {
-	CurrentAmmoInClip -= ShotCost[FireModeNum];
+	CurrentAmmoInClip = fmax(0,CurrentAmmoInClip-ShotCost[FireModeNum]);
+	
+	if(bUseClientAmmo && WorldInfo.Netmode == NM_Client) 
+		ClientAmmoCount =  fmax(0,ClientAmmoCount-ShotCost[FireModeNum]);
+	
 	super.ConsumeAmmo( FireModeNum );
 }
 
 // If this gun has any ammo in current clip it will return true.
 simulated function bool HasAmmo( byte FireModeNum, optional int Amount )
 {
-	if( Amount==0 )
+	/**if( Amount==0 )
 	{
-		if (CurrentAmmoInClip < ShotCost[FireModeNum] || CurrentAmmoInClipClientside < ShotCost[FireModeNum])
+		if (CurrentAmmoInClip < ShotCost[FireModeNum]) // || CurrentAmmoInClipClientside < ShotCost[FireModeNum])
 			return false;
 		else
 			return true;
 	}
-	else
-	{
-		if (CurrentAmmoInClip < Amount || CurrentAmmoInClipClientside < Amount)
+	else*/
+	
+		if (CurrentAmmoInClip < 1) //|| CurrentAmmoInClipClientside < Amount)
 			return false;
 		else
 			return true;
-	}
+	
 }
 
 // If this gun has any ammo at all it returns true.
 simulated function bool HasAnyAmmoOfType( byte FireModeNum )
 {
-	if( AmmoCount <= 0 )
+	if(bUseClientAmmo && WorldInfo.NetMode == NM_Client && ClientAmmoCount <= 0)  return false; 
+	else
+	if( AmmoCount <= 0 ) //(AmmoCount <= 0 )
 	{
 		return false;
 	}
@@ -430,14 +589,18 @@ simulated function bool HasAnyAmmoOfType( byte FireModeNum )
 
 simulated function PlayWeaponReloadAnim()
 {
+	local Rx_Pawn OwnerPawn; 
+	
+	OwnerPawn = Rx_Pawn(Owner); 
+	
 	if (PerBulletReload)
 	{
-		PlayWeaponAnimation( ReloadAnimName[CurrentReloadState], ReloadTime[CurrentReloadState] );
-		PlayArmAnimation( ReloadArmAnimName[CurrentReloadState], ReloadTime[CurrentReloadState] );
-		if(Rx_Pawn(Owner) != None)
+		PlayWeaponAnimation( ReloadAnimName[CurrentReloadState], ReloadTime[CurrentReloadState]*GetReloadSpeedModifier() );//Vet_ReloadSpeedModifier[VRank] );
+		PlayArmAnimation( ReloadArmAnimName[CurrentReloadState], ReloadTime[CurrentReloadState]*GetReloadSpeedModifier() );//Vet_ReloadSpeedModifier[VRank] );
+		if(OwnerPawn != None)
 		{
-			Rx_Pawn(Owner).ReloadAnim = ReloadAnim3PName[CurrentReloadState];
-			Rx_Pawn(Owner).TopHalfAnimSlot.PlayCustomAnimByDuration(Rx_Pawn(Owner).ReloadAnim,ReloadTime[CurrentReloadState],0.1f,0.1f,false,true);
+			OwnerPawn.ReloadAnim = ReloadAnim3PName[CurrentReloadState];
+			OwnerPawn.TopHalfAnimSlot.PlayCustomAnimByDuration(OwnerPawn.ReloadAnim,ReloadTime[CurrentReloadState]*GetReloadSpeedModifier(),0.1f,0.1f,false,true);
 		}
 		PlaySound( ReloadSound[CurrentReloadState] );
 	}
@@ -448,22 +611,29 @@ simulated function PlayWeaponReloadAnim()
 			// Primary Fire with no ammo in clip reload animations and sounds
 			if( CurrentAmmoInClip == 0 || ReloadAnimName[2] == '' )
 			{
-				PlayWeaponAnimation( ReloadAnimName[0], ReloadTime[0] );
-				PlayArmAnimation( ReloadArmAnimName[0], ReloadTime[0] );
-				if(Rx_Pawn(Owner) != None) {
-					Rx_Pawn(Owner).ReloadAnim = ReloadAnim3PName[0];
-					Rx_Pawn(Owner).TopHalfAnimSlot.PlayCustomAnimByDuration(Rx_Pawn(Owner).ReloadAnim,ReloadTime[0],0.1f,0.1f,false,true);
+				PlayWeaponAnimation( ReloadAnimName[0], ReloadTime[0]*GetReloadSpeedModifier() );//Vet_ReloadSpeedModifier[VRank] );
+				PlayArmAnimation( ReloadArmAnimName[0], ReloadTime[0]*GetReloadSpeedModifier() );//Vet_ReloadSpeedModifier[VRank] );
+				if(OwnerPawn != None) {
+					OwnerPawn.ReloadAnim = ReloadAnim3PName[0];
+					if(bUsePartialReload)
+					{
+						OwnerPawn.TopHalfAnimSlot.PlayCustomAnim(OwnerPawn.ReloadAnim, BaseReloadAnimTime/(ReloadTime[0]*GetReloadSpeedModifier()),0.1f,0.1f,false,true, ReloadPointTimes[CurrentReloadPart]);
+						//`log("Reload Speed:" @ BaseReloadAnimTime/(ReloadTime[0]*GetReloadSpeedModifier()));
+					}
+					else
+						OwnerPawn.TopHalfAnimSlot.PlayCustomAnimByDuration(OwnerPawn.ReloadAnim,ReloadTime[0]*GetReloadSpeedModifier(),0.1f,0.1f,false,true);
+
 				}
 				PlaySound( ReloadSound[0] );
 			}
 			// Primary Fire with 1 ore more rounds the the clip reload anims and sounds
 			else
 			{
-				PlayWeaponAnimation( ReloadAnimName[2], ReloadTime[2] );
-				PlayArmAnimation( ReloadArmAnimName[2], ReloadTime[2] );
-				if(Rx_Pawn(Owner) != None) {
-					Rx_Pawn(Owner).ReloadAnim = ReloadAnim3PName[0];
-					Rx_Pawn(Owner).TopHalfAnimSlot.PlayCustomAnimByDuration(Rx_Pawn(Owner).ReloadAnim,ReloadTime[0],0.1f,0.1f,false,true);
+				PlayWeaponAnimation( ReloadAnimName[2], ReloadTime[2]*GetReloadSpeedModifier() );
+				PlayArmAnimation( ReloadArmAnimName[2], ReloadTime[2]*GetReloadSpeedModifier() );
+				if(OwnerPawn != None) {
+					OwnerPawn.ReloadAnim = ReloadAnim3PName[0];
+					OwnerPawn.TopHalfAnimSlot.PlayCustomAnimByDuration(OwnerPawn.ReloadAnim,ReloadTime[0]*GetReloadSpeedModifier(),0.1f,0.1f,false,true);
 				}
 				PlaySound( ReloadSound[2] );
 			}
@@ -473,23 +643,23 @@ simulated function PlayWeaponReloadAnim()
 			// Secondary Fire with no ammo in clip reload animations and sounds
 			if( CurrentAmmoInClip == 0 || ReloadAnimName[3] == '' )
 			{
-				PlayWeaponAnimation( ReloadAnimName[1], ReloadTime[1] );
-				PlayArmAnimation( ReloadArmAnimName[1], ReloadTime[1] );
-				if(Rx_Pawn(Owner) != None) {
-					Rx_Pawn(Owner).ReloadAnim = ReloadAnim3PName[1];
-					Rx_Pawn(Owner).TopHalfAnimSlot.PlayCustomAnimByDuration(Rx_Pawn(Owner).ReloadAnim,ReloadTime[1],0.1f,0.1f,false,true);
+				PlayWeaponAnimation( ReloadAnimName[1], ReloadTime[1]*GetReloadSpeedModifier() );
+				PlayArmAnimation( ReloadArmAnimName[1], ReloadTime[1]*GetReloadSpeedModifier() );
+				if(OwnerPawn != None) {
+					OwnerPawn.ReloadAnim = ReloadAnim3PName[1];
+					OwnerPawn.TopHalfAnimSlot.PlayCustomAnimByDuration(OwnerPawn.ReloadAnim,ReloadTime[1]*GetReloadSpeedModifier(),0.1f,0.1f,false,true);
 				}
 				PlaySound( ReloadSound[1] );
 			}
 			// Secondary Fire with 1 ore more rounds the the clip reload anims and sounds
 			else
 			{
-				PlayWeaponAnimation( ReloadAnimName[3], ReloadTime[3] );
-				PlayArmAnimation( ReloadArmAnimName[3], ReloadTime[3] );
-				if(Rx_Pawn(Owner) != None) {
-					Rx_Pawn(Owner).ReloadAnim = ReloadAnim3PName[3];
+				PlayWeaponAnimation( ReloadAnimName[3], ReloadTime[3]*GetReloadSpeedModifier() );
+				PlayArmAnimation( ReloadArmAnimName[3], ReloadTime[3]*GetReloadSpeedModifier() );
+				if(OwnerPawn != None) {
+					OwnerPawn.ReloadAnim = ReloadAnim3PName[3];
 					//Rx_Pawn(Owner).TopHalfAnimSlot.PlayCustomAnim( Rx_Pawn(Owner).ReloadAnim, 1.0, 0.1, 0.1, false, true );
-					Rx_Pawn(Owner).TopHalfAnimSlot.PlayCustomAnimByDuration(Rx_Pawn(Owner).ReloadAnim,ReloadTime[3],0.1f,0.1f,false,true);
+					OwnerPawn.TopHalfAnimSlot.PlayCustomAnimByDuration(OwnerPawn.ReloadAnim,ReloadTime[3]*GetReloadSpeedModifier(),0.1f,0.1f,false,true);
 				}
 				PlaySound( ReloadSound[3] );
 			}
@@ -497,18 +667,159 @@ simulated function PlayWeaponReloadAnim()
 	}
 }
 
+//Special version of PlayWeaponAnimation to allow for partial reloads//
+simulated function PlayWeaponAnimation(name Sequence, float fDesiredDuration, optional bool bLoop, optional SkeletalMeshComponent SkelMesh)
+{
+	local AnimNodeSequence WeapNode;
+	local AnimTree Tree;
+	
+	//AimingWeaponClass call// 
+	
+		if(Sequence == WeaponIdleAnims[0] && Rx_Pawn(Instigator).bSprinting)
+			return;
+		bPlayingIdleAnim = false;
+		//Super.PlayWeaponAnimation(Sequence, fDesiredDuration, bLoop, SkelMesh);
+	
+	//Modified call from UTWeapon//
+	if (Mesh == None || Mesh.bAttached == false)
+	{
+		return;
+		//Super.PlayWeaponAnimation(Sequence, fDesiredDuration, bLoop, SkelMesh);
+	}
+	
+	//Modified super call from Weapon.uc//
+	
+	// do not play on a dedicated server
+	if( WorldInfo.NetMode == NM_DedicatedServer )
+	{
+		return;
+	}
+
+	if ( SkelMesh == None )
+	{
+		SkelMesh = SkeletalMeshComponent(Mesh);
+	}
+
+	// Check we have access to mesh and animations
+	if( SkelMesh == None || GetWeaponAnimNodeSeq() == None )
+	{
+		return;
+	}
+
+	//function PlayAnim(name AnimName, optional float Duration, optional bool bLoop, optional bool bRestartIfAlreadyPlaying = true, optional float StartTime=0.0f, optional bool bPlayBackwards=false)
+	
+	if(fDesiredDuration > 0.0)
+	{
+		// @todo - this should call GetWeaponAnimNodeSeq, move 'duration' code into AnimNodeSequence and use that.
+		if(Sequence == ReloadAnimName[0] && bUsePartialReload) 
+		{
+			SkelMesh.PlayAnim(Sequence, fDesiredDuration, bLoop,,ReloadPointTimes[CurrentReloadPart]);
+		}
+		else
+			SkelMesh.PlayAnim(Sequence, fDesiredDuration, bLoop);			
+	}
+	else
+	{
+		//Try getting an animtree first
+		Tree = AnimTree(SkelMesh.Animations);
+		if (Tree != None)
+		{
+			WeapNode = AnimNodeSequence(Tree.Children[0].Anim);
+		}
+		else
+		{
+			WeapNode = AnimNodeSequence(SkelMesh.Animations);
+		}
+
+		WeapNode.SetAnim(Sequence);
+		WeapNode.PlayAnim(bLoop, DefaultAnimSpeed);
+	}
+}
+
+//////////
+
+//Special variant for playing arm animations that need to be partial//
+simulated function PlayArmAnimation( Name Sequence, float fDesiredDuration, optional bool OffHand, optional bool bLoop, optional SkeletalMeshComponent SkelMesh)
+{
+	local UTPawn UTP;
+	local SkeletalMeshComponent ArmMeshComp;
+	local AnimNodeSequence WeapNode;
+
+	// do not play on a dedicated server or if they aren't being seen
+	if( WorldInfo.NetMode == NM_DedicatedServer || Instigator == None || !Instigator.IsFirstPerson())
+	{
+		return;
+	}
+	
+	if(Sequence == ArmIdleAnims[0] && Rx_Pawn(Instigator).bSprinting)
+		return;
+	
+	UTP = UTPawn(Instigator);
+	if(UTP == none)
+	{
+		return;
+	}
+	if(UTP.bArmsAttached)
+	{
+		// Choose the right arm
+		if(!OffHand)
+		{
+			ArmMeshComp = UTP.ArmsMesh[0];
+		}
+		else
+		{
+			ArmMeshComp = UTP.ArmsMesh[1];
+		}
+
+		// Check we have access to mesh and animations
+		if( ArmMeshComp == None || ArmsAnimSet == none || GetArmAnimNodeSeq() == None )
+		{
+			return;
+		}
+
+		// If we are not specifying a duration, use the default play rate.
+		if(fDesiredDuration > 0.0)
+		{
+			
+			// @todo - this should call GetWeaponAnimNodeSeq, move 'duration' code into AnimNodeSequence and use that.
+		if(Sequence == ReloadAnimName[0] && bUsePartialReload) 
+		{
+			ArmMeshComp.PlayAnim(Sequence, fDesiredDuration, bLoop,,ReloadPointTimes[CurrentReloadPart]);
+		}
+		else
+			ArmMeshComp.PlayAnim(Sequence, fDesiredDuration, bLoop);			
+		}
+		else
+		{
+			WeapNode = AnimNodeSequence(ArmMeshComp.Animations);
+			WeapNode.SetAnim(Sequence);
+			WeapNode.PlayAnim(bLoop, DefaultAnimSpeed);
+		}
+	}
+}
+
 simulated function ReloadWeapon()
 {
 	local Rx_Controller controller;
+	
 	if (Rx_Pawn(Owner) != none)
 	{
 		controller = Rx_Controller(Rx_Pawn(Owner).Controller);
 		
-		if( controller != none && CurrentAmmoInClip <= ClipSize && CurrentAmmoInClip < AmmoCount && !CurrentlyReloading &&  controller.DoubleClickDir != controller.eDoubleClickDir.DCLICK_Active)
+		if(GetWeaponCanReload() && controller != none && controller.DoubleClickDir != controller.eDoubleClickDir.DCLICK_Active)
 		{
 			GotoState('Reloading');
 		}
 	}
+}
+
+simulated function bool GetWeaponCanReload(){
+	
+	//`log(Rx_Pawn(Owner).bSprinting); 
+	if(bCanReloadWhileSprinting)
+		return CurrentAmmoInClip <= ClipSize && CurrentAmmoInClip < AmmoCount && !CurrentlyReloading ; //Just worry about your ammo then 
+	else
+		return !Rx_Pawn(Owner).bSprinting && CurrentAmmoInClip <= ClipSize && CurrentAmmoInClip < AmmoCount && !CurrentlyReloading; 
 }
 
 simulated function int GetUseableAmmo()
@@ -518,12 +829,16 @@ simulated function int GetUseableAmmo()
 
 simulated function int GetMaxAmmoInClip()
 {
-	return default.ClipSize;
+	return ClipSize;//default.ClipSize;
 }
 
 simulated function int GetReserveAmmo()
 {
+	
+	if(bUseClientAmmo && WorldInfo.NetMode == NM_Client) return ClientAmmoCount - CurrentAmmoInClip ;  
+	else
 	return AmmoCount - CurrentAmmoInClip;
+
 }
 
 simulated function bool IsReloading()
@@ -583,15 +898,15 @@ simulated state WeaponFiring
 		if( BoltActionReload && !IsTimerActive('BoltActionReloadTimer') )
 		{
 			CurrentlyBoltReloading = true;
-			SetTimer( GetFireInterval(FireModeNum) * RefireBoltReloadInterrupt[FireModeNum], false, nameof(BoltActionReloadTimer) );
+			SetTimer( GetFireInterval(FireModeNum) * GetROFModifier() * RefireBoltReloadInterrupt[FireModeNum] , false, nameof(BoltActionReloadTimer) );
 		}
 		else 
 		{
-			if(CurrentAmmoInClip <= 0 && GetFireInterval(FireModeNum) >= 0.5)
+			if(CurrentAmmoInClip <= 0 && bOverrideFireIntervalForReload && GetFireInterval(FireModeNum) >= 0.5)
 			{
 				if( !IsTimerActive('RefireCheckTimer') )
 				{
-					SetTimer( 0.5, true, nameof(RefireCheckTimer) );
+					SetTimer( 0.5*GetROFModifier(), true, nameof(RefireCheckTimer) );
 					//SetTimer( GetFireInterval(FireModeNum), true, nameof(RefireCheckTimer) );
 				}
 			} 
@@ -625,7 +940,6 @@ simulated state WeaponFiring
 		{
 			
 			GotoState('Reloading');
-			
 			return;
 		}
 
@@ -647,14 +961,14 @@ simulated function BoltActionReloadTimer()
 {
 	if (bDebugWeapon)
 	{
-		`log("BoltActionReloadTimer");
+		//`log("BoltActionReloadTimer");
 	}
 	
 	//Once Bolt Action reloading is instated, disallow holding down the fire button. 
-	ClientPendingFire[0] = false; 
+	/**ClientPendingFire[0] = false; 
 	ClientPendingFire[1] = false; 
 	ClearPendingFire(0); 
-	ClearPendingFire(1);  
+	ClearPendingFire(1);*/  
 	
 	if(!BoltActionReload)
 		return;
@@ -666,17 +980,24 @@ simulated function BoltActionReloadTimer()
 
 simulated state BoltActionReloading
 {
-	 function BeginState( name PreviousState )
+	simulated function BeginState( name PreviousState )
 	{
 		if (bDebugWeapon)
 		{
 			`log("---"@self$"."$GetStateName()$".BeginState("$PreviousState$")");
 		}
-
+		
+		  if(WorldInfo.NetMode == NM_StandAlone || WorldInfo.NetMode == NM_Client)
+        {
+        	PlayWeaponBoltReloadAnim();
+        	PlaySound( BoltReloadSound[CurrentFireMode], false,true);
+        }
+		
 		reloadBeginTime = WorldInfo.TimeSeconds;
 		currentReloadTime = BoltReloadTime[CurrentFireMode];
 		SetTimer( BoltReloadTime[CurrentFireMode], false, 'ReloadWeaponTimer');
-
+	
+		
 		if(bIronsightActivated && bUnzoomDuringBoltActionReloading)
 		{
 			if(WorldInfo.Netmode != NM_DedicatedServer)
@@ -692,7 +1013,7 @@ simulated state BoltActionReloading
 		
 	}
 
-	 function EndState( name NextState )
+	 simulated function EndState( name NextState )
 	{
 		if (bDebugWeapon)
 		{
@@ -711,12 +1032,15 @@ simulated state BoltActionReloading
 		}
 
 		CurrentlyBoltReloading = false;
+		ClearTimer( nameof(BoltActionReloadTimer) );
 		PostReloadUpdate();
 
 		//if(  (PendingFire(0) || PendingFire(1)) && ShouldRefire() ) 
-		if(  (ClientPendingFire[0] || ClientPendingFire[1]) && ShouldRefire() ) 
+		//if(  (ClientPendingFire[0] || ClientPendingFire[1]) && ShouldRefire() ) 
+		if( bUseClientAmmo && ((ClientPendingFire[0] && CurrentFireMode == 0) || (ClientPendingFire[1] && CurrentFireMode == 1))) 
 		{
-			GotoState('WeaponFiring');	
+			RestartWeaponFiringAfterReload(); 
+			//GotoState('WeaponFiring');	
 		}
 		else
 		{
@@ -731,10 +1055,10 @@ simulated state BoltActionReloading
 	
 	simulated function BeginFire( Byte FireModeNum )
 	{
-		if ( FireModeNum == 0 )
+		/**if ( FireModeNum == 0 )
 		{
 			return;
-		}
+		}*/
 		global.BeginFire(FireModeNum);
 	}	
 
@@ -743,6 +1067,22 @@ simulated state BoltActionReloading
 	{
 		ClearTimer('ReloadWeaponTimer');
 		super.PutDownWeapon();
+	}
+	
+	simulated function OnSprintStart()
+	{
+		if(bCanReloadWhileSprinting){
+			super.OnSprintStart();
+			return; 
+		}
+		
+		//Can't reload this weapon whilst sprinting. 
+		ClearTimer('ReloadWeaponTimer');
+				//Kill off the reload animation on the owning pawn  
+		Rx_Pawn(Owner).TopHalfAnimSlot.StopCustomAnim(0.15);
+		//Finished the last reload... Let the weapon just be reloaded		
+		global.OnSprintStart();
+		GoToState('Active');
 	}
 	
 	simulated event bool IsFiring()
@@ -774,18 +1114,57 @@ simulated function DrawCrosshair( Hud HUD )
 	local UTHUDBase H;
 	local Pawn MyPawnOwner;
 	local actor TargetActor;
-	local int targetTeam, rectColor;
+	local int targetTeam;
+	local LinearColor LC; //nBab
+	local float XResScale, MinDotScale;
 	
-	// rectColor is an integer representing what we will pass to the texture's parameter(ReticleColourSwitcher):
-	// 0=Default, 1=Red, 2=Green, 3=Yellow
-	rectColor = 0;	
 	
+	
+	//set initial color based on settings (nBab)
+	LC.A = 1.f;
+	switch (Rx_HUD(Rx_Controller(Instigator.Controller).myHUD).SystemSettingsHandler.GetCrosshairColor())
+	{
+		//white
+		case 0:
+			LC.R = 1.f;
+			LC.G = 1.f;
+			LC.B = 1.f;
+			break;
+		//orange
+		case 1:
+			LC.R = 2.f;
+			LC.G = 0.5f;
+			LC.B = 0.f;
+			break;
+		//violet
+		case 2:
+			LC.R = 2.f;
+			LC.G = 0.f;
+			LC.B = 2.f;
+			break;
+		//blue
+		case 3:
+			LC.R = 0.f;
+			LC.G = 0.f;
+			LC.B = 2.f;
+			break;
+		//cyan
+		case 4:
+			LC.R = 0.f;
+			LC.G = 2.f;
+			LC.B = 2.f;
+			break;	
+	}	
+
 	H = UTHUDBase(HUD);
 	if ( H == None )
 		return;
 		
-	CrosshairWidth = default.CrosshairWidth + RecoilSpread*RecoilSpreadCrosshairScaling;	
-	CrosshairHeight = default.CrosshairHeight + RecoilSpread*RecoilSpreadCrosshairScaling;
+	XResScale = H.Canvas.SizeX/1920.0;
+	MinDotScale = Fmax(XResScale, 0.73);
+	
+	CrosshairWidth = (default.CrosshairWidth + RecoilSpread*RecoilSpreadCrosshairScaling) * XResScale;	
+	CrosshairHeight = (default.CrosshairHeight + RecoilSpread*RecoilSpreadCrosshairScaling) * XResScale;
 		
 	CrosshairLinesX = H.Canvas.ClipX * 0.5 - (CrosshairWidth * 0.5);
 	CrosshairLinesY = H.Canvas.ClipY * 0.5 - (CrosshairHeight * 0.5);	
@@ -811,42 +1190,66 @@ simulated function DrawCrosshair( Hud HUD )
 				if (targetTeam != MyPawnOwner.GetTeamNum())
 				{
 					if (!TargetActor.IsInState('Stealthed') && !TargetActor.IsInState('BeenShot'))
-						rectColor = 1; //enemy, go red, except if stealthed (else would be cheating ;] )
+					{
+						//enemy, go red, except if stealthed (else would be cheating ;] )
+						//nBab
+						LC.R = 10.f;
+						LC.G = 0.f;
+						LC.B = 0.f;
+					}
 				}
 				else
-					rectColor = 2; //Friendly
+				{
+					//Friendly
+					//nBab
+					LC.R = 0.f;
+					LC.G = 10.f;
+					LC.B = 0.f;
+				}
 			}
 		}
 	}
 	
 	if (!HasAnyAmmo()) //no ammo, go yellow
-		rectColor = 3;
+	{
+		//nBab
+		LC.R = 10.f;
+		LC.G = 8.f;
+		LC.B = 0.f;
+	}
 	else
 	{
 		if (CurrentlyReloading 
 				|| (CurrentlyBoltReloading || (BoltActionReload && HasAmmo(CurrentFireMode) && IsTimerActive('BoltActionReloadTimer')))) //reloading, go yellow
-			rectColor = 3;
+		{
+			//nBab
+			LC.R = 10.f;
+			LC.G = 8.f;
+			LC.B = 0.f;
+		}
+
 	}
 
-	CrosshairMIC2. SetScalarParameterValue('ReticleColourSwitcher', rectColor);
-	CrosshairDotMIC2. SetScalarParameterValue('ReticleColourSwitcher', rectColor);
+	//nBab
+	CrosshairMIC2.SetVectorParameterValue('Reticle_Colour', LC);
+	CrosshairDotMIC2.SetVectorParameterValue('Reticle_Colour', LC);
 	
 	H.Canvas.SetPos( CrosshairLinesX, CrosshairLinesY );
 	if(bDisplayCrosshair) {
 		H.Canvas.DrawMaterialTile(CrosshairMIC2, CrosshairWidth, CrosshairHeight);
 	}
 
-	CrosshairLinesX = H.Canvas.ClipX * 0.5 - (default.CrosshairWidth * 0.5);
-	CrosshairLinesY = H.Canvas.ClipY * 0.5 - (default.CrosshairHeight * 0.5);
+	CrosshairLinesX = H.Canvas.ClipX * 0.5 - (default.CrosshairWidth * 0.5 * MinDotScale);
+	CrosshairLinesY = H.Canvas.ClipY * 0.5 - (default.CrosshairHeight * 0.5 *MinDotScale);
 	GetCrosshairDotLoc(x, y, H);
 	H.Canvas.SetPos( X, Y );
 	if(bDisplayCrosshair) {
-		H.Canvas.DrawMaterialTile(CrosshairDotMIC2, default.CrosshairWidth, default.CrosshairHeight);
+		H.Canvas.DrawMaterialTile(CrosshairDotMIC2, default.CrosshairWidth*MinDotScale, default.CrosshairHeight*MinDotScale);
 	}
 	DrawHitIndicator(H,x,y);
 	
 	
-	if(bDebugWeapon)
+/**	if(bDebugWeapon)
 	{
 	H.Canvas.DrawText("Reloading: " @ CurrentlyReloading ,true,1,1);
 	Y+=20;
@@ -863,20 +1266,61 @@ simulated function DrawCrosshair( Hud HUD )
 	H.Canvas.DrawText("State" @ GetStateName(),true,1,1);
 	Y+=20;
 	H.Canvas.DrawText("RefireTimer" @ IsTimerActive('RefireCheckTimer') ,true,1,1);
+	Y+=20;
+	H.Canvas.DrawText("Loc" @ Rx_Pawn(Owner).SpotLocation ,true,1,1);
 	}
+	*/
 	
+	if(bDebugWeapon)
+	{
+		if(Rx_Pawn(MyPawnOwner).PassiveAbilities[0] != none) 
+			H.Canvas.DrawText("JJ FUEL: " @ Rx_Pawn(MyPawnOwner).PassiveAbilities[0].CurrentCharges ,true,1,1);
+		Y+=20;
+		H.Canvas.DrawText("Reloading: " @ CurrentlyReloading ,true,1,1);
+		Y+=20;
+		H.Canvas.DrawText("CurrentReloadState" @ CurrentReloadState,true,1,1);
+		Y+=20;
+		H.Canvas.DrawText("Accuracy:" @ (Rx_Controller(MyPawnOwner.Controller).Acc_Hits/Rx_Controller(MyPawnOwner.Controller).Acc_Shots)*100.0 $ "%",true,1,1);
+		Y+=20;
+		H.Canvas.DrawText("PendingFire:" @ PendingFire(0),true,1,1);
+		Y+=20;
+		H.Canvas.DrawText("ClientPendingFire:" @ ClientPendingFire[0],true,1,1);
+		Y+=20;
+		H.Canvas.DrawText("CurrentlyBoltReloading: " @ CurrentlyBoltReloading,true,1,1);
+		Y+=20;
+		H.Canvas.DrawText("Has Ammo:" @ HasAmmo(0),true,1,1);
+		Y+=20;
+		H.Canvas.DrawText("State" @ GetStateName(),true,1,1);
+		Y+=20;
+		H.Canvas.DrawText("ZoomedState" @ GetZoomedState() ,true,1,1);
+		Y+=20;
+		H.Canvas.DrawText("Ironsight Activated" @ bIronsightActivated ,true,1,1);
+		Y+=20;
+		H.Canvas.DrawText("Pawn VEl:" @ Rx_Pawn(MyPawnOwner).Velocity ,true,1,1);
+		Y+=20;
+		H.Canvas.DrawText("Pawn Acc:" @ Rx_Pawn(MyPawnOwner).Acceleration ,true,1,1);
+	}
 }
 
 simulated function DrawHitIndicator(HUD H, float x, float y)
 {
 	local vector2d CrosshairSize;
+	local float XResScale, MinDotScale;
+	local LinearColor LC; 
 	
 	if(Rx_Hud(H).GetHitEffectAplha() <= 0.0) {
 		return;
 	}	
-    CrosshairSize.Y = default.CrosshairHeight;
-    CrosshairSize.X = default.CrosshairWidth;
+	
+	LC=Rx_Hud(H).HitMarker_Color;
+	
+	XResScale = H.Canvas.SizeX/1920.0;
+	MinDotScale = Fmax(XResScale, 0.73);
+	
+    CrosshairSize.Y = default.CrosshairHeight * MinDotScale;
+    CrosshairSize.X = default.CrosshairWidth * MinDotScale;
     H.Canvas.SetPos(x, y);
+	HitIndicatorCrosshairMIC2.SetVectorParameterValue('Reticle_Colour', LC);
     HitIndicatorCrosshairMIC2.SetScalarParameterValue('Reticle_Opacity', Rx_Hud(H).GetHitEffectAplha()/100.0);
     H.Canvas.DrawMaterialTile(HitIndicatorCrosshairMIC2,CrosshairSize.X, CrosshairSize.Y,0.0,0.0,1.0,1.0);
 }
@@ -904,6 +1348,161 @@ simulated function WeaponEmpty()
 	}
 }
 
+function PromoteWeapon(byte rank)
+{
+super.PromoteWeapon(rank);  
+ClipSize=default.ClipSize+Vet_ClipSizeModifier[rank]; 
+CurrentAmmoInClip  = default.ClipSize+Vet_ClipSizeModifier[rank];
+MaxAmmoCount = (default.ClipSize+Vet_ClipSizeModifier[rank]) * (MaxClips+VRank*Ammo_Increment);
+if(bRefillonPromotion) PerformRefill();  
+}
+
+reliable server function NotifyServerOfReload(int Count) //deviation integer
+{
+//local int DeviInt;
+//`log("Thing and stuff: " @ UTPawn(Instigator).CurrentWeaponAttachment);
+//Add log of difference
+if(!bHasInfiniteAmmo) 
+	{
+	//DeviInt = AmmoCount - Count ; 
+	//`log("---------Weapon" @ self @ "Reload with ammo deviation of " @ DeviInt @ "---------") ;
+	if(AmmoCount > Count && !RefillStateFlag) AmmoCount = Count; //Server lost traffic somewhere. or there's a culprit I don't know about somewhere.
+	}
+	
+	GoToState('Reloading');	
+
+}
+
+reliable server function ServerConfirmRefill()
+{
+	RefillStateFlag = false; //Refill is done, continue reload syncs 
+}
+
+reliable client function ClientUpdateAmmoCount(int Amount)
+{
+	ClientAmmoCount=Amount;
+}
+
+simulated function float GetReloadSpeedModifier()
+{
+	if(Rx_Controller(Instigator.Controller) != none) 
+		return Vet_ReloadSpeedModifier[VRank]+Rx_Controller(Instigator.Controller).Misc_ReloadSpeedMod; 
+	else
+	if(Rx_Bot(Instigator.Controller) != none) 
+		return Vet_ReloadSpeedModifier[Vrank]+Rx_Bot(Instigator.Controller).Misc_ReloadSpeedMod; 
+	else
+		return 1.0; 
+}
+
+simulated function ReplicateVRank()
+{
+	//Psuedo promote client side 
+		if(Rx_Weapon_RepairGun(self) == none)
+		{
+			ClipSize=default.ClipSize+Vet_ClipSizeModifier[Vrank]; 
+			CurrentAmmoInClip  = default.ClipSize+Vet_ClipSizeModifier[Vrank];
+			MaxAmmoCount = (default.ClipSize+Vet_ClipSizeModifier[Vrank]) * (MaxClips + Ammo_Increment*Vrank);
+			if(bRefillonPromotion) PerformRefill(); //don't refill deployables. 
+		}
+		super(Rx_Weapon).ReplicateVRank();
+}
+
+/////////////////////////////
+//Partial Reload functions//
+////////////////////////////
+
+simulated function SetRestartReloadPoint(); //Null notification
+
+simulated function TickPartialReload()
+{
+	if(bUsePartialReload)
+	{
+		if(CurrentReloadPart <= ReloadParts)
+			CurrentReloadPart+=1;
+		else
+			CurrentReloadPart=0 ; 
+		
+		if(bLoseAmmoOnMagDrop && CurrentReloadPart == 1)
+		{
+			CurrentAmmoInClip = 0;
+		
+			if(bUseClientAmmo && WorldInfo.Netmode == NM_Client) 
+				ClientAmmoCount =  0;
+		}
+		//`log(CurrentReloadPart); 
+	}
+}
+
+simulated function BuildPartialReloadFromAnimation()
+{
+	local AnimSequence 	ReloadSeq, ReloadSeq3P;
+	local int			i;
+	local float			LastNotifyTime;	
+	local bool			bSkip; //Only pick out every other reload notification (So we have the times of where to start again if only partially reloaded)
+	local string		NotificationStr;
+	
+	//Reset global variables
+	LastNotifyTime = 0; 
+	
+	ReloadSeq = SkeletalMeshComponent(Mesh).FindAnimSequence(ReloadAnimName[0]);
+	
+	ReloadSeq3P = Rx_Pawn(Owner).Mesh.FindAnimSequence(ReloadAnim3PName[0]);
+	
+	//Update the global variable to tell us how many partial reload notifiers are in the reload animation
+	ReloadParts = 0;
+	//Reset reload times 
+	ReloadPointTimes.Length = 0; 
+	
+	ReloadPointTimes.AddItem(0.0); //Always have 0 1st
+	
+	//BaseReloadAnimTime = ReloadSeq.SequenceLength; //Length of this animation at rate 1.0 
+	
+	BaseReloadAnimTime = ReloadSeq3P.SequenceLength;
+	
+	//`log(BaseReloadAnimTime); 
+	
+	bSkip=true; 
+	
+	for(i=0;i < ReloadSeq.Notifies.Length;i++)
+	{
+		NotificationStr = string(ReloadSeq.Notifies[i].Notify.name) ; 
+		if(InStr(Caps(NotificationStr), "SCRIPT") != -1)
+		{
+			LastNotifyTime = ReloadSeq.Notifies[i].Time ;
+			if(bSkip)
+			{
+				bSkip = false; 
+				continue;
+			}
+			else
+			{
+				ReloadPointTimes.AddItem(LastNotifyTime); 
+				ReloadParts+=1; //Number of reloading parts
+				bSkip=true; 
+				`log(ReloadSeq @ LastNotifyTime);
+			}
+		}
+	}
+}
+
+simulated function RecoverFromSprintTimer(){
+	bRecoveringFromSprint = false;
+	
+	if( CurrentAmmoInClip <= 0 && HasAnyAmmoOfType(CurrentFireMode) )
+		{
+			GotoState('Reloading');
+			return;
+		}
+	
+	//Start fire if we had the button held down 
+	if((ClientPendingFire[0] && CurrentFireMode == 0) || (ClientPendingFire[1] && CurrentFireMode == 1))
+	{
+		if(ROLE < ROLE_Authority || WorldInfo.Netmode == NM_Standalone) 
+		{
+			StartFire(CurrentFireMode);  	
+		}
+	}
+}
 
 DefaultProperties
 {
@@ -911,7 +1510,10 @@ DefaultProperties
 	ReloadTime(1) = 1.0f
 	ReloadAnim3PName(0) = "H_M_Autorifle_Reload"
 	ReloadAnim3PName(1) = "H_M_Autorifle_Reload"
-	bDebugWeapon = true
+	bDebugWeapon = false
+	RefillStateFlag = false; 
+	bUseClientAmmo = true ; 
+	bOverrideFireIntervalForReload = true //Don't wait too long on weapons with long fire times 
 	
 	BoltActionReload=false
 	BoltReloadTime(0) = 1.0f
@@ -928,5 +1530,30 @@ DefaultProperties
 	BoltReloadSound(1)=SoundCue'RX_WP_SniperRifle.Sounds.SC_Sniper_Reload'
 
 	PerBulletReload = false;
+	bCanReloadWhileSprinting = true 
+	
 	bHasInfiniteAmmo = false;
+	
+	//Partial Reload System
+	bUsePartialReload = false
+	bLoseAmmoOnMagDrop = false	
+	ReloadParts = 0
+	CurrentReloadPart = 0
+
+	
+	
+	//Veterancy 
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)	
+	Vet_ClipSizeModifier(1)=0 //Veteran 
+	Vet_ClipSizeModifier(2)=0 //Elite
+	Vet_ClipSizeModifier(3)=0 //Heroic
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=1 //Veteran 
+	Vet_ReloadSpeedModifier(2)=1 //Elite
+	Vet_ReloadSpeedModifier(3)=1 //Heroic
+	
+	bRefillonPromotion = true //True for most weapons
+	Ammo_Increment = 1
+	
 }

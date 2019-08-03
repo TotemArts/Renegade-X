@@ -1,4 +1,4 @@
-class Rx_Rcon_Command extends Object within Rx_Rcon_Commands_Container abstract;
+class Rx_Rcon_Command extends Object abstract;
 
 var protected array<string> triggers;
 var protected string Syntax;
@@ -16,6 +16,11 @@ function bool matches(string trigger)
 function addTrigger(string trigger)
 {
 	triggers.AddItem(Locs(trigger));
+}
+
+function int getTriggerCount()
+{
+	return triggers.Length;
 }
 
 function string getTrigger(int index)

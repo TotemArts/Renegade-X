@@ -3,6 +3,7 @@ class Rx_GRI extends UTGameReplicationInfo;
 `define MapVoteMaxSize 9
 
 var Rx_VehicleManager VehManager;
+var Rx_ORI ObjectiveManager; 
 var byte WinnerTeamNum;
 var bool WinBySurrender;
 var String WinnerReason;
@@ -19,27 +20,97 @@ var MaterialInstanceConstant CharacterNodBrightnessMIC;
 var MaterialInstanceConstant CharacterReflectionMIC;
 var MaterialInstanceConstant CharacterReflectionTextureMIC;
 var MaterialInstanceConstant VehicleGdiBrightnessMIC;
+var MaterialInstanceConstant VehicleGdiAdaptiveBrightnessMIC;
 var MaterialInstanceConstant VehicleNodBrightnessMIC;
+var MaterialInstanceConstant VehicleNodAdaptiveBrightnessMIC;
 var MaterialInstanceConstant VehicleReflectionMIC;
+var MaterialInstanceConstant VehicleAdaptiveReflectionMIC;
 var MaterialInstanceConstant VehicleReflectionTextureMIC;
+var MaterialInstanceConstant VehicleCloakCamoMIC;
 var int MaxActiveEmitters;
 var Rx_PurchaseSystem PurchaseSystem;
 var int MapVotesSize;
 var float RenEndTime;
 var string NextMap;
 var int buildingArmorPercentage;
+var string MVP[2], BestOP[2], BestDP[2], BestSP[2];
+var bool bPureServer;
+var bool bEnableCommanders;
+var bool bEnableBotVotes;
+
+var array<class<Rx_StatModifierInfo> >		StatClasses; 
+var array<MaterialInstanceConstant> CustomWeaponMICs; 
+
+var array<Actor> SpottingArray; //Array of spot locations on the map
+var array<Actor> TechBuildingArray; //Array to hold map tech buildings (Optimization to reduce constantly iterating 'AllActors')
+
 
 replication
 {
 	if (bNetDirty)
-		WinnerTeamNum,WinnerReason,MapVotes,PurchaseSystem,MapVoteList,NextMap,buildingArmorPercentage, WinBySurrender;
+		WinnerTeamNum,WinnerReason,MapVotes,PurchaseSystem,MapVoteList,NextMap,buildingArmorPercentage, WinBySurrender, MVP, BestOP, BestDP, BestSP, bEnableCommanders, bEnableBotVotes;
 }
 
 simulated event PostBeginPlay()
 {
 	super.PostBeginPlay();
-	if(WorldInfo.Netmode != NM_Client)
+	if(WorldInfo.Netmode != NM_Client && Rx_Game(WorldInfo.Game).UsePurchaseSystem)
 		SetTimer(1.0f,false,'GetPurchaseSystem');
+
+	switch (Rx_MapInfo(WorldInfo.GetMapInfo()).Theater)
+	{
+	case THEATER_NORMAL:
+		VehicleGdiAdaptiveBrightnessMIC.SetTextureParameterValue('Camo', Texture2D'RenX_AssetBase.Vehicle.T_Camo_GDI_Default');
+		VehicleNodAdaptiveBrightnessMIC.SetTextureParameterValue('Camo', Texture2D'RenX_AssetBase.Vehicle.T_Camo_Nod_Default');
+		VehicleCloakCamoMIC.SetTextureParameterValue('Camo', Texture2D'RenX_AssetBase.Vehicle.T_Camo_Nod_Default');
+		break;
+
+	case THEATER_FORESTA:
+		VehicleGdiAdaptiveBrightnessMIC.SetTextureParameterValue('Camo', Texture2D'RenX_AssetBase.Vehicle.T_Camo_GDI_Forest');
+		VehicleNodAdaptiveBrightnessMIC.SetTextureParameterValue('Camo', Texture2D'RenX_AssetBase.Vehicle.T_Camo_Nod_Forest');
+		VehicleCloakCamoMIC.SetTextureParameterValue('Camo', Texture2D'RenX_AssetBase.Vehicle.T_Camo_Nod_Forest');
+		break;
+
+
+	case THEATER_FORESTB:
+		VehicleGdiAdaptiveBrightnessMIC.SetTextureParameterValue('Camo', Texture2D'RenX_AssetBase.Vehicle.T_Camo_GDI_ForestB');
+		VehicleNodAdaptiveBrightnessMIC.SetTextureParameterValue('Camo', Texture2D'RenX_AssetBase.Vehicle.T_Camo_Nod_ForestB');
+		VehicleCloakCamoMIC.SetTextureParameterValue('Camo', Texture2D'RenX_AssetBase.Vehicle.T_Camo_Nod_ForestB');
+		break;
+
+	case THEATER_SNOW:
+		VehicleGdiAdaptiveBrightnessMIC.SetTextureParameterValue('Camo', Texture2D'RenX_AssetBase.Vehicle.T_Camo_GDI_Arctic');
+		VehicleNodAdaptiveBrightnessMIC.SetTextureParameterValue('Camo', Texture2D'RenX_AssetBase.Vehicle.T_Camo_Nod_Arctic');
+		VehicleCloakCamoMIC.SetTextureParameterValue('Camo', Texture2D'RenX_AssetBase.Vehicle.T_Camo_Nod_Arctic');
+		break;
+
+	case THEATER_DESERT:
+		VehicleGdiAdaptiveBrightnessMIC.SetTextureParameterValue('Camo', Texture2D'RenX_AssetBase.Vehicle.T_Camo_GDI_Desert');
+		VehicleNodAdaptiveBrightnessMIC.SetTextureParameterValue('Camo', Texture2D'RenX_AssetBase.Vehicle.T_Camo_Nod_Desert');
+		VehicleCloakCamoMIC.SetTextureParameterValue('Camo', Texture2D'RenX_AssetBase.Vehicle.T_Camo_Nod_Desert');
+		break;
+
+	case THEATER_URBAN:
+		VehicleGdiAdaptiveBrightnessMIC.SetTextureParameterValue('Camo', Texture2D'RenX_AssetBase.Vehicle.T_Camo_GDI_Urban');
+		VehicleNodAdaptiveBrightnessMIC.SetTextureParameterValue('Camo', Texture2D'RenX_AssetBase.Vehicle.T_Camo_Nod_Urban');
+		VehicleCloakCamoMIC.SetTextureParameterValue('Camo', Texture2D'RenX_AssetBase.Vehicle.T_Camo_Nod_Urban');
+		break;
+
+	case THEATER_CUSTOM:
+		VehicleGdiAdaptiveBrightnessMIC.SetTextureParameterValue('Camo', Texture2D'RenX_AssetBase.Vehicle.T_Camo_GDI_Custom');
+		VehicleNodAdaptiveBrightnessMIC.SetTextureParameterValue('Camo', Texture2D'RenX_AssetBase.Vehicle.T_Camo_Nod_Custom');
+		VehicleCloakCamoMIC.SetTextureParameterValue('Camo', Texture2D'RenX_AssetBase.Vehicle.T_Camo_Nod_Urban');
+		break;
+
+	}
+
+	VehicleGdiAdaptiveBrightnessMIC.SetVectorParameterValue('Camo_Colour', Rx_MapInfo(WorldInfo.GetMapInfo()).GdiCamoColour);
+	VehicleNodAdaptiveBrightnessMIC.SetVectorParameterValue('Camo_Colour', Rx_MapInfo(WorldInfo.GetMapInfo()).NodCamoColour);
+	VehicleCloakCamoMIC.SetVectorParameterValue('Camo_Colour', Rx_MapInfo(WorldInfo.GetMapInfo()).NodCamoColour);
+	
+	CreateListArrays();
+	/**if(WorldInfo.Netmode == NM_Client || WorldInfo.Netmode == NM_Standalone)
+		SetTimer(1.0f,true,'FindORI'); */
 }
 
 simulated function array<Rx_UIDataProvider_MapInfo> GetMapDataProviderList()
@@ -116,6 +187,14 @@ function GetPurchaseSystem()
 {
 	PurchaseSystem = Rx_Game(WorldInfo.Game).GetPurchaseSystem();	
 	buildingArmorPercentage = Rx_Game(WorldInfo.Game).buildingArmorPercentage;
+	bEnableCommanders = Rx_Game(WorldInfo.Game).bEnableCommanders;
+	
+	if(Rx_Game(WorldInfo.Game).bBotsDisabled == true || Rx_Game(WorldInfo.Game).bBotVotesDisabled == true)
+	{
+		bEnableBotVotes = false;
+	} else {
+		bEnableBotVotes = true;
+	}
 }
 
 function VehChangedTeam(UTVehicle rxVehicle) {
@@ -148,6 +227,11 @@ simulated function InitMICs()
 	SetGlobalStealthEffectMultiplier();
 	SetGlobalStealthVisibilityMultiplier();
 	UDKEmitterPool(WorldInfo.MyEmitterPool).MaxActiveEffects=MaxActiveEmitters;
+	
+	//Weapon Overlay Material setup
+	SetupWeaponOverlays(); 
+	CreateCustomRxWeaponOverlays();
+	 
 }
 
 simulated function GetNightVisionMIC()
@@ -256,6 +340,7 @@ simulated function SetGlobalStealthAddTranslucencyBias()
 	if(GlobalStealthAddTranslucencyBiasMIC != None)
 	{
 		GlobalStealthAddTranslucencyBiasMIC.SetScalarParameterValue('AddTranslucent_Bias', GlobalStealthAddTranslucencyBias);
+		VehicleCloakCamoMIC.SetScalarParameterValue('AddTranslucent_Bias', GlobalStealthAddTranslucencyBias);
 	}
 }
 
@@ -280,6 +365,7 @@ simulated function SetGlobalStealthEffectMultiplier()
 	if(GlobalStealthEffectMultiplierMIC != None)
 	{
 		GlobalStealthEffectMultiplierMIC.SetScalarParameterValue('Stealth_Effect_Multiplier', GlobalStealthEffectMultiplier);
+		VehicleCloakCamoMIC.SetScalarParameterValue('Stealth_Effect_Multiplier', GlobalStealthEffectMultiplier);
 	}
 }
 
@@ -304,6 +390,7 @@ simulated function SetGlobalStealthVisibilityMultiplier()
 	if(GlobalStealthVisibilityMultiplierMIC != None)
 	{
 		GlobalStealthVisibilityMultiplierMIC.SetScalarParameterValue('Stealth_Visibility_Multiplier', GlobalStealthVisibilityMultiplier);
+		VehicleCloakCamoMIC.SetScalarParameterValue('Stealth_Visibility_Multiplier', GlobalStealthVisibilityMultiplier);
 	}
 }
 
@@ -433,6 +520,7 @@ simulated function SetVehicleGdiBrightness()
 	if(VehicleGdiBrightnessMIC != None)
 	{
 		VehicleGdiBrightnessMIC.SetScalarParameterValue('GlobalVehicleBrightness', VehicleGdiBrightness);
+		VehicleGdiAdaptiveBrightnessMIC.SetScalarParameterValue('GlobalVehicleBrightness', VehicleGdiBrightness);
 	}
 }
 
@@ -457,6 +545,7 @@ simulated function SetVehicleNodBrightness()
 	if(VehicleNodBrightnessMIC != None)
 	{
 		VehicleNodBrightnessMIC.SetScalarParameterValue('GlobalVehicleBrightness', VehicleNodBrightness);
+		VehicleNodAdaptiveBrightnessMIC.SetScalarParameterValue('GlobalVehicleBrightness', VehicleNodBrightness);
 	}
 }
 
@@ -481,6 +570,7 @@ simulated function SetVehicleReflection()
 	if(VehicleReflectionMIC != None)
 	{
 		VehicleReflectionMIC.SetVectorParameterValue('Reflection_Colour', VehicleReflection);
+		VehicleAdaptiveReflectionMIC.SetVectorParameterValue('Reflection_Colour', VehicleReflection);
 	}
 }
 
@@ -505,6 +595,7 @@ simulated function SetVehicleReflectionTexture()
 	if(VehicleReflectionTextureMIC != None)
 	{
 		VehicleReflectionTextureMIC.SetTextureParameterValue('CubeMap_Exterior', VehicleReflectionTexture);
+		VehicleAdaptiveReflectionMIC.SetTextureParameterValue('CubeMap_Exterior', VehicleReflectionTexture);
 	}
 }
 
@@ -597,31 +688,25 @@ simulated function int GetMapVote() {
 
 simulated function string GetMapVoteName()
 {
-	local int DorN;
-	
 	local string BasePackageName;
-	
-	
-	DorN = rand(3); 
 	
 	BasePackageName = MapVoteList[ GetMapVote() != -1 ? GetMapVote() : 0 ];
 		
-		//If it has a day/night version, give us a random seed 
-		if(MapPackageHasDayNight(BasePackageName)) 
-		{
-			if(DorN > 0) return BasePackageName$"_Day" ;
-			else
-			return BasePackageName$"_Night";
-		}
+	//If it has a day/night version, give us a random seed 
+	if(MapPackageHasDayNight(BasePackageName)) 
+	{
+		if(Rand(2) == 0)
+			return BasePackageName$"_Day" ;
 		else
+			return BasePackageName$"_Night";
+	}
+	else
 		return BasePackageName;
-	
 }
 
-function bool MapPackageHasDayNight (string ThePackage)
+function bool MapPackageHasDayNight(string ThePackage)
 {
-	`log("Package: " @ caps(ThePackage));
-	return caps(ThePackage) == "CNC-MESA_II" || caps(ThePackage) == "CNC-FIELD" || caps(ThePackage) == "CNC-CANYON";
+	return false;
 }
 
 function ResetMapVotes() {
@@ -653,12 +738,86 @@ simulated function StartMatch()
 	}
 }
 
+simulated function FindORI()
+{
+	local Rx_ORI ORI;
+		
+		foreach AllActors(class'Rx_ORI', ORI)
+		{
+			ObjectiveManager = ORI ;
+			ClearTimer('FindORI'); //found, stop. 
+			break;	
+		}
+}
+
+
+function SetAwards(byte ForTeam,string MVPA, string BestOPA, string BestDPA, string BestSPA)
+{
+	MVP[ForTeam]=MVPA;
+	BestOP[ForTeam]=BestOPA;
+	BestDP[ForTeam]=BestDPA;
+	BestSP[ForTeam]=BestSPA;
+
+	bnetdirty=true;
+}
+
+simulated function SetupWeaponOverlays()
+{
+	local int i; 
+	local MaterialInstanceConstant MIC;
+	//Simplified system for weapon buffs	
+	
+	CreateCustomRxWeaponOverlays();
+	
+	for(i=0;i<WeaponOverlays.Length;i++)
+	{	
+		MIC=MaterialInstanceConstant(WeaponOverlays[i]);
+
+		if(MIC != none) 
+		{
+				//Don't be so overbearingly large on weapons 
+				MIC.SetScalarParameterValue('Opacity', 0.10);
+				MIC.SetScalarParameterValue('Inflate', 0.20);
+		}
+	}
+}
+
+simulated function CreateCustomRxWeaponOverlays()
+{
+	local class<Rx_StatModifierInfo> SM; 
+	local MaterialInstanceConstant TempMIC;
+	
+	foreach StatClasses (SM)
+	{
+		 TempMIC = new(outer) class'MaterialInstanceConstant';
+  		 TempMIC.SetParent(MaterialInstanceConstant'RenX_AssetBase.Stealth.MI_PowerUp_Main');
+		 
+		TempMIC.SetVectorParameterValue('Effect_Colour', SM.default.EffectColor);
+		TempMIC.SetScalarParameterValue('Inflate', 0.10); //Minimize both of these effects for weapons so they don't hinder ironsights
+		TempMIC.SetScalarParameterValue('Opacity', 0.20);
+			
+		WeaponOverlays.AddItem(TempMIC); 
+	}
+}
+
+simulated function CreateListArrays(){
+	local Actor TempActor;
+	
+	foreach AllActors(class'Actor',TempActor,class'RxIfc_SpotMarker') {
+		SpottingArray.AddItem(TempActor); 
+	}
+}
+
+
+
 defaultproperties
 {
 	GameClass   = class'Rx_Game'
 	bStopCountDown = false
    
 	MaxActiveEmitters = 200
+    
+	
    
 	NightVisionMIC=MaterialInstanceConstant'RenX_AssetBase.PostProcess.MI_NightVision'
 	GlobalStealthAddTranslucencyBiasMIC=MaterialInstanceConstant'RenX_AssetBase.Stealth.MI_Cloak_Enemy'
@@ -669,9 +828,13 @@ defaultproperties
 	CharacterReflectionMIC=MaterialInstanceConstant'RenX_AssetBase.Characters.MI_CH_All'
 	CharacterReflectionTextureMIC=MaterialInstanceConstant'RenX_AssetBase.Characters.MI_CH_All'
 	VehicleGdiBrightnessMIC=MaterialInstanceConstant'RenX_AssetBase.Vehicle.MI_VH_GDI'
+	VehicleGdiAdaptiveBrightnessMic=MaterialInstanceConstant'RenX_AssetBase.Vehicle.MI_VH_GDI_Adaptive'
 	VehicleNodBrightnessMIC=MaterialInstanceConstant'RenX_AssetBase.Vehicle.MI_VH_Nod'
+	VehicleNodAdaptiveBrightnessMic=MaterialInstanceConstant'RenX_AssetBase.Vehicle.MI_VH_Nod_Adaptive'
 	VehicleReflectionMIC=MaterialInstanceConstant'RenX_AssetBase.Vehicle.MI_VH_All'
+	VehicleAdaptiveReflectionMIC=MaterialInstanceConstant'RenX_AssetBase.Vehicle.MI_VH_All_Adaptive'
 	VehicleReflectionTextureMIC=MaterialInstanceConstant'RenX_AssetBase.Vehicle.MI_VH_All'
+	VehicleCloakCamoMIC=MaterialInstanceConstant'RenX_AssetBase.Stealth.MI_Cloak_Enemy_Adaptive'
 	MapVotesSize = 8
 	
 	//========================================================\\
@@ -704,5 +867,18 @@ defaultproperties
 	GlobalParticleMIC(23)=MaterialInstanceConstant'RX_FX_Munitions2.MIC.MI_WaterRadial'
 	GlobalParticleMIC(24)=MaterialInstanceConstant'RX_FX_Munitions2.MIC.MI_Snow'
 	GlobalParticleMIC(25)=MaterialInstanceConstant'RX_FX_Munitions.shells.MI_Shell_Trail_Master'
+	
+	MVP(0) = "Some Guy's NAme"
  
+	//WeaponOverlays(0) = MaterialInstanceConstant'RenX_AssetBase.Stealth.MI_PowerUp_Main_Gold'
+	//WeaponOverlays(1) = MaterialInstanceConstant'RenX_AssetBase.Stealth.MI_PowerUp_Main' //Simplified.. cuz this is a lot of time wasted on this. Weapons are either buffed or they're not
+ 
+	//These need to sync up with the 'Effect_Priority' byte in the classes themselves
+	StatClasses(0) = class'Rx_StatModifierInfo_GDI_OI'
+	StatClasses(1) = class'Rx_StatModifierInfo_Nod_PTP' 
+	StatClasses(2) = class'Rx_StatModifierInfo_Nod_UTP'
+	StatClasses(3) = class'Rx_StatModifierInfo_GDI_DI'
+	StatClasses(4) = class'Rx_StatModifierInfo_ChemGrenadeDebuff'
+	StatClasses(5) = class'Rx_StatModifierInfo_Crate_Defense'
+	StatClasses(6) = class'Rx_StatModifierInfo_Crate_Speed'
 }

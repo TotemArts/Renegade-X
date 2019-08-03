@@ -10,7 +10,22 @@ static function string GetString(
    optional Object OptionalObject
    )
 {
-   return Repl(default.PickupBroadcastMessages[Switch], "`PlayerName`", RelatedPRI_1.PlayerName);
+	local Rx_Mutator RxMut;
+	local string customMessage;
+	
+	// This allows us to overwrite the message displayed to everyone when picking up a crate
+	if ( class'WorldInfo'.static.GetWorldInfo() != None && class'WorldInfo'.static.GetWorldInfo().NetMode == NM_DedicatedServer )
+	{
+		RxMut = Rx_Game(class'WorldInfo'.static.GetWorldInfo().Game).GetBaseRxMutator();
+		if ( RxMut != None )
+		{
+			customMessage = RxMut.OnCratePickupMessageBroadcastPre(Switch, RelatedPRI_1);
+			if ( customMessage != "" )
+				return customMessage;
+		}
+	}
+
+	return Repl(default.PickupBroadcastMessages[Switch], "`PlayerName`", RelatedPRI_1.PlayerName);
 }
 
 DefaultProperties

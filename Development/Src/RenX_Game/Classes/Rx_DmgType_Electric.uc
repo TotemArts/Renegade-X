@@ -40,4 +40,6 @@ DefaultProperties
 	bCausesBlood=false
 	bLeaveBodyEffect=true
 	bUseDamageBasedDeathEffects=true
+	
+	bUnsourcedDamage=true
 }

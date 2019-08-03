@@ -46,18 +46,16 @@ function STANCE GetStance(Actor inActor)
 
 function bool IsStealthedEnemyUnit(pawn inPawn)
 {
-	if ((Rx_Pawn_SBH(inPawn) != None || Rx_Vehicle_StealthTank(inPawn) != None) && GetStance(inPawn) == STANCE_ENEMY)
+	local RxIfc_Stealth StealthPawn; 
+	
+	StealthPawn = RxIfc_Stealth(inPawn);
+	
+	if ( StealthPawn!= none && GetStance(inPawn) == STANCE_ENEMY)
 	{
-		if (inPawn.GetStateName() == 'Stealthed' || inPawn.GetStateName() == 'BeenShot')
+		if (!StealthPawn.GetIsinTargetableState())
 		{
 			return true;
 		}
-
-		if(Rx_Pawn_SBH(inPawn) != None && Rx_Pawn_SBH(inPawn).bStealthRecoveringFromBeeingShotOrSprinting)
-		{
-			return true;
-		}
-			
 	}
 	return false;
 }
@@ -96,7 +94,7 @@ function bool IsBuildingComponent (actor a)
 
 function bool IsTechBuildingComponent (actor a)
 {
-	if(Rx_CapturableMCT(a) != None)
+	if(a.isA('Rx_CapturableMCT'))
 		return false;
 	else if (Rx_Building_TechBuilding_Internals(a) != none)
 		return true;

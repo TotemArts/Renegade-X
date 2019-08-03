@@ -2,8 +2,13 @@ class Rx_Projectile_SmokeGrenade extends Rx_Projectile_Grenade;
 
 simulated function Explode(vector HitLocation, vector HitNormal)
 {
+	local Rx_SmokeScreen Screen; 
 	if (WorldInfo.NetMode != NM_Client)
-		Spawn(class'Rx_SmokeScreen',self,,HitLocation,,,);
+	{
+		Screen = Spawn(class'Rx_SmokeScreen',self,,HitLocation,,,);	
+		Screen.InitSmokeScreen(VRank, Rx_Pawn(Instigator)); 
+	}
+		
 	super.Explode(HitLocation, HitNormal);
 }
 

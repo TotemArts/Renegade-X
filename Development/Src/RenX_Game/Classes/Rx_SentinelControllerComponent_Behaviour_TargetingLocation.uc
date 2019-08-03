@@ -69,6 +69,7 @@ function ComponentTick()
 {
 	local Vector AimSpot;
 	local Rotator AimRotation;
+	local bool bCanHit;
 
 	if(TargetLocationMarker == none)
 	{
@@ -80,13 +81,13 @@ function ComponentTick()
 		Focus = TargetLocationMarker;
 	}
 
-	AimingComponent.FindAimToHit(TargetLocationMarker, AimSpot, AimRotation);
+	bCanHit = AimingComponent.FindAimToHit(TargetLocationMarker, AimSpot, AimRotation);
 	Cannon.DesiredAim = AimRotation;
 	SetRotation(Cannon.GetViewRotation());
 	SetFocalPoint(AimSpot);
 
 	//Possibly fire.
-	if(!bForceTarget && Cannon.SWeapon.bCanFire)
+	if(bCanHit && !bForceTarget && Cannon.SWeapon.bCanFire)
 	{
 		if(!Cannon.FireAt(AimSpot))
 		{

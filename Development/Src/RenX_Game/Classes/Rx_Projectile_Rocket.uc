@@ -18,6 +18,14 @@ var repnotify vector Target;
 var bool bDontLockAnymore;
 var bool bWaitForEffectsAtEndOfLifetime;
 
+//Veterancy options 
+var byte VRank; //Veterancy Rank
+var float Vet_SpeedIncrease[4]; 
+var float Vet_DamageIncrease[4]; 
+
+//Weapon who fired me
+var Weapon MyWeaponInstigator;  
+
 simulated function PostBeginPlay()
 {
 	super.PostBeginPlay();
@@ -31,6 +39,10 @@ replication
 {
 	if ( bNetInitial && Role == ROLE_Authority )
 		Target;
+		
+    if (Role == ROLE_Authority && bNetDirty)
+        VRank;
+
 }
 
 simulated function ReplicatedEvent(name VarName)
@@ -45,8 +57,42 @@ simulated function ReplicatedEvent(name VarName)
 	}
 }
 
+/**
+ * Initialize the Projectile [RX] Add modifiers for veterancy
+ */
+function Init(vector Direction)
+{
+	local Rx_Weapon Rx_Inst; 
+	local Rx_Vehicle_Weapon Rx_VInst;
+	
+	Rx_Inst=Rx_Weapon(Instigator.Weapon);
+	
+	Rx_VInst=Rx_Vehicle_Weapon(Instigator.Weapon) ;
+	
+	if(Rx_Inst != none) 
+		VRank=Rx_Inst.VRank; 
+	else
+	if(Rx_VInst != none) 
+		VRank=Rx_VInst.VRank; 
+	
+	SetRotation(rotator(Direction));
+	
+	MaxSpeed = default.MaxSpeed*Vet_SpeedIncrease[VRank] ; 
+	Velocity = (Speed*Vet_SpeedIncrease[VRank]) * Direction;
+	
+	Velocity.Z += TossZ;
+	
+	Acceleration = AccelRate * Normal(Velocity);
+}
+
 simulated function ShutDownBeforeEndOfLife() 
 {
+	
+	if ( !bShuttingDown )
+		{
+		HurtRadius(Damage, DamageRadius, MyDamageType, MomentumTransfer, location,,,false); 
+		}
+	
 	Shutdown();
 }
 
@@ -117,6 +163,10 @@ simulated function float GetBotDamagePercentage()
 
 simulated function ProcessTouch(Actor Other, Vector HitLocation, Vector HitNormal)
 {
+	local float VAdjustedDamage; //Adjusted for veterancy
+	
+	VAdjustedDamage=Damage*GetDamageModifier(VRank, InstigatorController);
+	
 	if(DamageRadius == 0.0 && Rx_BuildingAttachment_MCT(Other) != None) {
 		// Some projectiles are so fast that they go through the MCT and hit the building behind it.
 		// This prevents the building from taking additional damage via HitWall()
@@ -124,6 +174,14 @@ simulated function ProcessTouch(Actor Other, Vector HitLocation, Vector HitNorma
 		bWaitForEffects=false;
 		Explode(HitLocation,HitNormal);
 	}
+	
+	if (DamageRadius > 0.0)
+		{
+			if(Rx_DestroyableObstaclePlus(Other) !=none && !Rx_DestroyableObstaclePlus(Other).bTakeRadiusDamage) // || (Rx_BasicPawn(Other) !=none && !Rx_BasicPawn(Other).bTakeRadiusDamage)) 
+				Other.TakeDamage(VAdjustedDamage,InstigatorController,HitLocation,MomentumTransfer * Normal(Velocity), MyDamageType,, self);	
+			Explode( HitLocation, HitNormal );
+		}
+	
     super.ProcessTouch(Other, HitLocation, HitNormal);
 }
 
@@ -142,6 +200,10 @@ simulated function bool HurtRadius( float DamageAmount,
 	if ( bHurtEntry )
 		return false;
 
+	//`log("Rocket hurt radius"); 
+	
+	DamageAmount*=GetDamageModifier(VRank, InstigatorController); 
+	
 	bCausedDamage = false;
 	if (InstigatedByController == None)
 	{
@@ -151,7 +213,7 @@ simulated function bool HurtRadius( float DamageAmount,
 	// if ImpactedActor is set, we actually want to give it full damage, and then let him be ignored by super.HurtRadius()
 	if ( (ImpactedActor != None) && (ImpactedActor != self) && Rx_Building(ImpactedActor) == None)
 	{
-		if(!TryHeadshot(ImpactedActor, HurtOrigin, Velocity, Damage)) {
+		if(!TryHeadshot(ImpactedActor, HurtOrigin, Velocity, DamageAmount)) {
 			ImpactedActor.TakeRadiusDamage(InstigatedByController, DamageAmount, InDamageRadius, DamageType, Momentum, HurtOrigin, true, self);
 		}
 		bCausedDamage = ImpactedActor.bProjTarget;
@@ -169,6 +231,9 @@ simulated function bool TryHeadshot(Actor Other, Vector HitLocation, Vector HitN
     if(Worldinfo.NetMode == NM_Client) { // since Rockets dont use clientside hitdetection yet
     	return false;
     }
+	
+	//`log("Rocket rey "); 
+	
     if (Instigator == None || VSize(Instigator.Velocity) < Instigator.GroundSpeed * Instigator.CrouchedPct)
     {
         Scaling = SlowHeadshotScale;
@@ -178,6 +243,8 @@ simulated function bool TryHeadshot(Actor Other, Vector HitLocation, Vector HitN
         Scaling = RunningHeadshotScale;
     }
 
+	DamageAmount*=GetDamageModifier(VRank, InstigatorController); 
+	
     DamageAmount *= HeadShotDamageMult;
     
     Impact.HitActor = Other;
@@ -191,9 +258,9 @@ simulated function bool TryHeadshot(Actor Other, Vector HitLocation, Vector HitN
         CheckHitInfo(Impact.HitInfo, UTPawn(Other).Mesh, Impact.RayDir, Impact.HitLocation);
         
         if(HeadShotDamageType != None) {
-        	return Rx_Pawn(Other).TakeHeadShot(Impact, HeadShotDamageType, DamageAmount, Scaling, InstigatorController, true);
+        	return Rx_Pawn(Other).TakeHeadShot(Impact, HeadShotDamageType, DamageAmount, Scaling, InstigatorController, true, GetWeaponInstigator());
         } else {
-        	return Rx_Pawn(Other).TakeHeadShot(Impact, MyDamageType, DamageAmount, Scaling, InstigatorController, true);
+        	return Rx_Pawn(Other).TakeHeadShot(Impact, MyDamageType, DamageAmount, Scaling, InstigatorController, true, GetWeaponInstigator());
         }
     }
     
@@ -206,7 +273,7 @@ simulated singular event HitWall(vector HitNormal, actor Wall, PrimitiveComponen
 	local StaticMeshComponent HitStaticMesh;
 
 	TriggerEventClass(class'SeqEvent_HitWall', Wall);
-
+	
 	if ( Wall.bWorldGeometry )
 	{
 		HitStaticMesh = StaticMeshComponent(WallComp);
@@ -222,7 +289,7 @@ simulated singular event HitWall(vector HitNormal, actor Wall, PrimitiveComponen
 	ImpactedActor = Wall;
 	if ( ( !Wall.bStatic && (DamageRadius == 0) ) || ClassIsChildOf(Wall.Class,class'Rx_Building') )
 	{
-		Wall.TakeDamage( Damage, InstigatorController, Location, MomentumTransfer * Normal(Velocity), MyDamageType,, self);
+		Wall.TakeDamage( Damage*GetDamageModifier(VRank, InstigatorController), InstigatorController, Location, MomentumTransfer * Normal(Velocity), MyDamageType,, self);
 	}
 
 	Explode(Location, HitNormal);
@@ -234,9 +301,32 @@ simulated function SpawnExplosionEffects(vector HitLocation, vector HitNormal)
 	local vector NewHitLoc;
 	local TraceHitInfo HitInfo;
 	local MaterialImpactEffect ImpactEffect;	
+	
+	local PlayerController PC;
+	local float Distance;	
+		
 		
 	if (WorldInfo.NetMode != NM_DedicatedServer)
 	{
+		foreach LocalPlayerControllers(class'PlayerController', PC)
+		{
+			Distance = VSize(PC.ViewTarget.Location - HitLocation);
+			 
+			// dont spawn explosion effect if far away and no direct line of sight or if behind and relativly far away   
+			if ( ( PC.ViewTarget != None && Distance > 9000 && !FastTrace(PC.ViewTarget.Location, HitLocation) ) 
+			 		|| ( vector(PC.Rotation) dot (HitLocation - PC.ViewTarget.Location) < 0.0 && Distance > 5000 && !FastTrace(PC.ViewTarget.Location, HitLocation)) )
+			{
+				
+				if (ExplosionSound != None && !bSuppressSounds)
+				{
+					PlaySound(ExplosionSound, true);
+				}
+		
+				bSuppressExplosionFX = true; // so we don't get called again				
+				return;
+			}
+		}	
+		
 		if(ImpactedActor != None && ImpactedActor.isA('Rx_Vehicle')){
 			ProjExplosionTemplate = ImpactEffects[3].ParticleTemplate;
 			ExplosionSound = ImpactEffects[3].Sound;
@@ -273,6 +363,27 @@ simulated function MaterialImpactEffect GetImpactEffect(PhysicalMaterial HitMate
 	return ImpactEffects[1];
 }
 
+simulated static function float GetDamageModifier(byte Rank, Controller RxC)
+{
+	if(Rx_Controller(RxC) != none) 
+		return default.Vet_DamageIncrease[Rank]+Rx_Controller(RxC).Misc_DamageBoostMod; 
+	else
+	if(Rx_Bot(RxC) != none) 
+		return default.Vet_DamageIncrease[Rank]+Rx_Bot(RxC).Misc_DamageBoostMod; 
+	else
+		return 1.0; 
+}
+
+simulated function SetWeaponInstigator(Weapon SetTo)
+{
+	MyWeaponInstigator = SetTo; 
+}
+
+simulated function Weapon GetWeaponInstigator()
+{
+	return MyWeaponInstigator; 
+}
+
 DefaultProperties
 {
 	HeadShotDamageMult=2.0
@@ -281,4 +392,23 @@ DefaultProperties
 	
 	ExplosionDecal=none
     bWaitForEffectsAtEndOfLifetime = true
+	
+	/*************************/
+	/*VETERANCY*/
+	/************************/
+	
+	//Rocket damage is usually built up with extra rockets 
+	Vet_DamageIncrease(0)=1 //Normal (should be 1)
+	Vet_DamageIncrease(1)=1 //Veteran 
+	Vet_DamageIncrease(2)=1 //Elite
+	Vet_DamageIncrease(3)=1 //Heroic
+
+	//Rockets are generally better off not moving faster... as it screws up their lock abilities. 
+	
+	Vet_SpeedIncrease(0)=1 //Normal (should be 1) 
+	Vet_SpeedIncrease(1)=1 //Veteran 
+	Vet_SpeedIncrease(2)=1 //Elite
+	Vet_SpeedIncrease(3)=1 //Heroic 
+	
+	/***********************/
 }

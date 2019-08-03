@@ -19,13 +19,14 @@ function string trigger(string parameters)
 	else
 		return "Error: Too few parameters." @ getSyntax();
 
-	PRI = Rx_Game(WorldInfo.Game).ParsePlayer(Player, error);
+	PRI = Rx_Game(`WorldInfoObject.Game).ParsePlayer(Player, error);
 	if (PRI == None)
 		return error;
+
 	if (PlayerController(PRI.Owner) == None)
-		return "Selected player not a human player.";
+		return "Error: Selected player not a human player.";
 	
-	WorldInfo.Game.Mutate(parameters, PlayerController(PRI.Owner));
+	`WorldInfoObject.Game.Mutate(parameters, PlayerController(PRI.Owner));
 
 	return "";
 }

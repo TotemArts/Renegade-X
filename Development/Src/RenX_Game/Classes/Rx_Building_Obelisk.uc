@@ -1,15 +1,6 @@
-class Rx_Building_Obelisk extends Rx_Building
+class Rx_Building_Obelisk extends Rx_Building_Nod_Defense
    placeable
    implements (RxIfc_TargetedDescription);
-   
-var() bool bLaserDisabled; 
-var vector SentinelLocation;
-
-replication
-{
-	if( bNetDirty && Role == ROLE_Authority )
-		SentinelLocation;
-}
 
 simulated function String GetHumanReadableName()
 {

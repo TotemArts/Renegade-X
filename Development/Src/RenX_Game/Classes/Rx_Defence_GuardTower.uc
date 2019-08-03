@@ -71,7 +71,7 @@ DefaultProperties
 //========================================================\\
 
 
-    Health=1000
+    Health=1250
     bLightArmor=false
     bCollideWorld = false
     Physics=PHYS_None
@@ -95,7 +95,7 @@ DefaultProperties
     MomentumMult=0.7
     
     AIPurpose=AIP_Defensive
-
+	
 
 //========================================================\\
 //*************** Vehicle Visual Properties **************\\

@@ -1,7 +1,5 @@
-class Rx_Attachment_TiberiumAutoRifle_Blue extends Rx_WeaponAttachment;
+class Rx_Attachment_TiberiumAutoRifle_Blue extends Rx_WeaponAttachment_Varying;
 
-
-var ParticleSystem BeamTemplate;
 var class<UDKExplosionLight> ImpactLightClass;
 
 var int CurrentPath;
@@ -78,11 +76,11 @@ DefaultProperties
 	End Object
 	
 	DefaultImpactEffect=(ParticleTemplate=ParticleSystem'RX_WP_TiberiumAutoRifle.Effects.P_Impact_CrystalBlue',Sound=SoundCue'RX_WP_TiberiumAutoRifle.Sounds.SC_BulletImpact_TibBlue')
-	ImpactEffects(0)=(MaterialType=Metal, ParticleTemplate=ParticleSystem'RX_WP_TiberiumAutoRifle.Effects.P_Impact_CrystalBlue',Sound=SoundCue'RX_WP_TiberiumAutoRifle.Sounds.SC_BulletImpact_TibBlue_Metal')
+	DefaultImpactEffect_Heroic=(ParticleTemplate=ParticleSystem'RX_WP_TiberiumAutoRifle.Effects.P_Impact_CrystalRed',Sound=SoundCue'RX_WP_TiberiumAutoRifle.Sounds.SC_BulletImpact_TibBlue')
+	//ImpactEffects(0)=(MaterialType=Metal, ParticleTemplate=ParticleSystem'RX_WP_TiberiumAutoRifle.Effects.P_Impact_CrystalBlue',Sound=SoundCue'RX_WP_TiberiumAutoRifle.Sounds.SC_BulletImpact_TibBlue_Metal')
 	
 	BulletWhip=SoundCue'RX_WP_TiberiumAutoRifle.Sounds.SC_Bullet_WhizBy'
 	BeamTemplate=ParticleSystem'RX_WP_TiberiumAutoRifle.Effects.P_InstantHit_Tracer_TibBlue'
-
 	
 	WeaponClass = class'Rx_Weapon_TiberiumAutoRifle_Blue'
 	MuzzleFlashSocket=MuzzleFlashSocket
@@ -90,6 +88,10 @@ DefaultProperties
 	MuzzleFlashLightClass=class'Rx_Light_Blue_MuzzleFlash'
 	MuzzleFlashDuration=3.0
 //	ImpactLightClass=none
+
+	BeamTemplate_Heroic	= ParticleSystem'RX_WP_TiberiumAutoRifle.Effects.P_InstantHit_Tracer_TibRed'
+	MuzzleFlashPSCTemplate_Heroic= ParticleSystem'RX_WP_TiberiumAutoRifle.Effects.P_MuzzleFlash_3P_Red'
+	MuzzleFlashLightClass_Heroic=class'Rx_Light_TiberiumFlechetteRifle_MuzzleFlashRed'
 	
 	ShellEjectPSCTemplate=ParticleSystem'RX_WP_AutoRifle.Effects.P_ShellCasing'
 	ShellEjectDuration = 1.0

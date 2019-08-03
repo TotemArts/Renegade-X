@@ -187,7 +187,6 @@ function GFxClikWidget InitButtonGroupWidget(string groupName, GFxObject scope)
 
 function SetupButtonGroup ()
 {
-
 	SettingsButton.SetObject("group", PauseMenuGroup);
 	SettingsButton.SetString("data", "SettingsMenu");
 
@@ -203,6 +202,9 @@ function SetupButtonGroup ()
 
 	ChatButton.SetObject("group", PauseMenuGroup);
 	ChatButton.SetString("data", "ChatMenu");
+	if (`WorldInfoObject.NetMode == NM_Standalone) {
+		ChatButton.SetBool("disabled", true);
+	}
 
 	VoteButton.SetObject("group", PauseMenuGroup);
 	VoteButton.SetString("data", "VoteMenu");
@@ -286,6 +288,7 @@ function TickHUD()
 /** Returns back to the main view (background) )*/
 function ReturnToBackground()
 {
+	`logd("ReturnToBackground()");
 	DeselectButtonGroup() ;
 	PauseMenuView.SetBool("visible", false);
 // 	MainMenuBar.SetFloat("selectedIndex", -1);
@@ -417,7 +420,7 @@ function OnPauseMenuGroupChange(GFxClikWidget.EventData ev)
 			break;
 		case (ChangeteamButton):
 			ReturnToBackground();
-		 	GetPC().SetTimer(0.4f,, 'SwitchTeam');
+		 	GetPC().SetTimer(0.4f,, 'ChangeTeam'); //'SwitchTeam');
 			Rx_HUD(GetPC().myHUD).CompletePauseMenuClose();
 			break;
 		case (DonateButton):

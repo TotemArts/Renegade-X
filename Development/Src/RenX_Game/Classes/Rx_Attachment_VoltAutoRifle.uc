@@ -1,7 +1,6 @@
-class Rx_Attachment_VoltAutoRifle extends Rx_WeaponAttachment
+class Rx_Attachment_VoltAutoRifle extends Rx_WeaponAttachment_Varying
     abstract;
 
-var ParticleSystem BeamTemplate;
 var ParticleSystem AltBeamTemplate;
 var ParticleSystemComponent ChargeComponent;
 

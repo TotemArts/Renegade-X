@@ -9,7 +9,7 @@ function string trigger(string parameters)
 	if (parameters == "")
 		return "Error: Too few parameters." @ getSyntax();
 
-	PRI = Rx_Game(WorldInfo.Game).ParsePlayer(parameters, error);
+	PRI = Rx_Game(`WorldInfoObject.Game).ParsePlayer(parameters, error);
 	
 	if (PRI == None)
 		return error;
@@ -18,7 +18,7 @@ function string trigger(string parameters)
 	PRI.DestroyATMines();
 
 	if (Controller(PRI.Owner) != None)
-		foreach AllActors(class'Rx_Weapon_DeployedC4', c4)
+		foreach `WorldInfoObject.AllActors(class'Rx_Weapon_DeployedC4', c4)
 			if (c4.InstigatorController == Controller(PRI.Owner))
 				c4.Destroy();
 

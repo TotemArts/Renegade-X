@@ -4,11 +4,9 @@ function string trigger(string parameters)
 {
 	if (parameters == "")
 		return "Error: Too few parameters." @ getSyntax();
-	else
-	{
-		WorldInfo.Game.AddMutator(parameters);
-		return "Mutator loaded; please see the log files for any errors.";
-	}
+
+	`WorldInfoObject.Game.AddMutator(parameters);
+	return "";
 }
 
 function string getHelp(string parameters)

@@ -98,10 +98,10 @@ native function Resolve( coerce string Domain );
 native function int GetLastError();
 
 // Convert an IP address to a string.
-native function string IpAddrToString( IpAddr Arg );
+static native function string IpAddrToString( IpAddr Arg );
 
 // Convert a string to an IP
-native function bool StringToIpAddr( string Str, out IpAddr Addr );
+static native function bool StringToIpAddr( string Str, out IpAddr Addr );
 
 native function GetLocalIP(out IpAddr Arg );
 

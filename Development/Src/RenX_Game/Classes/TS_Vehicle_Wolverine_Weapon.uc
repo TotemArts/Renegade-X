@@ -14,6 +14,20 @@
 *********************************************************/
 class TS_Vehicle_Wolverine_Weapon extends Rx_Vehicle_Weapon_Reloadable;
 
+
+simulated function GetFireStartLocationAndRotation(out vector SocketLocation, out rotator SocketRotation) {
+    
+    super.GetFireStartLocationAndRotation(SocketLocation, SocketRotation);    
+    
+    if( (Rx_Bot(MyVehicle.Controller) != None) && (Rx_Bot(MyVehicle.Controller).GetFocus() != None) ) {
+        if(class'Rx_Utils'.static.OrientationOfLocAndRotToB(SocketLocation,SocketRotation,Rx_Bot(MyVehicle.Controller).GetFocus()) > 0.9) {
+			MaxFinalAimAdjustment = 0.450;	
+        } else {
+            MaxFinalAimAdjustment = 0.990;
+        }
+    }
+}
+
 DefaultProperties
 {
     InventoryGroup=2
@@ -66,6 +80,8 @@ DefaultProperties
     WeaponProjectiles(1) = Class'TS_Vehicle_Wolverine_MG'
     // AI
     bRecommendSplashDamage=False
+    bOkAgainstLightVehicles = True
+
 	
 	
 /*	
@@ -113,4 +129,15 @@ DefaultProperties
 	ImpactEffects(18)=(MaterialType=Snow, ParticleTemplate=ParticleSystem'RX_FX_Munitions2.Particles.bullets.P_Bullet_Incendiary_Snow',Sound=SoundCue'RX_WP_TacticalRifle.Sounds.Impact.SC_BulletImpact_Dirt')
 	ImpactEffects(19)=(MaterialType=SnowStone, ParticleTemplate=ParticleSystem'RX_FX_Munitions2.Particles.bullets.P_Bullet_Incendiary_Snow',Sound=SoundCue'RX_WP_TacticalRifle.Sounds.Impact.SC_BulletImpact_Stone')
 */
+
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)
+	Vet_ClipSizeModifier(1)=25 //Veteran 
+	Vet_ClipSizeModifier(2)=50 //Elite
+	Vet_ClipSizeModifier(3)=100 //Heroic
+
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.90 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
 }

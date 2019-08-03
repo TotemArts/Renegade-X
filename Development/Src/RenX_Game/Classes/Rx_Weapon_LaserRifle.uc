@@ -2,11 +2,6 @@ class Rx_Weapon_LaserRifle extends Rx_Weapon_Reloadable;
 
 var	SoundCue WeaponDistantFireSnd;	// A second firing sound to be played when weapon fires. (Used for distant sound)
 
-var float TimeBetweenBursts;
-var bool  bIsInBurstFire;
-var bool  bCurrentlyFireing;
-var bool  bConstantFire;
-
 simulated function BurstSecondShot()
 {
 	if(HasAmmo(CurrentFireMode))
@@ -52,13 +47,13 @@ simulated function FireAmmunition()
 		Super.FireAmmunition();
 		WeaponPlaySound( WeaponDistantFireSnd );
 
-		SetTimer(TimeBetweenBursts,false,'BurstSecondShot');
-		bCurrentlyFireing = true;
+		/**SetTimer(TimeBetweenBursts,false,'BurstSecondShot');
+		bCurrentlyFireing = true;*/
 	}
 
 }
 
-function bool IsInstantHit()
+simulated function bool IsInstantHit()
 {
 	return true; 
 }
@@ -88,7 +83,13 @@ DefaultProperties
 	
 	ArmsAnimSet = AnimSet'RX_WP_LaserRifle.Anims.AS_WP_LaserRifle_Arms'
 	
-	PlayerViewOffset=(X=0.0,Y=-3.0,Z=0.0)
+	PlayerViewOffset=(X=-5.0,Y=-1.0,Z=2.0)
+	JumpDamping = 1.0
+	
+	LeftHandIK_Relaxed_Offset = (X=2.250000,Y=0.720000,Z=0.000000)
+	LeftHandIK_Relaxed_Rotation = (Pitch=-2912,Yaw=0,Roll=364)
+	RightHandIK_Relaxed_Offset = (X=-2.000000,Y=2.000000,Z=-5.000000)
+	RightHandIK_Relaxed_Rotation = (Pitch=-3822,Yaw=910,Roll=8192)
 	
 	//-------------- Recoil
 	RecoilDelay = 0.02
@@ -111,14 +112,18 @@ DefaultProperties
     ShotCost(0)=1
     ShotCost(1)=0
 	
+	bBurstFire = true 
 	TimeBetweenBursts=0.06f
 	bConstantFire = true
+	Burst_Cooldown(0) = 0.3
+	Burst_Cooldown(1) = 0.3
+	
 
     FireInterval(0)=+0.5f
     FireInterval(1)=+0.5f
 	
-    ReloadTime(0) = 2.6
-    ReloadTime(1) = 2.6
+    ReloadTime(0) = 3.667
+    ReloadTime(1) = 3.667
     
     EquipTime=0.75
 //	PutDownTime=0.5
@@ -157,6 +162,9 @@ DefaultProperties
     ReloadAnim3PName(1) = "H_M_Autorifle_Reload"
     ReloadArmAnimName(0) = "weaponreload"
     ReloadArmAnimName(1) = "weaponreload"
+    
+    WeaponADSFireAnim[0]="WeaponFireADS"
+	ArmADSFireAnim[0]="WeaponFireADS"
 
     WeaponFireSnd[0]=SoundCue'RX_WP_LaserRifle.Sounds.SC_LaserRifle_Fire'
     WeaponFireSnd[1]=none
@@ -174,6 +182,7 @@ DefaultProperties
 
     MuzzleFlashSocket="MuzzleFlashSocket"
     MuzzleFlashPSCTemplate=ParticleSystem'RX_WP_LaserRifle.Effects.P_LaserRifle_MuzzleFlash_1P'
+	MuzzleFlashPSCTemplate_Heroic=ParticleSystem'RX_WP_LaserRifle.Effects.P_LaserRifle_MuzzleFlash_1P_Blue'
     MuzzleFlashDuration=3.3667
     MuzzleFlashLightClass=class'Rx_Light_AutoRifle_MuzzleFlash'
 
@@ -204,7 +213,7 @@ DefaultProperties
 	// IronSight:
 	bIronSightCapable = true	
 	bDisplayCrosshairInIronsight = false
-	IronSightViewOffset=(X=5.0,Y=-9.34,Z=2.15)
+	IronSightViewOffset=(X=-5.0,Y=-7.36,Z=2.425)
 	IronSightFireOffset=(X=-8,Y=0,Z=-5)
 	IronSightBobDamping=30
 	IronSightPostAnimDurationModifier=0.2
@@ -225,4 +234,27 @@ DefaultProperties
     
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_LaserRifle'
+	
+	/*******************/
+	/*Veterancy*/
+	/******************/
+	
+	Vet_DamageModifier(0)=1  //Applied to instant-hits only
+	Vet_DamageModifier(1)=1.10 
+	Vet_DamageModifier(2)=1.25 
+	Vet_DamageModifier(3)=1.50 
+	
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)	
+	Vet_ClipSizeModifier(1)=6 //Veteran 
+	Vet_ClipSizeModifier(2)=12 //Elite
+	Vet_ClipSizeModifier(3)=18 //Heroic
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.9 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+	/**********************/
+	
+	bLocSync = true; 
+	LocSyncIncrement = 12; 
 }

@@ -152,6 +152,7 @@ function AddUpgrade(Rx_SentinelUpgrade NewUpgrade)
 		}
 
 		Cannon.SetWeapon(Rx_SentinelWeapon(NewUpgrade));
+		Cannon.UpdateRange(); 
 	}
 
 	ForceUpgradeNetUpdates();

@@ -1,6 +1,13 @@
 class Rx_Projectile_EMPGrenade extends Rx_Projectile_Grenade;
 
 var float Init_MineDamage ; //Initial damage done to proximity mines when this explodes. 
+var float Vet_EMPTimeModifier[4]; 
+
+function Init(vector Direction)
+{
+	super.Init(Direction); 
+	Init_MineDamage*=Vet_DamageIncrease[Vrank]; 
+}
 
 simulated function Explode(vector HitLocation, vector HitNormal)
 {
@@ -40,7 +47,7 @@ simulated function bool HurtRadius( float DamageAmount,
 	// if ImpactedActor is set, we actually want to give it full damage, and then let him be ignored by super.HurtRadius()
 	if (ImpactedActor != None && RxIfc_EMPable(ImpactedActor) != None && RxIfc_EMPable(ImpactedActor).IsEffectedByEMP() )
 	{
-		RxIfc_EMPable(ImpactedActor).EMPHit(InstigatedByController, self);
+		RxIfc_EMPable(ImpactedActor).EMPHit(InstigatedByController, self, Vet_EMPTimeModifier[VRank]);
 		bCausedDamage = ImpactedActor.bProjTarget;
 	}
 
@@ -48,13 +55,13 @@ simulated function bool HurtRadius( float DamageAmount,
 	// SUPER CALL TO ACTOR STARTS HERE
 	bHurtEntry = true;
 	bResult = false;
-	foreach CollidingActors( class'Actor', Victim, DamageRadius, HurtOrigin )
+	foreach CollidingActors( class'Actor', Victim, DamageRadius, HurtOrigin, true )
 	{
 		if ( RxIfc_EMPable(Victim) != None && RxIfc_EMPable(Victim).IsEffectedByEMP() && Victim != IgnoredActor && (Victim.bCanBeDamaged || Victim.bProjTarget) )
 		{
 			if (Rx_Building(Victim) != None)
 				continue;
-			RxIfc_EMPable(Victim).EMPHit(InstigatedByController, self);
+			RxIfc_EMPable(Victim).EMPHit(InstigatedByController, self, Vet_EMPTimeModifier[VRank]);
 			bResult = bResult || Victim.bProjTarget;
 		}
 	}
@@ -112,14 +119,14 @@ DefaultProperties
 	
 	BounceDamping=0.3
 	BounceDampingZ=0.4
-	ArmTime=4.0
+	ArmTime=3.0//4.0
     TossZ=50
     Speed=1500
     MaxSpeed=1500
     AccelRate=0
     LifeSpan=7.0
     Damage=1
-    DamageRadius=600
+    DamageRadius=550
     MomentumTransfer=10000
 
     bWaitForEffects=true
@@ -127,4 +134,20 @@ DefaultProperties
 	ExplosionLightClass=Class'RenX_Game.Rx_Light_EMPExplosion'
 
 	bLogExplosion=true
+	
+	Vet_DamageIncrease(0)=1 //Normal (should be 1)
+	Vet_DamageIncrease(1)=1.50 //1.20 //Veteran 
+	Vet_DamageIncrease(2)=2.0 //1.50 //Elite
+	Vet_DamageIncrease(3)=2.5 //2.0 //Heroic
+
+	Vet_SpeedIncrease(0)=1.0 //Normal (should be 1)
+	Vet_SpeedIncrease(1)=1.0 //Veteran 
+	Vet_SpeedIncrease(2)=1.0 //Elite
+	Vet_SpeedIncrease(3)=1.0 //Heroic
+	
+	//+X Seconds
+	Vet_EMPTimeModifier(0) = 0  
+	Vet_EMPTimeModifier(1) = 0.5 //1.0
+	Vet_EMPTimeModifier(2) = 0.75 //2.0
+	Vet_EMPTimeModifier(3) = 1.5 //3.0
 }

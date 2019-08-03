@@ -274,9 +274,15 @@ function bool ForceKickPlayer(PlayerController C, string KickReason)
 
 function bool KickPlayer(PlayerController C, string KickReason)
 {
+	C = Rx_Controller(C);
 	if (KickReason != "" && KickReason != DefaultKickReason)
-		KickReason = "You were kicked from the server for: " $ KickReason;
-	return super.KickPlayer(C, KickReason);
+	KickReason = "You were kicked from the server for: " $ KickReason;
+	// Do not kick logged admins
+	if (C != None && !IsAdmin(C) && NetConnection(C.Player)!=None )
+	{
+		return ForceKickPlayer(C, KickReason);
+	}
+	return false;
 }
 
 // Jacked version of AccessControl::KickBan(...), fixes a problem with the way it gets the IP.

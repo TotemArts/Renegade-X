@@ -65,8 +65,8 @@ DefaultProperties
 	MaxSpeed=3500
 	AccelRate=3500.0
 	LifeSpan=2.5
-	Damage=50
-	DamageRadius=250
+	Damage=60//50
+	DamageRadius=350 //250
 	MomentumTransfer=100000.000000
    
 	LockWarningInterval			= 1.5

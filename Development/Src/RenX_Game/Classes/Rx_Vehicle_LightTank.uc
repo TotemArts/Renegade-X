@@ -55,8 +55,6 @@ function vector GetVelocity()
 	return Velocity;
 }
 
-
-    
 DefaultProperties
 {
 
@@ -83,8 +81,49 @@ DefaultProperties
     COMOffset=(x=0.0,y=0.0,z=-30.0)
     bSecondaryFireTogglesFirstPerson=true
 	
-	SprintTrackTorqueFactorDivident=1.035
+	SprintTrackTorqueFactorDivident=1.1//1.035
 
+/************************/
+/*Veterancy Multipliers*/
+/***********************/
+
+//VP Given on death (by VRank)
+	VPReward(0) = 6 //7 
+	VPReward(1) = 8// 9 
+	VPReward(2) = 10 //12 
+	VPReward(3) = 13// 15 
+	
+	VPCost(0) = 30
+	VPCost(1) = 60
+	VPCost(2) = 120
+
+Vet_HealthMod(0)=1 //600
+Vet_HealthMod(1)=1.125 //675
+Vet_HealthMod(2)=1.25 //750
+Vet_HealthMod(3)= 1.375 //825
+	
+Vet_SprintSpeedMod(0)=1
+Vet_SprintSpeedMod(1)=1.10 //1.05
+Vet_SprintSpeedMod(2)=1.20 //1.15
+Vet_SprintSpeedMod(3)=1.30 //1.25
+	
+// +X as opposed to *X
+Vet_SprintTTFD(0)=0
+Vet_SprintTTFD(1)= 0.10 //0.05
+Vet_SprintTTFD(2)= 0.20 //0.15
+Vet_SprintTTFD(3)= 0.30 //0.25
+
+Heroic_MuzzleFlash=ParticleSystem'RX_VH_MediumTank.Effects.MuzzleFlash_Heroic'
+
+	BarrelLength(0)=400
+	BarrelLength(1)=100
+	BarrelLength(2)=100
+	BarrelLength(3)=100
+	BarrelLength(4)=100
+	BarrelLength(5)=100
+
+/**********************/
+	
     Begin Object Class=SVehicleSimTank Name=SimObject
 
         bClampedFrictionModel=true
@@ -185,6 +224,8 @@ DefaultProperties
                 GunSocket=(Fire01),
                 TurretControls=(TurretPitch,TurretRotate),
                 GunPivotPoints=(MainTurretYaw,MainTurretPitch),
+				SeatBone=Base,
+				SeatSocket=VH_Death,
                 CameraTag=CamView3P,
                 CameraBaseOffset=(Z=-10),
                 CameraOffset=-410,
@@ -230,7 +271,7 @@ DefaultProperties
 	WheelParticleEffects[9]=(MaterialType=YellowSand,ParticleTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_YellowSand_Small')
 	DefaultWheelPSCTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_Dirt_Small'
 	
-    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Vehicle_Huge')
+    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_VH_LightTank.Effects.P_Explosion_Vehicle')
     BigExplosionSocket=VH_Death
 
     DamageMorphTargets(0)=(InfluenceBone=MT_Chassis_Front,MorphNodeName=MorphNodeW_Ch_F,LinkedMorphNodeName=none,Health=40,DamagePropNames=(Damage1))

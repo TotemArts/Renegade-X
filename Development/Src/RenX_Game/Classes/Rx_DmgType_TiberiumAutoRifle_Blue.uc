@@ -7,7 +7,7 @@ defaultproperties
     SuicideStatsName=SUICIDES_TiberiumAutoRifle
 
     DamageWeaponFireMode=2
-    VehicleDamageScaling=0.4
+    VehicleDamageScaling=0.45
     NodeDamageScaling=0.5
     VehicleMomentumScaling=0.1
 
@@ -26,4 +26,5 @@ defaultproperties
 
 	IconTextureName="T_WeaponIcon_TiberiumAutoRifle"
 	IconTexture=Texture2D'RX_WP_TiberiumAutoRifle.UI.T_WeaponIcon_TiberiumAutoRifle'
+	bUnsourcedDamage=false
 }

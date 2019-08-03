@@ -11,6 +11,8 @@ var() float DamageCauserExtraWeight;
 /** DamageTypes in this array will not cause the Sentinel to attack the damage causer. */
 var() array< class<DamageType> > IgnoredDamageTypes;
 
+var int aimTickdelay;
+
 
 function BeginBehaviour()
 {
@@ -19,15 +21,18 @@ function BeginBehaviour()
 
 function EndBehaviour()
 {
+	//loginternal("EndBehaviour TargetingPawn");
 	ClearTimer('NotVisibleTimer');
 }
 
 function ComponentSeePlayer(Pawn Seen)
 {
 
+	//loginternal("SeePlayer");
     //Check for best target.
-	if(PossiblyTarget(Seen))
+	if(PossiblyTarget(Seen, false))
 	{
+		//`log("Possible Target" @ Seen); 
         SetTargetInfo(Seen, true, Seen.Location, WorldInfo.TimeSeconds);
 		ChangeBehaviourTo(self);
 	}
@@ -40,28 +45,23 @@ function ComponentEnemyNotVisible()
 
 function ComponentHearNoise(float Loudness, Actor NoiseMaker, optional Name NoiseType)
 {
-	//Allows tracking of invisible targets by sound alone.
-	if(NoiseType != 'ChangedWeapon') //Why is changing weapons so noisy? Oh well, just ignore it.
-	{
-		if(PossiblyTarget(NoiseMaker.Instigator))
-		{
-			SetTargetInfo(NoiseMaker.Instigator, LineOfSightTo(Enemy), NoiseMaker.Location, WorldInfo.TimeSeconds);
-			ChangeBehaviourTo(self);
-		}
-	}
 }
 
 function ComponentNotifyTakeHit(Controller InstigatedBy, Vector HitLocation, int Damage, class<DamageType> DamageType, Vector Momentum)
 {
+	/**
 	//Target inflicter of damage if not otherwise engaged.
 	if(InstigatedBy != none && IgnoredDamageTypes.Find(DamageType) == INDEX_NONE)
 	{
-		if(PossiblyTarget(InstigatedBy.Pawn, DamageCauserExtraWeight))
+		if(PossiblyTarget(InstigatedBy.Pawn, DamageCauserExtraWeight, false))
 		{
 			SetTargetInfo(InstigatedBy.Pawn, LineOfSightTo(Enemy), HitLocation, WorldInfo.TimeSeconds);
 			ChangeBehaviourTo(self);
 		}
 	}
+	*/
+	
+	//loginternal("TookDamage");
 }
 
 function ComponentNotVisibleTimer()
@@ -73,10 +73,12 @@ function ComponentTick()
 {
 	local Vector AimSpot;
 	local Rotator AimRotation;
+	local bool bCanHit;
 
 	if(Enemy == none || Enemy.Health <= 0)
 	{
 		Enemy = none;
+		aimTickdelay = 0;
 		ChangeBehaviourTo(IdleBehaviour);
 		return;
 	}
@@ -84,17 +86,36 @@ function ComponentTick()
 	{
 		Focus = Enemy;
 	}
+	
+	if(!Cannon.SWeapon.bCanFire) 
+	{
+		return;
+	}
+	
+	if(--aimTickdelay > 0) 
+	{
+		return;
+	}	
 
-	AimingComponent.FindAimToHit(Focus, AimSpot, AimRotation);
+	bCanHit = AimingComponent.FindAimToHit(Focus, AimSpot, AimRotation);
 	Cannon.DesiredAim = AimRotation;
 	SetRotation(Cannon.GetViewRotation());
 	SetFocalPoint(AimSpot);
 
-
-    //Possibly fire.
-	if((bEnemyIsVisible || Cannon.SWeapon.bCanFireBlind) && !bForceTarget && Cannon.SWeapon.bCanFire)
+	
+	if(!bCanHit)
 	{
-		if(PossiblyTarget(Enemy))
+		aimTickdelay = 10;	
+		SetTargetInfo(Enemy, false, Enemy.Location, WorldInfo.TimeSeconds);
+		return;	
+	}
+	
+	if(bCanHit)
+		bEnemyIsVisible	= true;
+	
+	if(bCanHit && (bEnemyIsVisible || Cannon.SWeapon.bCanFireBlind) && !bForceTarget && Cannon.SWeapon.bCanFire)
+	{
+		if(PossiblyTarget(Enemy, true)) 
 		{
 			ShotTarget = Enemy;
 
@@ -108,6 +129,7 @@ function ComponentTick()
 			else
 			{
                 SetTargetInfo(Enemy, false, Enemy.Location, WorldInfo.TimeSeconds);
+				aimTickdelay = 5;
 			}
 		}
 		else
@@ -131,6 +153,7 @@ function SetTargetInfo(Pawn NewTarget, bool bCanSee, Vector DetectedLocation, fl
 	LastDetectedLocation = DetectedLocation;
 	LastDetectedTime = DetectedTime;
 	bEnemyIsVisible = bCanSee && Cannon.CanDetect(Enemy);
+	//loginternal("Enemy visible STI"@bEnemyIsVisible);
 
 	if(bEnemyIsVisible)
 	{
@@ -143,6 +166,7 @@ function SetTargetInfo(Pawn NewTarget, bool bCanSee, Vector DetectedLocation, fl
 		Cannon.SetTarget(Enemy);
 		//If enemy not re-detected before timer goes off, give up.
 		SetTimer(TargetWaitTime, false, 'NotVisibleTimer');
+		//loginternal("NotVisibleTimer");
 	}
 }
 
@@ -150,11 +174,13 @@ function SetTargetInfo(Pawn NewTarget, bool bCanSee, Vector DetectedLocation, fl
  * Decide whether the detected pawn can be shot at or not.
  *
  * @param	PotentialTarget		pawn to check
- * @param	ExtraWeight		bias towards PotentialTarget
+ * @param	ExtraWeight		    bias towards PotentialTarget
+ * @param	bOnlyFastTrace		if only fast or full trace
  * @return	true if pawn could be attacked, false otherwise
  */
-function bool PossiblyTarget(Pawn PotentialTarget, optional int ExtraWeight)
+function bool PossiblyTarget(Pawn PotentialTarget, optional bool bOnlyFastTrace, optional int ExtraWeight)
 {
+	local Vector AimSpot;
 
     if(PotentialTarget == none) //|| !PotentialTarget.IsValidTargetFor(Cannon.InstigatorController))
 		return false;
@@ -169,19 +195,32 @@ function bool PossiblyTarget(Pawn PotentialTarget, optional int ExtraWeight)
 
 	//Don't target pawns outside of range (particularly important for Grenade Launcher).
 	if(VSize(PotentialTarget.Location - Cannon.Location) > Cannon.GetRange())
-		return false;
+	{
+		return false;	
+	}
+		
 
 	//Hook to allow for gun specific visibility checks 
 	if(!Cannon.IsVisibleFromGuns(PotentialTarget)) {
+	//`log("Left for invisible to guns"); 
+		//loginternal("not visible");
 		return false;
 	}
 
 	//Don't target pawns closer then minimal range (no hurt radius arround Ob and AGT).
 	if(!Cannon.IsOutsideMinimalDistToOwner(PotentialTarget)) {
+		//`log("Outside Minimal Distance to Owner"); 
 		return false;
 	}
-	if(!Cannon.SWeapon.CanHit(PotentialTarget)) {
+	
+	if(PotentialTarget == Enemy && aimTickdelay > 0)
+		return false;
+	
+	AimSpot = PotentialTarget.GetTargetLocation();
+	if(!AimingComponent.TraceCheckAim(PotentialTarget, Cannon.GetPawnViewLocation(), PotentialTarget.GetTargetLocation(), AimSpot)) {
+		//`log("Can't HIT");
 		if(SeenButCoveredPawns.Find(PotentialTarget) == -1) {
+			//`log("Was not a potential Target");
 			SeenButCoveredPawns.addItem(PotentialTarget);
 			if(!IsTimerActive('CheckPreviouslyCoveredTargets')) {
 				SetTimer(0.2, true, 'CheckPreviouslyCoveredTargets');
@@ -189,24 +228,39 @@ function bool PossiblyTarget(Pawn PotentialTarget, optional int ExtraWeight)
 		}
 		return false;
 	}
+	if(!bOnlyFastTrace) 
+	{
+		if(!Cannon.SWeapon.CanHit(PotentialTarget, AimSpot)) {
+			return false;
+		}
+	}
 
 	if ( Rx_Game(WorldInfo.Game).SmokeScreenCount > 0 )
 	{
 		foreach TraceActors(class'Rx_SmokeScreen', DummyActor, DummyHitLoc, DummyHitNorm, PotentialTarget.Location, Cannon.GetPawnViewLocation())
-			return false;
+		{
+			if(DummyActor.TeamNum != Cannon.GetTeamNum()) // only return when encountering an enemy smoke
+				return false;
+		}
 	}
 
 	//Always change if current target is dead or nonexistent.
 	if(Enemy == none || Enemy.Health <= 0)
 		return true;
 
+	/**
 	//Keep dishing out the punishment until they die or otherwise go away.
 	if(PotentialTarget == Enemy)
 		return true;
-
+	*/
+		
 	//Change if new target is more important than current target.
-	if(PawnTargetPriority(PotentialTarget, ExtraWeight) > PawnTargetPriority(Enemy))
+	if(!bEnemyIsVisible && (PawnTargetPriority(PotentialTarget, ExtraWeight) > PawnTargetPriority(Enemy)))
 		return true;
+		
+	//Keep dishing out the punishment until they die or otherwise go away.	
+	if(PotentialTarget == Enemy)
+		return true;		
 
 	return false;
 }
@@ -231,7 +285,7 @@ function float PawnTargetPriority(Pawn PawnTarget, optional int ExtraWeight)
 	if(PawnTarget == Enemy)
 	{
 		//Prefer to stay on target.
-		Weight += 1.0;
+		Weight += 0.7;
 		//Less weight for an enemy who has moved out of sight.
 		if(!bEnemyIsVisible)
 		{

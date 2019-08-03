@@ -63,4 +63,20 @@ CustomGravityScaling=0.8
     ProjectileLightClass=class'Rx_Light_Blue_MuzzleFlash'
     ExplosionLightClass=class'Rx_Light_Blue_MuzzleFlash'
     MyDamageType=class'Rx_DmgType_TiberiumAutoRifle_Blue'
+	
+	/*************************/
+	/*VETERANCY*/
+	/************************/
+	
+	Vet_DamageIncrease(0)=1 //Normal (should be 1)
+	Vet_DamageIncrease(1)=1.10 //Veteran 
+	Vet_DamageIncrease(2)=1.25 //Elite
+	Vet_DamageIncrease(3)=1.50 //Heroic
+
+	Vet_SpeedIncrease(0)=1 //Normal (should be 1)
+	Vet_SpeedIncrease(1)=1.25 //Veteran 
+	Vet_SpeedIncrease(2)=1.5 //Elite
+	Vet_SpeedIncrease(3)=2.0 //Heroic 
+	
+	/***********************/
 }

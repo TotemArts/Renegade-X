@@ -24,15 +24,13 @@ function string trigger(string parameters)
 	else
 		return "Error: Too few parameters." @ getSyntax();
 
-	PRI = Rx_Game(WorldInfo.Game).ParsePlayer(Recipient, error);
+	PRI = Rx_Game(`WorldInfoObject.Game).ParsePlayer(Recipient, error);
 	if (PRI == None)
 		return error;
-	if (PRI.bBot)
-		return "Can't PM bots.";
 
 	Recipient = `PlayerLog(PRI);
 	SetName(PRI, parameters);
-	return Recipient `s "is now" `s `PlayerLog(PRI);
+	return "";
 }
 
 function string getHelp(string parameters)

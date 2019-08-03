@@ -121,7 +121,7 @@ simulated function GetPlayerViewPoint(out vector out_Location, out Rotator out_R
 
 function PawnDied(Pawn P)
 {
-	LogInternal("...........................died");
+	//LogInternal("...........................died");
 	Destroy();
 }
 
@@ -145,6 +145,7 @@ function ChangeBehaviourTo(Rx_SentinelControllerComponent_Behaviour NewBehaviour
 	}
 	else if(CurrentBehaviour != NewBehaviour)
 	{
+		//`log(CurrentBehaviour @ "Change to:" @ NewBehaviour);
 		CurrentBehaviour.EndBehaviour();
 		CurrentBehaviour = NewBehaviour;
 		CurrentBehaviour.BeginBehaviour();
@@ -185,11 +186,13 @@ function SeeMonster(Pawn Seen)
 
 function SeePlayer(Pawn Seen)
 {
+	//`log(Seen @ CurrentBehaviour);
 	//halo2pac - added check to make sure Seen != None to prevent logs from filling up.
 	if (Seen == None)
 		return;
 	
 	if(Cannon != None && (Cannon.IsSameTeam(Seen) || (Rx_Pawn(Seen) != None && Rx_Pawn(Seen).isSpy()))) { // added spy exception
+	//	`log("Return cuz none ish?");
 		return;
 	}
 	/**
@@ -231,7 +234,7 @@ function Tick(float DeltaTime)
 //Overriden to prevent removing self from team (never added in the first place, so it messes up team size) and logging out.
 function Destroyed()
 {
-	LogInternal("...........................destroyed2");
+	//LogInternal("...........................destroyed2");
 	if(Role == ROLE_Authority)
 	{
 		if(PlayerReplicationInfo != none)
@@ -247,11 +250,12 @@ function CheckPreviouslyCoveredTargets()
 {
 	local Pawn P;
 	foreach SeenButCoveredPawns(P) {
+		//`log("Seen But covered" @ P); 
 		if((UTVehicle(P) != None && !UTVehicle(P).bDriving) || !CanSee(P)) {
 			SeenButCoveredPawns.removeItem(P);
 			continue;
 		}
-		if(Enemy == None && PawnTargetingBehaviour.PossiblyTarget(P)) {
+		if(Enemy == None && PawnTargetingBehaviour.PossiblyTarget(P, false)) {
 	        PawnTargetingBehaviour.SetTargetInfo(P, true, P.Location, WorldInfo.TimeSeconds);
 			ChangeBehaviourTo(PawnTargetingBehaviour);
 		} 	

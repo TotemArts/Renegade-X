@@ -22,9 +22,9 @@ defaultproperties
 	LandSound=SoundCue'RX_SoundEffects.FootSteps.Dirt.SC_Land_Dirt'
 	
 	DyingSound=SoundCue'RX_CharacterSounds.Male.SC_Male_Death'
-	HitSounds[0]=SoundCue'RX_SoundEffects.Bullet_Impact.SC_BulletImpact_Flesh' //SoundCue'RX_CharacterSounds.Male.SC_Male_Grunt_Small'
-	HitSounds[1]=SoundCue'RX_SoundEffects.Bullet_Impact.SC_BulletImpact_Flesh' //SoundCue'RX_CharacterSounds.Male.SC_Male_Grunt_Medium'
-	HitSounds[2]=SoundCue'RX_SoundEffects.Bullet_Impact.SC_BulletImpact_Flesh' //SoundCue'RX_CharacterSounds.Male.SC_Male_Grunt_Large'
+	HitSounds[0]=SoundCue'RX_SoundEffects.Bullet_Impact.SC_BulletImpact_Metal' //SoundCue'RX_SoundEffects.Bullet_Impact.SC_BulletImpact_Flesh' //SoundCue'RX_CharacterSounds.Male.SC_Male_Grunt_Small'
+	HitSounds[1]=SoundCue'RX_SoundEffects.Bullet_Impact.SC_BulletImpact_Metal' //SoundCue'RX_CharacterSounds.Male.SC_Male_Grunt_Medium'
+	HitSounds[2]=SoundCue'RX_SoundEffects.Bullet_Impact.SC_BulletImpact_Metal' //SoundCue'RX_CharacterSounds.Male.SC_Male_Grunt_Large'
 	FallingDamageLandSound=SoundCue'RX_CharacterSounds.Male.SC_Male_Grunt_Small'
 	GibSound=SoundCue'RX_SoundEffects.Bullet_Impact.SC_BulletImpact_Flesh' //none //SoundCue'A_Character_CorruptEnigma_Cue.Mean_Efforts.A_Effort_EnigmaMean_DeathInstant_Cue'
 	
@@ -88,7 +88,7 @@ defaultproperties
 	LandingSounds[15]=(MaterialType=TiberiumCrystal,Sound=SoundCue'A_Character_Footsteps.FootSteps.A_Character_Footstep_GlassPlateLandCue')  //SoundCue'RX_SoundEffects.FootSteps.Tiberium.SC_Land_TiberiumCrystal')
 	LandingSounds[16]=(MaterialType=TiberiumCrystalBlue,Sound=SoundCue'A_Character_Footsteps.FootSteps.A_Character_Footstep_GlassPlateLandCue')  //SoundCue'RX_SoundEffects.FootSteps.Tiberium.SC_Land_TiberiumCrystal')
 	
-		BulletImpactSound=SoundCue'A_Character_BodyImpacts.BodyImpacts.A_Character_BodyImpact_Bullet_Cue'
+		BulletImpactSound=SoundCue'RX_SoundEffects.Bullet_Impact.SC_BulletImpact_Metal' //SoundCue'A_Character_BodyImpacts.BodyImpacts.A_Character_BodyImpact_Bullet_Cue'
 	
 	//BulletImpactSound=SoundCue'RX_SoundEffects.Bullet_Impact.SC_BulletImpact_Flesh'
 

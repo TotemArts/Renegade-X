@@ -9,13 +9,13 @@ function string trigger(string parameters)
 	if (parameters == "")
 		return "Error: Too few parameters." @ getSyntax();
 
-	PRI = Rx_Game(WorldInfo.Game).ParsePlayer(parameters, error);
+	PRI = Rx_Game(`WorldInfoObject.Game).ParsePlayer(parameters, error);
 	
 	if (PRI == None)
 		return error;
 
 	if (Controller(PRI.Owner) != None)
-		foreach AllActors(class'Rx_Weapon_DeployedBeacon', beacon)
+		foreach `WorldInfoObject.AllActors(class'Rx_Weapon_DeployedBeacon', beacon)
 			if (beacon.InstigatorController == Controller(PRI.Owner))
 				beacon.Destroy();
 

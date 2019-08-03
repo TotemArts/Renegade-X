@@ -20,15 +20,28 @@ var float currentSecondaryReloadTime;
 
 var bool CurrentlyReloadingSecondaryClientside; //////////////ADDED TO DIFFERENTIATE WEAPONS (Also edited in RX_Controller so that pressing R to reload did not completely bone both weapons)
 
+//Veterancy
+var float Vet_ReloadSpeedModifier[4]; //*X
+var int Vet_ClipSizeModifier[4];  //+X
+var float Vet_ROFSpeedModifier[4];
+//Secondary Weapons
+var float Vet_SecondaryReloadSpeedModifier[4]; //*X
+var int Vet_SecondaryClipSizeModifier[4];  //+X
+var float Vet_SecondaryROFSpeedModifier[4];
 
+var int ShotsFired[2]; 
 
+var SoundCue ReloadSound[2] ;
+/**
 replication
 {
-	// Server->Client properties
+	
+	/Server->Client properties
 	if ( bNetOwner && bNetDirty && Role == ROLE_Authority )
 		CurrentAmmoInClip, PrimaryReloading, SecondaryReloading, 
 			currentPrimaryReloadTime, currentSecondaryReloadTime;
 }
+*/
 
 simulated event ReplicatedEvent( name VarName )
 {
@@ -90,102 +103,88 @@ simulated event ReplicatedEvent( name VarName )
 	}
 }
 
-event PreBeginPlay()
+reliable client function ReplicateVRank(byte rank)
 {
-	// setup primary ammo
-	CurrentAmmoInClip[0] = ClipSize[0];
-	PrimaryReloading = false;
-	CurrentAmmoInClipClientSide[0] = ClipSize[0];
-	// setup secondary ammo
-	CurrentAmmoInClip[1] = ClipSize[1];
-	SecondaryReloading = false;
-	CurrentAmmoInClipClientSide[1] = ClipSize[1];
-	bForceNetUpdate = true;
-	super.PreBeginPlay();
+	super(Rx_Vehicle_Weapon).ReplicateVRank(rank); 
+	ClipSize[0]=default.ClipSize[0]+Vet_ClipSizeModifier[VRank]; 
+	ClipSize[1]=default.ClipSize[1]+Vet_SecondaryClipSizeModifier[VRank]; 
+}
+
+simulated event PreBeginPlay()
+{
+	if(ROLE == ROLE_Authority)
+	{
+		// setup primary ammo
+		CurrentAmmoInClip[0] = ClipSize[0];
+		PrimaryReloading = false;
+		// setup secondary ammo
+		CurrentAmmoInClip[1] = ClipSize[1];
+		SecondaryReloading = false;
+		bForceNetUpdate = true;
+		super.PreBeginPlay();
+	}
 }
 
 //Added from Rx_Weapon_Reloadable - May be used 
 simulated function RestartWeaponFiringAfterReload(byte FireModeNum)
 {
-
-	if(ROLE < ROLE_Authority || WorldInfo.Netmode == NM_Standalone) 
-	{
 	//`log("Fire After Reload" @ "FireModeNum"); 
-	GotoState('Active');	
-	
+	GotoState('Active');		
 	StartFire(FireModeNum);  	
-	}
 }
 
-
 simulated function Activate()
-{
-	if (WorldInfo.NetMode == NM_Client)
-	{
-		CurrentAmmoInClipClientside[0] = CurrentAmmoInClip[0];
-		CurrentAmmoInClipClientside[1] = CurrentAmmoInClip[1];
-	}
+{	
+	ServerReplicateAmmo();
+	//`log("Activate"); 
 	super.Activate();
 }
 
 simulated function int GetUseableAmmo()
 {
 	return CurrentAmmoInClip[0];
-	//`log("GetUsableAmmo Called: " @ CurrentAmmoInClip[0]);
 }
 simulated function int GetAltUseableAmmo()
 {
 	return CurrentAmmoInClip[1];
-	//`log("GetAltUsableAmmo Called: " @ CurrentAmmoInClip[1]);
 }
 simulated function int GetMaxAmmoInClip()
 {
-	return default.ClipSize[0];
+	return ClipSize[0]; //default.
 }
 simulated function int GetMaxAltAmmoInClip()
 {
-	return default.ClipSize[1];
+	return ClipSize[1];//default.
 }
 
-function ConsumeAmmo( byte FireModeNum )
+simulated function ConsumeAmmo( byte FireModeNum )
 {
-
-	// ammo must get remmoved from clip and it doesnt change weither 
-	// or not it is primary or secondary fire
+	//`log("ConsumeAmmo called"); 
 	CurrentAmmoInClip[FireModeNum] -= ShotCost[FireModeNum];
-	//if(CurrentAmmoInClip[FireModeNum] < 0)
-		//`log("Ammo Removed from FireModeNum" @ FireModeNum);
+	
 }
 
 simulated function ConsumeClientsideAmmo( byte FireModeNum )
 {
 	CurrentAmmoInClipClientside[FireModeNum] -= ShotCost[FireModeNum];
-	//`log(" (Client)Ammo Removed from FireModeNum" @ FireModeNum);
 }
 
 // if this gun has any ammo in current firemode clip it will return true.
 simulated function bool HasAmmo( byte FireModeNum, optional int Amount = 0 )
 {
+	//`log("Checking AMmo");
+	
+	//ScriptTrace(); 
 	if( Amount==0 )
 	{
-		if (CurrentAmmoInClip[FireModeNum] < ShotCost[FireModeNum] || CurrentAmmoInClipClientside[FireModeNum] < ShotCost[FireModeNum])
-		{
-			//`log("No Ammo to Fire");
-			return false;
-		}
-		else
-			return true;
+		
+			//`log( CurrentAmmoInClip[FireModeNum] >= ShotCost[FireModeNum]); 
+		return CurrentAmmoInClip[FireModeNum] >= ShotCost[FireModeNum];
+		
 	}
 	else
 	{
-		if (CurrentAmmoInClip[FireModeNum] < Amount || CurrentAmmoInClipClientside[FireModeNum] < Amount)
-			
-			{
-				return false;
-				//`log("No special ammo");
-			}
-		else
-			return true;
+		return CurrentAmmoInClip[FireModeNum] >= Amount ; 
 	}
 }
 
@@ -229,18 +228,26 @@ simulated state Active
 	simulated function bool bReadyToFire()
 	{
 		//return true;
-		if(CurrentFireMode == 0) return !PrimaryReloading && !IsTimerActive('RefireCheckTimer') ;
+		if(CurrentFireMode == 0)  
+		{
+			//`log("Refire timer active or primary reloading ");
+			return !PrimaryReloading && !IsTimerActive('RefireCheckTimer') ;
+		}
 		else
-		if(CurrentFireMode == 1) return !SecondaryReloading && !IsTimerActive('RefireCheckTimer');
+		{
+			//`log("Refire timer active or Secondary reloading ");
+			return !SecondaryReloading && !IsTimerActive('RefireCheckTimer') ;
+		}
 		 
 	}
 
 		/** Override BeginFire so that it will enter the firing state right away. */
 	simulated function BeginFire(byte FireModeNum)
 	{
+		//`log("Made it to Begin Fire");
 		if( !bDeleteMe && Instigator != None )
 		{
-			
+			//`log("Made it to begin fire 2"); 
 			Global.BeginFire(FireModeNum);
 
 			// in the active state, fire right away if we have the ammunition
@@ -248,6 +255,9 @@ simulated state Active
 			//if the reload timer isn't set, go ahead and set it
 			//This addresses a bug in the system where firing may cancel the reload timer
 			
+		
+			
+			//`log("Begin Fire: " @ PendingFire(FireModeNum) @ HasAmmo(FireModeNum) @ !IsReloading(FireModeNum) ); 
 			
 			if(PendingFire(FireModeNum) && HasAmmo(FireModeNum) && !IsReloading(FireModeNum) )
 			{
@@ -259,28 +269,28 @@ simulated state Active
 			{
 				PrimaryReload();
 				
-				if(WorldInfo.Netmode == NM_DedicatedServer) 
+				/**if(WorldInfo.Netmode == NM_DedicatedServer) 
 				{
-					//`log("Call clearPendingFireIn BeginFire");
+					`log("Call clearPendingFireIn BeginFire");
 				ClearPendingFire(0);
 				}
-				
+				*/
 			}
 			// Go to Reload for Secondary
 			else// if( CurrentFireMode == 1 && CurrentAmmoInClip[1] <= 0 && !SecondaryReloading )
 			if(CurrentAmmoInClip[1] <= 0 && !SecondaryReloading )
 			{
 				SecondaryReload();
-				if(WorldInfo.Netmode == NM_DedicatedServer) 
+				
+				/**if(WorldInfo.Netmode == NM_DedicatedServer) 
 				{
 				ClearPendingFire(1);
-				}
+				}*/
 				
 			}
 
 		}
 	}
-
 }
 
 simulated function FireAmmunition()
@@ -289,6 +299,9 @@ simulated function FireAmmunition()
 		//`log("Is Reloading Firemode" @ CurrentFireMode);
 		return;
 	}
+	ShotsFired[CurrentFireMode]++;
+	//`log("ShotsFired: " @ ShotsFired[CurrentFireMode]);
+	
 	super.FireAmmunition();
 }
 
@@ -345,6 +358,8 @@ simulated state WeaponFiring
 	 */
 	simulated function RefireCheckTimer()
 	{
+		//`log("ShouldRefire:" @ ShouldRefire());
+		
 		// if switching to another weapon, abort firing and put down right away
 		if( bWeaponPutDown )
 		{
@@ -368,11 +383,11 @@ simulated state WeaponFiring
 				//`log("Reloading Primary");
 				PrimaryReload();
 				
-				if(WorldInfo.Netmode == NM_DedicatedServer) 
+				/**if(WorldInfo.Netmode == NM_DedicatedServer) 
 				{
 				//`log("Call clearPendingFireIn RefirceCheckTimer"); 
 				ClearPendingFire(0);
-				}
+				}*/
 				
 			}
 			// Go to Reload for Secondary
@@ -380,11 +395,12 @@ simulated state WeaponFiring
 			{
 				//`log("Reloading Secondary");
 				SecondaryReload();
-					if(WorldInfo.Netmode == NM_DedicatedServer) 
+					
+					/**if(WorldInfo.Netmode == NM_DedicatedServer) 
 				{
 				//`log("Call clearPendingFireIn RefirceCheckTimer"); 
 				ClearPendingFire(1);
-				}
+				}*/
 			}
 		
 
@@ -404,16 +420,16 @@ simulated function HandleClientReload()
 	//`log("Handle Client Reload Called");
 	if (!IsReloading(0) && NeedsReload(0))
 	{
-		CurrentlyReloadingClientside=true;
-		if(!IsTimerActive('SetCurrentlyReloadingClientsideToFalseTimer')) SetTimer(ReloadTime[0],false,'SetCurrentlyReloadingClientsideToFalseTimer');
-		
+		/**CurrentlyReloadingClientside=true;
+		if(!IsTimerActive('SetCurrentlyReloadingClientsideToFalseTimer')) SetTimer(ReloadTime[0]*Vet_ReloadSpeedModifier[Vrank],false,'SetCurrentlyReloadingClientsideToFalseTimer');
+		*/
 	}
 	
 	if (!IsReloading(1) && NeedsReload(1))
 	{
-		CurrentlyReloadingSecondaryClientside=true;
-		if(!IsTimerActive('SetCurrentlyReloadingSecondaryClientsideToFalseTimer')) SetTimer(ReloadTime[1],false,'SetCurrentlyReloadingSecondaryClientsideToFalseTimer');
-		
+		/**CurrentlyReloadingSecondaryClientside=true;
+		if(!IsTimerActive('SetCurrentlyReloadingSecondaryClientsideToFalseTimer')) SetTimer(ReloadTime[1]*Vet_SecondaryReloadSpeedModifier[Vrank],false,'SetCurrentlyReloadingSecondaryClientsideToFalseTimer');
+		*/
 	}
 	
 	
@@ -425,29 +441,14 @@ simulated function bool IsReloading( byte FireMode )
 	
 	
 	if( FireMode == 0 )
-	{
-		
-		if(CurrentlyReloadingClientside) //Already reloading, back out.
-		{
-		//`log("Primary Reloading ClientSide");
-		return true;
-		} 	
-		
-		//`log("Reloading Primary" @ PrimaryReloading);
-		
-		return PrimaryReloading;
+	{	
+	//`log("Reloading Primary" @ PrimaryReloading);	
+	return PrimaryReloading;
 	}
 	
 	else if( FireMode == 1 )
 	
-	{
-			if(CurrentlyReloadingSecondaryClientside) //Already reloading secondary, back out.
-		{
-		//`log("Secondary Reloading ClientSide");
-		return true;
-		} 	
-		
-		
+	{		
 		//`log("Reloading Secondary" @ SecondaryReloading);
 		return SecondaryReloading;
 	}
@@ -500,9 +501,15 @@ simulated function PrimaryReload()
 	//`log("Called For PrimaryReload");
 	PrimaryReloading = true;
 	primaryReloadBeginTime = WorldInfo.TimeSeconds;
-	currentPrimaryReloadTime = ReloadTime[0];
-	SetTimer(ReloadTime[0],false,'PrimaryReloadTimer' );
+	currentPrimaryReloadTime = ReloadTime[0]*GetReloadSpeedModifier();
+	SetTimer(ReloadTime[0]*GetReloadSpeedModifier(),false,'PrimaryReloadTimer' );
 	
+	if(Role == ROLE_Authority)
+		PlayWeaponReloadEffects(0); 
+	
+	if(WorldInfo.NetMode == NM_Client) 
+		NotifyServerOfReload(ShotsFired[0], 0); 
+	ShotsFired[0] = 0;
 }
 
 simulated function SecondaryReload()
@@ -510,8 +517,15 @@ simulated function SecondaryReload()
 	//`log("Called For SecondaryReload");
 	SecondaryReloading = true;
 	secondaryReloadBeginTime = WorldInfo.TimeSeconds;
-	currentSecondaryReloadTime = ReloadTime[1];
-	SetTimer(ReloadTime[1],false,'SecondaryReloadTimer');
+	currentSecondaryReloadTime = ReloadTime[1]*GetSecondaryReloadSpeedModifier();
+	SetTimer(ReloadTime[1]*GetSecondaryReloadSpeedModifier(),false,'SecondaryReloadTimer');
+	
+	if(Role == ROLE_Authority)
+		PlayWeaponReloadEffects(1); 
+	
+	if(WorldInfo.NetMode == NM_Client) 
+		NotifyServerOfReload(ShotsFired[1],1); 
+	ShotsFired[1] = 0;
 }
 
 simulated function PrimaryReloadTimer()
@@ -526,11 +540,11 @@ simulated function SecondaryReloadTimer()
 	//`log("Secondary Reloaded");
 }
 
-function ReloadWeapon( byte FireMode )
+simulated function ReloadWeapon( byte FireMode )
 {
 
 	CurrentAmmoInClip[FireMode] = ClipSize[FireMode];
-	//CurrentAmmoInClipClientSide[FireMode] = ClipSize[FireMode];
+	if(ROLE < ROLE_Authority) CurrentAmmoInClipClientSide[FireMode] = ClipSize[FireMode];
 
 	if( FireMode == 0 )
 	{
@@ -563,7 +577,9 @@ simulated function bool ShouldRefire()
  	local vector FireStartLoc;
  	local Rx_Vehicle veh;
  	
- 	if(CurrentlyReloadingClientside && CurrentlyReloadingSecondaryClientside)
+	//`log("Got to shouldrefire");
+	
+ 	if(PrimaryReloading && SecondaryReloading)
  	{
 		//`log("Both Weapons Reloading: Doing nothing");
  		return false;
@@ -609,14 +625,54 @@ simulated function DrawCrosshair( Hud HUD )
 	local UTHUDBase H;
 	local Pawn MyPawnOwner;
 	local actor TargetActor;
-	local int targetTeam, rectColor;	
+	local int targetTeam;
+	local LinearColor LC; //nBab	
+	local float XResScale; 
 	
+	//set initial color based on settings (nBab)
+	LC.A = 1.f;
+	switch (Rx_HUD(Rx_Controller(Instigator.Controller).myHUD).SystemSettingsHandler.GetCrosshairColor())
+	{
+		//white
+		case 0:
+			LC.R = 1.f;
+			LC.G = 1.f;
+			LC.B = 1.f;
+			break;
+		//orange
+		case 1:
+			LC.R = 2.f;
+			LC.G = 0.5f;
+			LC.B = 0.f;
+			break;
+		//violet
+		case 2:
+			LC.R = 2.f;
+			LC.G = 0.f;
+			LC.B = 2.f;
+			break;
+		//blue
+		case 3:
+			LC.R = 0.f;
+			LC.G = 0.f;
+			LC.B = 2.f;
+			break;
+		//cyan
+		case 4:
+			LC.R = 0.f;
+			LC.G = 2.f;
+			LC.B = 2.f;
+			break;	
+	}
+
 	H = UTHUDBase(HUD);
 	if ( H == None )
 		return;
 
- 	CrosshairSize.Y = CrosshairHeight;
-	CrosshairSize.X = CrosshairWidth;
+	XResScale = H.Canvas.SizeX/1920.0;	
+	
+ 	CrosshairSize.Y = CrosshairHeight * XResScale;
+    CrosshairSize.X = CrosshairWidth * XResScale;
 
 	X = H.Canvas.ClipX * 0.5 - (CrosshairSize.X * 0.5);
 	Y = H.Canvas.ClipY * 0.5 - (CrosshairSize.Y * 0.5);
@@ -638,18 +694,37 @@ simulated function DrawCrosshair( Hud HUD )
 				if (targetTeam != MyPawnOwner.GetTeamNum())
 				{
 					if (!TargetActor.IsInState('Stealthed') && !TargetActor.IsInState('BeenShot'))
-						rectColor = 1; //enemy, go red, except if stealthed (else would be cheating ;] )
+					{
+						//enemy, go red, except if stealthed (else would be cheating ;] )
+						//nBab
+						LC.R = 10.f;
+						LC.G = 0.f;
+						LC.B = 0.f;
+					}
 				}
 				else
-					rectColor = 2; //Friendly
+				{
+					//Friendly
+					//nBab
+					LC.R = 0.f;
+					LC.G = 10.f;
+					LC.B = 0.f;
+				}
 			}
 		}
 	}
 	
 	if (!HasAnyAmmo()) //no ammo, go yellow
-		rectColor = 3;
+	{
+		//nBab
+		LC.R = 10.f;
+		LC.G = 8.f;
+		LC.B = 0.f;
+	}
 
-	CrosshairMIC2.SetScalarParameterValue('ReticleColourSwitcher', rectColor);
+	//nBab
+	CrosshairMIC2.SetVectorParameterValue('Reticle_Colour', LC);
+
 	if ( CrosshairMIC2 != none )
 	{
 		//H.Canvas.SetPos( X+1, Y+1 );
@@ -659,25 +734,27 @@ simulated function DrawCrosshair( Hud HUD )
 	}
 	if(bDebugWeapon)
 	{
-	H.Canvas.DrawText("PrimaryReloading: " @ PrimaryReloading @ "Clientside Reloding: " @ CurrentlyReloadingClientside,true,1,1);
-	Y+=20;
-	H.Canvas.DrawText("Ammo: S: " @ CurrentAmmoInClip[0] @ "C: " @ CurrentAmmoInClipClientSide[0],true,1,1);
-	Y+=20;
-	H.Canvas.DrawText("Refire Timer: " @ (GetTimerRate('PrimaryReloadTimer') - GetTimerCount('PrimaryReloadTimer')),true,1,1);
-	Y+=20;
-	H.Canvas.DrawText("PendingFire:" @ PendingFire(0),true,1,1);
-	Y+=20;
-	H.Canvas.DrawText("ClientPendingFire:" @ ClientPendingFire[0],true,1,1);
-	Y+=20;
-	H.Canvas.DrawText("ReFire:" @ ShouldRefire(),true,1,1);
-	Y+=20;
-	H.Canvas.DrawText("Has Ammo:" @ HasAmmo(0),true,1,1);
-	Y+=20;
-	H.Canvas.DrawText("State" @ GetStateName(),true,1,1);
-	Y+=20;
-	H.Canvas.DrawText("CRCS" @ CurrentlyReloadingClientside,true,1,1);
-	Y+=20;
-	H.Canvas.DrawText("ReadyToFire" @ bReadyToFire(),true,1,1);
+		H.Canvas.DrawText("PrimaryReloading: " @ PrimaryReloading @ "Clientside Reloding: " @ CurrentlyReloadingClientside,true,1,1);
+		Y+=20;
+		H.Canvas.DrawText("Ammo: S: " @ CurrentAmmoInClip[0] @ "C: " @ CurrentAmmoInClipClientSide[0],true,1,1);
+		Y+=20;
+		H.Canvas.DrawText("Refire Timer: " @ (GetTimerRate('PrimaryReloadTimer') - GetTimerCount('PrimaryReloadTimer')),true,1,1);
+		Y+=20;
+		H.Canvas.DrawText("PendingFire:" @ PendingFire(0),true,1,1);
+		Y+=20;
+		H.Canvas.DrawText("ClientPendingFire:" @ ClientPendingFire[0],true,1,1);
+		Y+=20;
+		H.Canvas.DrawText("ReFire:" @ ShouldRefire(),true,1,1);
+		Y+=20;
+		H.Canvas.DrawText("Has Ammo:" @ HasAmmo(0),true,1,1);
+		Y+=20;
+		H.Canvas.DrawText("State" @ GetStateName(),true,1,1);
+		Y+=20;
+		H.Canvas.DrawText("CRCS" @ CurrentlyReloadingClientside,true,1,1);
+		Y+=20;
+		H.Canvas.DrawText("ReadyToFire" @ bReadyToFire(),true,1,1);
+		Y+=20;
+		H.Canvas.DrawText("CurrentFireMode" @ CurrentFireMode,true,1,1);
 	}
 	
 }
@@ -687,6 +764,7 @@ simulated function DrawCrosshair( Hud HUD )
 //Inject to keep server and client in sync with reloading weapons 
 simulated function StartFire(byte FireModeNum)
 {
+	//`log(self @ "-----------Firing------------"); 
 	if(Rx_Bot(instigator.Controller) != None) 
 	{
 		super.StartFire(FireModeNum); 
@@ -696,6 +774,20 @@ simulated function StartFire(byte FireModeNum)
 	if( Instigator == None || !Instigator.bNoWeaponFiring )
 	{
 		/*For Multi Weapons, set the firing mode earlier than usual so it can change even when reloading*/
+		if(FireModeNum == 1)  
+			{
+				ClearPendingFire(0);
+				ServerStopFire(0);
+				ClientPendingFire[0]=false;
+			}
+			else
+			if(FireModeNum == 0)
+			{
+				ClearPendingFire(1);
+				ServerStopFire(1);
+				ClientPendingFire[1]=false;
+			}
+		
 		SetCurrentFireMode(FireModeNum);
 		
 		ClientPendingFire[FireModeNum]=true; 
@@ -714,6 +806,200 @@ simulated function StartFire(byte FireModeNum)
 	}
 }
 
+reliable server function ServerStartFire(byte FireModeNum)
+{
+		
+		if(!UsesClientSideProjectiles(FireModeNum)) //Client was finished with reload already 
+			{
+				
+				if(FireModeNum == 0 && IsTimerActive('PrimaryReloadTimer'))
+				{
+					//`log("Primary wasn't done reloading: Seconds left:" @ (GetTimerRate('PrimaryReloadTimer') - GetTimerCount('PrimaryReloadTimer'))); 
+					ClearTimer('PrimaryReloadTimer');
+					PrimaryReloadTimer(); 
+				}
+				if(FireModeNum == 1 && IsTimerActive('SecondaryReloadTimer'))
+				{
+					//`log("Secondary wasn't done reloading: Seconds left:" @ (GetTimerRate('SecondaryReloadTimer') - GetTimerCount('SecondaryReloadTimer'))); 
+					ClearTimer('SecondaryReloadTimer');
+					SecondaryReloadTimer(); 
+				}					
+			}
+			
+	super.ServerStartFire(FireModeNum);
+}
+
+function PromoteWeapon(byte rank)
+{
+	super.PromoteWeapon(rank);  
+	ClipSize[0]=default.ClipSize[0]+Vet_ClipSizeModifier[rank]; 
+	ClipSize[1]=default.ClipSize[1]+Vet_SecondaryClipSizeModifier[rank]; 
+}
+
+simulated function float GetFireInterval( byte FireModeNum )
+{
+	//Multi-dimensional arrays....would be love.
+	switch (FireModeNum)
+	{
+		case 0:
+			return FireInterval[FireModeNum]*GetROFModifier() ;
+			break;
+		
+		case 1:
+			return FireInterval[FireModeNum]*GetSecondaryROFModifier() ;
+			break;
+		
+		default :
+			return 0.01; 
+			break;
+	}
+}
+
+reliable server function NotifyServerOfReload(int Count, byte FireModeNum) //deviation integer
+{
+local int DeviInt;
+
+	//Add log of difference
+	DeviInt = ShotsFired[FireModeNum] - Count ; 
+	//`log("---------Weapon" @ self @ "Reload with ammo deviation of " @ DeviInt @ "---------") ;	
+	
+	if(DeviInt < -SF_Tolerance) `LogRx("PLAYER" `s "FLAG_VehicleShotNumber;" `s self.class `s DeviInt `s `PlayerLog(Instigator.PlayerReplicationInfo));	
+	
+	if(!IsReloading(FireModeNum) && FireModeNum == 0) PrimaryReload();
+	else	
+	if(!IsReloading(FireModeNum) && FireModeNum == 1) SecondaryReload();
+}
+
+reliable server function ServerReplicateAmmo() //Runs when weapon is activated on the client
+{
+	local float RTimerTime, SecondaryRTime; //Sync reload timer to prevent having to manually reload when first entering a vehicle that's reloading
+	
+	if(PrimaryReloading) RTimerTime = (GetTimerRate('PrimaryReloadTimer') - GetTimerCount('PrimaryReloadTimer'));
+	
+	if(SecondaryReloading) SecondaryRTime = (GetTimerRate('SecondaryReloadTimer') - GetTimerCount('SecondaryReloadTimer'));
+	
+	ClientReplicateAmmo(AmmoCount,MaxAmmoCount,CurrentAmmoInClip[0], CurrentAmmoInClip[1], PrimaryReloading, SecondaryReloading, RTimerTime, SecondaryRTime);	
+}
+
+reliable client function ClientReplicateAmmo(float AC,float MAC,float CAIC, float CAIC2, bool CR, bool CR2, float RTime, float RTime2)
+{
+	AmmoCount = AC;
+	MaxAmmoCount = MAC;
+	CurrentAmmoInClip[0] = CAIC;
+	CurrentAmmoInClipClientside[0] = CAIC;
+	CurrentAmmoInClip[1] = CAIC2;
+	CurrentAmmoInClipClientside[1] = CAIC2;
+	
+	if(CR) //CR being our primary fire is currently reloading according to the server
+	{
+		//`log("Reload From server replication [Primary]" @ RTime);
+		PrimaryReload();
+		if(IsTimerActive('PrimaryReloadTimer'))
+		{
+			//`log("ReloadTimer should get cleared");
+			SetTimer(RTime, false, 'PrimaryReloadTimer');
+		}
+	}
+	if(CR2) //CR2 being our secondary fire is currently reloading according to the server
+	{
+		//`log("Reload From server replication [secondary]" @ RTime2);
+		SecondaryReload();
+		if(IsTimerActive('SecondaryReloadTimer'))
+		{
+			//`log("ReloadTimer should get cleared");
+			SetTimer(RTime2, false, 'SecondaryReloadTimer');
+		}
+	}
+	
+}
+
+reliable client function ClientGetAmmo()
+{
+	//`log("--------CGA---------" @ CurrentAmmoInClip @ CurrentlyReloading @ self);
+	if(CurrentAmmoInClip[0] <= 0 && !PrimaryReloading) //Can assume if both of these are true, something's wrong
+	{
+		//`log("Should replicate");
+		SetTimer(0.01, false,'CallAmmoReplication'); 
+	}
+}
+
+simulated function CallAmmoReplication()
+{
+	//`log("Replicate to server"); 
+	ServerReplicateAmmo(); 
+	
+}
+
+//Rx_Vehicle_HarvesterController Rx_Defence_Controller
+
+simulated function float GetReloadSpeedModifier()
+{
+	if(Rx_Controller(Instigator.Controller) != none) return Vet_ReloadSpeedModifier[VRank]+Rx_Controller(Instigator.Controller).Misc_ReloadSpeedMod; 
+	else
+	if(Rx_Bot(Instigator.Controller) != none) return Vet_ReloadSpeedModifier[Vrank]+Rx_Bot(Instigator.Controller).Misc_ReloadSpeedMod; 
+	else
+	if(Rx_Vehicle_HarvesterController(Instigator.Controller) != none) return Vet_ReloadSpeedModifier[Vrank]+Rx_Vehicle_HarvesterController(Instigator.Controller).Misc_ReloadSpeedMod; 
+	else
+	if(Rx_Defence_Controller(Instigator.Controller) != none) return Vet_ReloadSpeedModifier[Vrank]+Rx_Defence_Controller(Instigator.Controller).Misc_ReloadSpeedMod; 
+	else
+	return 1.0; 
+}
+
+simulated function float GetSecondaryReloadSpeedModifier()
+{
+	if(Rx_Controller(Instigator.Controller) != none) return Vet_SecondaryReloadSpeedModifier[VRank]+Rx_Controller(Instigator.Controller).Misc_ReloadSpeedMod; 
+	else
+	if(Rx_Bot(Instigator.Controller) != none) return Vet_SecondaryReloadSpeedModifier[Vrank]+Rx_Bot(Instigator.Controller).Misc_ReloadSpeedMod;
+	else
+	if(Rx_Vehicle_HarvesterController(Instigator.Controller) != none) return Vet_SecondaryReloadSpeedModifier[Vrank]+Rx_Vehicle_HarvesterController(Instigator.Controller).Misc_ReloadSpeedMod; 
+	else
+	if(Rx_Defence_Controller(Instigator.Controller) != none) return Vet_SecondaryReloadSpeedModifier[Vrank]+Rx_Defence_Controller(Instigator.Controller).Misc_ReloadSpeedMod; 
+	else
+	return 1.0; 
+}
+
+simulated function float GetROFModifier()
+{
+	if(Rx_Controller(Instigator.Controller) != none) return Vet_ROFSpeedModifier[VRank]+Rx_Controller(Instigator.Controller).Misc_RateOfFireMod; 
+	else
+	if(Rx_Bot(Instigator.Controller) != none) return Vet_ROFSpeedModifier[Vrank]+Rx_Bot(Instigator.Controller).Misc_RateOfFireMod; 
+	else
+	if(Rx_Vehicle_HarvesterController(Instigator.Controller) != none) return Vet_ROFSpeedModifier[Vrank]+Rx_Vehicle_HarvesterController(Instigator.Controller).Misc_RateOfFireMod; 
+	else
+	if(Rx_Defence_Controller(Instigator.Controller) != none) return Vet_ROFSpeedModifier[Vrank]+Rx_Defence_Controller(Instigator.Controller).Misc_RateOfFireMod; 
+	else
+	return 1.0; 
+}
+
+simulated function float GetSecondaryROFModifier()
+{
+	if(Rx_Controller(Instigator.Controller) != none) return Vet_SecondaryROFSpeedModifier[VRank]+Rx_Controller(Instigator.Controller).Misc_RateOfFireMod; 
+	else
+	if(Rx_Bot(Instigator.Controller) != none) return Vet_SecondaryROFSpeedModifier[Vrank]+Rx_Bot(Instigator.Controller).Misc_RateOfFireMod;
+	else
+	if(Rx_Vehicle_HarvesterController(Instigator.Controller) != none) return Vet_SecondaryROFSpeedModifier[Vrank]+Rx_Vehicle_HarvesterController(Instigator.Controller).Misc_RateOfFireMod;
+	else
+	if(Rx_Defence_Controller(Instigator.Controller) != none) return Vet_SecondaryROFSpeedModifier[Vrank]+Rx_Defence_Controller(Instigator.Controller).Misc_RateOfFireMod; 
+	else
+	return 1.0; 
+}
+
+function PlayWeaponReloadEffects(byte FM)
+{
+		if(CurrentAmmoInClip[FM] > 0)
+			return; 
+			
+		/**
+		if(ReloadAnimName[FM] == '' )
+		{
+			//PlayWeaponAnimation( ReloadAnimName[0], ReloadTime[0] );
+			//PlayArmAnimation( ReloadArmAnimName[0], ReloadTime[0] );
+		}*/
+			
+			if(Role == ROLE_Authority && ReloadSound[FM] != None) {
+				MyVehicle.PlaySound( ReloadSound[FM]);
+		}
+}
 
 DefaultProperties
 {
@@ -722,4 +1008,43 @@ DefaultProperties
 	bDebugWeapon=false;
 
 	AmmoCount = 999
+
+	/***********************/
+	/*Veterancy*/
+	/**********************/
+	Vet_ClipSizeModifier(0)=0 //Normal +X
+	Vet_ClipSizeModifier(1)=0 //Veteran 
+	Vet_ClipSizeModifier(2)=0 //Elite
+	Vet_ClipSizeModifier(3)=0 //Heroic
+
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
+	Vet_ReloadSpeedModifier(1)=1 //Veteran 
+	Vet_ReloadSpeedModifier(2)=1 //Elite
+	Vet_ReloadSpeedModifier(3)=1 //Heroic
+
+	Vet_SecondaryClipSizeModifier(0)=0 //Normal +X
+	Vet_SecondaryClipSizeModifier(1)=0 //Veteran 
+	Vet_SecondaryClipSizeModifier(2)=0 //Elite
+	Vet_SecondaryClipSizeModifier(3)=0 //Heroic
+
+	Vet_ROFSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
+	Vet_ROFSpeedModifier(1)=1 //Veteran 
+	Vet_ROFSpeedModifier(2)=1 //Elite
+	Vet_ROFSpeedModifier(3)=1 //Heroic
+
+	Vet_SecondaryROFSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
+	Vet_SecondaryROFSpeedModifier(1)=1 //Veteran 
+	Vet_SecondaryROFSpeedModifier(2)=1 //Elite
+	Vet_SecondaryROFSpeedModifier(3)=1 //Heroic
+
+	Vet_SecondaryReloadSpeedModifier(0)=1
+	Vet_SecondaryReloadSpeedModifier(1)=1
+	Vet_SecondaryReloadSpeedModifier(2)=1
+	Vet_SecondaryReloadSpeedModifier(3)=1
+
+	/***********************************/
+
+	FM0_ROFTurnover = 2; //9 for most automatics. Single shot weapons should be more, except the shotgun
+	FM1_ROFTurnover = 4; 
 }

@@ -66,9 +66,10 @@ DefaultProperties
 	MaxSpeed=4800
 	AccelRate=600.0
 	LifeSpan=0.937
-	Damage=23
+	Damage=16
 	DamageRadius=350
 	MomentumTransfer=100000.000000
+	HeadShotDamageMult=10.0 // 5.0
    
 	LockWarningInterval=1.5
 	BaseTrackingStrength=5.0

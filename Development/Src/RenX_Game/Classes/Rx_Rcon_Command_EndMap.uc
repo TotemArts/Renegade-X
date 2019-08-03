@@ -2,7 +2,7 @@ class Rx_Rcon_Command_EndMap extends Rx_Rcon_Command;
 
 function string trigger(string parameters)
 {
-	Rx_Game(WorldInfo.Game).EndRxGame("triggered",255);
+	Rx_Game(`WorldInfoObject.Game).EndRxGame("triggered",255);
 	return "";
 }
 

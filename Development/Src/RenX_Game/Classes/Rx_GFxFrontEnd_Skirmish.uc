@@ -49,6 +49,9 @@ var GFxClikWidget TimeLimitExpiryCheckBox;
 
 
 var array<Rx_UIDataProvider_MapInfo> MapDataProviderList;
+
+var Rx_UIDataProvider_MapInfo SkirmishMapSettings;
+
 //Deprecated
 struct SkirmishOption
 {
@@ -113,12 +116,22 @@ function OnViewLoaded(Rx_GFXFrontEnd FrontEnd)
 {
 	MainFrontEnd = FrontEnd;
 	MapDataProviderList = Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList;
+
+	SkirmishMapSettings =  MapDataProviderList[0];
+
 	SaveConfig();
     //SaveSkirmishOption();
+	ActionScriptVoid("validateNow");
 }
 
 function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widget)
 {
+	local bool bWasHandled;
+
+	`log("Rx_GFxFrontEnd_Skirmish::WidgetInitialized"@`showvar(WidgetName),true,'DevGFxUI');
+
+	bWasHandled = false;
+
     switch(WidgetName)
     {
 		case 'SkirmishActionBar':
@@ -126,7 +139,8 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 				SkirmishActionBar = GFxClikWidget(Widget);
 			}
 			SetUpDataProvider(SkirmishActionBar);
-			SkirmishActionBar.AddEventListener('CLIK_itemClick', OnSkirmishActionBarItemClick);
+			SkirmishActionBar.AddEventListener('CLIK_buttonClick', OnSkirmishActionBarItemClick);
+			bWasHandled = true;
 			break;
 
         case 'GameModeDropDown':
@@ -136,12 +150,14 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
             SetUpDataProvider(GameModeDropDown);
             GetLastSelection(GameModeDropDown);
             GameModeDropDown.AddEventListener('CLIK_change', OnGameModeDropDownChange);
+			bWasHandled = true;
             break;
         case 'MapScrollBar':
 			if (MapScrollBar == none || MapScrollBar != Widget) {
 				MapScrollBar = GFxClikWidget(Widget);
 			}
-			MapScrollBar.SetVisible(false);
+			//MapScrollBar.SetVisible(false);
+			bWasHandled = true;
             break;
         case 'MapImageLoader':
 			if (MapImageLoader == none || MapImageLoader != Widget) {
@@ -154,6 +170,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 				//MapImageLoader.SetString("source", "Mockup_MissingCameo");
 				MapImageLoader.SetString("source", "img://RenXFrontEnd.MapImage.___map-pic-missing-cameo");
 			}
+			bWasHandled = true;
 			break;
         case 'MapList':
 			if (MapList == none || MapList != Widget) {
@@ -161,13 +178,15 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
             SetUpDataProvider(MapList);
             GetLastSelection(MapList);
-            MapList.AddEventListener('CLIK_itemClick', OnMapListItemClick);
+            MapList.AddEventListener('CLIK_listIndexChange', OnMapListItemClick);
+			bWasHandled = true;
             break;
         case 'MapSizeLabel':
 			if (MapSizeLabel == none || MapSizeLabel != Widget) {
 				MapSizeLabel = GFxClikWidget(Widget);
 			}
             MapSizeLabel.SetText("Size: " $ MapDataProviderList[LastMapListItemPosition].Size);
+			bWasHandled = true;
             break;
 			if (MapImageLoader == none || MapImageLoader != Widget) {
 				MapImageLoader = GFxClikWidget(Widget);
@@ -177,30 +196,35 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 				MapStyleLabel = GFxClikWidget(Widget);
 			}
             MapStyleLabel.SetText("Style: " $ MapDataProviderList[LastMapListItemPosition].Style);
+			bWasHandled = true;
             break;
         case 'MapPlayerCountLabel':
 			if (MapPlayerCountLabel == none || MapPlayerCountLabel != Widget) {
 				MapPlayerCountLabel = GFxClikWidget(Widget);
 			}
             MapPlayerCountLabel.SetText("Recommended Players: " $ MapDataProviderList[LastMapListItemPosition].NumPlayers);
+			bWasHandled = true;
             break;
         case 'MapHasAirVehiclesLabel':
 			if (MapHasAirVehiclesLabel == none || MapHasAirVehiclesLabel != Widget) {
 				MapHasAirVehiclesLabel = GFxClikWidget(Widget);
 			}
             MapHasAirVehiclesLabel.SetText("Air Vehicles: " $ MapDataProviderList[LastMapListItemPosition].AirVehicles);
+			bWasHandled = true;
             break;
         case 'MapTechBuildingsLabel':
 			if (MapTechBuildingsLabel == none || MapTechBuildingsLabel != Widget) {
 				MapTechBuildingsLabel = GFxClikWidget(Widget);
 			}
             MapTechBuildingsLabel.SetText("Tech Buildings: " $ MapDataProviderList[LastMapListItemPosition].TechBuildings);
+			bWasHandled = true;
             break;
         case 'MapBaseDefencesLabel':
 			if (MapBaseDefencesLabel == none || MapBaseDefencesLabel != Widget) {
 				MapBaseDefencesLabel = GFxClikWidget(Widget);
 			}
             MapBaseDefencesLabel.SetText("Base Defences: " $ MapDataProviderList[LastMapListItemPosition].BaseDefences);
+			bWasHandled = true;
             break;
 
         case 'GDIBotDropDown':
@@ -210,6 +234,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
             SetUpDataProvider(GDIBotDropDown);
             GetLastSelection(GDIBotDropDown);
             GDIBotDropDown.AddEventListener('CLIK_change', OnGDIBotDropDownChange);
+			bWasHandled = true;
             break;
         case 'GDITacticStyleDropDown':
 			if (GDITacticStyleDropDown == none || GDITacticStyleDropDown != Widget) {
@@ -218,19 +243,22 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
             SetUpDataProvider(GDITacticStyleDropDown);
             GetLastSelection(GDITacticStyleDropDown);
             GDITacticStyleDropDown.AddEventListener('CLIK_change', OnGDITacticStyleDropDownChange);
+			bWasHandled = true;
             break;
         case 'GDIAttackingSlider':
 			if (GDIAttackingSlider == none || GDIAttackingSlider != Widget) {
 				GDIAttackingSlider = GFxClikWidget(Widget);
 			}
             GetLastSelection(GDIAttackingSlider);
-            GDIAttackingSlider.AddEventListener('CLIK_change', OnGDIAttackingSliderChange);
+            GDIAttackingSlider.AddEventListener('CLIK_valueChange', OnGDIAttackingSliderChange);
+			bWasHandled = true;
             break;
         case 'GDIAttackingLabel':
 			if (GDIAttackingLabel == none || GDIAttackingLabel != Widget) {
 				GDIAttackingLabel = GFxClikWidget(Widget);
 			}
             GDIAttackingLabel.SetText(""$ MapDataProviderList[LastMapListItemPosition].GDIAttackingValue $" %");
+			bWasHandled = true;
             break;
         case 'GDIBotSlider':
 			if (GDIBotSlider == none || GDIBotSlider != Widget) {
@@ -238,13 +266,15 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
             GDIBotSlider = GFxClikWidget(Widget);
             GetLastSelection(GDIBotSlider);
-            GDIBotSlider.AddEventListener('CLIK_change', OnGDIBotSliderChange);
+            GDIBotSlider.AddEventListener('CLIK_valueChange', OnGDIBotSliderChange);
+			bWasHandled = true;
             break;
         case 'GDIBotCountLabel':
 			if (GDIBotCountLabel == none || GDIBotCountLabel != Widget) {
 				GDIBotCountLabel = GFxClikWidget(Widget);
 			}
             GDIBotCountLabel.SetText(MapDataProviderList[LastMapListItemPosition].GDIBotValue);
+			bWasHandled = true;
             break;
         case 'NodBotDropDown':
 			if (NodBotDropDown == none || NodBotDropDown != Widget) {
@@ -253,6 +283,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
             SetUpDataProvider(NodBotDropDown);
             GetLastSelection(NodBotDropDown);
             NodBotDropDown.AddEventListener('CLIK_change', OnNodBotDropDownChange);
+			bWasHandled = true;
             break;
         case 'NodTacticStyleDropDown':
 			if (NodTacticStyleDropDown == none || NodTacticStyleDropDown != Widget) {
@@ -261,32 +292,37 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
             SetUpDataProvider(NodTacticStyleDropDown);
             GetLastSelection(NodTacticStyleDropDown);
             NodTacticStyleDropDown.AddEventListener('CLIK_change', OnNodTacticStyleDropDownChange);
+			bWasHandled = true;
             break;
         case 'NodAttackingSlider':
 			if (NodAttackingSlider == none || NodAttackingSlider != Widget) {
 				NodAttackingSlider = GFxClikWidget(Widget);
 			}
             GetLastSelection(NodAttackingSlider);
-            NodAttackingSlider.AddEventListener('CLIK_change', OnNodAttackingSliderChange);
+            NodAttackingSlider.AddEventListener('CLIK_valueChange', OnNodAttackingSliderChange);
+			bWasHandled = true;
             break;
         case 'NodAttackingLabel':
 			if (NodAttackingLabel == none || NodAttackingLabel != Widget) {
 				NodAttackingLabel = GFxClikWidget(Widget);
 			}
             NodAttackingLabel.SetText(""$ MapDataProviderList[LastMapListItemPosition].NodAttackingValue $" %" );
+			bWasHandled = true;
             break;
         case 'NodBotSlider':
 			if (NodBotSlider == none || NodBotSlider != Widget) {
 				NodBotSlider = GFxClikWidget(Widget);
 			}
             GetLastSelection(NodBotSlider);
-            NodBotSlider.AddEventListener('CLIK_change', OnNodBotSliderChange);
+            NodBotSlider.AddEventListener('CLIK_valueChange', OnNodBotSliderChange);
+			bWasHandled = true;
             break;
         case 'NodBotCountLabel':
 			if (NodBotCountLabel == none || NodBotCountLabel != Widget) {
 				NodBotCountLabel = GFxClikWidget(Widget);
 			}
             NodBotCountLabel.SetText(MapDataProviderList[LastMapListItemPosition].NodBotValue);
+			bWasHandled = true;
             break;
         case 'StartingTeamDropDown':
 			if (StartingTeamDropDown == none || StartingTeamDropDown != Widget) {
@@ -295,6 +331,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
             SetUpDataProvider(StartingTeamDropDown);
             GetLastSelection(StartingTeamDropDown);
             StartingTeamDropDown.AddEventListener('CLIK_change', OnStartingTeamDropDownChange);
+			bWasHandled = true;
             break;
 
         case 'StartingCreditsSlider':
@@ -302,13 +339,15 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 				StartingCreditsSlider = GFxClikWidget(Widget);
 			}
             GetLastSelection(StartingCreditsSlider);
-            StartingCreditsSlider.AddEventListener('CLIK_change', OnStartingCreditsSliderChange);
+            StartingCreditsSlider.AddEventListener('CLIK_valueChange', OnStartingCreditsSliderChange);
+			bWasHandled = true;
             break;
         case 'StartingCreditsLabel':
 			if (StartingCreditsLabel == none || StartingCreditsLabel != Widget) {
 				StartingCreditsLabel = GFxClikWidget(Widget);
 			}
             StartingCreditsLabel.SetText(MapDataProviderList[LastMapListItemPosition].StartingCreditsValue);
+			bWasHandled = true;
             break;
         case 'TimeLimitStepper':
 			if (TimeLimitStepper == none || TimeLimitStepper != Widget) {
@@ -317,6 +356,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
             SetUpDataProvider(TimeLimitStepper);
             GetLastSelection(TimeLimitStepper);
             TimeLimitStepper.AddEventListener('CLIK_change', OnTimeLimitStepperChange);
+			bWasHandled = true;
             break;
         case 'MineLimitStepper':
 			if (MineLimitStepper == none || MineLimitStepper != Widget) {
@@ -325,6 +365,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
             SetUpDataProvider(MineLimitStepper);
             GetLastSelection(MineLimitStepper);
             MineLimitStepper.AddEventListener('CLIK_change', OnMineLimitStepperChange);
+			bWasHandled = true;
             break;
         case 'VehicleLimitStepper':
 			if (VehicleLimitStepper == none || VehicleLimitStepper != Widget) {
@@ -333,6 +374,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
             SetUpDataProvider(VehicleLimitStepper);
             GetLastSelection(VehicleLimitStepper);
             VehicleLimitStepper.AddEventListener('CLIK_change', OnVehicleLimitStepperChange);
+			bWasHandled = true;
             break;
         case 'FriendlyFireCheckBox':
 			if (FriendlyFireCheckBox == none || FriendlyFireCheckBox != Widget) {
@@ -340,6 +382,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
             GetLastSelection(FriendlyFireCheckBox);
             FriendlyFireCheckBox.AddEventListener('CLIK_select', OnFriendlyFireCheckBoxSelect);
+			bWasHandled = true;
             break;
         case 'CanRepairBuildingsCheckBox':
 			if (CanRepairBuildingsCheckBox == none || CanRepairBuildingsCheckBox != Widget) {
@@ -347,6 +390,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
             GetLastSelection(CanRepairBuildingsCheckBox);
             CanRepairBuildingsCheckBox.AddEventListener('CLIK_select', OnCanRepairBuildingsCheckBoxSelect);
+			bWasHandled = true;
             break;
         case 'BaseDestructionCheckBox':
 			if (BaseDestructionCheckBox == none || BaseDestructionCheckBox != Widget) {
@@ -354,6 +398,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
             GetLastSelection(BaseDestructionCheckBox);
             BaseDestructionCheckBox.AddEventListener('CLIK_select', OnBaseDestructionCheckBoxSelect);
+			bWasHandled = true;
             break;
         case 'EndGamePedistalCheckBox':
 			if (EndGamePedistalCheckBox == none || EndGamePedistalCheckBox != Widget) {
@@ -361,6 +406,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
             GetLastSelection(EndGamePedistalCheckBox);
             EndGamePedistalCheckBox.AddEventListener('CLIK_select', OnEndGamePedistalCheckBoxSelect);
+			bWasHandled = true;
             break;
         case 'TimeLimitExpiryCheckBox':
 			if (TimeLimitExpiryCheckBox == none || TimeLimitExpiryCheckBox != Widget) {
@@ -368,11 +414,12 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
             GetLastSelection(TimeLimitExpiryCheckBox);
             TimeLimitExpiryCheckBox.AddEventListener('CLIK_select', OnTimeLimitExpiryCheckBoxSelect);
+			bWasHandled = true;
             break;
         default:
             break;
     }
-    return false;
+    return bWasHandled;
 }
 
 
@@ -381,8 +428,11 @@ function SetUpDataProvider(GFxClikWidget Widget)
 {
     local byte i;
     local GFxObject DataProvider;
+	local GFxObject TempObj;
 
-    DataProvider = CreateArray();
+	`log("Rx_GFxFrontEnd_Skirmish::SetupDataProvider"@Widget.GetString("name"),true,'DevGFxUI');
+
+    DataProvider = CreateObject("scaleform.clik.data.DataProvider");
 	
     switch(Widget)
     {
@@ -390,8 +440,14 @@ function SetUpDataProvider(GFxClikWidget Widget)
         *  Skirmish                         *
         ************************************/
         case (SkirmishActionBar):
-            DataProvider.SetElementString(0, "BACK");
-            DataProvider.SetElementString(1, "LAUNCH");
+			TempObj = CreateObject("Object");
+			TempObj.SetString("label", "BACK");
+			TempObj.SetString("action", "back");
+			DataProvider.SetElementObject(0, TempObj);
+			TempObj = CreateObject("Object");
+			TempObj.SetString("label", "LAUNCH");
+			TempObj.SetString("action", "launch");
+			DataProvider.SetElementObject(1, TempObj);
             break; 
 
         case (GameModeDropDown):
@@ -399,10 +455,10 @@ function SetUpDataProvider(GFxClikWidget Widget)
             //DataProvider.SetElementString(1, "C&C Assault");
             break;
         case (MapList):
-			Widget.SetInt("rowCount", 12);
+			Widget.SetInt("rowCount", 11);
             if (GameModeDropDown != none) {
                 if (LastGameModeItemPosition == 0) {
-                    for (i = 0; i < Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList.Length; i++) {
+                    for (i = 0; i < MapDataProviderList.Length; i++) {
 						
 						`log("Name - " $ MapDataProviderList[i].FriendlyName);
                         DataProvider.SetElementString(i, MapDataProviderList[i].FriendlyName);
@@ -422,7 +478,7 @@ function SetUpDataProvider(GFxClikWidget Widget)
 			} else {
 				Widget.SetInt("rowCount", MapDataProviderList.Length);
 			}
-
+			
             break;
 
         case (GDIBotDropDown):
@@ -489,77 +545,77 @@ function GetLastSelection(out GFxClikWidget Widget)
         	Widget.SetInt("selectedIndex", LastMapListItemPosition);
             break;
         case (GDIBotDropDown):
-        	Widget.SetInt("selectedIndex", MapDataProviderList[LastMapListItemPosition].LastGDIBotItemPosition);
+        	Widget.SetInt("selectedIndex", SkirmishMapSettings.LastGDIBotItemPosition);
             break;
         case (GDITacticStyleDropDown):
-        	Widget.SetInt("selectedIndex", MapDataProviderList[LastMapListItemPosition].LastGDITacticStyleItemPosition);
+        	Widget.SetInt("selectedIndex", SkirmishMapSettings.LastGDITacticStyleItemPosition);
             break;
         case (GDIAttackingSlider):
-        	Widget.SetInt("value", MapDataProviderList[LastMapListItemPosition].GDIAttackingValue);
+        	Widget.SetInt("value", SkirmishMapSettings.GDIAttackingValue);
         	break;
 
         case (GDIBotSlider):
-            if (MapDataProviderList[LastMapListItemPosition].LastStartingTeamItemPosition == 0) {
+            if (SkirmishMapSettings.LastStartingTeamItemPosition == 0) {
                 //set the GDI slider value from 0 to 31
-                MapDataProviderList[LastMapListItemPosition].GDIBotValue = Clamp(MapDataProviderList[LastMapListItemPosition].GDIBotValue, Widget.GetInt("minimum"), Widget.GetInt("maximum"));
-				MapDataProviderList[LastMapListItemPosition].SavePerObjectConfig();
-                Widget.SetInt("value", MapDataProviderList[LastMapListItemPosition].GDIBotValue);
+                SkirmishMapSettings.GDIBotValue = Clamp(SkirmishMapSettings.GDIBotValue, Widget.GetInt("minimum"), Widget.GetInt("maximum"));
+				SkirmishMapSettings.SavePerObjectConfig();
+                Widget.SetInt("value", SkirmishMapSettings.GDIBotValue);
             } else {
-                MapDataProviderList[LastMapListItemPosition].GDIBotValue = Clamp(MapDataProviderList[LastMapListItemPosition].GDIBotValue, Widget.GetInt("minimum"), Widget.GetInt("maximum"));
-				MapDataProviderList[LastMapListItemPosition].SavePerObjectConfig();
-                Widget.SetInt("value", MapDataProviderList[LastMapListItemPosition].GDIBotValue);
+                SkirmishMapSettings.GDIBotValue = Clamp(SkirmishMapSettings.GDIBotValue, Widget.GetInt("minimum"), Widget.GetInt("maximum"));
+				SkirmishMapSettings.SavePerObjectConfig();
+                Widget.SetInt("value", SkirmishMapSettings.GDIBotValue);
             }
         	break;
         case (NodBotDropDown):
-        	Widget.SetInt("selectedIndex", MapDataProviderList[LastMapListItemPosition].LastNodBotItemPosition);
+        	Widget.SetInt("selectedIndex", SkirmishMapSettings.LastNodBotItemPosition);
         	break;
         case (NodTacticStyleDropDown):
-        	Widget.SetInt("selectedIndex", MapDataProviderList[LastMapListItemPosition].LastNodTacticStyleItemPosition);
+        	Widget.SetInt("selectedIndex", SkirmishMapSettings.LastNodTacticStyleItemPosition);
         	break;
         case (NodAttackingSlider):
-        	Widget.SetInt("value", MapDataProviderList[LastMapListItemPosition].NodAttackingValue);
+        	Widget.SetInt("value", SkirmishMapSettings.NodAttackingValue);
         	break;
         case (NodBotSlider):
-            if (MapDataProviderList[LastMapListItemPosition].LastStartingTeamItemPosition == 0) {
+            if (SkirmishMapSettings.LastStartingTeamItemPosition == 0) {
                 //set the GDI slider value from 0 to 31
-                MapDataProviderList[LastMapListItemPosition].NodBotValue = Clamp(MapDataProviderList[LastMapListItemPosition].NodBotValue, Widget.GetInt("minimum"), Widget.GetInt("maximum"));
-				MapDataProviderList[LastMapListItemPosition].SavePerObjectConfig();
-                Widget.SetInt("value", MapDataProviderList[LastMapListItemPosition].NodBotValue);
+                SkirmishMapSettings.NodBotValue = Clamp(SkirmishMapSettings.NodBotValue, Widget.GetInt("minimum"), Widget.GetInt("maximum"));
+				SkirmishMapSettings.SavePerObjectConfig();
+                Widget.SetInt("value", SkirmishMapSettings.NodBotValue);
             } else {
-                MapDataProviderList[LastMapListItemPosition].NodBotValue = Clamp(MapDataProviderList[LastMapListItemPosition].NodBotValue, Widget.GetInt("minimum"), Widget.GetInt("maximum"));
-				MapDataProviderList[LastMapListItemPosition].SavePerObjectConfig();
-                Widget.SetInt("value", MapDataProviderList[LastMapListItemPosition].NodBotValue);
+                SkirmishMapSettings.NodBotValue = Clamp(SkirmishMapSettings.NodBotValue, Widget.GetInt("minimum"), Widget.GetInt("maximum"));
+				SkirmishMapSettings.SavePerObjectConfig();
+                Widget.SetInt("value", SkirmishMapSettings.NodBotValue);
             }
         	break;
         case (StartingTeamDropDown):
-        	Widget.SetInt("selectedIndex", MapDataProviderList[LastMapListItemPosition].LastStartingTeamItemPosition);
+        	Widget.SetInt("selectedIndex", SkirmishMapSettings.LastStartingTeamItemPosition);
         	break;
         case (StartingCreditsSlider):
-        	Widget.SetInt("value", MapDataProviderList[LastMapListItemPosition].StartingCreditsValue);
+        	Widget.SetInt("value", SkirmishMapSettings.StartingCreditsValue);
         	break;
         case (TimeLimitStepper):
-        	Widget.SetInt("selectedIndex", MapDataProviderList[LastMapListItemPosition].LastTimeLimitItemPosition);
+        	Widget.SetInt("selectedIndex", SkirmishMapSettings.LastTimeLimitItemPosition);
         	break;
         case (MineLimitStepper):
-        	Widget.SetInt("selectedIndex", MapDataProviderList[LastMapListItemPosition].LastMineLimitItemPosition);
+        	Widget.SetInt("selectedIndex", SkirmishMapSettings.LastMineLimitItemPosition);
         	break;
         case (VehicleLimitStepper):
-        	Widget.SetInt("selectedIndex", MapDataProviderList[LastMapListItemPosition].LastVehicleLimitItemPosition);
+        	Widget.SetInt("selectedIndex", SkirmishMapSettings.LastVehicleLimitItemPosition);
         	break;
         case (FriendlyFireCheckBox):
-        	Widget.SetBool("selected", MapDataProviderList[LastMapListItemPosition].bFriendlyFire);
+        	Widget.SetBool("selected", SkirmishMapSettings.bFriendlyFire);
         	break;
         case (CanRepairBuildingsCheckBox):
-        	Widget.SetBool("selected", MapDataProviderList[LastMapListItemPosition].bCanRepairBuildings);
+        	Widget.SetBool("selected", SkirmishMapSettings.bCanRepairBuildings);
         	break;
         case (BaseDestructionCheckBox):
-        	Widget.SetBool("selected", MapDataProviderList[LastMapListItemPosition].bBaseDestruction);
+        	Widget.SetBool("selected", SkirmishMapSettings.bBaseDestruction);
         	break;
         case (EndGamePedistalCheckBox):
-        	Widget.SetBool("selected", MapDataProviderList[LastMapListItemPosition].bEndGamePedistal);
+        	Widget.SetBool("selected", SkirmishMapSettings.bEndGamePedistal);
         	break;
         case (TimeLimitExpiryCheckBox):
-        	Widget.SetBool("selected", MapDataProviderList[LastMapListItemPosition].bTimeLimitExpiry);
+        	Widget.SetBool("selected", SkirmishMapSettings.bTimeLimitExpiry);
         	break;
         default:
             return;
@@ -577,7 +633,7 @@ function LaunchSkirmishGame()
     local string OutURL;
 	local Rx_UIDataProvider_MapInfo SelectedMap;
 
-	SelectedMap = MapDataProviderList[LastMapListItemPosition];
+	SelectedMap = SkirmishMapSettings;
 	
 	
 	if (SelectedMap.LastStartingTeamItemPosition == 2) {
@@ -654,10 +710,10 @@ function LaunchSkirmishGame()
 
 function OnSkirmishActionBarItemClick(GFxClikWidget.EventData ev)
 {
-    switch (ev.index)
+    switch (ev._this.GetObject("target").GetObject("data").GetString("action"))
     {
-      case 0: MainFrontEnd.ReturnToBackground(); break;
-      case 1: LaunchSkirmishGame(); break;
+      case "back": MainFrontEnd.ReturnToBackground(); break;
+      case "launch": LaunchSkirmishGame(); break;
       default: break;
     }
 }
@@ -666,7 +722,7 @@ function OnSkirmishActionBarItemClick(GFxClikWidget.EventData ev)
 function OnGameModeDropDownChange(GFxClikWidget.EventData ev)
 {
     MapList.RemoveAllEventListeners("CLIK_itemClick");
-	LastGameModeItemPosition = ev.index;
+	LastGameModeItemPosition = ev._this.GetObject("target").GetInt("selectedIndex");
     SetUpDataProvider(MapList);
     MapList.AddEventListener('CLIK_itemClick', OnMapListItemClick);
 
@@ -674,21 +730,24 @@ function OnGameModeDropDownChange(GFxClikWidget.EventData ev)
 
 function OnMapListItemClick(GFxClikWidget.EventData ev)
 {
+	local texture2D mapImage;
 
-    if (ev.index == Clamp(ev.index, 0, MapDataProviderList.Length)) {	
-		
-		if (MapDataProviderList[ev.index].PreviewImageMarkup != "") {
-			MapImageLoader.SetString("source", "img://" $ MapDataProviderList[ev.index].PreviewImageMarkup);
+    if (ev._this.GetInt("index") == Clamp(ev._this.GetInt("index"), 0, MapDataProviderList.Length)) {	
+		mapImage = texture2d(DynamicLoadObject(MapDataProviderList[ev._this.GetInt("index")].PreviewImageMarkup, class'texture2d', true));
+		if (MapDataProviderList[ev._this.GetInt("index")].PreviewImageMarkup != "" && mapImage != none) {
+			MapImageLoader.SetString("source", "img://" $ MapDataProviderList[ev._this.GetInt("index")].PreviewImageMarkup);
 		} else {
 			MapImageLoader.SetString("source", "img://RenXFrontEnd.MapImage.___map-pic-missing-cameo");
 		}
-        MapSizeLabel.SetText("Size: "$ MapDataProviderList[ev.index].Size);
-        MapStyleLabel.SetText("Style: "$ MapDataProviderList[ev.index].Style);
-        MapPlayerCountLabel.SetText("Recommended Players: "$ MapDataProviderList[ev.index].NumPlayers);
-        MapHasAirVehiclesLabel.SetText("Air Vehicles: "$ MapDataProviderList[ev.index].AirVehicles);
-        MapTechBuildingsLabel.SetText("Tech Buildings: "$ MapDataProviderList[ev.index].TechBuildings);
-        MapBaseDefencesLabel.SetText("Base Defences: "$ MapDataProviderList[ev.index].BaseDefences);
-	    LastMapListItemPosition = ev.index;
+
+        MapSizeLabel.SetText("Size: "$ MapDataProviderList[ev._this.GetInt("index")].Size);
+        MapStyleLabel.SetText("Style: "$ MapDataProviderList[ev._this.GetInt("index")].Style);
+        MapPlayerCountLabel.SetText("Recommended Players: "$ MapDataProviderList[ev._this.GetInt("index")].NumPlayers);
+        MapHasAirVehiclesLabel.SetText("Air Vehicles: "$ MapDataProviderList[ev._this.GetInt("index")].AirVehicles);
+        MapTechBuildingsLabel.SetText("Tech Buildings: "$ MapDataProviderList[ev._this.GetInt("index")].TechBuildings);
+        MapBaseDefencesLabel.SetText("Base Defences: "$ MapDataProviderList[ev._this.GetInt("index")].BaseDefences);
+	    LastMapListItemPosition = ev._this.GetInt("index");
+		SkirmishMapSettings.MapName = MapDataProviderList[ev._this.GetInt("index")].MapName;
     } else {
 		MapImageLoader.SetString("source", "img://RenXFrontEnd.MapImage.___map-pic-missing-cameo");
         MapSizeLabel.SetText("Size: Unknown");
@@ -704,29 +763,29 @@ function OnMapListItemClick(GFxClikWidget.EventData ev)
 
 function OnGDIBotDropDownChange(GFxClikWidget.EventData ev)
 {
-	MapDataProviderList[LastMapListItemPosition].LastGDIBotItemPosition = ev.index;
-	MapDataProviderList[LastMapListItemPosition].SavePerObjectConfig();
+	SkirmishMapSettings.LastGDIBotItemPosition = ev._this.GetObject("target").GetInt("selectedIndex");
+	SkirmishMapSettings.SavePerObjectConfig();
 }
 
 function OnGDITacticStyleDropDownChange(GFxClikWidget.EventData ev)
 {
-	MapDataProviderList[LastMapListItemPosition].LastGDITacticStyleItemPosition = ev.index;
-	MapDataProviderList[LastMapListItemPosition].SavePerObjectConfig();
+	SkirmishMapSettings.LastGDITacticStyleItemPosition = ev._this.GetObject("target").GetInt("selectedIndex");
+	SkirmishMapSettings.SavePerObjectConfig();
 }
 
 function OnGDIAttackingSliderChange(GFxClikWidget.EventData ev)
 {
-	MapDataProviderList[LastMapListItemPosition].GDIAttackingValue = ev.target.GetInt("value");
-	MapDataProviderList[LastMapListItemPosition].SavePerObjectConfig();
-    GDIAttackingLabel.SetString("text", ""$ev.target.GetInt("value") $" %");
+	SkirmishMapSettings.GDIAttackingValue = ev._this.GetObject("target").GetInt("value");
+	SkirmishMapSettings.SavePerObjectConfig();
+    GDIAttackingLabel.SetString("text", ""$ev._this.GetObject("target").GetInt("value") $" %");
 
 
 }
 function OnGDIBotSliderChange(GFxClikWidget.EventData ev)
 {
-	MapDataProviderList[LastMapListItemPosition].GDIBotValue = ev.target.GetInt("value");
-	MapDataProviderList[LastMapListItemPosition].SavePerObjectConfig();
-    GDIBotCountLabel.SetString("text", ""$ev.target.GetInt("value"));
+	SkirmishMapSettings.GDIBotValue = ev._this.GetObject("target").GetInt("value");
+	SkirmishMapSettings.SavePerObjectConfig();
+    GDIBotCountLabel.SetString("text", ""$ev._this.GetObject("target").GetInt("value"));
 // 	if (MapDataProviderList[LastMapListItemPosition].LastStartingTeamItemPosition == 0 && MapDataProviderList[LastMapListItemPosition].GDIBotValue == 16){
 // 		MapDataProviderList[LastMapListItemPosition].GDIBotValue = 15;
 // 	}
@@ -734,25 +793,25 @@ function OnGDIBotSliderChange(GFxClikWidget.EventData ev)
 
 function OnNodBotDropDownChange(GFxClikWidget.EventData ev)
 {
-	MapDataProviderList[LastMapListItemPosition].LastNodBotItemPosition = ev.index;
-	MapDataProviderList[LastMapListItemPosition].SavePerObjectConfig();
+	SkirmishMapSettings.LastNodBotItemPosition = ev._this.GetObject("target").GetInt("selectedIndex");
+	SkirmishMapSettings.SavePerObjectConfig();
 }
 function OnNodTacticStyleDropDownChange(GFxClikWidget.EventData ev)
 {
-	MapDataProviderList[LastMapListItemPosition].LastNodTacticStyleItemPosition = ev.index;
-	MapDataProviderList[LastMapListItemPosition].SavePerObjectConfig();
+	SkirmishMapSettings.LastNodTacticStyleItemPosition = ev._this.GetObject("target").GetInt("selectedIndex");
+	SkirmishMapSettings.SavePerObjectConfig();
 }
 function OnNodAttackingSliderChange(GFxClikWidget.EventData ev)
 {
-	MapDataProviderList[LastMapListItemPosition].NodAttackingValue = ev.target.GetInt("value");
-	MapDataProviderList[LastMapListItemPosition].SavePerObjectConfig();
-    NodAttackingLabel.SetString("text", ""$ev.target.GetInt("value") $" %");
+	SkirmishMapSettings.NodAttackingValue = ev._this.GetObject("target").GetInt("value");
+	SkirmishMapSettings.SavePerObjectConfig();
+    NodAttackingLabel.SetString("text", ""$ev._this.GetObject("target").GetInt("value") $" %");
 }
 function OnNodBotSliderChange(GFxClikWidget.EventData ev)
 {
-	MapDataProviderList[LastMapListItemPosition].NodBotValue = ev.target.GetInt("value");
-	MapDataProviderList[LastMapListItemPosition].SavePerObjectConfig();
-    NODBotCountLabel.SetString("text", ""$ev.target.GetInt("value"));
+	SkirmishMapSettings.NodBotValue = ev._this.GetObject("target").GetInt("value");
+	SkirmishMapSettings.SavePerObjectConfig();
+    NODBotCountLabel.SetString("text", ""$ev._this.GetObject("target").GetInt("value"));
 // 	if (MapDataProviderList[LastMapListItemPosition].LastStartingTeamItemPosition == 1 && MapDataProviderList[LastMapListItemPosition].NodBotValue == 16) {
 // 		MapDataProviderList[LastMapListItemPosition].NodBotValue = 15;
 // 	}
@@ -761,104 +820,91 @@ function OnNodBotSliderChange(GFxClikWidget.EventData ev)
 
 function OnStartingTeamDropDownChange(GFxClikWidget.EventData ev)
 {
-	MapDataProviderList[LastMapListItemPosition].LastStartingTeamItemPosition = ev.index;
+	SkirmishMapSettings.LastStartingTeamItemPosition = ev._this.GetObject("target").GetInt("selectedIndex");
 
-    if (ev.index == 0) {
+    if (ev._this.GetObject("target").GetInt("selectedIndex") == 0) {
         //set the GDI slider value from 0 to 15
-        MapDataProviderList[LastMapListItemPosition].GDIBotValue = Clamp(MapDataProviderList[LastMapListItemPosition].GDIBotValue, 0, 15);
-        GDIBotSlider.SetInt("value", MapDataProviderList[LastMapListItemPosition].GDIBotValue);
-        GDIBotCountLabel.SetText(""$ MapDataProviderList[LastMapListItemPosition].GDIBotValue);
+        SkirmishMapSettings.GDIBotValue = Clamp(SkirmishMapSettings.GDIBotValue, 0, 15);
+        GDIBotSlider.SetInt("value", SkirmishMapSettings.GDIBotValue);
+        GDIBotCountLabel.SetText(""$ SkirmishMapSettings.GDIBotValue);
         // set the Nod slider value from 1 to 16
-        MapDataProviderList[LastMapListItemPosition].NodBotValue = Clamp(MapDataProviderList[LastMapListItemPosition].NodBotValue, 1, 16);
-        NodBotSlider.SetInt("value", MapDataProviderList[LastMapListItemPosition].NodBotValue);
-        NodBotCountLabel.SetText(""$ MapDataProviderList[LastMapListItemPosition].NodBotValue);
-    } else if (ev.index == 1) {
+        SkirmishMapSettings.NodBotValue = Clamp(SkirmishMapSettings.NodBotValue, 1, 16);
+        NodBotSlider.SetInt("value", SkirmishMapSettings.NodBotValue);
+        NodBotCountLabel.SetText(""$ SkirmishMapSettings.NodBotValue);
+    } else if (ev._this.GetObject("target").GetInt("selectedIndex") == 1) {
         //set the Nod slider value from 0 to 15
-        MapDataProviderList[LastMapListItemPosition].NodBotValue = Clamp(MapDataProviderList[LastMapListItemPosition].NodBotValue, 0, 15);
-        NodBotSlider.SetInt("value", MapDataProviderList[LastMapListItemPosition].NodBotValue);
-        NodBotCountLabel.SetText("" $ MapDataProviderList[LastMapListItemPosition].NodBotValue);
+        SkirmishMapSettings.NodBotValue = Clamp(SkirmishMapSettings.NodBotValue, 0, 15);
+        NodBotSlider.SetInt("value", SkirmishMapSettings.NodBotValue);
+        NodBotCountLabel.SetText("" $ SkirmishMapSettings.NodBotValue);
         // set the GDI slider value from 1 to 16
-        MapDataProviderList[LastMapListItemPosition].GDIBotValue = Clamp(MapDataProviderList[LastMapListItemPosition].GDIBotValue, 1, 16);
-        GDIBotSlider.SetInt("value", MapDataProviderList[LastMapListItemPosition].GDIBotValue);
-        GDIBotCountLabel.SetText(""$ MapDataProviderList[LastMapListItemPosition].GDIBotValue);
+        SkirmishMapSettings.GDIBotValue = Clamp(SkirmishMapSettings.GDIBotValue, 1, 16);
+        GDIBotSlider.SetInt("value", SkirmishMapSettings.GDIBotValue);
+        GDIBotCountLabel.SetText(""$ SkirmishMapSettings.GDIBotValue);
     } else {
-		//MapDataProviderList[LastMapListItemPosition].LastStartingTeamItemPosition = Rand(1);
+		//SkirmishMapSettings.LastStartingTeamItemPosition = Rand(1);
     }
-	MapDataProviderList[LastMapListItemPosition].SavePerObjectConfig();
+	//MapDataProviderList[LastMapListItemPosition].SavePerObjectConfig();
 }
 function OnStartingCreditsSliderChange (GFxClikWidget.EventData ev)
 {
-	MapDataProviderList[LastMapListItemPosition].StartingCreditsValue = ev.target.GetInt("value");
-	MapDataProviderList[LastMapListItemPosition].SavePerObjectConfig();
-    StartingCreditsLabel.SetString("text", ""$ev.target.GetInt("value"));
+	SkirmishMapSettings.StartingCreditsValue = ev._this.GetObject("target").GetInt("value");
+	SkirmishMapSettings.SavePerObjectConfig();
+    StartingCreditsLabel.SetString("text", ""$ev._this.GetObject("target").GetInt("value"));
 }
 function OnTimeLimitStepperChange(GFxClikWidget.EventData ev)
 {
 	// if the player choose the infinite settings, set up the logic to implement the correct work on it.
-	MapDataProviderList[LastMapListItemPosition].LastTimeLimitItemPosition = ev.target.GetInt("selectedIndex");
-	MapDataProviderList[LastMapListItemPosition].SavePerObjectConfig();
+	SkirmishMapSettings.LastTimeLimitItemPosition = ev._this.GetObject("target").GetInt("selectedIndex");
+	SkirmishMapSettings.SavePerObjectConfig();
 }
 function OnMineLimitStepperChange(GFxClikWidget.EventData ev)
 {
-	MapDataProviderList[LastMapListItemPosition].LastMineLimitItemPosition = ev.target.GetInt("selectedIndex");
-	MapDataProviderList[LastMapListItemPosition].SavePerObjectConfig();
+	SkirmishMapSettings.LastMineLimitItemPosition = ev._this.GetObject("target").GetInt("selectedIndex");
+	SkirmishMapSettings.SavePerObjectConfig();
 }
 function OnVehicleLimitStepperChange(GFxClikWidget.EventData ev)
 {
-	MapDataProviderList[LastMapListItemPosition].LastVehicleLimitItemPosition = ev.target.GetInt("selectedIndex");
-	MapDataProviderList[LastMapListItemPosition].SavePerObjectConfig();
+	SkirmishMapSettings.LastVehicleLimitItemPosition = ev._this.GetObject("target").GetInt("selectedIndex");
+	SkirmishMapSettings.SavePerObjectConfig();
 }
 
 function OnFriendlyFireCheckBoxSelect(GFxClikWidget.EventData ev)
 {
-	MapDataProviderList[LastMapListItemPosition].bFriendlyFire = ev._this.GetBool("selected");
-	MapDataProviderList[LastMapListItemPosition].SavePerObjectConfig();
+	SkirmishMapSettings.bFriendlyFire = ev._this.GetBool("selected");
+	SkirmishMapSettings.SavePerObjectConfig();
 }
 function OnCanRepairBuildingsCheckBoxSelect(GFxClikWidget.EventData ev)
 {
-	MapDataProviderList[LastMapListItemPosition].bCanRepairBuildings = ev._this.GetBool("selected");
-	MapDataProviderList[LastMapListItemPosition].SavePerObjectConfig();
+	SkirmishMapSettings.bCanRepairBuildings = ev._this.GetBool("selected");
+	SkirmishMapSettings.SavePerObjectConfig();
 }
 function OnBaseDestructionCheckBoxSelect(GFxClikWidget.EventData ev)
 {
-	MapDataProviderList[LastMapListItemPosition].bBaseDestruction = ev._this.GetBool("selected");
-	MapDataProviderList[LastMapListItemPosition].SavePerObjectConfig();
+	SkirmishMapSettings.bBaseDestruction = ev._this.GetBool("selected");
+	SkirmishMapSettings.SavePerObjectConfig();
 }
 function OnEndGamePedistalCheckBoxSelect(GFxClikWidget.EventData ev)
 {
-	MapDataProviderList[LastMapListItemPosition].bEndGamePedistal = ev._this.GetBool("selected");
-	MapDataProviderList[LastMapListItemPosition].SavePerObjectConfig();
+	SkirmishMapSettings.bEndGamePedistal = ev._this.GetBool("selected");
+	SkirmishMapSettings.SavePerObjectConfig();
 }
 function OnTimeLimitExpiryCheckBoxSelect(GFxClikWidget.EventData ev)
 {
-	MapDataProviderList[LastMapListItemPosition].bTimeLimitExpiry = ev._this.GetBool("selected");
-	MapDataProviderList[LastMapListItemPosition].SavePerObjectConfig();
+	SkirmishMapSettings.bTimeLimitExpiry = ev._this.GetBool("selected");
+	SkirmishMapSettings.SavePerObjectConfig();
 }
 
-function bool MapPackageHasDayNight (string ThePackage)
+function bool MapPackageHasDayNight(string ThePackage)
 {
-	`log("Package: " @ caps(ThePackage));
-	return 
-	caps(ThePackage) == "CNC-MESA_II" ||
-	caps(ThePackage) == "CNC-FIELD"  ||	
-	caps(ThePackage) == "CNC-CANYON" ; 
-	
+	return false;
 }
 
 function string PickDayorNight(string BasePackageName)
 {
-	local int DorN;
-	
-	DorN=rand(3);
-	
-	`log("Random Seed was: " @ DorN) ;
-		
-	if(DorN > 0) return BasePackageName$"_Day" ;
+	if(Rand(2) == 0)
+		return BasePackageName$"_Day";
 	else
-	return BasePackageName$"_Night";
-	
-		return BasePackageName; //Incase for some reason this gets called out of place.
-	
+		return BasePackageName$"_Night";
 }
 
 DefaultProperties

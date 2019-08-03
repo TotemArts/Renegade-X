@@ -24,13 +24,13 @@ function float GetProbabilityWeight(Rx_Pawn Recipient, Rx_CratePickup CratePicku
 
 	ForEach CratePickup.AllActors(class'Rx_Building',building)
 	{
-		if((Recipient.GetTeamNum() == TEAM_GDI && Rx_Building_PowerPlant_GDI(building) != none  && Rx_Building_PowerPlant_GDI(building).IsDestroyed()) || 
-			(Recipient.GetTeamNum() == TEAM_NOD && Rx_Building_PowerPlant_NOD(building) != none  && Rx_Building_PowerPlant_NOD(building).IsDestroyed()))
+		if((Recipient.GetTeamNum() == TEAM_GDI && Rx_Building_GDI_PowerFactory(building) != none  && Rx_Building_GDI_PowerFactory(building).IsDestroyed()) || 
+			(Recipient.GetTeamNum() == TEAM_NOD && Rx_Building_Nod_PowerFactory(building) != none  && Rx_Building_Nod_PowerFactory(building).IsDestroyed()))
 		{
 			Probability += ProbabilityIncreaseWhenPowerPlantDestroyed;
 		}
-		if((Recipient.GetTeamNum() == TEAM_GDI && Rx_Building_Refinery_GDI(building) != none  && Rx_Building_Refinery_GDI(building).IsDestroyed()) || 
-			(Recipient.GetTeamNum() == TEAM_NOD && Rx_Building_Refinery_NOD(building) != none  && Rx_Building_Refinery_NOD(building).IsDestroyed()))
+		if((Recipient.GetTeamNum() == TEAM_GDI && Rx_Building_GDI_MoneyFactory(building) != none  && Rx_Building_GDI_MoneyFactory(building).IsDestroyed()) || 
+			(Recipient.GetTeamNum() == TEAM_NOD && Rx_Building_Nod_MoneyFactory(building) != none  && Rx_Building_Nod_MoneyFactory(building).IsDestroyed()))
 		{
 			Probability += ProbabilityIncreaseWhenRefineryDestroyed;
 		}

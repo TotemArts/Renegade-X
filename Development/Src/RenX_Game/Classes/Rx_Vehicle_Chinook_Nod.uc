@@ -19,6 +19,25 @@ class Rx_Vehicle_Chinook_Nod extends Rx_Vehicle_Chinook
 defaultproperties
 {
 
+/************************/
+/*Veterancy Multipliers*/
+/***********************/
+
+VPCost(0) = 20
+VPCost(1) = 40
+VPCost(2) = 60
+
+Vet_HealthMod(0)=1 //600
+Vet_HealthMod(1)=1.1//550 
+Vet_HealthMod(2)=1.3 //650
+Vet_HealthMod(3)=1.50 //700
+	
+Vet_SprintSpeedMod(0)=1
+Vet_SprintSpeedMod(1)=1.05
+Vet_SprintSpeedMod(2)=1.15
+Vet_SprintSpeedMod(3)=1.25
+
+/**********************/
 
 //========================================================\\
 //*************** Vehicle Visual Properties **************\\

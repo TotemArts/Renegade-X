@@ -13,7 +13,22 @@
 *
 *********************************************************/
 class Rx_Vehicle_MRLS_Projectile extends Rx_Vehicle_Projectile_SeekingRocket;
+var repnotify bool bUseAlternateAccelRate; 
 
+replication{
+	if(bNetDirty)
+		bUseAlternateAccelRate;
+}
+
+simulated function ReplicatedEvent(name VarName) {
+    if (VarName == 'bUseAlternateAccelRate') {
+        if(bUseAlternateAccelRate)
+			AccelRate = default.AccelRate*0.4; 
+    }
+    else {
+        super.ReplicatedEvent(VarName);
+    }
+}
 
 DefaultProperties
 {
@@ -59,16 +74,18 @@ DefaultProperties
 	AccelRate=300
 	LifeSpan=4.0
 	Damage=78
-	DamageRadius=500
+	DamageRadius=600 //500
 	MomentumTransfer=100000.000000
    
 	LockWarningInterval			= 1.5
 	BaseTrackingStrength		= 2.5 		// 0.7
 	HomingTrackingStrength		= 6.0 		// 0.7
-	HeadShotDamageMult=10.0 // 5.0
+	HeadShotDamageMult=2.0 // 5.0
 	
 	MyDamageType=Class'Rx_DmgType_MRLS'
 
 	bCheckProjectileLight=true
 	ProjectileLightClass=class'RenX_Game.Rx_Light_Rocket'
+	
+	
 }

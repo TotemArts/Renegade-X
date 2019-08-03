@@ -12,6 +12,10 @@ static function SpawnHitEffect(Pawn P, float Damage, vector Momentum, name BoneN
 	{
 		HeadBone = UTP.HeadBone;
 	}
+	
+	if(HeadBone == '')
+		return; 
+	
 	HitEffect = P.Spawn(class'Rx_Emit_HeadShotBloodSpray',,, HitLocation, rotator(-Momentum));
 	if (HitEffect != None)
 	{

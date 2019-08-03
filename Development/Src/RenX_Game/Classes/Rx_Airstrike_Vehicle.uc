@@ -229,8 +229,8 @@ function Rx_Projectile InitiateProjectile(
 		return none;
 
 	proj = Spawn(projclass, self, , spawnloc, spawnrot);
-	proj.Instigator = Pawn(Owner);
-	proj.InstigatorController = Pawn(Owner).Controller;
+	proj.Instigator = Controller(Owner).Pawn;
+	proj.InstigatorController = Controller(Owner);
 
 	// apply spread
 	if (ProjectileDirectionSpreadMulti != 0.f)

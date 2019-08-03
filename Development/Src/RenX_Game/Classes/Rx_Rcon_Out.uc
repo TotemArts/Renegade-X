@@ -1,59 +1,103 @@
-class Rx_Rcon_Out extends TCPLink;
+class Rx_Rcon_Out extends Rx_TCPLink config(RenegadeX);
 
 `include(RconProtocol.uci)
 `define SendError(ErrorMsg) SendText(`ERROR$`ErrorMsg)
 
-var private const string address;
-var private const string IPstring;
+var private config string Address;
+var private config int Port;
+var private const string ConnectionID;
 var private bool subscribed;
+var private int reconnect_delay;
+var private bool reconnect_pending;
+var private float reconnect_time_remaining;
 
 function connect()
 {
-	LinkMode = MODE_Line;
-	OutLineMode = LMODE_UNIX;
+	reconnect_pending = false;
 	Resolve(address);
 }
 
 event Resolved(IpAddr Addr)
 {
-	Addr.Port = 21337;
-	`log("RCON: Bound to port: " $ BindPort());
-	`log("RCON: Attempting to connect to: \"" $ IpAddrToString(Addr) $ "\"...");
+	Addr.Port = Port;
+	//`log("RCON: Bound to port: " $ BindPort());
+	`log("RCON: Attempting to connect to DevBot...");
 	if (Open(addr) == false)
-		`log("RCON ERROR: Failed to connect to \"" $ IpAddrToString(Addr) $ "\"!");
-	else
-		`log("RCON: Outgoing connection established.");
+		`log("RCON ERROR: Failed to connect.");
 }
 
-event ResolveFailed()
+event ResolveFailed(bool forced)
 {
 	`log("ERROR: Failed to resolve \"" $ address $ "\"!");
 }
 
 event Opened()
 {
-	`LogRx("RCON"`s "Connected;" `s IPstring);
-	SendText(`VERSION$`ProtocolVersion$Rx_Game(WorldInfo.Game).GameVersion);
+	`log("RCON: Outgoing connection established.");
+	`LogRxObject("RCON"`s "Connected;" `s ConnectionID);
+	SendText(`VERSION $ `ProtocolVersion `s Rx_Game(class'Engine'.static.GetCurrentWorldInfo().Game).GameVersionNumber `s Rx_Game(class'Engine'.static.GetCurrentWorldInfo().Game).GameVersion);
+}
+
+event Closed()
+{
+	super.Closed();
+	if (reconnect_delay >= 0)
+	{
+		reconnect_pending = true;
+		reconnect_time_remaining = reconnect_delay;
+	}
+}
+
+event OnTick(float DeltaTime)
+{
+	if (SocketState == STATE_Uninitialized && reconnect_pending)
+	{
+		reconnect_time_remaining -= DeltaTime;
+		if (reconnect_time_remaining <= 0.0) // time to reconnect
+			connect();
+	}
 }
 
 private function string DevBotCommand(string CommandLine)
 {
 	local array<string> tokens;
+	local string cmd;
 
-	ParseStringIntoArray(CommandLine, tokens, `nbsp, false);
+	ParseStringIntoArray(CommandLine, tokens, " ", false);
+
+	cmd = tokens[0];
 
 	// Since this is devbot only stuff, I'm okay with leaving these as case-sensitive.
-	switch (tokens[0])
+	switch (cmd)
 	{
 	case "set_dev":
 		if (tokens.Length < 2)
 			return "Err_TooFewParams";
-		Rx_Controller(Rx_Game(WorldInfo.Game).FindPlayerByID(int(tokens[1])).Owner).SetIsDev(true);
+
+		Rx_Controller(Rx_Game(class'Engine'.static.GetCurrentWorldInfo().Game).FindPlayerByID(int(tokens[1])).Owner).SetIsDev(true);
 		return "";
+
 	case "set_rank":
 		if (tokens.Length < 3)
 			return "Err_TooFewParams";
-		Rx_Controller(Rx_Game(WorldInfo.Game).FindPlayerByID(int(tokens[1])).Owner).SetRank(int(tokens[2]));
+
+		Rx_Controller(Rx_Game(class'Engine'.static.GetCurrentWorldInfo().Game).FindPlayerByID(int(tokens[1])).Owner).SetRank(int(tokens[2]));
+		return "";
+
+	case "set_reconnect_delay":
+		if (tokens.Length < 2)
+			return "Err_TooFewParams";
+
+		reconnect_delay = int(tokens[1]);
+		return "";
+
+	case "redirect":
+		if (tokens.Length < 2)
+			return "Err_TooFewParams";
+
+		address = tokens[1];
+		Close();
+		connect();
 		return "";
 	}
 
@@ -69,19 +113,16 @@ event ReceivedLine( string Text )
 	
 	if (type == `AUTH)
 	{
-		`LogRx("RCON"`s "Authenticated;" `s IPstring);
-		SendText(`AUTH$IPstring);
+		`LogRxObject("RCON"`s "Authenticated;" `s ConnectionID);
+		SendText(`AUTH $ ConnectionID);
 	}
 	else
 	{
 		if (type == `COMMAND)
 		{
 			temp = `PacketContent(Text);
-			if (Rx_Game(WorldInfo.Game).bLogDevBot)
-				`LogRx("RCON" `s "Command;" `s IPstring `s "executed:" `s temp);
-			else
-				SendLog("RCON" `s "Command;" `s IPstring `s "executed:" `s temp);
-			temp = Rx_Game(WorldInfo.Game).RconCommand(temp);
+			SendLog("RCON" `s "Command;" `s ConnectionID `s "executed:" `s temp);
+			temp = `RxEngineObject.RconCommand(temp);
 			if (temp != "")
 				SendMultiLine(`RESPONSE,temp);
 			SendText( `COMMAND );
@@ -90,16 +131,14 @@ event ReceivedLine( string Text )
 			subscribed = true;
 		else if (type == `UNSUB)
 			subscribed = false;
-		else if (type == "d") // Remove later
-			Rx_Controller(Rx_Game(WorldInfo.Game).FindPlayerByID(int(`PacketContent(Text))).Owner).SetIsDev(true);
-		else if (type == "x")
+		else if (type == "d")
 		{
 			temp = `PacketContent(Text);
-			SendText("xe" $ temp);
+			SendText("de" $ temp);
 			temp = DevBotCommand(temp);
 			if (temp != "")
-				SendMultiLine("x" $ `RESPONSE, temp);
-			SendText("x" $ `COMMAND);
+				SendMultiLine("d" $ `RESPONSE, temp);
+			SendText("d" $ `COMMAND);
 		}
 		else
 			`SendError(`Err_UnknownOperation);
@@ -129,7 +168,7 @@ function int SendText(coerce string txt)
 	for (index = 0; index != size; ++index)
 	{
 		value = Asc(Mid(txt, index, 1));
-		if (value > 255)
+		if (value > 127)
 			str $= "\\u" $ class'Rx_RconConnection'.static.codepointToHex(value);
 		else if (value == Asc("\\"))
 			str $= "\\\\";
@@ -141,7 +180,11 @@ function int SendText(coerce string txt)
 
 DefaultProperties
 {
-	address = "devbot.renegade-x.com"
-	IPString = "DevBot"
+	ConnectionID = "DevBot"
 	subscribed = false
+	reconnect_delay = 120;
+	reconnect_pending = false;
+	LinkMode = MODE_Line;
+	InLineMode = LMODE_UNIX;
+	OutLineMode = LMODE_UNIX;
 }

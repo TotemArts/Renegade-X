@@ -1,0 +1,2 @@
+class Rx_HelipadVehRolloutNode extends Rx_VehRolloutNode
+placeable;

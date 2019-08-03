@@ -150,4 +150,6 @@ defaultproperties
 
    RemoteRole = ROLE_SimulatedProxy
    LifeSpan = 60.2f
+   
+   MinimapIconTexture = Texture2D'RenxHud.T_Beacon_Nuke';
 }

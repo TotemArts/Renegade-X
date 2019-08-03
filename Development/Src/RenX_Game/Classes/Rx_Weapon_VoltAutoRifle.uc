@@ -86,6 +86,14 @@ simulated function PlayFiringSound()
     }
 }*/
 
+function byte BestMode()
+{
+    if(Rx_BuildingAttachment(UTBot(Instigator.Controller).Focus) != None)
+        return 0;
+
+    return Super.BestMode();
+}
+
 simulated state WeaponOverCharge
 {
     simulated function WeaponEmpty();
@@ -251,6 +259,8 @@ simulated state WeaponOverCharge
     }
 
 
+
+
 Begin:
     SetTimer(AutoDischargeTime, false, 'AutoDischarge');
     IncreaseCharge();
@@ -401,7 +411,7 @@ reliable server function ServerALRadiusDamageCharged(Actor Target, vector HurtOr
     Target.TakeRadiusDamage(Instigator.Controller,Damage,DamageRadius,DamageType,Momentum,HurtOrigin,bFullDamage,self);
 }
 
-function bool IsInstantHit()
+simulated function bool IsInstantHit()
 {
 	return CurrentFireMode == 0; 
 }
@@ -430,8 +440,18 @@ DefaultProperties
 
     AttachmentClass=class'Rx_Attachment_VoltAutoRifle'
 	
-	LeftHandIK_Offset=(X=0,Y=6,Z=0)
-	RightHandIK_Offset=(X=6,Y=-3,Z=-3)
+	LeftHandIK_Offset=(X=0,Y=0,Z=0)
+	LeftHandIK_Rotation=(Pitch=0,Yaw=0,Roll=0)
+	RightHandIK_Offset=(X=2.0,Y=0.0,Z=-2.0)
+	
+	LeftHandIK_Relaxed_Offset = (X=15.0,Y=-2.0,Z=5.0)
+	LeftHandIK_Relaxed_Rotation = (Pitch=-1456,Yaw=5097,Roll=-19114)
+	RightHandIK_Relaxed_Offset = (X=5.0,Y=3.0,Z=-5.0)
+	RightHandIK_Relaxed_Rotation = (Pitch=-2366,Yaw=1092,Roll=6735)
+
+	
+	bOverrideLeftHandAnim=true
+	LeftHandAnim=H_M_Hands_Closed
 	
 	FireOffset=(X=0,Y=15,Z=-15)
 
@@ -475,8 +495,8 @@ DefaultProperties
     EquipTime=1.0
 //	PutDownTime=0.7
 
-    Spread(0)=0.005 //0.001 //0.01
-    Spread(1)=0.005 //0.001 //0.01
+    Spread(0)=0.01 //08 //0.005 //0.001 //0.01
+    Spread(1)=0.01 //08 //0.005 //0.001 //0.01
     
     WeaponRange=3000.0
 
@@ -612,8 +632,15 @@ DefaultProperties
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_VoltAutoRifle'
     
-    MaxCharge=30
-    AutoDischargeTime=5
-    MinCharge=10
+    MaxCharge=40//30
+    AutoDischargeTime=3 //5
+    MinCharge=15 //10 
     CooldownLength=2
+	
+	bLocSync = true; 
+	LocSyncIncrement = 25; 
+	
+	Elite_Building_DamageMod = 1.15 //1.33
+
+    
 }

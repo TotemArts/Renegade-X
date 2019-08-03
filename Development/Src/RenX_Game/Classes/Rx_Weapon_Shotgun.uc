@@ -1,7 +1,12 @@
 class Rx_Weapon_Shotgun extends Rx_Weapon_Reloadable;
 
 var MaterialImpactEffect DefaultImpactEffect;
-var int NumPellets;
+var int NumPellets, ShotLayer, NumSpreadLayers;
+var bool bUseConstantSpread;
+
+var float LayerDensity;
+
+var float Additive; //Circular additive used in predictable spread pattern  
 
 var	SoundCue WeaponDistantFireSnd;	// A second firing sound to be played when weapon fires. (Used for distant sound)
 
@@ -11,6 +16,7 @@ simulated function CustomFire()
     Rx_Pawn(Owner).ShotgunPelletCount = 0;
     for (i=0; i < NumPellets; i++)
     {
+		if(i>0 && Rx_Controller(Instigator.Controller) != none) Rx_Controller(Instigator.Controller).AddShot(); //One gets called in FireAmmunition already 
         super.InstantFire();
         CurrentAmmoInClipClientside++;
     }
@@ -45,9 +51,45 @@ simulated function bool TryHeadshot(byte FiringMode, ImpactInfo Impact)
 	return false;
 }
 
-function bool IsInstantHit()
+simulated function bool IsInstantHit()
 {
 	return true; 
+}
+
+simulated function rotator AddSpread(rotator BaseAim)
+{
+	if(bUseConstantSpread) return ShotgunAddSpread(BaseAim); 
+	else
+	return super.AddSpread(BaseAim);
+}
+
+simulated function rotator ShotgunAddSpread(rotator BaseAim)
+{
+	local vector X, Y, Z;
+	local float CurrentSpreadX, RandY, RandZ;
+	
+	CurrentSpreadX = Spread[CurrentFireMode] + (ShotLayer*1.0*LayerDensity) ;
+	
+
+	ShotLayer++;
+	if (CurrentSpreadX == 0)
+	{
+		return BaseAim;
+	}
+	else
+	{
+		// Add in consistent, circular spread
+		GetAxes(BaseAim, X, Y, Z);
+		RandY = sin(Additive * DegToRad);
+		RandZ = cos(DegToRad*Additive);
+		
+		Additive += (360.0/NumPellets) ;
+		
+		if(Additive >= 360) Additive=0; 
+		if(ShotLayer >= NumSpreadLayers) ShotLayer=0;
+		
+		return rotator(X + RandY * CurrentSpreadX * Y + RandZ * CurrentSpreadX * Z);
+	}
 }
 
 defaultproperties
@@ -76,8 +118,11 @@ defaultproperties
 	
     PlayerViewOffset=(X=5.0,Y=-3.0,Z=1.5) //(X=7.0,Y=2.5,Z=14.0)
 	
-	LeftHandIK_Offset=(X=0,Y=-4,Z=0)
-	RightHandIK_Offset=(X=0,Y=0,Z=0)
+	LeftHandIK_Offset=(X=0,Y=0,Z=0)
+	RightHandIK_Offset=(X=6,Y=-1,Z=-2)
+	
+	LeftHandIK_Relaxed_Offset = (X=0.000000,Y=-2.000000,Z=4.000000)
+
 	
 	//-------------- Recoil
 	RecoilDelay = 0.02
@@ -95,10 +140,10 @@ defaultproperties
 
     ShotCost(0)=1
     ShotCost(1)=1
-    Spread(0)=0.18
+    Spread(0)=0.02 //0.18
 //    Spread(1)=0.3
 
-	IronSightAndScopedSpread(0)= 0.17
+	IronSightAndScopedSpread(0)= 0.05
     
     EquipTime=0.55
 //	PutDownTime=0.4
@@ -108,7 +153,7 @@ defaultproperties
     InitalNumClips = 8
     MaxClips = 8
  
-    FireInterval(0)=1.5
+    FireInterval(0)=1.2 //1.5
 //    FireInterval(1)=0.65
     
     WeaponFireAnim(0)=WeaponFire
@@ -118,12 +163,12 @@ defaultproperties
 
     WeaponFireTypes(0)=EWFT_Custom
     WeaponFireTypes(1)=EWFT_None
-    WeaponRange=800.0
+    WeaponRange=1200 //800.0
 
-    InstantHitDamage(0)=16
+    InstantHitDamage(0)=10 //12//16
 //    InstantHitDamage(1)=16
 	
-	HeadShotDamageMult=1.5
+	HeadShotDamageMult=1.5 //1.25 //1.5
 	
     InstantHitDamageTypes(0)=class'Rx_DmgType_Shotgun'
 //    InstantHitDamageTypes(1)=class'Rx_DmgType_Shotgun'
@@ -216,4 +261,38 @@ defaultproperties
 	IronSightRecoilYawDamping = 1					// 1		1.0
 	IronSightMaxSpreadDamping = 2					// 2		1.5
 	IronSightSpreadIncreasePerShotDamping = 50		// 4		1.7
+	
+	/*******************/
+	/*Veterancy*/
+	/******************/
+	
+	Vet_DamageModifier(0)=1  //Applied to instant-hits only
+	Vet_DamageModifier(1)=1.10 
+	Vet_DamageModifier(2)=1.25 
+	Vet_DamageModifier(3)=1.50 
+	
+	Vet_ROFModifier(0) = 1
+	Vet_ROFModifier(1) = 1 
+	Vet_ROFModifier(2) = 1  
+	Vet_ROFModifier(3) = 1  
+	
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)	
+	Vet_ClipSizeModifier(1)=1 //Veteran 
+	Vet_ClipSizeModifier(2)=2 //Elite
+	Vet_ClipSizeModifier(3)=4 //Heroic
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.9 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+	/**********************/
+	
+	bLocSync = true; 
+	LocSyncIncrement = 4; 
+	
+	bUseConstantSpread = true
+	
+	NumSpreadLayers = 4//2 //6 
+	LayerDensity = 0.02//0.03
+	ROFTurnover = 4
 }

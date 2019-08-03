@@ -27,8 +27,8 @@ function float GetProbabilityWeight(Rx_Pawn Recipient, Rx_CratePickup CratePicku
 
 		ForEach CratePickup.AllActors(class'Rx_Building',building)
 		{
-			if((Recipient.GetTeamNum() == TEAM_GDI && Rx_Building_WeaponsFactory(building) != none  && Rx_Building_WeaponsFactory(building).IsDestroyed()) || 
-				(Recipient.GetTeamNum() == TEAM_NOD && Rx_Building_AirStrip(building) != none  && Rx_Building_AirStrip(building).IsDestroyed()))
+			if((Recipient.GetTeamNum() == TEAM_GDI && Rx_Building_GDI_VehicleFactory(building) != none  && Rx_Building_GDI_VehicleFactory(building).IsDestroyed()) || 
+				(Recipient.GetTeamNum() == TEAM_NOD && Rx_Building_Nod_VehicleFactory(building) != none  && Rx_Building_Nod_VehicleFactory(building).IsDestroyed()))
 			{
 				Probability += ProbabilityIncreaseWhenVehicleProductionDestroyed;
 			}

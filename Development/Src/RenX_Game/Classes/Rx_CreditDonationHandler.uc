@@ -23,14 +23,13 @@ function bool Disabled()
 }
 
 
-function Display(Canvas c, float HUDCanvasScale, float ConsoleMessagePosX, float ConsoleMessagePosY, Color ConsoleColor)
+function Display(Rx_HUD H)
 {
 	local array<string> choices;
 
 	choices = VoteChoice.GetDisplayStrings();
-	choices.AddItem("ALT/CTRL: " $ BackString);
 
-	DisplayChoices(c, HUDCanvasScale, ConsoleMessagePosX, ConsoleMessagePosY, ConsoleColor, choices);
+	Rx_HUD(PlayerOwner.myHUD).CreateDonateMenuArray(choices);
 }
 
 function KeyPress(byte T)

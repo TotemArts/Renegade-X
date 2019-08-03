@@ -4,7 +4,7 @@ function string trigger(string parameters)
 {
 	local Rx_Bot C;
 	parameters = "Team,PlayerID,Name";
-	foreach WorldInfo.AllControllers(class'Rx_Bot', C)
+	foreach `WorldInfoObject.AllControllers(class'Rx_Bot', C)
 		parameters $= "\n" $ `PlayerLog(C.PlayerReplicationInfo);
 
 	return parameters;

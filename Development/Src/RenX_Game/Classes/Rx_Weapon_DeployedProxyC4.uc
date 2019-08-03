@@ -6,6 +6,8 @@ class Rx_Weapon_DeployedProxyC4 extends Rx_Weapon_DeployedRemoteC4
 	implements (RxIfc_EMPable)
 	implements (RxIfc_TargetedDescription);
 
+`include(RenX_Game\RenXStats.uci);
+
 var float TriggerRadius;
 var float VehicleTriggerRadius;
 var Pawn Activator;
@@ -28,8 +30,11 @@ replication
 simulated function PostBeginPlay()
 {
 	Super(Rx_Weapon_DeployedActor).PostBeginPlay();
-	OwnerPRI = InstigatorController.PlayerReplicationInfo;
-	Planter = InstigatorController;
+	if(InstigatorController != none)
+	{
+		OwnerPRI = InstigatorController.PlayerReplicationInfo;
+		Planter = InstigatorController;
+	}
 	ClearTimer('Explosion'); 
 	ClearTimer('CountDown'); 
 }
@@ -44,6 +49,7 @@ simulated function PerformDeploy()
        Spawn(class'UTAvoidMarker'); // for AI
     }
     */	
+	`RecordGamePositionStat(WEAPON_MINE_DEPLOYED , location, 1);
 }
 //Dont stick to walls. 
 event HitWall( vector HitNormal, actor Wall, PrimitiveComponent WallComp)
@@ -51,11 +57,62 @@ event HitWall( vector HitNormal, actor Wall, PrimitiveComponent WallComp)
    	Super(Actor).HitWall (HitNormal, Wall, WallComp);
 }
 
-
-// Remove on death removal.
 function Landed(vector HitNormal, Actor FloorActor)
 {
+	local Rx_Buildings_DoorSensor V;
+	local Rx_Buildings_DoorSensor ClosestDoorSensor;
+		
 	super(Rx_Weapon_DeployedC4).Landed(HitNormal, FloorActor);
+	
+	if(Rx_Building_WeaponsFactory(FloorActor) != None || Rx_Building_Barracks(FloorActor) != None || Rx_Building_AirTower(FloorActor) != None
+			|| Rx_Building_AdvancedGuardTower(FloorActor) != None || Rx_Building_Obelisk(FloorActor) != None)
+		return;	
+	
+	if(Rx_Building_HandOfNod(IsInBuilding()) != None)
+	{
+		if(Rx_Building_HandOfNod(FloorActor) == None)
+			Move(HitNormal * 5); // prevents the mines from sinking into the bottom of the two gates near the HON MCT
+		return;	
+	}	
+	
+	if(IsInBuilding() == None)
+		return;
+	
+	foreach AllActors( class'Rx_Buildings_DoorSensor', V )
+	{
+		if(closestDoorSensor == None)
+			ClosestDoorSensor = V;
+		else if(VSize(location-V.Location) < VSize(location-ClosestDoorSensor.Location))
+			ClosestDoorSensor = V;		
+	}	
+	
+	if(VSize(location-ClosestDoorSensor.Location) <= 115)
+	{
+		Move(HitNormal * 4.5); // if close to a door move up a bit to prevent sinking into the no collision geom that Ref and PP have at their doors		
+		return;					
+	}			
+	
+}
+
+
+function Rx_Building IsInBuilding() 
+{
+	local Vector TraceStart;
+	local Vector TraceEnd;
+	local Vector TraceExtent;
+	local Vector OutHitLocation, OutHitNormal;
+	local TraceHitInfo HitInfo;
+	local Actor TraceActor;	
+	
+	TraceStart = Instigator.Location;
+	TraceEnd = Instigator.Location;
+	TraceEnd.Z += 400.0f;
+	// trace up and see if we are hitting a building ceiling  
+	TraceActor = Instigator.Trace(OutHitLocation, OutHitNormal, TraceEnd, TraceStart, TRUE, TraceExtent, HitInfo, TRACEFLAG_Bullet);
+	if(Rx_Building(TraceActor) != None) {
+		return Rx_Building(TraceActor);
+	}
+	return None;
 }
 
 function CheckProxy()
@@ -129,6 +186,8 @@ function Explosion()
 		HurtRadius(Damage, DmgRadius, ChargeDamageType, DamageMomentum, ZOffsetLocation); /** Applies Radius Damage to all but ImpactedActor */
 		SetTimer(0.1f, false, 'DestroyMe');
 	}
+
+	`RecordGamePositionStat(WEAPON_MINE_EXPLODED , location, 1);
 }
 
 simulated function bool CanDisarmMe(Actor A)
@@ -143,10 +202,13 @@ simulated function bool IsEffectedByEMP()
 	return true;
 }
 
-function bool EMPHit(Controller InstigatedByController, Actor EMPCausingActor)
+function bool EMPHit(Controller InstigatedByController, Actor EMPCausingActor, optional int TimeModifier = 0)
 {
+	//local Rx_Projectile VetActor;
+	
 	if(Rx_Projectile_EMPGrenade(EMPCausingActor) != EMPActor && InstigatedByController.GetTeamNum() != GetTeamNum())
 		{
+			//VetActor=Rx_Projectile(EMPCausingActor);
 		TakeDamage(Rx_Projectile_EMPGrenade(EMPCausingActor).Init_MineDamage, InstigatedByController, Location, Vect(0,0,0), class'Rx_DmgType_EMP',,EMPCausingActor); //Check 1st if we've already taken this hit. Keeps the grenade from hitting mine it collides with twice. 
 		if(EMPTicks > 0) EMPActor=EMPCausingActor; /*Prevent EMP Mine damage from doubling up when the mine is already suffering from EMP effect. */
 		
@@ -156,7 +218,7 @@ function bool EMPHit(Controller InstigatedByController, Actor EMPCausingActor)
 	
 	if (InstigatedByController.GetTeamNum() == GetTeamNum() || EMPTicks > 0)
 		return false;
-	EMPTicks = EMPDisarmTime; //EMP mines are finicky... and they have a tendency to screw up decimal places apparently, so it was just easier to tell it to tick two extra times instead of possibly stopping at 2%
+	EMPTicks = EMPDisarmTime+TimeModifier; //EMP mines are finicky... and they have a tendency to screw up decimal places apparently, so it was just easier to tell it to tick two extra times instead of possibly stopping at 2%
 	EMPInstigator = InstigatedByController;
 	EMPActor = EMPCausingActor;
 	SetTimer(1.0, true, 'EMPDisarmTick');
@@ -206,6 +268,8 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 		
 		if (EventInstigator.PlayerReplicationInfo != none && EventInstigator.PlayerReplicationInfo.GetTeamNum() != TeamNum)
 		{
+			Rx_Controller(EventInstigator).DisseminateVPString( "[Mine Disarmed]&" $ class'Rx_VeterancyModifiers'.default.Ev_C4Disarmed $ "&");
+			Rx_Pri(EventInstigator.PlayerReplicationInfo).AddMineDisarm();
 			Rx_Pri(EventInstigator.PlayerReplicationInfo).AddScoreToPlayerAndTeam(DisarmScoreReward,true);
 		}
 		
@@ -260,6 +324,7 @@ defaultproperties
 	EMPDisarmTime=13.33 //Counteracts 25% burst damage from initial mine explosion. Keeps disarm time roughly the same
 
 	Begin Object Name=DeployableMesh
+		CastShadow=false
 		SkeletalMesh=SkeletalMesh'rx_wp_proxyc4.Mesh.SK_WP_Proxy_Deployed'
 		PhysicsAsset=PhysicsAsset'rx_wp_proxyc4.Mesh.SK_WP_Proxy_3P_Physics'
 		Scale=1.0

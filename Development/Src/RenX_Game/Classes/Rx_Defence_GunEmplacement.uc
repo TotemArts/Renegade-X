@@ -90,10 +90,13 @@ simulated function VehicleWeaponFireEffects(vector HitLocation, int SeatIndex)
 	
 	//VehicleEvent('GattlingGun');
     
-    if (!FiringAmbient.bWasPlaying)
-    {
-        FiringAmbient.Play();
-    }
+    if (Weapon.CurrentFireMode == 0)
+	{
+		if (!FiringAmbient.bWasPlaying)
+		{
+			FiringAmbient.Play();
+		}
+	}
 	
 	FireTriggerTag = Seats[SeatIndex].GunSocket[GetBarrelIndex(SeatIndex)];
 
@@ -144,9 +147,13 @@ simulated function VehicleWeaponStoppedFiring( bool bViaReplication, int SeatInd
             VehicleEvent('STOP_GattlingGun');
         }
     }
-
-    PlaySound(FiringStopSound, TRUE, FALSE, FALSE, Location, FALSE);
-    FiringAmbient.Stop();
+	
+	
+	if (Weapon.CurrentFireMode == 0)
+	{
+		PlaySound(FiringStopSound, TRUE, FALSE, FALSE, Location, FALSE);
+		FiringAmbient.Stop();
+	}
 }
 
 
@@ -184,7 +191,6 @@ defaultproperties
     LookForwardDist=0.0
 	DefaultFOV=55
 
-	
 
 
 //========================================================\\

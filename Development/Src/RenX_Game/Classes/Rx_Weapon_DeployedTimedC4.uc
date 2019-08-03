@@ -63,8 +63,9 @@ simulated function PostBeginPlay()
 	Super.PostBeginPlay();
 
 	ChargeMI = Mesh.CreateAndSetMaterialInstanceConstant(0);
-	CounterTens = Mesh.CreateAndSetMaterialInstanceConstant(1);
-	CounterOnes = Mesh.CreateAndSetMaterialInstanceConstant(2);
+	CounterOnes = Mesh.CreateAndSetMaterialInstanceConstant(1);
+	CounterTens = Mesh.CreateAndSetMaterialInstanceConstant(2);
+	CountIt();
 }
 
 function Landed(vector HitNormal, Actor FloorActor)

@@ -65,7 +65,7 @@ DefaultProperties
 	TerminalVelocity=3000.0
     AccelRate=0
     LifeSpan=1.0
-    Damage=60
+    Damage=50 /		/60
     DamageRadius=300
 	HeadShotDamageMult=2.5
     MomentumTransfer=20000
@@ -81,4 +81,20 @@ DefaultProperties
     bWaitForEffects=true
 	
 	ExplosionLightClass=Class'RenX_Game.Rx_Light_Tank_Explosion'
+	
+	/*************************/
+	/*VETERANCY*/
+	/************************/
+	
+	Vet_DamageIncrease(0)=1 //Normal (should be 1)
+	Vet_DamageIncrease(1)=1.10 //Veteran 
+	Vet_DamageIncrease(2)=1.25 //Elite
+	Vet_DamageIncrease(3)=1.50 //Heroic
+
+	Vet_SpeedIncrease(0)=1 //Normal (should be 1)
+	Vet_SpeedIncrease(1)=1.1 //Veteran 
+	Vet_SpeedIncrease(2)=1.2 //Elite
+	Vet_SpeedIncrease(3)=1.3 //Heroic 
+	
+	/***********************/
 }

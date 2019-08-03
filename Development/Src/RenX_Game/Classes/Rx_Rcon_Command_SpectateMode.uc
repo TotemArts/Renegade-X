@@ -8,7 +8,7 @@ function string trigger(string parameters)
 	if (parameters == "")
 		return "Error: Too few parameters." @ getSyntax();
 
-	PRI = Rx_Game(WorldInfo.Game).ParsePlayer(parameters, error);
+	PRI = Rx_Game(`WorldInfoObject.Game).ParsePlayer(parameters, error);
 	
 	if (PRI == None)
 		return error;

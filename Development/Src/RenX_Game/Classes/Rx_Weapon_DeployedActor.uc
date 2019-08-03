@@ -49,6 +49,10 @@ var float                        OuterExplosionShakeRadius;
 var(Damage) bool                 bDamageAll;
 var bool                         bImminentExplode;
 
+//Veterancy
+var byte 						 VRank; 
+var float						 Vet_DamageModifier[4]; 
+
 replication
 {
    if (Role == ROLE_Authority && bNetDirty)
@@ -115,7 +119,9 @@ function Landed(vector HitNormal, Actor FloorActor)
       if(Rx_Weapon_DeployedActor(FloorActor) == none) 
       {
             SetBase(FloorActor, HitNormal);
-      }
+			Mesh.SetTraceBlocking (true,true); //Enable collision with zero-extent traces for repair guns
+			
+	  }
     }
    if(WorldInfo.NetMode != NM_DedicatedServer)
    {
@@ -137,6 +143,8 @@ function ReplicatePositionAfterLanded()
 	ForceNetRelevant();
 	bUpdateSimulatedPosition = true;
 	bNetDirty = true;   
+	
+	
 }
 
 event bool EncroachingOn(Actor Other)
@@ -178,7 +186,7 @@ simulated function bool HurtRadius( float DamageAmount,
       InstigatedByController = InstigatorController;
    }
 
-   return Super.HurtRadius(DamageAmount, InDamageRadius, DamageType, Momentum, HurtOrigin, None, InstigatedByController, bDoFullDamage);
+   return Super.HurtRadius(DamageAmount*Vet_DamageModifier[VRank], InDamageRadius, DamageType, Momentum, HurtOrigin, None, InstigatedByController, bDoFullDamage);
 }
 
 simulated event ReplicatedEvent(name VarName)
@@ -256,24 +264,24 @@ simulated event Attach(Actor Other)
 
 simulated function PlayExplosionEffect()
 {
-   local vector SpawnLocation;
-   local rotator SpawnRotation;
+	local vector SpawnLocation;
+	local rotator SpawnRotation;
 
-   if (WorldInfo.NetMode != NM_DedicatedServer)
-   {
-      if (ExplosionSound != none && (PlayExplosionSound || bImminentExplode))
-      {
-         PlaySound(ExplosionSound, true,,false);
-      }
-      if (ExplosionSocketName != '')
-         SkeletalMeshComponent(Mesh).GetSocketWorldLocationAndRotation( ExplosionSocketName, SpawnLocation, SpawnRotation );
-      else
-      {
-         SpawnLocation = Location;
-         SpawnRotation = Rotation;
-      }
-      SpawnExplosionEmitter(SpawnLocation, SpawnRotation);
-    }
+	if (WorldInfo.NetMode != NM_DedicatedServer)
+	{
+		if (ExplosionSound != none && (PlayExplosionSound || bImminentExplode))
+		{
+			PlaySound(ExplosionSound, true,,false);
+		}
+		if (ExplosionSocketName != '')
+			SkeletalMeshComponent(Mesh).GetSocketWorldLocationAndRotation( ExplosionSocketName, SpawnLocation, SpawnRotation );
+		else
+		{
+			SpawnLocation = Location;
+			SpawnRotation = Rotation;
+		}
+		SpawnExplosionEmitter(SpawnLocation, SpawnRotation);
+	}
 }
 
 simulated function PlayDisarmedEffect()
@@ -364,7 +372,7 @@ function Explosion()
 		if (bBuildingHit)
 		{
 			if (GetTeamNum() != B.GetTeamNum() || bDamageAll)
-				B.TakeRadiusDamage(InstigatorController, Damage, DmgRadius, DamageTypeClass != none ? DamageTypeClass : class'UTDmgType_Burning', DamageMomentum, VectorHurtOrigin, true, self);
+				B.TakeRadiusDamage(InstigatorController, Damage*Vet_DamageModifier[VRank], DmgRadius, DamageTypeClass != none ? DamageTypeClass : class'UTDmgType_Burning', DamageMomentum, VectorHurtOrigin, true, self);
 		}
 	}
    
@@ -381,7 +389,7 @@ function Explosion()
       { 
          if ((GetTeamNum() != P.GetTeamNum()) 
              || (P.Controller == InstigatorController) || bDamageAll)
-            P.TakeRadiusDamage(InstigatorController, Damage, DmgRadius, DamageTypeClass != none ? DamageTypeClass : class'UTDmgType_Burning', DamageMomentum, VectorHurtOrigin, bFullDamage, self);
+            P.TakeRadiusDamage(InstigatorController, Damage*Vet_DamageModifier[VRank], DmgRadius, DamageTypeClass != none ? DamageTypeClass : class'UTDmgType_Burning', DamageMomentum, VectorHurtOrigin, bFullDamage, self);
       }
    }
 
@@ -492,11 +500,16 @@ simulated function PlayCamerashakeAnim()
 function string GetSpotMarkerName()
 {
 	local Actor TempActor;
+	local Rx_GRI WGRI; 
 	local float NearestSpotDist;
 	local RxIfc_SpotMarker NearestSpotMarker;
 	local float DistToSpot;	
 	
-	foreach AllActors(class'Actor', TempActor, class'RxIfc_SpotMarker')
+	WGRI = Rx_GRI(WorldInfo.GRI);
+	
+	if(WGRI == none) return "";
+	
+	foreach WGRI.SpottingArray(TempActor)
 	{
 		DistToSpot = VSize(TempActor.location - Location);
 		if (NearestSpotDist == 0.0 || DistToSpot < NearestSpotDist)
@@ -530,11 +543,12 @@ defaultproperties
    TimeUntilExplosion   = 0
    DisarmScoreReward    = 3
    Begin Object Class=SkeletalMeshComponent Name=DeployableMesh
-      BlockNonZeroExtent   = false
+      BlockNonZeroExtent   = false //true  Set to true after landing  
       BlockZeroExtent      = true
       CollideActors        = true
       BlockActors          = true
       BlockRigidBody       = false
+	  CanBlockCamera		= false 
       LightEnvironment = MyLightEnvironment
    End Object
    Mesh=DeployableMesh
@@ -551,9 +565,9 @@ defaultproperties
    BlinkingLight=ParticleSystem'RX_WP_Nuke.Effects.P_NukeBeacon_BlinkingLight'
    PlayExplosionSound = false;
    DisarmedEffect=ParticleSystem'RX_FX_Munitions.Explosions.P_EquipmentDisarmed'
-   DisarmedSound=SoundCue'RX_WP_VoltAutoRifle.Sounds.SC_VoltAutoRifle_Fire'
+   DisarmedSound=SoundCue'rx_wp_proxyc4.Sounds.SC_Mine_Disarm' //SoundCue'RX_WP_VoltAutoRifle.Sounds.SC_VoltAutoRifle_Fire'
 
-   bWorldGeometry          = true
+   bWorldGeometry          = true //true  //Set to false to not block the camera 
    //bWorldGeometry          = false
    bPushedByEncroachers    = false
    bIgnoreEncroachers      = false
@@ -568,7 +582,16 @@ defaultproperties
    bCollideActors=true
     bCollideWorld=true 
     bCollideComplex=true
+	
     bBlockActors=false 
    bProjTarget=true 
    
+   bCanStepUpOn = false 
+   
+   VRank = 0
+   
+   Vet_DamageModifier(0) = 1 
+    Vet_DamageModifier(1) = 1.10 
+	 Vet_DamageModifier(2) = 1.25
+	  Vet_DamageModifier(3) = 1.50
 }

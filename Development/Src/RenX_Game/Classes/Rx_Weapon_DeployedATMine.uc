@@ -20,7 +20,7 @@ function KillCheck()
 	if( Role == ROLE_Authority )
 	{
 		// Destroy when player dies
-		if( Instigator == None || Instigator.Health <= 0 )
+		if( Instigator == None )  //|| Instigator.Health <= 0 )
 			Destroy();
 	}
 }
@@ -50,6 +50,7 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 		if (HP <= 0)
 		{
 			InstigatorController = EventInstigator;
+			TeamNum = InstigatorController.GetTeamNum();
 			SetDamageAll(true);
 			ClearTimer('Explosion');
 			Explosion();
@@ -69,7 +70,7 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 event Landed( vector HitNormal, actor FloorActor )
 {
 	super.Landed(HitNormal, FloorActor);
-	SetTimer(1.0, true, 'KillCheck');
+	//SetTimer(1.0, true, 'KillCheck');
 	if (Pawn(FloorActor) != None)
         Detonate();	
 }

@@ -14,11 +14,16 @@ function string GetPickupMessage()
 
 function ExecuteCrateBehaviour(Rx_Pawn Recipient, Rx_PRI RecipientPRI, Rx_CratePickup CratePickup)
 {
-	Recipient.SpeedUpgradeMultiplier += SpeedIncreasePercent / 100.0;
+	//Recipient.SpeedUpgradeMultiplier += SpeedIncreasePercent / 100.0;
+	if(Rx_Controller(Recipient.Controller) != none ) Rx_Controller(Recipient.Controller).AddActiveModifier(class'Rx_StatModifierInfo_Crate_Speed');
+	else
+	if(Rx_Bot(Recipient.Controller) != none ) Rx_Bot(Recipient.Controller).AddActiveModifier(class'Rx_StatModifierInfo_Crate_Speed');
+
+	/**
 	Recipient.UpdateRunSpeedNode();
 	Recipient.SetGroundSpeed();
-
-	`log("Increasing speed by" @ SpeedIncreasePercent / 100.0 @ "percent to " @Recipient.SpeedUpgradeMultiplier);
+	*/
+	//`log("Increasing speed by" @ SpeedIncreasePercent / 100.0 @ "percent to " @Recipient.SpeedUpgradeMultiplier);
 }
 
 DefaultProperties
@@ -26,5 +31,5 @@ DefaultProperties
 	BroadcastMessageIndex = 11
 	PickupSound = SoundCue'Rx_Pickups.Sounds.SC_Crate_Refill'
 
-	SpeedIncreasePercent = 5 //10
+	SpeedIncreasePercent = 15 //10
 }

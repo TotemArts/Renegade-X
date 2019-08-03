@@ -46,14 +46,51 @@ simulated function GetFireStartLocationAndRotation(out vector SocketLocation, ou
 }
 
 
-simulated function DrawCrosshair( Hud HUD )
+/**simulated function DrawCrosshair( Hud HUD )
 {
 	local vector2d CrosshairSize;
 	local float x,y;	
 	local UTHUDBase H;
 	local Pawn MyPawnOwner;
 	local actor TargetActor;
-	local int targetTeam, rectColor;	
+	local int targetTeam;
+	local LinearColor LC; //nBab
+
+	//set initial color based on settings (nBab)
+	LC.A = 1.f;
+	switch (Rx_HUD(Rx_Controller(Instigator.Controller).myHUD).SystemSettingsHandler.GetCrosshairColor())
+	{
+		//white
+		case 0:
+			LC.R = 1.f;
+			LC.G = 1.f;
+			LC.B = 1.f;
+			break;
+		//orange
+		case 1:
+			LC.R = 2.f;
+			LC.G = 0.5f;
+			LC.B = 0.f;
+			break;
+		//violet
+		case 2:
+			LC.R = 2.f;
+			LC.G = 0.f;
+			LC.B = 2.f;
+			break;
+		//blue
+		case 3:
+			LC.R = 0.f;
+			LC.G = 0.f;
+			LC.B = 2.f;
+			break;
+		//cyan
+		case 4:
+			LC.R = 0.f;
+			LC.G = 2.f;
+			LC.B = 2.f;
+			break;	
+	}
 	
 	H = UTHUDBase(HUD);
 	if ( H == None )
@@ -82,18 +119,37 @@ simulated function DrawCrosshair( Hud HUD )
 				if (targetTeam != MyPawnOwner.GetTeamNum())
 				{
 					if (!TargetActor.IsInState('Stealthed') && !TargetActor.IsInState('BeenShot'))
-						rectColor = 1; //enemy, go red, except if stealthed (else would be cheating ;] )
+					{
+						//enemy, go red, except if stealthed (else would be cheating ;] )
+						//nBab
+						LC.R = 10.f;
+						LC.G = 0.f;
+						LC.B = 0.f;
+					}
 				}
 				else
-					rectColor = 2; //Friendly
+				{
+					//Friendly
+					//nBab
+					LC.R = 0.f;
+					LC.G = 10.f;
+					LC.B = 0.f;
+				}
 			}
 		}
 	}
 	
 	if (!HasAnyAmmo()) //no ammo, go yellow
-		rectColor = 3;
+	{
+		//nBab
+		LC.R = 10.f;
+		LC.G = 8.f;
+		LC.B = 0.f;
+	}
 
-	CrosshairMIC2.SetScalarParameterValue('ReticleColourSwitcher', rectColor);
+	//nBab
+	CrosshairMIC2.SetVectorParameterValue('Reticle_Colour', LC);
+	
 	if ( CrosshairMIC2 != none )
 	{
 		//H.Canvas.SetPos( X+1, Y+1 );
@@ -108,7 +164,7 @@ simulated function DrawCrosshair( Hud HUD )
 	H.Canvas.DrawText("Range" @ Target_Distance ,true,1,1);
 	}
 	
-} 
+}*/ 
 
 
 /**
@@ -255,13 +311,41 @@ DefaultProperties
 
     Spread(0)=0.03
     Spread(1)=0.03
+	
+	/****************************************/
+	/*Veterancy*/
+	/****************************************/
+	
+	//*X Reverse percentage (0.75 is 25% increase in speed)
+	Vet_ROFModifier(0) = 1 //Normal
+	Vet_ROFModifier(1) = 1  //Veteran
+	Vet_ROFModifier(2) = 1  //Elite
+	Vet_ROFModifier(3) = 0.80  //Heroic
+ 
+	//+X
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)
+	Vet_ClipSizeModifier(1)=0 //Veteran 
+	Vet_ClipSizeModifier(2)=0 //Elite
+	Vet_ClipSizeModifier(3)=0 //Heroic
 
+	//*X Reverse percentage (0.75 is 25% increase in speed)
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.8 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.65 //Elite
+	Vet_ReloadSpeedModifier(3)=0.45 //Heroic
+	
+	
+	/********************************/
+	
     WeaponFireSnd(0)     = SoundCue'RX_VH_StealthTank.Sounds.SC_StealthTank_Fire'
     WeaponFireTypes(0)   = EWFT_Projectile
     WeaponProjectiles(0) = Class'Rx_Vehicle_StealthTank_Projectile'
     WeaponFireSnd(1)     = SoundCue'RX_VH_StealthTank.Sounds.SC_StealthTank_Fire'
     WeaponFireTypes(1)   = EWFT_Projectile
     WeaponProjectiles(1) = Class'Rx_Vehicle_StealthTank_Projectile'
+	
+	WeaponProjectiles_Heroic(0)= Class'Rx_Vehicle_StealthTank_Projectile_Heroic'
+	WeaponProjectiles_Heroic(1)= Class'Rx_Vehicle_StealthTank_Projectile_Heroic'
 	
 	ReloadSound(0)=SoundCue'RX_VH_Apache.Sounds.SC_Reload_Missiles'
     ReloadSound(1)=SoundCue'RX_VH_Apache.Sounds.SC_Reload_Missiles'
@@ -279,11 +363,11 @@ DefaultProperties
     LockAcquiredSound=SoundCue'A_Weapon_RocketLauncher.Cue.A_Weapon_RL_SeekLock_Cue'
     LockLostSound=SoundCue'A_Weapon_RocketLauncher.Cue.A_Weapon_RL_SeekLost_Cue'
 
-    LockTolerance		 = 0.2 			// 0.5		// How many seconds to stay locked
+    LockTolerance		 = 0.5//0.2 			// 0.5		// How many seconds to stay locked
 
-    LockRange            = 5200 //4500
-    ConsoleLockAim       = 0.997			// 0.997000
-    LockAim              = 0.997			// 0.998000
+    LockRange            = 6000 //5200 //4500
+    ConsoleLockAim       = 0.99			// 0.997000
+    LockAim              = 0.99//0.997			// 0.998000
     LockCheckTime        = 0.1			// 0.1
     LockAcquireTime      = 0.5 			// 0.7
     StayLocked           = 0.1 			// 0.1		// This does nothing
@@ -296,4 +380,11 @@ DefaultProperties
     bHasRecoil = true
     bIgnoreDownwardPitch = true
     bCheckIfFireStartLocInsideOtherVehicle = true
+	
+	FM0_ROFTurnover = 2; //9 for most automatics. Single shot weapons should be more, except the shotgun
+	FM1_ROFTurnover = 2
+	
+    bOkAgainstLightVehicles = True
+    bOkAgainstArmoredVehicles = True
+    bOkAgainstBuildings = True
 }

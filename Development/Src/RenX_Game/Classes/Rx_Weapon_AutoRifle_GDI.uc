@@ -1,11 +1,5 @@
 class Rx_Weapon_AutoRifle_GDI extends Rx_Weapon_AutoRifle;
 
-
-simulated function PostBeginPlay()
-{
-	super.PostBeginPlay();
-}
-
 DefaultProperties
 {
 	TeamSkin=MaterialInterface'RX_WP_AutoRifle.Materials.MI_WP_AR_GDI'

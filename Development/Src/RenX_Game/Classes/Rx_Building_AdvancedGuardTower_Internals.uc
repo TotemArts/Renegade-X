@@ -9,8 +9,7 @@ var const name MGBones[4];
 simulated function Init( Rx_Building Visuals, bool isDebug )
 {
 	super.Init(Visuals,isDebug);
-	if((WorldInfo.Netmode != NM_Client || WorldInfo.IsPlayingDemo()) && !Rx_Building_AdvancedGuardTower(Visuals).bWeaponsDisabled) {
-	//if((WorldInfo.Netmode != NM_Client) && !Rx_Building_AdvancedGuardTower(Visuals).bWeaponsDisabled) {
+	if((WorldInfo.Netmode != NM_Client || WorldInfo.IsPlayingDemo()) && !Rx_Building_Defense(Visuals).bDisabled) {
 		SetupDefences();
 	}
 }
@@ -27,7 +26,9 @@ function SetupDefences()
 	turrets[3]          = Spawn(class'Rx_Sentinel_AGT_MG_Base',Self,,v,rot( 0,0,0 ),,true); 
 	rocketTurret        = Spawn(class'Rx_Sentinel_AGT_Rockets_Base',,,v,rot( 0,0,0 ),,true);
 	rocketTurret.AgtLocation = self.Location;
-
+	rocketTurret.MyBuilding = BuildingVisuals; 
+	
+	
 	v = BuildingSkeleton.GetBoneLocation(MissileBone);
 	v.Z += 150;
 	rocketTurret.SetLocation(v);
@@ -50,43 +51,74 @@ function SetupDefences()
 		turrets[i].setlocation(v);
 		turrets[i].Initialize();
 		turrets[i].SController.TargetWaitTime = 6;
+		turrets[i].MyBuilding = BuildingVisuals; 
+		
 	}
 }
 
 function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser) {
 	local int i;
 	
-	if(bDestroyed)
-		return;
 	super.TakeDamage(DamageAmount, EventInstigator, HitLocation, Momentum, DamageType, HitInfo, DamageCauser);
 
 	if(rocketTurret != None)
 		rocketTurret.SController.NotifyTakeHit(EventInstigator,HitLocation,DamageAmount,DamageType,Momentum);
-	if(bDestroyed) {
-		rocketTurret.Destroy();
-	}
+
 	for(i = 0; i < 4; i++) {
 		if(turrets[i] == None)
 			continue;
 		turrets[i].SController.NotifyTakeHit(EventInstigator,HitLocation,DamageAmount,DamageType,Momentum);
-		if(bDestroyed) {
-			turrets[i].SController.Cannon.Destroy();
-			turrets[i].Destroy();			
-		}
+	}
+
+	if(bDestroyed) {
+		OnBuildingDestroyed();
+	}   
+}
+
+simulated function OnBuildingDestroyed()
+{
+	local int i;
+
+	rocketTurret.Destroy();
+
+	for(i = 0; i < 4; i++)
+	{
+		turrets[i].SController.Cannon.Destroy();
+		turrets[i].Destroy();	
 	}
 }
 
-function PowerLost()
+function bool PowerLost(optional bool bFromKismet)
 {
 	local int i;
-	super.PowerLost();
+	if(!super.PowerLost() && !bFromKismet)
+		return false;
+	
+	if(rocketTurret  == none) return true; 
 	for(i = 0; i < 4; i++)
 	{
 		turrets[i].SController.Cannon.Destroy();
 		turrets[i].Destroy();
 	}
+	
 	rocketTurret.SController.Cannon.Destroy();
 	rocketTurret.Destroy();
+
+	return true;
+}
+
+//Power restore function
+function bool PowerRestore()
+{
+	if(super.PowerRestore())
+	{
+		SetupDefences();
+		return true;
+	}
+	else{
+		return false;
+	}
+	
 }
 
 DefaultProperties

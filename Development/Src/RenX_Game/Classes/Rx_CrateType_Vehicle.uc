@@ -26,8 +26,8 @@ function float GetProbabilityWeight(Rx_Pawn Recipient, Rx_CratePickup CratePicku
 
 		ForEach CratePickup.AllActors(class'Rx_Building',building)
 		{
-			if((Recipient.GetTeamNum() == TEAM_GDI && Rx_Building_WeaponsFactory(building) != none  && Rx_Building_WeaponsFactory(building).IsDestroyed()) || 
-				(Recipient.GetTeamNum() == TEAM_NOD && Rx_Building_AirStrip(building) != none  && Rx_Building_AirStrip(building).IsDestroyed()))
+			if((Recipient.GetTeamNum() == TEAM_GDI && Rx_Building_GDI_VehicleFactory(building) != none  && Rx_Building_GDI_VehicleFactory(building).IsDestroyed()) || 
+				(Recipient.GetTeamNum() == TEAM_NOD && Rx_Building_Nod_VehicleFactory(building) != none  && Rx_Building_Nod_VehicleFactory(building).IsDestroyed()))
 			{
 				Probability += ProbabilityIncreaseWhenVehicleProductionDestroyed;
 			}
@@ -37,29 +37,53 @@ function float GetProbabilityWeight(Rx_Pawn Recipient, Rx_CratePickup CratePicku
 	}
 }
 
+function array<class<Rx_Vehicle> > GetCrateVehicles() {
+	local array<class<Rx_Vehicle> > result;
+	local Rx_PurchaseSystem purchaseSystem;
+	local bool includeAircraft;
+	local class<Rx_Vehicle_PTInfo> vehicleInfo;
+
+	purchaseSystem = `RxGameObject.PurchaseSystem;
+	includeAircraft = !Rx_MapInfo(`WorldInfoObject.GetMapInfo()).bAircraftDisabled;
+
+	// Add GDI vehicles
+	foreach purchaseSystem.GDIVehicleClasses(vehicleInfo) {
+		if (includeAircraft || !vehicleInfo.default.bAircraft) {
+			result.AddItem(vehicleInfo.default.VehicleClass);
+		}
+	}
+
+	// Add Nod vehicles
+	foreach purchaseSystem.NodVehicleClasses(vehicleInfo) {
+		if (includeAircraft || !vehicleInfo.default.bAircraft) {
+			result.AddItem(vehicleInfo.default.VehicleClass);
+		}
+	}
+
+	return result;
+}
+
 function ExecuteCrateBehaviour(Rx_Pawn Recipient, Rx_PRI RecipientPRI, Rx_CratePickup CratePickup)
 {
-	local int tmpInt, tmpInt2;
-	local Vector tmpSpawnPoint;
+	local Vector spawnPoint;
+	local array<class<Rx_Vehicle> > vehicleClasses;
+	local class<Rx_Vehicle> vehicleClass;
 
-	tmpSpawnPoint = CratePickup.Location + vector(CratePickup.Rotation)*450;
-	tmpSpawnPoint.Z += 200;
-	tmpInt = Rand(2);
+	// Setup spawn point
+	spawnPoint = CratePickup.Location + vector(CratePickup.Rotation)*450;
+	spawnPoint.Z += 200;
 
-	// If not flying map, make sure no flying vehicles are given
-	// TODO: Actually verify flying vehicles, if flying vehicles aren't the last two in the list, this will break.
-	if (Rx_MapInfo(CratePickup.WorldInfo.GetMapInfo()).bAircraftDisabled)
-		tmpInt2 = (tmpInt == TEAM_GDI ? Rand(class'Rx_PurchaseSystem'.default.GDIVehicleClasses.Length - 2) : Rand(class'Rx_PurchaseSystem'.default.NodVehicleClasses.Length - 2));
-	else
-		tmpInt2 = (tmpInt == TEAM_GDI ? Rand(class'Rx_PurchaseSystem'.default.GDIVehicleClasses.Length) : Rand(class'Rx_PurchaseSystem'.default.NodVehicleClasses.Length));
-         
-	GivenVehicle = CratePickup.Spawn((tmpInt == TEAM_GDI ?
-		class'Rx_PurchaseSystem'.default.GDIVehicleClasses[tmpInt2] : 
-		class'Rx_PurchaseSystem'.default.NodVehicleClasses[tmpInt2]),,, tmpSpawnPoint, CratePickup.Rotation,,true);
+	// Pull a random vehicle class
+	vehicleClasses = GetCrateVehicles();
+	vehicleClass = vehicleClasses[Rand(vehicleClasses.Length)];
 
+    // Spawn the vehicle
+	GivenVehicle = CratePickup.Spawn(vehicleClass,,, spawnPoint, CratePickup.Rotation,,true);
 	GivenVehicle.DropToGround();
 	if (GivenVehicle.Mesh != none)
 		GivenVehicle.Mesh.WakeRigidBody();
+
+	RecipientPRI.SetVehicleIsFromCrate (true);
 }
 
 DefaultProperties

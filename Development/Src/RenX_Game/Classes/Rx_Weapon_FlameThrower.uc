@@ -26,8 +26,12 @@ DefaultProperties
 
     AttachmentClass = class'Rx_Attachment_FlameThrower'
 	
-	LeftHandIK_Offset=(X=-0.75,Y=-8,Z=-5)
+	LeftHandIK_Offset=(X=0,Y=0,Z=0)
 	RightHandIK_Offset=(X=3,Y=-2,Z=-2)
+	
+	LeftHandIK_Relaxed_Offset = (X=6.000000,Y=0.000000,Z=0.000000)
+	RightHandIK_Relaxed_Offset = (X=-5.000000,Y=0.000000,Z=-2.000000)
+	RightHandIK_Relaxed_Rotation = (Pitch=0,Yaw=0,Roll=5461)
 	
 	PlayerViewOffset=(X=2.0,Y=-1.5,Z=-1.5)
 	
@@ -63,7 +67,10 @@ DefaultProperties
     
     WeaponProjectiles(0)=class'Rx_Projectile_FlameThrower'
     WeaponProjectiles(1)=class'Rx_Projectile_FlameThrower'
-
+	
+	WeaponProjectiles_Heroic(0)=class'Rx_Projectile_FlameThrower_Heroic'
+	WeaponProjectiles_Heroic(1)=class'Rx_Projectile_FlameThrower_Heroic'
+	
     Spread(0)=0.01
     Spread(1)=0.0
     
@@ -114,7 +121,8 @@ DefaultProperties
  
     MuzzleFlashSocket=MuzzleFlashSocket
     FireSocket=MuzzleFlashSocket
-    MuzzleFlashPSCTemplate=ParticleSystem'RX_WP_FlameThrower.Effects.FX_FireThrower_MuzzleFlash' //none
+    MuzzleFlashPSCTemplate=ParticleSystem'RX_WP_FlameThrower.Effects.FX_FireThrower_MuzzleFlash'
+	MuzzleFlashPSCTemplate_Heroic=ParticleSystem'RX_WP_FlameThrower.Effects.FX_FireThrower_MuzzleFlash_Blue'
 //    MuzzleFlashDuration=0.1
 //    MuzzleFlashLightClass=class'RenX_Game.Rx_Light_AutoRifle_MuzzleFlash'
 
@@ -133,7 +141,35 @@ DefaultProperties
     bSplashJump=false
     bRecommendSplashDamage=false
     bSniping=false        
+    bOkAgainstBuildings=true
+    bOkAgainstVehicles=true
 
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_FlameThrower'
+	
+	/*******************/
+	/*Veterancy*/
+	/******************/
+	
+	Vet_DamageModifier(0)=1  //Applied to instant-hits only
+	Vet_DamageModifier(1)=1.10 
+	Vet_DamageModifier(2)=1.25 
+	Vet_DamageModifier(3)=1.50 
+	
+	Vet_ROFModifier(0) = 1
+	Vet_ROFModifier(1) = 1 
+	Vet_ROFModifier(2) = 1  
+	Vet_ROFModifier(3) = 1  
+	
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)	
+	Vet_ClipSizeModifier(1)=0 //Veteran 
+	Vet_ClipSizeModifier(2)=25 //Elite
+	Vet_ClipSizeModifier(3)=50 //Heroic
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.9 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+
+	/**********************/
 }

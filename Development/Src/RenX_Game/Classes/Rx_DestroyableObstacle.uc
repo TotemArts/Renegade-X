@@ -1,4 +1,4 @@
-class Rx_DestroyableObstacle extends Actor 
+class Rx_DestroyableObstacle extends Rx_DynamicNavMeshObstacle
 abstract;
 
 
@@ -26,11 +26,16 @@ var(Damage) bool                 bDamageAll;
 var string ObstacleName; 
 var float DamageSmokeThreshold; 
 
-
 replication
 {
    if (Role == ROLE_Authority && bNetDirty)
       HP;
+}
+
+simulated function PostBeginPlay()
+{
+	Super.PostBeginPlay();
+	SetAsCircle(96, 8);
 }
 
 simulated function string GetHumanReadableName()
@@ -82,9 +87,22 @@ function ToDestroy()
    Destroy();
 }
 
-//Do not allow healing of destroyable obstacles
-function bool HealDamage(int Amount, Controller Healer, class<DamageType> DamageType); 
+//Do not take Radius Damage
+simulated function TakeRadiusDamage
+(
+	Controller			InstigatedBy,
+	float				BaseDamage,
+	float				DamageRadius,
+	class<DamageType>	DamageType,
+	float				Momentum,
+	vector				HurtOrigin,
+	bool				bFullDamage_in,
+	Actor               DamageCauser,
+	optional float      DamageFalloffExponent=1.f
+);
 
+//Do not allow healing of 'most' destroyable obstacles
+function bool HealDamage(int Amount, Controller Healer, class<DamageType> DamageType); 
 
 function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)
 {

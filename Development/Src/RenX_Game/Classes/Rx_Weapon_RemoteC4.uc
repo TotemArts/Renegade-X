@@ -5,6 +5,9 @@ var array<Rx_Weapon_DeployedRemoteC4> Remotes;
 var repnotify bool bDetonatedRemotes;
 var bool bCanPlaceRemoteRightNow;
 
+// AI
+var int RemoteDetonationFailure;
+
 replication
 {
 	if( bNetDirty && bNetOwner && Role == ROLE_Authority)
@@ -20,6 +23,21 @@ simulated event ReplicatedEvent(name VarName)
 			WeaponEmpty();
 		}
 	}
+	else
+		if(VarName == 'AmmoCount')
+		{
+			if(AmmoCount == MaxAmmoCount) 
+			{
+				bForceHidden = false;
+				Mesh.SetHidden(false);
+			}
+			else
+			if(AmmoCount == 0)
+			{
+				bForceHidden = true;
+				Mesh.SetHidden(true);
+			}
+		}
 	else
 	{
 		Super.ReplicatedEvent(VarName);
@@ -82,7 +100,7 @@ function DetonateCharges()
 	//Remotes.Length = 0;
 }
 
-function ConsumeAmmo( byte FireModeNum ) {
+simulated function ConsumeAmmo( byte FireModeNum ) {
 	if(FireModeNum == 0) {
 		super.ConsumeAmmo(FireModeNum);
 	}
@@ -103,7 +121,7 @@ simulated function FireAmmunition()
 simulated function WeaponEmpty()
 {
 	if(bDetonatedRemotes && AmmoCount == 0) {
-		`log("DetRemotes=" @ bDetonatedRemotes);
+		//`log("DetRemotes=" @ bDetonatedRemotes);
 		super.WeaponEmpty(); 
 			//Rx_InventoryManager(Instigator.InvManager).RemoveWeaponOfClass(self.Class);
 // 		if (Rx_Controller(Instigator.Controller).PreviousExplosiveTransactionRecords.Find(self.Class) > -1) {
@@ -155,6 +173,29 @@ reliable server function ServerDetonateRemotes()
 	}	
 }
 
+function byte BestMode()
+{
+	local Rx_Weapon_DeployedRemoteC4 D;
+
+	if(Remotes.length <= 0)
+		return 0;
+
+	if(AmmoCount <= 0)
+	{
+		foreach Remotes(D)
+		{
+			if(VSize(Instigator.Location - D.Location) <= 400 && RemoteDetonationFailure < 3)
+			{
+				RemoteDetonationFailure++;
+				return 0;
+			}
+		
+		}
+		return 1;
+	}
+
+	return 0;
+}
 
 DefaultProperties
 {
@@ -254,13 +295,16 @@ DefaultProperties
 	
 	// AI Hints:
 	//MaxDesireability=0.7
-	AIRating=+0.3
+	MaxDesireability=0.9
+	AIRating=+0.7
 	CurrentRating=+0.3
 	bFastRepeater=false
 	bInstantHit=false
 	bSplashJump=false
 	bRecommendSplashDamage=true
 	bSniping=false
+	bOkAgainstBuildings=true
+	bOkAgainstVehicles=true
 
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_RemoteC4'

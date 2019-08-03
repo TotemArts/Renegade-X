@@ -18,8 +18,8 @@ function float GetProbabilityWeight(Rx_Pawn Recipient, Rx_CratePickup CratePicku
 
 	ForEach CratePickup.AllActors(class'Rx_Building',building)
 	{
-		if((Recipient.GetTeamNum() == TEAM_GDI && Rx_Building_Barracks(building) != none  && Rx_Building_Barracks(building).IsDestroyed()) || 
-			(Recipient.GetTeamNum() == TEAM_NOD && Rx_Building_HandOfNod(building) != none  && Rx_Building_HandOfNod(building).IsDestroyed()))
+		if((Recipient.GetTeamNum() == TEAM_GDI && Rx_Building_GDI_InfantryFactory(building) != none  && Rx_Building_GDI_InfantryFactory(building).IsDestroyed()) || 
+			(Recipient.GetTeamNum() == TEAM_NOD && Rx_Building_Nod_InfantryFactory(building) != none  && Rx_Building_Nod_InfantryFactory(building).IsDestroyed()))
 		{
 			Probability += ProbabilityIncreaseWhenInfantryProductionDestroyed;
 		}

@@ -1,6 +1,6 @@
 /*********************************************************
 *
-* File: RxVehicle_MediumTank.uc
+* File: Rx_Vehicle_MediumTank.uc
 * Author: RenegadeX-Team
 * Pojekt: Renegade-X UDK <www.renegade-x.com>
 *
@@ -18,6 +18,10 @@ class Rx_Vehicle_MediumTank extends Rx_Vehicle_Treaded
 	
 var SkeletalMeshComponent AntennaMeshL;
 var SkeletalMeshComponent AntennaMeshR;
+
+/** Firing sounds */
+var() AudioComponent FiringAmbient;
+var() SoundCue FiringStopSound;
 
 /** The Cantilever Beam that is the Antenna itself*/
 var UTSkelControl_CantileverBeam AntennaBeamControl;
@@ -47,8 +51,98 @@ function vector GetVelocity()
 	return Velocity;
 }
 
+simulated function vector GetEffectLocation(int SeatIndex)
+{
+
+    local vector SocketLocation;
+   local name FireTriggerTag;
+
+    if ( Seats[SeatIndex].GunSocket.Length <= 0 )
+        return Location;
+
+   //`Log("GetEffectLocation called",, '_Mammoth_Debug');
+
+   FireTriggerTag = Seats[SeatIndex].GunSocket[GetBarrelIndex(SeatIndex)];
+
+   Mesh.GetSocketWorldLocationAndRotation(FireTriggerTag, SocketLocation);
+
+    //if (Weapon.CurrentFireMode == 0)
+    //   ShotCount = ShotCounts >= 255 ? 0 : ShotCounts + 1;
+   //  else
+   //     AltShotCounts = AltShotCounts >= 255 ? 0 : AltShotCounts + 1;
+    return SocketLocation;
+}
+
+// special for mammoth
+simulated event GetBarrelLocationAndRotation(int SeatIndex, out vector SocketLocation, optional out rotator SocketRotation)
+{
+    if (Seats[SeatIndex].GunSocket.Length > 0)
+    {
+        Mesh.GetSocketWorldLocationAndRotation(Seats[SeatIndex].GunSocket[GetBarrelIndex(SeatIndex)], SocketLocation, SocketRotation);
+    }
+    else
+    {
+        SocketLocation = Location;
+        SocketRotation = Rotation;
+    }
+}
+
+simulated function int GetBarrelIndex(int SeatIndex)
+{
+    local int OldBarrelIndex;
+    
+    OldBarrelIndex = super.GetBarrelIndex(SeatIndex);
+    if (Weapon == none)
+        return OldBarrelIndex;
+
+    return (Weapon.CurrentFireMode == 0 ? OldBarrelIndex % 1 : (OldBarrelIndex % 1) + 1);
+}
+
+simulated function VehicleWeaponFireEffects(vector HitLocation, int SeatIndex)
+{
+	Super.VehicleWeaponFireEffects(HitLocation, SeatIndex);
 	
+	if (Weapon != none && Weapon.CurrentFireMode == 1)
+	{
+		if (!FiringAmbient.bWasPlaying)
+		{
+			FiringAmbient.Play();
+			VehicleEvent('AltGun');
+		}
+	}
+}
+
+simulated function VehicleWeaponFired( bool bViaReplication, vector HitLocation, int SeatIndex )
+{
+    if(SeatIndex == 0) {
+        super.VehicleWeaponFired(bViaReplication,HitLocation,SeatIndex);
+    }
+}
+
+simulated function VehicleWeaponStoppedFiring( bool bViaReplication, int SeatIndex )
+{
+    if(SeatIndex == 0) {
+        super.VehicleWeaponStoppedFiring(bViaReplication,SeatIndex);
+    }
+    
+    // Trigger any vehicle Firing Effects
+    if ( WorldInfo.NetMode != NM_DedicatedServer )
+    {
+        if (Role == ROLE_Authority || bViaReplication || WorldInfo.NetMode == NM_Client)
+        {
+            VehicleEvent('STOP_AltGun');
+        }
+
+    }
+		if(Weapon.CurrentFireMode == 1)
+		{
+			PlaySound(FiringStopSound, TRUE, FALSE, FALSE, Location, FALSE);
+			FiringAmbient.Stop();
+		}
+		
+}
 	
+
     
 DefaultProperties
 {
@@ -58,7 +152,7 @@ DefaultProperties
 //========================================================\\
 
     bRotateCameraUnderVehicle=true
-    bSecondaryFireTogglesFirstPerson=true
+    bSecondaryFireTogglesFirstPerson=false
     Health=800
     MaxDesireability=0.8
     MomentumMult=0.7
@@ -76,7 +170,48 @@ DefaultProperties
     COMOffset=(x=-21.0,y=0.0,z=-42.0)
 	
 	SprintTrackTorqueFactorDivident=1.05
+	
+	Heroic_MuzzleFlash=ParticleSystem'RX_VH_MediumTank.Effects.MuzzleFlash_Heroic'
+	
+	BarrelLength(0)=450
+	BarrelLength(1)=100
+	BarrelLength(2)=100
+	BarrelLength(3)=100
+	BarrelLength(4)=100
+	BarrelLength(5)=100
 
+/************************/
+/*Veterancy Multipliers*/
+/***********************/
+
+//VP Given on death (by VRank)
+	VPReward(0) = 8 
+	VPReward(1) = 10 
+	VPReward(2) = 12 
+	VPReward(3) = 16 
+	
+	VPCost(0) = 30
+	VPCost(1) = 70
+	VPCost(2) = 150
+
+	Vet_HealthMod(0)=1 //800
+	Vet_HealthMod(1)=1.125 //900 
+	Vet_HealthMod(2)=1.25 //1000
+	Vet_HealthMod(3)=1.375 //1100
+		
+	Vet_SprintSpeedMod(0)=1
+	Vet_SprintSpeedMod(1)=1
+	Vet_SprintSpeedMod(2)=1.05
+	Vet_SprintSpeedMod(3)=1.10
+		
+	// +X as opposed to *X
+	Vet_SprintTTFD(0)=0
+	Vet_SprintTTFD(1)=0
+	Vet_SprintTTFD(2)=0.10
+	Vet_SprintTTFD(3)=0.15
+
+/**********************/
+	
     Begin Object Class=SVehicleSimTank Name=SimObject
 
         bClampedFrictionModel=true
@@ -153,10 +288,12 @@ DefaultProperties
 
 
     Seats(0)={(GunClass=class'Rx_Vehicle_MediumTank_Weapon',
-                GunSocket=(Fire01),
+                GunSocket=("Fire01", "MGFireSocket"),
                 TurretControls=(TurretPitch,TurretRotate),
                 GunPivotPoints=(MainTurretYaw,MainTurretPitch),
                 CameraTag=CamView3P,
+				SeatBone=Base,
+				SeatSocket=VH_Death,
                 CameraBaseOffset=(Z=20),
                 CameraOffset=-460,
                 SeatIconPos=(X=0.5,Y=0.33),
@@ -191,6 +328,7 @@ DefaultProperties
     VehicleEffects(6)=(EffectStartTag=DamageSmoke,EffectEndTag=NoDamageSmoke,bRestartRunning=false,EffectTemplate=ParticleSystem'RX_FX_Vehicle.Damage.P_Sparks_Tracks',EffectSocket=DamageTSparks02)
     VehicleEffects(7)=(EffectStartTag=DamageSmoke,EffectEndTag=NoDamageSmoke,bRestartRunning=false,EffectTemplate=ParticleSystem'RX_FX_Vehicle.Damage.P_EngineFire',EffectSocket=DamageFire01)
     VehicleEffects(8)=(EffectStartTag=DamageSmoke,EffectEndTag=NoDamageSmoke,bRestartRunning=false,EffectTemplate=ParticleSystem'RX_FX_Vehicle.Damage.P_EngineFire',EffectSocket=DamageFire02)
+    VehicleEffects(9)=(EffectStartTag="AltGun",EffectEndTag="STOP_AltGun",bRestartRunning=false,EffectTemplate=ParticleSystem'RX_VH_APC_GDI.Effects.P_MuzzleFlash_50Cal_Looping',EffectSocket="MGFireSocket")
 
 	WheelParticleEffects[0]=(MaterialType=Generic,ParticleTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_Generic')
     WheelParticleEffects[1]=(MaterialType=Dirt,ParticleTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_Dirt_Small')
@@ -204,7 +342,7 @@ DefaultProperties
 	WheelParticleEffects[9]=(MaterialType=YellowSand,ParticleTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_YellowSand_Small')
 	DefaultWheelPSCTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_Dirt_Small'
 	
-    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Vehicle_Huge')
+    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_VH_MediumTank.Effects.P_Explosion_Vehicle')
     BigExplosionSocket=VH_Death
 
     DamageMorphTargets(0)=(InfluenceBone=MT_Chassis_Front,MorphNodeName=MorphNodeW_Ch_F,LinkedMorphNodeName=none,Health=40,DamagePropNames=(Damage1))
@@ -240,6 +378,16 @@ DefaultProperties
    
     EnterVehicleSound=SoundCue'RX_VH_MediumTank.Sounds.Med_startCue'
     ExitVehicleSound=SoundCue'RX_VH_MediumTank.Sounds.Med_stopCue'
+
+	Begin Object Class=AudioComponent name=FiringmbientSoundComponent
+        bShouldRemainActiveIfDropped=true
+        bStopWhenOwnerDestroyed=true
+		SoundCue=SoundCue'RX_VH_MediumTank.Sounds.SC_MediumTank_MG'
+    End Object
+    FiringAmbient=FiringmbientSoundComponent
+    Components.Add(FiringmbientSoundComponent)
+    
+    FiringStopSound=SoundCue'RX_VH_MediumTank.Sounds.SC_MediumTank_MG_Stop'
 
 
 //========================================================\\

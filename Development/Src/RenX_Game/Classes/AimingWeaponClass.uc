@@ -83,6 +83,14 @@ simulated function PostBeginPlay()
 	bZoomedFireMode[1]=1;
 }
 
+function byte BestMode()
+{
+	if (bIronSightCapable)
+		return 0;
+	else
+		return Super.BestMode();
+}
+
 /** Function to run when zooming in or out, checks the bIronsightActivated boolean and decides which set of properties to use */
 simulated function CheckMyZoom()
 {
@@ -129,7 +137,12 @@ simulated function GetSetFOV()
 simulated function StartZoom(UTPlayerController PC)
 {
 	local AnimNodeSequence AnimSeq;
-	super.StartZoom(PC);
+	
+	if(GetZoomedState() == ZST_NotZoomed && HasAmmo(0)) super.StartZoom(PC);
+	else
+	{
+		return;
+	}
 
 	if(!bIronSightCapable) {
 		return;
@@ -163,11 +176,11 @@ simulated function StartZoom(UTPlayerController PC)
 		}
 		NormalViewOffset = default.PlayerViewOffset;
 		PC.StartZoomNonlinear(ZoomedTargetFOV, 10.0);
-		SetTimer(0.2, false, 'Gotozoom');
+		SetTimer(0.001, false, 'Gotozoom'); //SetTimer(0.2, false, 'Gotozoom');
 		if( Role < Role_Authority )
 		{
 			// if we're a client, synchronize server
-			SetTimer(0.2, false, 'ServerGotozoom');
+			SetTimer(0.001, false, 'ServerGotozoom'); //SetTimer(0.2, false, 'ServerGotozoom');
 		}
 	}
 }
@@ -184,7 +197,7 @@ simulated function MoveWeaponOutOfIronSight() {
 simulated function Gotozoom()
 {
 	//local UTPlayerController PC;
-
+	//`log("PROCESS GOTOZOOM"); Yosh Log
 	//PC = UTPlayerController(Instigator.Controller);
 	if (GetZoomedState() == ZST_NotZoomed)
 	{
@@ -204,6 +217,7 @@ simulated function Gotozoom()
 /** Server version of the above to make sure everything is in sync, doesn't set the zoom level because that is a client side visual change */
 reliable server function ServerGotoZoom()
 {
+	//`log("Run ServerGOTOZOOM"); Yosh Log
 	bIronsightActivated = true;
 	CheckMyZoom();
 }
@@ -211,6 +225,7 @@ reliable server function ServerGotoZoom()
 /** This runs when you right click to leave zoom aim mode and calls LeaveZoom and ServerLeaveZoom so everything is in sync again */
 simulated function EndZoom(UTPlayerController PC)
 {
+	//`log("PROCESS END ZOOM"); Yosh Log 
 	if(!bIronSightCapable) {
 		super.EndZoom(PC);
 		return;
@@ -236,7 +251,8 @@ simulated function LeaveZoom()
 {
 
 	local UTPlayerController PC;
-		
+	
+	//`log("Process LEAVE ZOOM"); Yosh Log 
 	PC = UTPlayerController(Instigator.Controller);
 	ZoomCount = 0;
 	ClearTimer('MoveWeaponToIronSight');
@@ -258,6 +274,7 @@ simulated function LeaveZoom()
 /** Server version of the above, doesn't reset the zoom level because it was never changed server side and doesn't play the animations because they're a client side visual effect */
 reliable server function ServerLeaveZoom()
 {
+	//`log("ServerLeaveZoom"); Yosh log  
 	bIronsightActivated = false;
 	CheckMyZoom();
 }
@@ -383,7 +400,7 @@ defaultproperties
 
 	//These reduce the weapon lagging behind the crosshair effect to ensure the sights are properly lined up when you enter zoom aiming mode
 	MaxPitchLag=40
-	MaxYawLag=50
+	MaxYawLag=70
 
 	//This says the weapon isn't zoom aiming when the weapon is first equipped
 	bIronsightActivated=false

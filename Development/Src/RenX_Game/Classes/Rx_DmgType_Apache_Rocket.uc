@@ -7,7 +7,7 @@ defaultproperties
     SuicideStatsName=SUICIDES_APACHEROCKET
 
     DamageWeaponFireMode=2
-    VehicleDamageScaling=0.76
+    VehicleDamageScaling=1.0
     NodeDamageScaling=0.5
     VehicleMomentumScaling=0.025
 	
@@ -15,8 +15,8 @@ defaultproperties
     bBulletHit=True
 
     CustomTauntIndex=10
-    lightArmorDmgScaling=0.76
-    BuildingDamageScaling=1.52
+    lightArmorDmgScaling=1.0
+    BuildingDamageScaling=1.75
 	MCTDamageScaling=3.0
 	MineDamageScaling=2.0
 	

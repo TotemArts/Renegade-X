@@ -36,6 +36,15 @@ var config float AmbientVolume;
 var config float UnGroupedVolume;
 
 var config bool bAutostartMusic;
+
+//Setting variables (nBab)
+var config int TechBuildingIconPreference;
+var config int BeaconIconPreference;
+var config int CrosshairColorPreference;
+var config int KillSoundPreference;
+// Use team colors for player names. Otherwise show friendly/enemy
+var config bool NicknamesUseTeamColors;
+
 /*
 ;Audio Settings here
 UIVolume = 1.0
@@ -272,7 +281,7 @@ var() bool AllowImageReflectionShadowing;
 /** */
 var() bool bAllowTemporalAA;
 /** */
-var() int TemporalAA_MinDepth;
+var() float TemporalAA_MinDepth;
 /** */
 var() float TemporalAA_StartDepthVelocityScale;
 
@@ -299,11 +308,11 @@ var() float PreShadowResolutionFactor;
 /** Whether to allow hardware filtering optimizations like hardware PCF and Fetch4.*/
 var() bool bAllowHardwareShadowFiltering;
 /** global tessellation factor multiplier.*/
-var() int TessellationAdaptivePixelsPerTriangle;
+var() float TessellationAdaptivePixelsPerTriangle;
 /** Higher values make the per object soft shadow comparison sharper, lower values make the transition softer.*/
-var() int PerObjectShadowTransition;
+var() float PerObjectShadowTransition;
 /** Higher values make the per scene soft shadow comparison sharper, lower values make the transition softer.*/
-var() int PerSceneShadowTransition;
+var() float PerSceneShadowTransition;
 /** Scale applied to the penumbra size of Cascaded Shadow Map splits, useful for minimizing the transition between splits.*/
 var() float CSMSplitPenumbraScale;
 /** Scale applied to the soft comparison transition distance of Cascaded Shadow Map splits, useful for minimizing the transition between splits.*/
@@ -311,7 +320,7 @@ var() float CSMSplitSoftTransitionDistanceScale;
 /** Scale applied to the depth bias of Cascaded Shadow Map splits, useful for minimizing the transition between splits.*/
 var() float CSMSplitDepthBiasScale;
 /** Minimum camera FOV for CSM, this is used to prevent shadow shimmering when animating the FOV lower than the min, for example when zooming.*/
-var() int CSMMinimumFOV;
+var() float CSMMinimumFOV;
 /** The FOV will be rounded by this factor for the purposes of CSM, which turns shadow shimmering into discrete jumps.*/
 var() float CSMFOVRoundFactor;
 /** WholeSceneDynamicShadowRadius to use when using CSM to preview unbuilt lighting from a directional light.*/
@@ -341,7 +350,7 @@ var() int ApexDestructionMaxChunkIslandCount;
 /** The maximum number of PhysX shapes which represent destructible chunks.*/
 var() int ApexDestructionMaxShapeCount;
 /** Every destructible asset defines a min and max lifetime, and maximum separation distance for its chunks.*/
-var() int ApexDestructionMaxChunkSeparationLOD;
+var() float ApexDestructionMaxChunkSeparationLOD;
 /** Lets the user throttle the number of fractures processed per frame (per scene) due to destruction, as this can be quite costly. The default is 0xffffffff (unlimited).*/
 var() int ApexDestructionMaxFracturesProcessedPerFrame;
 /** Average Simulation Frequency is estimated with the last n frames. This is used in Clothing when bAllowAdaptiveTargetFrequency is enabled.*/
@@ -479,7 +488,6 @@ final function PopulateSystemSettings()
 	}
 
 	PC.ConsoleCommand("GAMMA " $GetGammaSettings());
-
 }
 
 final function ParseSetting(string Setting)
@@ -631,21 +639,21 @@ final function ParseNumericalSetting(string key, string Value)
 		case "MaxFilterBlurSampleCount": if(MaxFilterBlurSampleCount != int(Value)) MaxFilterBlurSampleCount = engine.GetSystemSettingInt(key); /*`log("MaxFilterBlurSampleCount? "$MaxFilterBlurSampleCount);*/ break;
 		case "MinPreShadowResolution": if(MinPreShadowResolution != int(Value)) MinPreShadowResolution = engine.GetSystemSettingInt(key); /*`log("MinPreShadowResolution? "$MinPreShadowResolution);*/ break;
 		case "MaxWholeSceneDominantShadowResolution": if(MaxWholeSceneDominantShadowResolution != int(Value)) MaxWholeSceneDominantShadowResolution = engine.GetSystemSettingInt(key); /*`log("MaxWholeSceneDominantShadowResolution? "$MaxWholeSceneDominantShadowResolution);*/ break;
-		case "TemporalAA_MinDepth": if(TemporalAA_MinDepth != int(Value)) TemporalAA_MinDepth = engine.GetSystemSettingInt(key); /*`log("TemporalAA_MinDepth? "$TemporalAA_MinDepth);*/ break;
+		case "TemporalAA_MinDepth": if(TemporalAA_MinDepth != float(Value)) TemporalAA_MinDepth = engine.GetSystemSettingFloat(key); /*`log("TemporalAA_MinDepth? "$TemporalAA_MinDepth);*/ break;
 		case "MotionBlurSkinning": if(MotionBlurSkinning != int(Value)) MotionBlurSkinning = engine.GetSystemSettingInt(key); /*`log("MotionBlurSkinning? "$MotionBlurSkinning);*/ break;
 		case "ShadowFilterQualityBias": if(ShadowFilterQualityBias != int(Value)) ShadowFilterQualityBias = engine.GetSystemSettingInt(key); /*`log("ShadowFilterQualityBias? "$ShadowFilterQualityBias);*/ break;
 		case "PreShadowFadeResolution": if(PreShadowFadeResolution != int(Value)) PreShadowFadeResolution = engine.GetSystemSettingInt(key); /*`log("PreShadowFadeResolution? "$PreShadowFadeResolution);*/ break;
-		case "TessellationAdaptivePixelsPerTriangle": if(TessellationAdaptivePixelsPerTriangle != int(Value)) TessellationAdaptivePixelsPerTriangle = engine.GetSystemSettingInt(key); /*`log("TessellationAdaptivePixelsPerTriangle? "$TessellationAdaptivePixelsPerTriangle);*/ break;
-		case "PerObjectShadowTransition": if(PerObjectShadowTransition != int(Value)) PerObjectShadowTransition = engine.GetSystemSettingInt(key); /*`log("PerObjectShadowTransition? "$PerObjectShadowTransition);*/ break;
-		case "PerSceneShadowTransition": if(PerSceneShadowTransition != int(Value)) PerSceneShadowTransition = engine.GetSystemSettingInt(key); /*`log("PerSceneShadowTransition? "$PerSceneShadowTransition);*/ break;
-		case "CSMMinimumFOV": if(CSMMinimumFOV != int(Value)) CSMMinimumFOV = engine.GetSystemSettingInt(key); /*`log("CSMMinimumFOV? "$CSMMinimumFOV);*/ break;
+		case "TessellationAdaptivePixelsPerTriangle": if(TessellationAdaptivePixelsPerTriangle != float(Value)) TessellationAdaptivePixelsPerTriangle = engine.GetSystemSettingFloat(key); /*`log("TessellationAdaptivePixelsPerTriangle? "$TessellationAdaptivePixelsPerTriangle);*/ break;
+		case "PerObjectShadowTransition": if(PerObjectShadowTransition != float(Value)) PerObjectShadowTransition = engine.GetSystemSettingFloat(key); /*`log("PerObjectShadowTransition? "$PerObjectShadowTransition);*/ break;
+		case "PerSceneShadowTransition": if(PerSceneShadowTransition != float(Value)) PerSceneShadowTransition = engine.GetSystemSettingFloat(key); /*`log("PerSceneShadowTransition? "$PerSceneShadowTransition);*/ break;
+		case "CSMMinimumFOV": if(CSMMinimumFOV != float(Value)) CSMMinimumFOV = engine.GetSystemSettingFloat(key); /*`log("CSMMinimumFOV? "$CSMMinimumFOV);*/ break;
 		case "UnbuiltNumWholeSceneDynamicShadowCascades": if(UnbuiltNumWholeSceneDynamicShadowCascades != int(Value)) UnbuiltNumWholeSceneDynamicShadowCascades = engine.GetSystemSettingInt(key); /*`log("UnbuiltNumWholeSceneDynamicShadowCascades? "$UnbuiltNumWholeSceneDynamicShadowCascades);*/ break;
 		case "WholeSceneShadowUnbuiltInteractionThreshold": if(WholeSceneShadowUnbuiltInteractionThreshold != int(Value)) WholeSceneShadowUnbuiltInteractionThreshold = engine.GetSystemSettingInt(key); /*`log("WholeSceneShadowUnbuiltInteractionThreshold? "$WholeSceneShadowUnbuiltInteractionThreshold);*/ break;
 		case "SecondaryDisplayMaximumWidth": if(SecondaryDisplayMaximumWidth != int(Value)) SecondaryDisplayMaximumWidth = engine.GetSystemSettingInt(key); /*`log("SecondaryDisplayMaximumWidth? "$SecondaryDisplayMaximumWidth);*/ break;
 		case "SecondaryDisplayMaximumHeight": if(SecondaryDisplayMaximumHeight != int(Value)) SecondaryDisplayMaximumHeight = engine.GetSystemSettingInt(key); /*`log("SecondaryDisplayMaximumHeight? "$SecondaryDisplayMaximumHeight);*/ break;
 		case "ApexDestructionMaxChunkIslandCount": if(ApexDestructionMaxChunkIslandCount != int(Value)) ApexDestructionMaxChunkIslandCount = engine.GetSystemSettingInt(key); /*`log("ApexDestructionMaxChunkIslandCount? "$ApexDestructionMaxChunkIslandCount);*/ break;
 		case "ApexDestructionMaxShapeCount": if(ApexDestructionMaxShapeCount != int(Value)) ApexDestructionMaxShapeCount = engine.GetSystemSettingInt(key); /*`log("ApexDestructionMaxShapeCount? "$ApexDestructionMaxShapeCount);*/ break;
-		case "ApexDestructionMaxChunkSeparationLOD": if(ApexDestructionMaxChunkSeparationLOD != int(Value)) ApexDestructionMaxChunkSeparationLOD = engine.GetSystemSettingInt(key); /*`log("ApexDestructionMaxChunkSeparationLOD? "$ApexDestructionMaxChunkSeparationLOD);*/ break;
+		case "ApexDestructionMaxChunkSeparationLOD": if(ApexDestructionMaxChunkSeparationLOD != float(Value)) ApexDestructionMaxChunkSeparationLOD = engine.GetSystemSettingFloat(key); /*`log("ApexDestructionMaxChunkSeparationLOD? "$ApexDestructionMaxChunkSeparationLOD);*/ break;
 		case "ApexDestructionMaxFracturesProcessedPerFrame": if(ApexDestructionMaxFracturesProcessedPerFrame != int(Value)) ApexDestructionMaxFracturesProcessedPerFrame = engine.GetSystemSettingInt(key); /*`log("ApexDestructionMaxFracturesProcessedPerFrame? "$ApexDestructionMaxFracturesProcessedPerFrame);*/ break;
 		case "ApexGRBGPUMemSceneSize": if(ApexGRBGPUMemSceneSize != int(Value)) ApexGRBGPUMemSceneSize = engine.GetSystemSettingInt(key); /*`log("ApexGRBGPUMemSceneSize? "$ApexGRBGPUMemSceneSize);*/ break;
 		case "ApexGRBGPUMemTempDataSize": if(ApexGRBGPUMemTempDataSize != int(Value)) ApexGRBGPUMemTempDataSize = engine.GetSystemSettingInt(key); /*`log("ApexGRBGPUMemTempDataSize? "$ApexGRBGPUMemTempDataSize);*/ break;
@@ -726,7 +734,7 @@ final function string GetCurrentResolution()
 	return (ResX $"x" $ResY);
 }
 
-final function bool GetReducedGore()
+final function bool GetEnableGore()
 {
 	//WI.NetMode != NM_DedicatedServer
 	if (class'WorldInfo'.static.GetWorldInfo().NetMode == NM_Standalone) {
@@ -735,7 +743,7 @@ final function bool GetReducedGore()
 	return (class'Rx_Game'.default.GoreLevel > 0);
 }
 
-final function SetReducedGore(bool data)
+final function SetEnableGore(bool data)
 {
 	//local Rx_Game rxGame;
 	if (class'WorldInfo'.static.GetWorldInfo().NetMode == NM_Standalone) {
@@ -793,9 +801,49 @@ final function SetWeaponHand(int data)
 	local Rx_Controller rxPC;
 	rxPC = Rx_Controller(PC);
 	
-	rxPC.WeaponHandPreference = EWeaponHand(data);
-	rxPC.SaveConfig();
+	rxPC.SetHand(EWeaponHand(data));
 }
+//nBab
+final function int GetTechBuildingIcon()
+{
+	return TechBuildingIconPreference;
+}
+final function SetTechBuildingIcon(int data)
+{
+	TechBuildingIconPreference = data;
+	saveConfig();
+}
+//nBab
+final function int GetBeaconIcon()
+{
+	return BeaconIconPreference;
+}
+final function SetBeaconIcon(int data)
+{
+	BeaconIconPreference = data;
+	SaveConfig();
+}
+//nBab
+final function int GetCrosshairColor()
+{
+	return CrosshairColorPreference;
+}
+final function SetCrosshairColor(int data)
+{
+	CrosshairColorPreference = data;
+	SaveConfig();
+}
+//nBab
+final function int GetKillSound()
+{
+	return KillSoundPreference;
+}
+final function SetKillSound(int data)
+{
+	KillSoundPreference = data;
+	SaveConfig();
+}
+
 //they have a const on var declaration. 
 final function bool GetToggleADS() //need to load seetings onto them.
 {
@@ -808,25 +856,41 @@ final function SetToggleADS(bool data)
 	Rx_PlayerInput(PC.PlayerInput).SaveConfig();
 }
 
+//they have a const on var declaration. 
+final function bool GetToggleCrouch() //need to load seetings onto them.
+{
+	return Rx_PlayerInput(PC.PlayerInput).bToggleCrouch;
+}
+
+final function SetToggleCrouch(bool data) 
+{
+	Rx_PlayerInput(PC.PlayerInput).bToggleCrouch = data;
+	Rx_PlayerInput(PC.PlayerInput).SaveConfig();
+}
+
+//they have a const on var declaration. 
+final function bool GetToggleSprint() //need to load seetings onto them.
+{
+	return Rx_PlayerInput(PC.PlayerInput).bToggleSprint;
+}
+
+final function SetToggleSprint(bool data) 
+{
+	Rx_PlayerInput(PC.PlayerInput).bToggleSprint = data;
+	Rx_PlayerInput(PC.PlayerInput).SaveConfig();
+}
+
 final function bool GetNicknamesUseTeamColors() //need to load seetings onto them.
 {
-	if (Rx_HUD(PC.myHUD) != none) {
-		return Rx_HUD(PC.myHUD).NicknamesUseTeamColors;
-	}
-	return class'Rx_HUD'.default.NicknamesUseTeamColors;
+	//modified/cleaned up code becuase it didn't retain the config betwen frontend and pause menu (nBab)
+	return NicknamesUseTeamColors;
 }
 
 final function SetNicknamesUseTeamColors(bool data) //need to load seetings onto them.
 {
-	if (Rx_HUD(PC.myHUD) != none) {
-		Rx_HUD(PC.myHUD).NicknamesUseTeamColors = data;
-		//Rx_HUD(PC.myHUD).SaveConfig(); //commented out from saving bShowHUD=false to the config
-		class'Rx_HUD'.default.NicknamesUseTeamColors = data;
-		Rx_HUD(PC.myHUD).static.StaticSaveConfig();
-		return;
-	}
-	class'Rx_HUD'.default.NicknamesUseTeamColors = data;
-	class'Rx_HUD'.static.StaticSaveConfig();
+	//modified/cleaned up code becuase it didn't retain the config betwen frontend and pause menu (nBab)
+	NicknamesUseTeamColors = data;
+	SaveConfig();
 }
 
 final function bool GetInvertYAxis()
@@ -863,11 +927,11 @@ final function SetEnableSmoothFramerate(bool data)
 
 final function bool GetDisablePhysXHardwareSupport()
 {
-	return !engine.bDisablePhysXHardwareSupport;
+	return engine.bDisablePhysXHardwareSupport;
 }
 final function SetDisablePhysXHardwareSupport(bool data)
 {
-	engine.bDisablePhysXHardwareSupport = !data;
+	engine.bDisablePhysXHardwareSupport = data;
 	engine.SaveConfig();
 }
 
@@ -881,6 +945,16 @@ final function SetGammaSettings(float data)
 	class'Client'.default.DisplayGamma = data; //Overide the DisplayGamma's Default. This is the only way to save the data in Engine.ini
 	class'Client'.static.StaticSaveConfig();
 	engine.Client.SaveConfig();
+}
+
+final function float GetFPSSetting()
+{
+	return engine.MaxSmoothedFrameRate;
+}
+final function SetFPSSetting(float data)
+{
+	engine.MaxSmoothedFrameRate = data;
+	engine.SaveConfig();
 }
 
 /** Sets all system settings to one pre-defined settings group.
@@ -1296,7 +1370,7 @@ final function SetbAllowD3D9MSAA(bool Value)
 	   return;
 	bAllowD3D9MSAA = Value;
 	PC.ConsoleCommand("SCALE SET bAllowD3D9MSAA "$Value);
-	 
+	saveconfig();
 }
 final function SetbAllowWholeSceneDominantShadows(bool Value)
 {
@@ -1633,7 +1707,7 @@ final function SetMaxWholeSceneDominantShadowResolution(int Value)
         PC.ConsoleCommand("SCALE SET MaxWholeSceneDominantShadowResolution "$Value);
          
 }
-final function SetTemporalAA_MinDepth(int Value)
+final function SetTemporalAA_MinDepth(float Value)
 {
     if (PC == none)
            return;
@@ -1665,7 +1739,7 @@ final function SetPreShadowFadeResolution(int Value)
         PC.ConsoleCommand("SCALE SET PreShadowFadeResolution "$Value);
          
 }
-final function SetTessellationAdaptivePixelsPerTriangle(int Value)
+final function SetTessellationAdaptivePixelsPerTriangle(float Value)
 {
     if (PC == none)
            return;
@@ -1673,7 +1747,7 @@ final function SetTessellationAdaptivePixelsPerTriangle(int Value)
         PC.ConsoleCommand("SCALE SET TessellationAdaptivePixelsPerTriangle "$Value);
          
 }
-final function SetPerObjectShadowTransition(int Value)
+final function SetPerObjectShadowTransition(float Value)
 {
     if (PC == none)
            return;
@@ -1681,7 +1755,7 @@ final function SetPerObjectShadowTransition(int Value)
         PC.ConsoleCommand("SCALE SET PerObjectShadowTransition "$Value);
          
 }
-final function SetPerSceneShadowTransition(int Value)
+final function SetPerSceneShadowTransition(float Value)
 {
     if (PC == none)
            return;
@@ -1689,7 +1763,7 @@ final function SetPerSceneShadowTransition(int Value)
         PC.ConsoleCommand("SCALE SET PerSceneShadowTransition "$Value);
          
 }
-final function SetCSMMinimumFOV(int Value)
+final function SetCSMMinimumFOV(float Value)
 {
     if (PC == none)
            return;
@@ -1745,7 +1819,7 @@ final function SetApexDestructionMaxShapeCount(int Value)
         PC.ConsoleCommand("SCALE SET ApexDestructionMaxShapeCount "$Value);
          
 }
-final function SetApexDestructionMaxChunkSeparationLOD(int Value)
+final function SetApexDestructionMaxChunkSeparationLOD(float Value)
 {
     if (PC == none)
            return;

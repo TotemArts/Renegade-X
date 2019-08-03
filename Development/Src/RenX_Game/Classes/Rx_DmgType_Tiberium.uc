@@ -45,7 +45,10 @@ static function DoCustomDamageEffects(UTPawn ThePawn, class<UTDamageType> TheDam
 	ThePawn.bGibbed=TRUE; // this makes it so you can't then switch to a "gibbing" weapon and get chunks
 
 	BoneLocation = ThePawn.Mesh.GetBoneLocation( default.BoneToAttach );
-
+	
+	if(BoneLocation == vect(0,0,0)) 
+		return; 
+	
 	ThePawn.WorldInfo.MyEmitterPool.SpawnEmitter( default.PS_AttachToBody, BoneLocation, Rotator(vect(0,0,1)), ThePawn );
 }
 
@@ -87,11 +90,13 @@ DefaultProperties
 	CustomTauntIndex=1
 	
 	PS_AttachToGib=ParticleSystem'RX_Deco_Tiberium.Effects.P_TiberiumMist_Poison'
-	DamageCameraAnim=CameraAnim'Camera_FX.LinkGun.C_WP_Link_Beam_Hit'
+	DamageCameraAnim= CameraAnim'RX_FX_Munitions2.Camera_FX.C_WP_Link_Beam_Hit' //CameraAnim'Camera_FX.LinkGun.C_WP_Link_Beam_Hit'
 
 	BoneToAttach="b_hip"
 	PS_AttachToBody=ParticleSystem'RX_Deco_Tiberium.Effects.P_TiberiumMist_Poison'
 
 	IconTextureName="T_DeathIcon_Tiberium"
 	IconTexture=Texture2D'RenX_AssetBase.DeathIcons.T_DeathIcon_Tiberium'
+	
+	bUnsourcedDamage=true
 }

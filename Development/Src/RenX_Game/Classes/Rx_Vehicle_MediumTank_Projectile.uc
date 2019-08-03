@@ -65,4 +65,10 @@ DefaultProperties
     ProjectileLightClass=class'RenX_Game.Rx_Light_Tank_Shell'
     ExplosionLightClass=Class'RenX_Game.Rx_Light_Tank_Explosion'
     bWaitForEffectsAtEndOfLifetime = true
+
+	Vet_LifespanModifier(0)=1 //Normal (should be 1)
+	Vet_LifespanModifier(1)=1.05 //Veteran 
+	Vet_LifespanModifier(2)=1.10 //Elite
+	Vet_LifespanModifier(3)=1.15 //Heroic
+	
 }

@@ -20,6 +20,7 @@ function BeginBehaviour()
 
 function ComponentSeePlayer(Pawn Seen)
 {
+	//`log("Show Target Behaviour");
 	PawnTargetingBehaviour.ComponentSeePlayer(Seen);
 }
 

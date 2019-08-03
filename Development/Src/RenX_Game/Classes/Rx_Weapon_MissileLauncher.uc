@@ -41,7 +41,7 @@ var MaterialInstanceConstant LockedOnCrosshairMIC;
 replication
 {
 	if (Role == ROLE_Authority && bNetDirty)
-		bLockedOnTarget, LockedTarget;
+		bLockedOnTarget, LockedTarget, PendingLockedTarget;
 }
 
 
@@ -77,6 +77,47 @@ simulated function DrawLockedOn( HUD H )
 {
     local vector2d CrosshairSize;
     local float x, y;
+    local LinearColor LC; //nBab
+	local vector ScreenLoc; 
+	local bool bTargetBehindUs; 
+	
+	//set initial color based on settings (nBab)
+	LC.A = 1.f;
+	switch (Rx_HUD(Rx_Controller(Instigator.Controller).myHUD).SystemSettingsHandler.GetCrosshairColor())
+	{
+		//white
+		case 0:
+			LC.R = 1.f;
+			LC.G = 1.f;
+			LC.B = 1.f;
+			break;
+		//orange
+		case 1:
+			LC.R = 2.f;
+			LC.G = 0.5f;
+			LC.B = 0.f;
+			break;
+		//violet
+		case 2:
+			LC.R = 2.f;
+			LC.G = 0.f;
+			LC.B = 2.f;
+			break;
+		//blue
+		case 3:
+			LC.R = 0.f;
+			LC.G = 0.f;
+			LC.B = 2.f;
+			break;
+		//cyan
+		case 4:
+			LC.R = 0.f;
+			LC.G = 2.f;
+			LC.B = 2.f;
+			break;	
+	}
+	CrosshairMIC.SetVectorParameterValue('Reticle_Colour', LC);
+	LockedOnCrosshairMIC.SetVectorParameterValue('Reticle_Colour', LC);
 
    	if (H == none || H.Canvas == none)
       	return;
@@ -93,6 +134,22 @@ simulated function DrawLockedOn( HUD H )
         H.Canvas.DrawMaterialTile(CrosshairMIC,CrosshairSize.X, CrosshairSize.Y,0.0,0.0,1.0,1.0);
         H.Canvas.SetPos(x, y);
         H.Canvas.DrawMaterialTile(LockedOnCrosshairMIC,CrosshairSize.X, CrosshairSize.Y,0.0,0.0,1.0,1.0);
+		if(LockedTarget != none)
+			{
+				bTargetBehindUs = class'Rx_Utils'.static.OrientationOfLocAndRotToBLocation(Rx_Controller(Instigator.Controller).ViewTarget.Location,Instigator.Controller.Rotation,LockedTarget.location) < -0.5;
+			
+				if(!bTargetBehindUs)
+				{
+				LC.R = 10.f;
+				LC.G = 0.f;
+				LC.B = 0.f;
+				CrosshairMIC.SetVectorParameterValue('Reticle_Colour', LC);
+				ScreenLoc = LockedTarget.location; 
+				ScreenLoc = H.Canvas.Project(ScreenLoc);
+				H.Canvas.SetPos( ScreenLoc.X - CrosshairWidth/2, ScreenLoc.Y - CrosshairWidth/2 );
+				H.Canvas.DrawMaterialTile(CrosshairMIC, CrosshairWidth, CrosshairHeight);	
+				}
+			}
         DrawHitIndicator(H,x,y);
     }
 }
@@ -144,7 +201,7 @@ function AdjustLockTarget(actor NewLockTarget)
 simulated function bool CanLockOnTo(Actor TA)
 {
 	if ( (TA == None) || !TA.bProjTarget || TA.bDeleteMe || (Pawn(TA) == None) || (TA == Instigator) || (Pawn(TA).Health <= 0) 
-			|| TA.IsInState('Stealthed') || TA.IsInState('BeenShot'))
+			|| TA.IsInState('Stealthed') || TA.IsInState('BeenShot') || Rx_Pawn(TA) != none ) //|| Rx_SupportVehicle(TA) != none ) //Because the dropoff Chinook is a mess. 
 	{
 		return false;
 	}
@@ -237,6 +294,7 @@ function CheckTargetLock()
 		// Begin by tracing the shot to see if it hits anyone
 		Instigator.Controller.GetPlayerViewPoint( StartTrace, AimRot );
 		Aim = vector(AimRot);
+		StartTrace=StartTrace+Aim*150; 
 		EndTrace = StartTrace + Aim * LockRange;
 		HitActor = Trace(HitLocation, HitNormal, EndTrace, StartTrace, true,,, TRACEFLAG_Bullet);
 
@@ -246,7 +304,7 @@ function CheckTargetLock()
 			// We didn't hit a valid target, have the controller attempt to pick a good target
 			BestAim = ((UDKPlayerController(Instigator.Controller) != None) && UDKPlayerController(Instigator.Controller).bConsolePlayer) ? ConsoleLockAim : LockAim;
 			BestDist = 0.0;
-			TA = Instigator.Controller.PickTarget(class'Pawn', BestAim, BestDist, Aim, StartTrace, LockRange);
+			TA = Instigator.Controller.PickTarget(class'Pawn', BestAim, BestDist, Aim, StartTrace, LockRange); 
 			if ( TA != None && CanLockOnTo(TA) )
 			{
 				BestTarget = TA;
@@ -396,11 +454,171 @@ simulated function ActiveRenderOverlays( HUD H )
    }
 }
 
+simulated function DrawCrosshair( Hud HUD )
+{
+	local float x,y;
+	local UTHUDBase H;
+	local Pawn MyPawnOwner;
+	local actor TargetActor;
+	local int targetTeam;
+	local LinearColor LC, LockColor; //nBab
+	local vector ScreenLoc;
+	local bool bTargetBehindUs;
+	local float XResScale, MinDotScale;
+	
+	
+	//set initial color based on settings (nBab)
+	LC.A = 1.f;
+	switch (Rx_HUD(Rx_Controller(Instigator.Controller).myHUD).SystemSettingsHandler.GetCrosshairColor())
+	{
+		//white
+		case 0:
+			LC.R = 1.f;
+			LC.G = 1.f;
+			LC.B = 1.f;
+			break;
+		//orange
+		case 1:
+			LC.R = 2.f;
+			LC.G = 0.5f;
+			LC.B = 0.f;
+			break;
+		//violet
+		case 2:
+			LC.R = 2.f;
+			LC.G = 0.f;
+			LC.B = 2.f;
+			break;
+		//blue
+		case 3:
+			LC.R = 0.f;
+			LC.G = 0.f;
+			LC.B = 2.f;
+			break;
+		//cyan
+		case 4:
+			LC.R = 0.f;
+			LC.G = 2.f;
+			LC.B = 2.f;
+			break;	
+	}	
 
+	H = UTHUDBase(HUD);
+	if ( H == None )
+		return;
+		
+	XResScale = H.Canvas.SizeX/1920.0;
+	MinDotScale = Fmax(XResScale, 0.73);
+		
+	CrosshairWidth = (default.CrosshairWidth + RecoilSpread*RecoilSpreadCrosshairScaling) * XResScale;	
+	CrosshairHeight = (default.CrosshairHeight + RecoilSpread*RecoilSpreadCrosshairScaling) * XResScale;
+		
+	CrosshairLinesX = H.Canvas.ClipX * 0.5 - (CrosshairWidth * 0.5);
+	CrosshairLinesY = H.Canvas.ClipY * 0.5 - (CrosshairHeight * 0.5);	
+	
+	MyPawnOwner = Pawn(Owner);
+
+	//determines what we are looking at and what color we should use based on that.
+	if (MyPawnOwner != None)
+	{
+		TargetActor = Rx_Hud(HUD).GetActorWeaponIsAimingAt();
+		if (Pawn(TargetActor) == None && Rx_Weapon_DeployedActor(TargetActor) == None && 
+			Rx_Building(TargetActor) == None && Rx_BuildingAttachment(TargetActor) == None)
+		{
+			TargetActor = (TargetActor == None) ? None : Pawn(TargetActor.Base);
+		}
+		
+		if(TargetActor != None)
+		{
+			targetTeam = TargetActor.GetTeamNum();
+			
+			if (targetTeam == 0 || targetTeam == 1) //has to be gdi or nod player
+			{
+				if (targetTeam != MyPawnOwner.GetTeamNum())
+				{
+					if (!TargetActor.IsInState('Stealthed') && !TargetActor.IsInState('BeenShot'))
+					{
+						//enemy, go red, except if stealthed (else would be cheating ;] )
+						//nBab
+						LC.R = 10.f;
+						LC.G = 0.f;
+						LC.B = 0.f;
+					}
+				}
+				else
+				{
+					//Friendly
+					//nBab
+					LC.R = 0.f;
+					LC.G = 10.f;
+					LC.B = 0.f;
+				}
+			}
+		}
+	}
+	
+	if (!HasAnyAmmo()) //no ammo, go yellow
+	{
+		//nBab
+		LC.R = 10.f;
+		LC.G = 8.f;
+		LC.B = 0.f;
+	}
+	else
+	{
+		if (CurrentlyReloading || CurrentlyBoltReloading || (BoltActionReload && HasAmmo(CurrentFireMode) && IsTimerActive('BoltActionReloadTimer'))) //reloading, go yellow
+		{
+			//nBab
+			LC.R = 10.f;
+			LC.G = 8.f;
+			LC.B = 0.f;
+		}
+
+	}
+
+	//nBab
+	CrosshairMIC2.SetVectorParameterValue('Reticle_Colour', LC);
+	CrosshairDotMIC2.SetVectorParameterValue('Reticle_Colour', LC);
+	
+	H.Canvas.SetPos( CrosshairLinesX, CrosshairLinesY );
+	if(bDisplayCrosshair) {
+		H.Canvas.DrawMaterialTile(CrosshairMIC2, CrosshairWidth, CrosshairHeight);
+		
+		if(PendingLockedTarget != none)
+			{
+				bTargetBehindUs = class'Rx_Utils'.static.OrientationOfLocAndRotToBLocation(Rx_Controller(Instigator.Controller).ViewTarget.Location,Instigator.Controller.Rotation,PendingLockedTarget.location) < -0.5;
+				
+					if(!bTargetBehindUs)
+					{
+					LockColor.R = 1.f;
+					LockColor.G = 10.f;
+					LockColor.B = 1.f;
+					CrosshairMIC2.SetVectorParameterValue('Reticle_Colour', LockColor);
+					ScreenLoc = PendingLockedTarget.location; 
+					ScreenLoc = H.Canvas.Project(ScreenLoc);
+					H.Canvas.SetPos( ScreenLoc.X - CrosshairWidth/2, ScreenLoc.Y - CrosshairWidth/2 );
+					H.Canvas.DrawMaterialTile(CrosshairMIC2, CrosshairWidth, CrosshairHeight);
+					}
+				}
+				
+		
+	}
+
+	CrosshairLinesX = H.Canvas.ClipX * 0.5 - (default.CrosshairWidth * 0.5 * MinDotScale);
+	CrosshairLinesY = H.Canvas.ClipY * 0.5 - (default.CrosshairHeight * 0.5 * MinDotScale);
+	GetCrosshairDotLoc(x, y, H);
+	H.Canvas.SetPos( X, Y );
+	if(bDisplayCrosshair) {
+		H.Canvas.DrawMaterialTile(CrosshairDotMIC2, default.CrosshairWidth*MinDotScale, default.CrosshairHeight*MinDotScale);
+		
+	}
+	DrawHitIndicator(H,x,y);
+	
+}
 
 simulated function bool UsesClientSideProjectiles(byte FireMode)
 {
-	return false;
+	return FireMode==1;
 }
 
 
@@ -435,12 +653,19 @@ DefaultProperties
 	BobDamping = 0.85
 	JumpDamping = 0.5
 
-
-	
 	FireOffset=(X=20,Y=10,Z=-3)
 	
-	LeftHandIK_Offset=(X=1.7,Y=-3.9,Z=-0.75)
-	RightHandIK_Offset=(X=4.2,Y=-0.1,Z=-1.4)
+	LeftHandIK_Offset=(X=-3.054600,Y=-3.855900,Z=0.031600)
+	LeftHandIK_Rotation=(Pitch=910,Yaw=2002,Roll=-1092)
+	RightHandIK_Offset=(X=4.0,Y=-2.0,Z=2.0)
+	
+	LeftHandIK_Relaxed_Offset = (X=-4.000000,Y=-4.000000,Z=-1.000000)
+	LeftHandIK_Relaxed_Rotation = (Pitch=0,Yaw=0,Roll=3640)
+	RightHandIK_Relaxed_Offset = (X=0.000000,Y=-5.000000,Z=-8.000000)
+	RightHandIK_Relaxed_Rotation = (Pitch=-5461,Yaw=6189,Roll=14017)
+	
+	bOverrideLeftHandAnim=true
+	LeftHandAnim=H_M_Hands_Closed
 	
 	//-------------- Recoil
 	RecoilDelay = 0.07
@@ -473,6 +698,9 @@ DefaultProperties
 	WeaponProjectiles(0)=class'Rx_Projectile_MissileLauncher'
 	WeaponProjectiles(1)=class'Rx_Projectile_MissileLauncherAlt'
 
+	WeaponProjectiles_Heroic(0)=class'Rx_Projectile_MissileLauncher_Heroic'
+	WeaponProjectiles_Heroic(1)=class'Rx_Projectile_MissileLauncherAlt_Heroic'
+	
 	Spread(0)=0.0
 	Spread(1)=0.0
 	
@@ -496,6 +724,8 @@ DefaultProperties
 	WeaponEquipSnd=SoundCue'RX_WP_MissileLauncher.Sounds.SC_MissileLauncher_Equip'
 	ReloadSound(0)=SoundCue'RX_WP_MissileLauncher.Sounds.SC_MissileLauncher_Reload'
 	ReloadSound(1)=SoundCue'RX_WP_MissileLauncher.Sounds.SC_MissileLauncher_Reload'
+	
+	
 
 	PickupSound=SoundCue'A_Pickups.Weapons.Cue.A_Pickup_Weapons_Link_Cue'
 
@@ -521,7 +751,9 @@ DefaultProperties
 	bInstantHit=false
 	bSplashJump=false
 	bRecommendSplashDamage=true
-	bSniping=false   
+	bSniping=false  
+	bOkAgainstBuildings=true
+	bOkAgainstVehicles=true 
 
 	//==========================================
 	// LOCKING PROPERTIES
@@ -531,12 +763,12 @@ DefaultProperties
 
 	SeekingRocketClass=class'Rx_Projectile_MissileLauncher'
 
-	ConsoleLockAim=0.999999
+	ConsoleLockAim=0.99
 	LockRange=7500
-	LockAim=0.999999
+	LockAim=0.99//0.999999
 	LockChecktime=0.25
-	LockAcquireTime=0.75
-	LockTolerance=3.0   
+	LockAcquireTime=1.25//0.75
+	LockTolerance=1.5 //3.0   
     bTargetLockingActive = true
 
 	//==========================================
@@ -567,4 +799,18 @@ DefaultProperties
 
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_MissileLauncher'
+	
+	
+	/*******************/
+	/*Veterancy*/
+	/******************/
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.9 //Elite
+	Vet_ReloadSpeedModifier(3)=0.80 //Heroic
+	/**********************/
+	//17 > 12 
+	Elite_Building_DamageMod = 1.33 //1.75 //Increase building damage at Elite 
+	Ammo_Increment = 4
 }

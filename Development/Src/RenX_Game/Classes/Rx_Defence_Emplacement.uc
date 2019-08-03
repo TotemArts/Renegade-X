@@ -26,4 +26,35 @@ simulated function bool CanEnterVehicle(Pawn P)
 DefaultProperties
 {
 	bBindable=false
+	
+	/*Veterancy */
+	VRank=0
+	
+	//VP Given on death (by VRank)
+
+	VPReward(0) = 4
+	VPReward(1) = 6
+	VPReward(2) = 8
+	VPReward(3) = 10
+	
+	/*************/
+
+	VPCost(0) = 30
+	VPCost(1) = 60
+	VPCost(2) = 120
+	
+	Vet_HealthMod(0)=1
+	Vet_HealthMod(1)=1.25 //500
+	Vet_HealthMod(2)=1.5 //600
+	Vet_HealthMod(3)=1.75 //700
+	
+	Vet_SprintSpeedMod(0)=1.0
+	Vet_SprintSpeedMod(1)=1.0
+	Vet_SprintSpeedMod(2)=1.0
+	Vet_SprintSpeedMod(3)=1.0
+	
+	
+	/**************************/
+	
+	bCanBePromoted = false  
 }

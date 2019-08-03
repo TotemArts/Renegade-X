@@ -5,10 +5,10 @@ function string trigger(string parameters)
 	local Array<string> List;
 	local string s, full;
 
-	List = Rx_Game(WorldInfo.Game).BuildClientList(`nbsp);
+	List = Rx_Game(`WorldInfoObject.Game).BuildClientList(`rcon_delim);
 	full = "PlayerID"`s"IP"`s"SteamID"`s"AdminStatus"`s"Team"`s"Name";
 	foreach List(s)
-		full $= "\n"$s;
+		full $= "\n" $ s;
 
 	return full;
 }

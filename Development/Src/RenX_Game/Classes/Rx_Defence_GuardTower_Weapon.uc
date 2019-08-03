@@ -49,4 +49,33 @@ DefaultProperties
     WeaponProjectiles(1) = Class'Rx_Defence_GuardTower_Projectile'
     // AI
     bRecommendSplashDamage=False
+    bOkAgainstLightVehicles = True
+    bOkAgainstArmoredVehicles = True
+	
+	
+	/****************************************/
+	/*Veterancy*/
+	/****************************************/
+	
+	
+	//*X Reverse percentage (0.75 is 25% increase in speed)
+	Vet_ROFModifier(0) = 1 //Normal
+	Vet_ROFModifier(1) = 0.95  //Veteran
+	Vet_ROFModifier(2) = 0.90  //Elite
+	Vet_ROFModifier(3) = 0.85  //Heroic
+ 
+	//+X
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)
+	Vet_ClipSizeModifier(1)=10 //Veteran 
+	Vet_ClipSizeModifier(2)=20 //Elite
+	Vet_ClipSizeModifier(3)=30 //Heroic
+
+	//*X Reverse percentage (0.75 is 25% increase in speed)
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.90 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+	
+	
+	/********************************/
 }

@@ -1,7 +1,6 @@
-class Rx_Attachment_MarksmanRifle extends Rx_WeaponAttachment
+class Rx_Attachment_MarksmanRifle extends Rx_WeaponAttachment_Varying
 	abstract;
 	
-var ParticleSystem BeamTemplate;
 var class<UDKExplosionLight> ImpactLightClass;
 
 var int CurrentPath;
@@ -99,7 +98,6 @@ DefaultProperties
 	ImpactEffects(19)=(MaterialType=SnowStone, ParticleTemplate=ParticleSystem'RX_FX_Munitions2.Particles.bullets.P_Bullet_Impact_Snow',Sound=SoundCue'RX_SoundEffects.Bullet_Impact.SC_BulletImpact_Stone')
 	
 	BulletWhip=SoundCue'RX_SoundEffects.Bullet_WhizBy.SC_Bullet_WhizBy'
-//	BeamTemplate=ParticleSystem'RX_FX_Munitions.Beams.P_InstantHit_Tracer_GDI'
 
 	WeaponClass = class'Rx_Weapon_MarksmanRifle'
 	MuzzleFlashSocket=MuzzleFlashSocket

@@ -26,10 +26,16 @@ var GFxClikWidget MainMenuBar;
 var GFxClikWidget PlayerProfileLabel;
 var GFxClikWidget ChangeUserButton;
 
+var GFxClikWidget MultiplayerBar;
 var Rx_GFxFrontEnd_Multiplayer MultiplayerView;
+var GFxClikWidget SettingsBar;
 var Rx_GFxFrontEnd_Settings SettingsView;
+var GFxClikWidget SkirmishBar;
 var Rx_GFxFrontEnd_Skirmish SkirmishView;
+var GFxClikWidget ExtrasBar;
 var Rx_GFxFrontEnd_Extras ExtrasView;
+
+var GFxObject viewToCache;
 
 var GFxClikWidget ProgressDialogInstance;
 var GFxClikWidget DownloadProgressDialogInstance;
@@ -37,25 +43,30 @@ var GFxClikWidget DownloadProgressDialogInstance;
 /** Called on start **/
 function bool Start (optional bool StartPaused = false)
 {
-	// CaptureBindIndex = -1;
-	super.Start();
-	Advance(0);
-	Rx_Game(GetPC().WorldInfo.Game).VersionCheck.RegisterNotifyDelegate(OnVersionOutOfDate);
-
-	SetAlignment(Align_Center);
-	SetViewScaleMode(SM_ShowAll);
+	local bool retVal;
 
 	RunOnce();
 
-	RootMC = GetVariableObject("_root");
-	DialogContainer = GetVariableObject("_root.DialogContainer");
-	MenuSubTitleLabel = GetVariableObject("_root.MenuSubTitleLabel");
+	// CaptureBindIndex = -1;
+	retVal = super.Start();
+	Advance(0);
+	Rx_Game(GetPC().WorldInfo.Game).VQueryHandler.NotifyDelegate = isGameOutOfDate;
+
+	//now set inside the flash movie
+	//SetAlignment(Align_Center);
+	//SetViewScaleMode(SM_ShowAll);
+
+
+
+	RootMC = GetVariableObject("root");
+	//DialogContainer = GetVariableObject("root.DialogContainer");
+	MenuSubTitleLabel = GetVariableObject("root.MenuSubTitleLabel");
 	MenuSubTitleLabel.SetText(Caps("Welcome to Renegade-X"));
 
 	CheckForErrorMessages();
 	Rx_GameViewportClient(GetGameViewportClient()).FrontEnd = self;
 
-	return true;
+	return retVal;
 }
 
 
@@ -91,6 +102,24 @@ function OnClose()
 function OnVersionOutOfDate()
 {
 	OpenVersionOutOfDateDialog();
+}
+
+/* Use Rx_VersionQueryHandler and check if there's a newer client update available. */
+function isGameOutOfDate()
+{
+	local Rx_Game RxG;
+	RxG = Rx_Game(class'WorldInfo'.static.GetWorldInfo().Game);
+
+	if(RxG.VQueryHandler.MasterVersionURL == "")
+		return;
+
+	if(RxG.VQueryHandler.QueryedVersionNumber != 0)
+	{
+		if(RxG.VQueryHandler.QueryedVersionNumber != RxG.GameVersionNumber)
+			OpenVersionOutOfDateDialog();
+		else
+			return;
+	}
 }
 
 function RunOnce()
@@ -143,7 +172,8 @@ function RunOnce()
 		GetPC().SetAudioGroupVolume('MovieEffects', SystemSettingsHandler.MovieEffectsVolume);
 		GetPC().SetAudioGroupVolume('Ambient', SystemSettingsHandler.AmbientVolume);
 		GetPC().SetAudioGroupVolume('UnGrouped', SystemSettingsHandler.UnGroupedVolume);
-
+		GetPC().SetAudioGroupVolume('Voice', SystemSettingsHandler.CharacterVolume);
+		
 		HasRunOnce = true;
 
 	}
@@ -159,11 +189,45 @@ function CheckForErrorMessages()
 	if (frontEndErrorTitle != "" || frontEndErrorMessage != "") {
 		OpenFrontEndErrorAlertDialog(frontEndErrorTitle,frontEndErrorMessage);
 	}
+
+	//reset eror message variables after opening the dialog so they don't show up next time (nBab)
+	Registry.SetData("FrontEndError_Message", "");
+    Registry.SetData("FrontEndError_Title", "");
+}
+
+protected function precache(array<string> a)
+{
+	viewToCache.ActionScriptVoid("precache");
+}
+
+protected function setupPrecache(GFxObject bar, GFxObject view)
+{
+	local GFxObject TempData;
+	local int i;
+	local array<string> arrViews;
+
+	if(bar != none && view != none)
+	{
+		TempData = bar.GetObject("dataProvider");
+		for (i = 0; i < TempData.GetInt("length"); i++)
+		{
+			arrViews.AddItem(TempData.GetElementMemberString(i, "data"));
+		}
+	
+		viewToCache = view;
+		precache(arrViews);
+	}
 }
 
 /** Called when a CLIK Widget is initialized **/
 event bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widget)
 {
+	local bool bWasHandled;
+
+	`log("Rx_GFxFrontEnd::WidgetInitialized"@`showvar(WidgetName),true,'DevGFxUI');
+
+	bWasHandled = false;
+
 	switch (WidgetName)
 	{
 		/****************************
@@ -174,19 +238,27 @@ event bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widget)
 				MainMenuBar = GFxClikWidget(Widget);
 			}
 			SetUpDataProvider(MainMenuBar);
-			MainMenuBar.AddEventListener('CLIK_change', OnMainMenuBarChange);
+			MainMenuBar.AddEventListener('CLIK_clikIndexChange', OnMainMenuBarChange);
 			MainMenuBar.SetInt("selectedIndex", -1);
+			if(MainMenuView != none)
+				setupPrecache(MainMenuBar, MainMenuView);
+			bWasHandled = true;
 			break;
 		case 'MainMenuView':
 			if (MainMenuView == none || MainMenuView != Widget) {
 				MainMenuView = GFxClikWidget(Widget);
 			}
+			SetUpDataProvider(MainMenuView);
+			if(MainMenuBar != none)
+				setupPrecache(MainMenuBar, MainMenuView);
+			bWasHandled = true;
 			break;
 		case 'PlayerProfileLabel':
 			if (PlayerProfileLabel == none || PlayerProfileLabel != Widget) {
 				PlayerProfileLabel = GFxClikWidget(Widget);
 			}
 			PlayerProfileLabel.SetText("|  LOGGED IN: "$ Caps(GetPC().PlayerReplicationInfo.PlayerName) $"  |");
+			bWasHandled = true;
 			break;
 		case 'ChangeUserButton':
 			if (ChangeUserButton == none || ChangeUserButton != Widget) {
@@ -194,46 +266,105 @@ event bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widget)
 			}
 			ChangeUserButton.AddEventListener('CLIK_press', OnChangeUserButtonClik);
 			ChangeUserButton.SetVisible(false); //Hack for the time being
+			bWasHandled = true;
 			break;
 		case 'GameVersionLabel':
 			if (GameVersionLabel == none || GameVersionLabel != Widget) {
 				GameVersionLabel = GFxClikWidget(Widget);
 			}
 			//GameVersionLabel.SetString("text", "| "$ Caps(Rx_Game(GetPC().WorldInfo.Game).GameVersion) $" |");
-			GameVersionLabel.SetString("text", "| VERSION: " $ Left("" $ (float(Rx_Game(GetPC().WorldInfo.Game).GameVersionNumber)/1000.0f), InStr("" $ (float(Rx_Game(GetPC().WorldInfo.Game).GameVersionNumber)/1000.0f), ".")+4 )  $ " |");
+			GameVersionLabel.SetString("text", "| " $ Rx_Game(GetPC().WorldInfo.Game).GameVersion $ " |");
+			bWasHandled = true;
+			break;
+		case 'SkirmishBar':
+			if (SkirmishBar == none || SkirmishBar != Widget) {
+				SkirmishBar = GFxClikWidget(Widget);
+			}
+			SetUpDataProvider(SkirmishBar);
+			SkirmishBar.SetInt("selectedIndex", 0);
+			if(SkirmishView != none)
+				setupPrecache(SkirmishBar, SkirmishView);
+			bWasHandled = true;
 			break;
 		case 'SkirmishView':
 			if (SkirmishView == none || SkirmishView != Widget) {
 				SkirmishView = Rx_GFxFrontEnd_Skirmish(Widget);
 			}
+			`log("Rx_GFxFrontEnd::Loading SkirmishView",true,'GFxUI');
 			SetWidgetPathBinding(SkirmishView, WidgetPath);
 			SkirmishView.OnViewLoaded(self);
+			if(SkirmishBar != none)
+				setupPrecache(SkirmishBar, SkirmishView);
+			bWasHandled = true;
+			break;
+		case 'SettingsBar':
+			if (SettingsBar == none || SettingsBar != Widget) {
+				SettingsBar = GFxClikWidget(Widget);
+			}
+			SetUpDataProvider(SettingsBar);
+			SettingsBar.SetInt("selectedIndex", 0);
+			if(SettingsView != none)
+				setupPrecache(SettingsBar, SettingsView);
+			bWasHandled = true;
 			break;
 		case 'SettingsView':
 			if (SettingsView == none || SettingsView != Widget) {
 				SettingsView = Rx_GFxFrontEnd_Settings(Widget);
 			}
+			`log("Rx_GFxFrontEnd::Loading SettingsView",true,'GFxUI');
 			SetWidgetPathBinding(SettingsView, WidgetPath);
 			SettingsView.OnViewLoaded(self);
+			if(SettingsBar != none)
+				setupPrecache(SettingsBar, SettingsView);
+			bWasHandled = true;
+			break;
+		case 'MultiplayerBar':
+			if (MultiplayerBar == none || MultiplayerBar != Widget) {
+				MultiplayerBar = GFxClikWidget(Widget);
+			}
+			SetUpDataProvider(MultiplayerBar);
+			MultiplayerBar.SetInt("selectedIndex", 0);
+			if(MultiplayerView != none)
+				setupPrecache(MultiplayerBar, MultiplayerView);
+			MultiplayerBar.AddEventListener('CLIK_buttonSelect', OnMultiplayerBarItemChange);
+			bWasHandled = true;
 			break;
 		case 'MultiplayerView':
 			if (MultiplayerView == none || MultiplayerView != Widget) {
 				MultiplayerView = Rx_GFxFrontEnd_Multiplayer(Widget);
 			}
+			`log("Rx_GFxFrontEnd::Loading MultiplayerView",true,'GFxUI');
 			SetWidgetPathBinding(MultiplayerView, WidgetPath);
 			MultiplayerView.OnViewLoaded(self);
+			if(MultiplayerBar != none)
+				setupPrecache(MultiplayerBar, MultiplayerView);
+			bWasHandled = true;
+			break;
+		case 'ExtrasBar':
+			if (ExtrasBar == none || ExtrasBar != Widget) {
+				ExtrasBar = GFxClikWidget(Widget);
+			}
+			SetUpDataProvider(ExtrasBar);
+			ExtrasBar.SetInt("selectedIndex", 0);
+			if(ExtrasView != none)
+				setupPrecache(ExtrasBar, ExtrasView);
+			bWasHandled = true;
 			break;
 		case 'ExtrasView':
 			if (ExtrasView == none || ExtrasView != Widget) {
 				ExtrasView = Rx_GFxFrontEnd_Extras(Widget);
 			}
+			`log("Rx_GFxFrontEnd::Loading ExtrasView",true,'GFxUI');
 			SetWidgetPathBinding(ExtrasView, WidgetPath);
 			ExtrasView.OnViewLoaded(self);
+			if(ExtrasBar != none)
+				setupPrecache(ExtrasBar, ExtrasView);
+			bWasHandled = true;
 			break;
 		default:
 			break;
 	}
-	return true;
+	return bWasHandled;
 }
 
 
@@ -243,7 +374,9 @@ function SetUpDataProvider(GFxClikWidget Widget)
 	local GFxObject DataProvider;
 	local GFxObject TempData;
 
-	DataProvider = CreateArray();
+	`log("Rx_GFxFrontEnd::SetupDataProvider"@Widget.GetString("name"),true,'DevGFxUI');
+
+	DataProvider = CreateObject("scaleform.clik.data.DataProvider");
 	switch(Widget)
 	{
 		case (MainMenuBar):
@@ -270,6 +403,50 @@ function SetUpDataProvider(GFxClikWidget Widget)
 			TempData = CreateObject("Object");
 			TempData.SetString("label", Caps("Exit"));
 			DataProvider.SetElementObject(4, TempData);
+			break;
+		case (SkirmishBar):
+			TempData = CreateObject("Object");
+			TempData.SetString("label", Caps("MAP"));
+			TempData.SetString("data", "SkirmishMap");
+			DataProvider.SetElementObject(0, TempData);
+
+			TempData = CreateObject("Object");
+			TempData.SetString("label", Caps("GAME"));
+			TempData.SetString("data", "SkirmishGame");
+			DataProvider.SetElementObject(1, TempData);
+			break;
+		case (MultiplayerBar):
+			TempData = CreateObject("Object");
+			TempData.SetString("label", Caps("Internet"));
+			TempData.SetString("data", "MultiplayerServer");
+			DataProvider.SetElementObject(0, TempData);
+
+			TempData = CreateObject("Object");
+			TempData.SetString("label", Caps("Local"));
+			TempData.SetString("data", "MultiplayerServer");
+			DataProvider.SetElementObject(1, TempData);
+			break;
+		case (SettingsBar):
+			TempData = CreateObject("Object");
+			TempData.SetString("label", Caps("VIDEO"));
+			TempData.SetString("data", "SettingsVideo");
+			DataProvider.SetElementObject(0, TempData);
+
+			TempData = CreateObject("Object");
+			TempData.SetString("label", Caps("AUDIO"));
+			TempData.SetString("data", "SettingsAudio");
+			DataProvider.SetElementObject(1, TempData);
+
+			TempData = CreateObject("Object");
+			TempData.SetString("label", Caps("INPUT"));
+			TempData.SetString("data", "SettingsInput");
+			DataProvider.SetElementObject(2, TempData);
+			break;
+		case (ExtrasBar):
+			TempData = CreateObject("Object");
+			TempData.SetString("label", Caps("CREDITS"));
+			TempData.SetString("data", "ExtrasCredits");
+			DataProvider.SetElementObject(0, TempData);
 			break;
 		default:
 			return;
@@ -305,12 +482,12 @@ function OpenExitDialog()
 {
 	local GFxClikWidget dialogInstance;
 
-	dialogInstance = OpenDialog(DialogContainer, "RenXConfirmationDialog", none, true);
-	dialogInstance.SetBool("topmostLevel", false);
-	dialogInstance.SetString("_name", "exitDialog");
-	dialogInstance.SetString("message", "Are you sure you want to exit to windows?");
-	dialogInstance.AddEventListener('CLIK_close', OnExitClose);
-	dialogInstance.AddEventListener('CLIK_submit', OnExitSubmit);
+	dialogInstance = OpenDialog("RenXConfirmationForm", "RenXDialogWindow", -1, -1, true);
+	dialogInstance.SetString("name", "exitDialog");
+	dialogInstance.SetString("title", "Exit");
+
+	dialogInstance.GetObject("Form").GetObject("messageField").SetString("text", "Are you sure you want to exit to windows?");
+	dialogInstance.AddEventListener('CLIK_hide', OnExitSubmit);
 
 }
 
@@ -318,11 +495,10 @@ function OpenEnterIPDialog()
 {
 	local GFxClikWidget dialogInstance;
 
-	dialogInstance = OpenDialog(DialogContainer, "RenXEnterIPDialog", none, true);
-	dialogInstance.SetBool("topmostLevel", false);
-	dialogInstance.SetString("_name", "enterIPDialog");
-	dialogInstance.AddEventListener('CLIK_close', OnEnterIPClose);
-	dialogInstance.AddEventListener('CLIK_submit', OnEnterIPSubmit);
+	dialogInstance = OpenDialog("RenXEnterIPForm", "RenXDialogWindow", -1, -1, true);
+	dialogInstance.SetString("name", "enterIPDialog");
+	dialogInstance.SetString("title", "Enter IP");
+	dialogInstance.AddEventListener('CLIK_hide', OnEnterIPSubmit);
 }
 
 function OpenEnterPasswordDialog(string serverIP, string serverPort)
@@ -330,9 +506,9 @@ function OpenEnterPasswordDialog(string serverIP, string serverPort)
 	local GFxClikWidget dialogInstance;
 	local GFxObject tempObject;
 
-	dialogInstance = OpenDialog(DialogContainer, "RenXEnterPasswordDialog", none, true);
-	dialogInstance.SetBool("topmostLevel", false);
-	dialogInstance.SetString("_name", "enterPasswordDialog");
+	dialogInstance = OpenDialog("RenXEnterPasswordForm", "RenXDialogWindow", -1, -1, true);
+	dialogInstance.SetString("name", "enterPasswordDialog");
+	dialogInstance.SetString("title", "Enter Password");
 
 
 	//testing binding data in dialoginstance
@@ -342,43 +518,39 @@ function OpenEnterPasswordDialog(string serverIP, string serverPort)
 	dialogInstance.SetObject("data", tempObject);
 
 
-	dialogInstance.AddEventListener('CLIK_close', OnEnterPasswordClose);
-	dialogInstance.AddEventListener('CLIK_submit', OnEnterPasswordSubmit);
+	dialogInstance.AddEventListener('CLIK_hide', OnEnterPasswordSubmit);
 }
 function OpenConfirmApplyVideoSettingsDialog()
 {
 	local GFxClikWidget dialogInstance;
 
-	dialogInstance = OpenDialog(DialogContainer, "RenXConfirmationDialog", none, true);
-	dialogInstance.SetBool("topmostLevel", false);
-	dialogInstance.SetString("_name", "confirmApplyVideoSettingsDialog");
-	dialogInstance.SetString("message", "Are you sure you want to apply the settings?");
-	dialogInstance.AddEventListener('CLIK_close', OnApplyVideoSettingsClose);
-	dialogInstance.AddEventListener('CLIK_submit', OnApplyVideoSettingsSubmit);
+	dialogInstance = OpenDialog("RenXConfirmationForm", "RenXDialogWindow", -1, -1, true);
+	dialogInstance.SetString("name", "confirmApplyVideoSettingsDialog");
+	dialogInstance.GetObject("Form").GetObject("messageField").SetString("text", "Are you sure you want to apply the settings?");
+	dialogInstance.SetString("title", "Confirm");
+
+	dialogInstance.AddEventListener('CLIK_hide', OnApplyVideoSettingsSubmit);
 }
 
 function OpenVideoSettingsSuccessAlertDialog()
 {
 	local GFxClikWidget dialogInstance;
 
-	dialogInstance = OpenDialog(DialogContainer, "RenXAlertDialog", none, true);
-	dialogInstance.SetBool("topmostLevel", false);
-	dialogInstance.SetString("_name", "videoSettingsSuccessAlertDialog");
-	
-	dialogInstance.GetObject("drageBar").GetObject("textField").SetString("text", "Success");
-	dialogInstance.SetString("message", "Success");
-	dialogInstance.AddEventListener('CLIK_close', OnVideoSuccessClose);
+	dialogInstance = OpenDialog("RenXConfirmationForm", "RenXAlertDialogWindow", -1, -1, true);
+	dialogInstance.SetString("name", "videoSettingsSuccessAlertDialog");
+	dialogInstance.SetString("title", "Success");
+	dialogInstance.GetObject("Form").GetObject("messageField").SetString("text", "Success");
+
+	dialogInstance.AddEventListener('CLIK_hide', OnVideoSuccessClose);
 }
 
 function OpenFrontEndErrorAlertDialog(string title, string message) {
 	local GFxClikWidget dialogInstance;
-	dialogInstance = OpenDialog(DialogContainer, "RenXAlertDialog", none, true);
-	dialogInstance.SetBool("topmostLevel", false);
-	dialogInstance.SetString("_name", "frontEndErrorAlertDialog");
-	
-	dialogInstance.GetObject("drageBar").GetObject("textField").SetString("text", title != "" ? title : "Error");
-	dialogInstance.SetString("message", message != "" ? message : "Unknown Error Occured");
-	dialogInstance.AddEventListener('CLIK_close', OnFrontEndErrorClose);
+	dialogInstance = OpenDialog("RenXConfirmationForm", "RenXAlertDialogWindow", -1, -1, true);
+	dialogInstance.SetString("name", "frontEndErrorAlertDialog");
+	dialogInstance.SetString("title", title);
+	dialogInstance.GetObject("Form").GetObject("messageField").SetString("text",  message);
+	dialogInstance.AddEventListener('CLIK_hide', OnFrontEndErrorClose);
 }
 
 function OpenVersionOutOfDateDialog()
@@ -388,15 +560,14 @@ function OpenVersionOutOfDateDialog()
 
 	RenGame = Rx_Game(class'WorldInfo'.static.GetWorldInfo().Game);
 
-	dialogInstance = OpenDialog(DialogContainer, "RenXOutOfDateDialog", none, true);
-	dialogInstance.SetBool("topmostLevel", false);
-	dialogInstance.SetString("_name", "outOfDateDialog");
+	dialogInstance = OpenDialog("RenXConfirmationForm", "RenXDialogWindow", -1, -1, true);
+	dialogInstance.SetString("name", "outOfDateDialog");
+	dialogInstance.SetString("title", "Out of Date");
 	if (RenGame != none)
-		dialogInstance.SetString("message", "Game is out of date, visit www.Renegade-X.com to update.\n\nInstalled: " @ RenGame.GameVersion @ "\nLatest:     " @ RenGame.VersionCheck.LatestVersion);
+		dialogInstance.GetObject("Form").GetObject("messageField").SetString("text", "Game is out of date; run the Renegade X Launcher to update.\n\nInstalled: " @ RenGame.GameVersion @ "\nLatest:     " @ RenGame.VQueryHandler.QueryedVersionName);
 	else
-		dialogInstance.SetString("message", "Game is out of date, visit www.Renegade-X.com to update.");
-	dialogInstance.AddEventListener('CLIK_close', OpenVersionOutOfDateDownload);
-	dialogInstance.AddEventListener('CLIK_submit', OpenVersionOutOfDateSubmit);
+		dialogInstance.GetObject("Form").GetObject("messageField").SetString("text", "Game is out of date; run the Renegade X Launcher to update.");
+	dialogInstance.AddEventListener('CLIK_hide', OpenVersionOutOfDateDownload);
 }
 
 function OpenShowProgressDialog (float loaded, float total) 
@@ -407,30 +578,25 @@ function OpenShowProgressDialog (float loaded, float total)
 	percentage = loaded / total * 100;
 
 	if (ProgressDialogInstance == none) {
-		ProgressDialogInstance = OpenDialog(DialogContainer, "RenXProgressDialog", none, true);
-		ProgressDialogInstance.SetBool("topmostLevel", false);
-		ProgressDialogInstance.SetString("_name", "ProgressDialog");
-		ProgressDialogInstance.GetObject("drageBar").GetObject("textField").SetString("text", "RECEIVING");
+		ProgressDialogInstance = OpenDialog("RenXProgressForm", "RenXAlertDialogWindow", -1, -1, true);
+		ProgressDialogInstance.SetString("name", "ProgressDialog");
 		ProgressDialogInstance.SetString("message", "Fetching Server List");
+		ProgressDialogInstance.SetString("title", "Receiving");
 
-		progressBar = GFxClikWidget(ProgressDialogInstance.GetObject("progressBarField", class'GFxClikWidget'));
+		progressBar = GFxClikWidget(ProgressDialogInstance.GetObject("form").GetObject("progressBarField", class'GFxClikWidget'));
 		progressBar.ActionScriptVoid("setProgress");
 
-		ProgressDialogInstance.GetObject("percentageField").SetString("text",int(percentage) $ "%");
+		ProgressDialogInstance.GetObject("Form").GetObject("percentageField").SetString("text",int(percentage) $ "%");
 
-		ProgressDialogInstance.AddEventListener('CLIK_close', OnOpenShowProgressClose);
+		ProgressDialogInstance.AddEventListener('CLIK_hide', OnOpenShowProgressClose);
 
-		GFxClikWidget(ProgressDialogInstance.GetObject("cancelBtn", class'GFxClikWidget')).SetBool("disabled", true); //TODO: currently disable the manual cancellation
+		GFxClikWidget(ProgressDialogInstance.GetObject("Form").GetObject("closeBtn", class'GFxClikWidget')).SetBool("disabled", true); //TODO: currently disable the manual cancellation
 		
 	} else {
-		progressBar = GFxClikWidget(ProgressDialogInstance.GetObject("progressBarField", class'GFxClikWidget'));
+		progressBar = GFxClikWidget(ProgressDialogInstance.GetObject("Form").GetObject("progressBarField", class'GFxClikWidget'));
 		progressBar.ActionScriptVoid("setProgress");
-		ProgressDialogInstance.GetObject("percentageField").SetString("text",int(percentage) $ "%");
+		ProgressDialogInstance.GetObject("Form").GetObject("percentageField").SetString("text",int(percentage) $ "%");
 	}
-}
-
-function OpenServerInfoDebugDialog()
-{
 }
 
 function CloseProgressDialog() {
@@ -444,26 +610,25 @@ function OpenShowDownloadProgressDialog(string title, string size)
 
 	if (DownloadProgressDialogInstance == none)
 	{
-		DownloadProgressDialogInstance = OpenDialog(DialogContainer, "RenXProgressDialog", none, true);
-		DownloadProgressDialogInstance.SetBool("topmostLevel", false);
-		DownloadProgressDialogInstance.SetString("_name", "ProgressDialog");
-		DownloadProgressDialogInstance.GetObject("drageBar").GetObject("textField").SetString("text", "Downloading");
-		DownloadProgressDialogInstance.SetString("message", title $ " - " $ size);
+		DownloadProgressDialogInstance = OpenDialog("RenXProgressForm", "RenXAlertDialogWindow", -1, -1, true);
+		DownloadProgressDialogInstance.SetString("name", "ProgressDialog");
+		DownloadProgressDialogInstance.GetObject("Form").GetObject("messageField").SetString("text", title $ " - " $ size);
+		DownloadProgressDialogInstance.SetString("title", "Downloading");
 
-		DownloadProgressDialogInstance.AddEventListener('CLIK_close', OnDownloadProgressClose);
+		DownloadProgressDialogInstance.AddEventListener('CLIK_hide', OnDownloadProgressClose);
 
-		GFxClikWidget(DownloadProgressDialogInstance.GetObject("cancelBtn", class'GFxClikWidget')).SetBool("disabled", true); //TODO: currently disable the manual cancellation
+		GFxClikWidget(DownloadProgressDialogInstance.GetObject("Form").GetObject("closeBtn", class'GFxClikWidget')).SetBool("disabled", true); //TODO: currently disable the manual cancellation
 	}
 }
 
 function UpdateDownloadProgressDialog(float loaded, float total) 
 {
-	DownloadProgressDialogInstance.GetObject("progressBarField", class'GFxObject').ActionScriptVoid("setProgress");
+	DownloadProgressDialogInstance.GetObject("Form").GetObject("progressBarField", class'GFxObject').ActionScriptVoid("setProgress");
 }
 
 function UpdateDownloadProgressPercentage(string percentage) 
 {
-	DownloadProgressDialogInstance.GetObject("percentageField").SetString("text", percentage);
+	DownloadProgressDialogInstance.GetObject("Form").GetObject("percentageField").SetString("text", percentage);
 }
 
 function CloseDownloadProgressDialog()
@@ -478,9 +643,29 @@ function OnDownloadProgressClose(GFxClikWidget.EventData ev)
 	ConsoleCommand("disconnect");
 }
 
-function GFxClikWidget OpenDialog(GFxObject Context, string Linkage, GFxObject Props, bool Modal)
+function OnMultiplayerBarItemChange(GFxClikWidget.EventData ev)
 {
-	return GFxClikWidget(ActionScriptObject("openDialog"));	
+	MultiplayerView.ServerList.SetInt("selectedIndex", -1);
+
+	switch (ev._this.GetInt("index"))
+    {
+      case 0: 
+      	MultiplayerView.eMode = BrowserMode_Internet;
+		MultiplayerView.RefreshServers();
+      	break;
+      case 1: 
+      	MultiplayerView.eMode = BrowserMode_Local;
+		MultiplayerView.RefreshServers();
+      	break;		 
+      default: break;
+    }
+
+	MultiplayerView.SetServerDetailsVisibility(false);
+}
+
+function GFxClikWidget OpenDialog(string Form, string diagType, int DiagX, int DiagY, bool Modal, GFxObject Container=none)
+{
+	return GFxClikWidget(ActionScriptObject("root.openDialog"));	
 }
 function CloseDialog()
 {
@@ -498,7 +683,7 @@ function OnMainMenuBarChange(GFxClikWidget.EventData ev)
 		CurrentSelectedButton = GFxClikWidget(ev._this.GetObject("renderer", class'GFxClikWidget'));
 	}
 
-	switch (ev.index)
+	switch (ev._this.GetInt("index"))
 	{
 		case -1:
 			if (MenuSubTitleLabel != none) {
@@ -586,16 +771,29 @@ function OnExitClose(GFxClikWidget.EventData ev) {
 }
 
 function OnExitSubmit(GFxClikWidget.EventData ev) {
+	if(!ev._this.GetObject("target").GetBool("Success"))
+	{
+		ReturnToBackground();
+		return;
+	}
+
 	ExitGame();
 }
 
 function OnOpenShowProgressClose(GFxClikWidget.EventData ev){
 }
 
-function OnEnterPasswordClose(GFxClikWidget.EventData ev);
+//function OnEnterPasswordClose(GFxClikWidget.EventData ev);
 function OnApplyVideoSettingsClose(GFxClikWidget.EventData ev);
 
 function OnApplyVideoSettingsSubmit(GFxClikWidget.EventData ev){
+
+	if(!ev._this.GetObject("target").GetBool("Success"))
+	{
+		//ReturnToBackground();
+		return;
+	}
+
 	if (SettingsView != none) {
 		SettingsView.ApplyVideoSettings();
 		ReturnToBackground();
@@ -603,25 +801,16 @@ function OnApplyVideoSettingsSubmit(GFxClikWidget.EventData ev){
 }
 function OnEnterPasswordSubmit(GFxClikWidget.EventData ev) {
 	local string Password;
-	local GFxObject Data;
 	local GFxObject dialogData;
 
 	local string ServerIP;
 	local string ServerPort;
 
-	Data = ev._this.GetObject("data");
-	Password = Data.GetString("Password");
+	Password = ev._this.GetObject("target").GetObject("Form").GetObject("PasswordField").GetString("text");
 
-
-	//testing binding data in dialoginstance
-	dialogData = ev.target.GetObject("data");
-	`log("dialogData " $ dialogData);
+	dialogData = ev._this.GetObject("target").GetObject("data");
 	ServerIP = dialogData.GetString("serverIP");
 	ServerPort = dialogData.GetString("serverPort");
-
-	`log("ServerIP: " $ ServerIP);
-	`log("ServerPort: " $ ServerPort);
-
 
 	if (ServerPort == "") {
 		`log("Opening without Port Number");
@@ -632,7 +821,7 @@ function OnEnterPasswordSubmit(GFxClikWidget.EventData ev) {
 
 }
 
-function OnEnterIPClose(GFxClikWidget.EventData ev) ;
+//function OnEnterIPClose(GFxClikWidget.EventData ev) ;
 function OnEnterIPSubmit(GFxClikWidget.EventData ev) {
 
 	local string IPAddress;
@@ -642,12 +831,15 @@ function OnEnterIPSubmit(GFxClikWidget.EventData ev) {
 
 	local GFxObject Data;
 
-	Data = ev._this.GetObject("data");
+	if(!ev._this.GetObject("target").GetBool("Success"))
+		return;
 
-	IPAddress = Data.GetString("IPAddress");
-	Port = Data.GetString("Port");
-	HasPassword = Data.GetBool("HasPassword");
-	Password = Data.GetString("Password");
+	Data = ev._this.GetObject("target").GetObject("Form");
+
+	IPAddress = Data.GetObject("IPAddressField").GetString("text");
+	Port = Data.GetObject("PortField").GetString("text");
+	HasPassword = Data.GetObject("HasPasswordCheckBox").GetBool("selected");
+	Password = Data.GetObject("PasswordField").GetString("text");
 
 	if (IPAddress == "") {
 		return;
@@ -677,9 +869,12 @@ function OnVideoSuccessClose(GFxClikWidget.EventData ev);
 function OnFrontEndErrorClose(GFxClikWidget.EventData ev);
 
 function OpenVersionOutOfDateDownload(GFxClikWidget.EventData ev){
-	Rx_Game(GetPC().WorldInfo.Game).OpenDownloadLink();
+	if(!ev._this.GetObject("target").GetBool("Success"))
+		return;
+
+	Rx_Game(GetPC().WorldInfo.Game).ExitGameAndOpenLauncher();
 }
-function OpenVersionOutOfDateSubmit(GFxClikWidget.EventData ev);
+//function OpenVersionOutOfDateSubmit(GFxClikWidget.EventData ev);
 //ChangeUserButton
 function OnChangeUserButtonClik(GFxClikWidget.EventData ev)
 {
@@ -691,6 +886,11 @@ event bool FilterButtonInput(int ControllerId, name ButtonName, EInputEvent Inpu
 {
 	if (SettingsView == none || MainMenuBar == none || MainMenuBar.GetInt("selectedIndex") != 2) return false;
 	return SettingsView.FilterButtonInput(ControllerId, ButtonName, InputEvent);
+}
+
+function ExportPlaySound(string EventName, optional string SoundThemeName = "default")
+{
+	PlaySoundFromTheme(name(EventName), name(SoundThemeName));	
 }
 //=============================================================================
 //   Rx_GFxFrontEnd Debugging Tool
@@ -710,9 +910,13 @@ defaultproperties
 	WidgetBindings.Add((WidgetName="GameVersionLabel",WidgetClass=class'GFxClikWidget'))
 
 	//view widget
+	WidgetBindings.Add((WidgetName="SkirmishBar",WidgetClass=class'GFxClikWidget'))
 	WidgetBindings.Add((WidgetName="SkirmishView",WidgetClass=class'Rx_GFxFrontEnd_Skirmish'))
+	WidgetBindings.Add((WidgetName="SettingsBar",WidgetClass=class'GFxClikWidget'))
 	WidgetBindings.Add((WidgetName="SettingsView",WidgetClass=class'Rx_GFxFrontEnd_Settings'))
+	WidgetBindings.Add((WidgetName="MultiplayerBar",WidgetClass=class'GFxClikWidget'))
 	WidgetBindings.Add((WidgetName="MultiplayerView",WidgetClass=class'Rx_GFxFrontEnd_Multiplayer'))
+	WidgetBindings.Add((WidgetName="ExtrasBar",WidgetClass=class'GFxClikWidget'))
 	WidgetBindings.Add((WidgetName="ExtrasView",WidgetClass=class'Rx_GFxFrontEnd_Extras'))
 
 
@@ -721,4 +925,5 @@ defaultproperties
 	MovieInfo=SwfMovie'RenXFrontEnd.RenXFrontEnd'
 	bPauseGameWhileActive=FALSE
 	bCaptureInput=true
+	TimingMode=TM_Real
 }

@@ -5,7 +5,7 @@ function string trigger(string parameters)
 	if (parameters == "")
 		return "Error: Too few parameters." @ getSyntax();
 
-	WorldInfo.Game.Mutate(parameters, None);
+	`WorldInfoObject.Game.Mutate(parameters, None);
 	return "";
 }
 

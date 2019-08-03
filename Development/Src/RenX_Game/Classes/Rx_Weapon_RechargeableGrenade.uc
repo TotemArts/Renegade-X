@@ -1,7 +1,6 @@
 class Rx_Weapon_RechargeableGrenade extends Rx_Weapon_Reloadable;
 
 var() name WeaponThrowGrenadeAnimName[4];
-
 var array<float> DelayFireTime; 
 
 /*Modify RepNotify slightly for when weapons are changed too quickly */
@@ -19,7 +18,7 @@ simulated event ReplicatedEvent(name VarName)
 		else 
 		{
 			reloadBeginTime = WorldInfo.TimeSeconds;
-			currentReloadTime = ReloadTime[CurrentFireMode];		
+			currentReloadTime = ReloadTime[CurrentFireMode]*Vet_ReloadSpeedModifier[VRank];		
 			PlayWeaponReloadAnim();
 		}	
     }
@@ -94,11 +93,12 @@ auto simulated state Inactive
 		}
 //`log("CAIC:" @ CurrentAmmoInClip ); 
 		//If weapons were changed quickly, see if reloading had begun. If not, start it.
-		if( ROLE == ROLE_Authority && !IsTimerActive('ReloadWeaponTimer') && CurrentAmmoInClip <= 0)
+		//if( ROLE == ROLE_Authority && !IsTimerActive('ReloadWeaponTimer') && CurrentAmmoInClip <= 0)
+		if(!IsTimerActive('ReloadWeaponTimer') && CurrentAmmoInClip <= 0)
 		{	
 			reloadBeginTime = WorldInfo.TimeSeconds;
-			currentReloadTime = ReloadTime[CurrentFireMode];
-			SetTimer( ReloadTime[CurrentFireMode], false, 'ReloadWeaponTimer');
+			currentReloadTime = ReloadTime[CurrentFireMode]*Vet_ReloadSpeedModifier[VRank];
+			SetTimer( ReloadTime[CurrentFireMode]*Vet_ReloadSpeedModifier[VRank], false, 'ReloadWeaponTimer');
 			CurrentlyReloading=true; 
 			if(bDebugWeapon) 
 			{
@@ -198,10 +198,13 @@ simulated state WeaponFiring
 *Just keep reloading in the background
 ************************************************/
 
-state Reloading
+simulated state Reloading
 {
-	function BeginState( name PreviousState )
+simulated function BeginState( name PreviousState )
 	{
+		local Rx_Pawn RxP; 
+		
+		RxP = Rx_Pawn(Owner) ; 
 		if (bDebugWeapon)
 		{
 			`log("---"@self$"."$GetStateName()$".BeginState("$PreviousState$")");
@@ -216,11 +219,11 @@ state Reloading
 		{
 		if(!IsTimerActive('ReloadWeaponTimer'))
 		{	reloadBeginTime = WorldInfo.TimeSeconds;
-			currentReloadTime = ReloadTime[CurrentFireMode];
-			SetTimer( ReloadTime[CurrentFireMode], false, 'ReloadWeaponTimer');
+			currentReloadTime =  ReloadTime[CurrentFireMode]*Vet_ReloadSpeedModifier[VRank];	
+			SetTimer( ReloadTime[CurrentFireMode]*Vet_ReloadSpeedModifier[VRank], false, 'ReloadWeaponTimer');
 			if(bDebugWeapon) 
 			{
-			`log("Set Reload Weapon Timer(Begin Reload): " @ ReloadTime[CurrentFireMode]); 	
+			`log("Set Reload Weapon Timer(Begin Reload): " @ ReloadTime[CurrentFireMode]*Vet_ReloadSpeedModifier[VRank]); 	
 			}
 		}
 		}
@@ -238,17 +241,26 @@ state Reloading
 		CurrentlyReloading = true;
 		bForceHidden = true;
 		Mesh.SetHidden(true);
-		ChangeVisibility(false);
-			if(WorldInfo.Netmode != NM_DedicatedServer && Rx_Pawn(Owner).isFirstPerson() )
+		//ChangeVisibility(false);
+		
+		
+			if(WorldInfo.Netmode != NM_DedicatedServer && RxP.isFirstPerson() )
 		{
-		Rx_Pawn(Owner).CurrentWeaponAttachment.ChangeVisibility(true);
-		Rx_Pawn(Owner).SetHandIKEnabled(true);
-		Rx_Pawn(Owner).ArmsMesh[0].SetHidden(false);
+		//RxP.CurrentWeaponAttachment.ChangeVisibility(true);
+		RxP.SetHandIKEnabled(true);
+		RxP.ArmsMesh[0].SetHidden(false);
 		}
+		if(RxP != none) 
+		{
+		RxP.FinishGrenadeThrow(); 
+		
+		}
+		
+		
 		
 	}
 
-	function EndState( name NextState )
+	simulated function EndState( name NextState )
 	{
 		if (bDebugWeapon)
 		{
@@ -259,7 +271,7 @@ state Reloading
 			}
 
 
-	function ReloadWeaponTimer()
+	simulated function ReloadWeaponTimer()
 	{
 		if (bDebugWeapon)
 		{
@@ -285,7 +297,7 @@ state Reloading
 		Mesh.SetHidden(false);
 		if(WorldInfo.Netmode != NM_DedicatedServer && Rx_Pawn(Owner).isFirstPerson() )
 		{
-		Rx_Pawn(Owner).CurrentWeaponAttachment.ChangeVisibility(true);
+		//Rx_Pawn(Owner).CurrentWeaponAttachment.ChangeVisibility(true);
 		Rx_Pawn(Owner).SetHandIKEnabled(true);
 		Rx_Pawn(Owner).ArmsMesh[0].SetHidden(false);
 		}
@@ -369,7 +381,7 @@ simulated function PlayFireEffects( byte FireModeNum, optional vector HitLocatio
 
 }
 
-function ReloadWeaponTimer() /*One more for out of state*/
+simulated function ReloadWeaponTimer() /*One more for out of state*/
 	{
 
 	if(bDebugWeapon) 
@@ -403,13 +415,13 @@ simulated function PlayWeaponReloadAnim()
 {} //Do not play reloading animations... as they are utterly creepy in slow motion
 
 
-function DoubleCheckReloadTimer()
+simulated function DoubleCheckReloadTimer()
 
 {
 	if(!IsTimerActive('ReloadWeaponTimer') && CurrentAmmoInClip <= 0 )
 		{	reloadBeginTime = WorldInfo.TimeSeconds;
-			currentReloadTime = ReloadTime[CurrentFireMode];
-			SetTimer( ReloadTime[CurrentFireMode], false, 'ReloadWeaponTimer');
+			currentReloadTime = ReloadTime[CurrentFireMode]*Vet_ReloadSpeedModifier[VRank];
+			SetTimer( ReloadTime[CurrentFireMode]*Vet_ReloadSpeedModifier[VRank], false, 'ReloadWeaponTimer');
 			CurrentlyReloading = true;
 			bForceHidden = true;
 			Mesh.SetHidden(true);
@@ -418,6 +430,11 @@ function DoubleCheckReloadTimer()
 }
 
 simulated function RestartWeaponFiringAfterReload(); //Force the individual to click at the right time.
+
+simulated function bool HasAnyAmmo()
+{
+	return !CurrentlyReloading; 
+}
 
 DefaultProperties
 {
@@ -449,6 +466,9 @@ DefaultProperties
 	PlayerViewOffset=(X=0.0,Y=0.0,Z=0.0)
 	
 	FireOffset=(X=0,Y=10,Z=0)
+	
+	bUseHandIKWhenRelax=false
+	bByPassHandIK=true
 	
 	//-------------- Recoil
 	RecoilDelay = 0.0
@@ -536,7 +556,7 @@ DefaultProperties
 	CrosshairWidth = 256
 	CrosshairHeight = 256
 
-	InventoryGroup=5
+	InventoryGroup=12 //5 
 	InventoryMovieGroup=27
 
 	
@@ -563,4 +583,29 @@ DefaultProperties
 	ZoomGroundSpeed=180.0
 	ZoomAirSpeed=340.0
 	ZoomWaterSpeed=11
+	
+	/*******************/
+	/*Veterancy*/
+	/******************/
+	
+	Vet_DamageModifier(0)=1  //Applied to instant-hits only
+	Vet_DamageModifier(1)=1.10 
+	Vet_DamageModifier(2)=1.25 
+	Vet_DamageModifier(3)=1.50 
+	
+	Vet_ROFModifier(0) = 1
+	Vet_ROFModifier(1) = 1 
+	Vet_ROFModifier(2) = 1  
+	Vet_ROFModifier(3) = 1  
+	
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)	
+	Vet_ClipSizeModifier(1)=0 //Veteran 
+	Vet_ClipSizeModifier(2)=0 //Elite
+	Vet_ClipSizeModifier(3)=0 //Heroic
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.9 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.8 //Elite
+	Vet_ReloadSpeedModifier(3)=0.5 //Heroic
+	/**********************/
 }

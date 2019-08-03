@@ -53,4 +53,14 @@ DefaultProperties
     ProjectileLightClass=none
     ExplosionLightClass=none
     MyDamageType=class'TS_Vehicle_Wolverine_DmgType'
+	
+	Vet_DamageIncrease(0)=1 //Normal (should be 1)
+	Vet_DamageIncrease(1)=1.10 //Veteran 
+	Vet_DamageIncrease(2)=1.25 //Elite
+	Vet_DamageIncrease(3)=1.50 //Heroic
+
+	Vet_SpeedIncrease(0)=1 //Normal (should be 1)
+	Vet_SpeedIncrease(1)=1.25 //Veteran 
+	Vet_SpeedIncrease(2)=1.50 //Elite
+	Vet_SpeedIncrease(3)=2.0 //Heroic
 }

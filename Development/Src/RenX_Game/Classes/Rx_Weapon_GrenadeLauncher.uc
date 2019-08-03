@@ -27,8 +27,10 @@ DefaultProperties
 
 	PlayerViewOffset=(X=6.0,Y=1.0,Z=-3.0)
 	
-	LeftHandIK_Offset=(X=0,Y=-3,Z=1.5)
-	RightHandIK_Offset=(X=0,Y=0,Z=0)
+	LeftHandIK_Offset=(X=0,Y=0,Z=0)
+	RightHandIK_Offset=(X=6,Y=-5,Z=-0.5)
+	
+	LeftHandIK_Relaxed_Offset = (X=0.000000,Y=-2.000000,Z=4.000000)
 	
 	FireOffset=(X=20,Y=17,Z=-20)
 	
@@ -114,7 +116,32 @@ DefaultProperties
     bSplashJump=false
     bRecommendSplashDamage=true
     bSniping=false
-
+    bOkAgainstBuildings=true
+    bOkAgainstVehicles=true 
+    
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_GrenadeLauncher'
+	
+	/*******************/
+	/*Veterancy*/
+	/******************/
+	
+	
+	Vet_ROFModifier(0) = 1
+	Vet_ROFModifier(1) = 0.95 
+	Vet_ROFModifier(2) = 0.9  
+	Vet_ROFModifier(3) = 0.85  
+	
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)	
+	Vet_ClipSizeModifier(1)=0 //Veteran 
+	Vet_ClipSizeModifier(2)=2 //Elite
+	Vet_ClipSizeModifier(3)=4 //Heroic
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.9 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+	/**********************/
+	
+	ROFTurnover = 4
 }

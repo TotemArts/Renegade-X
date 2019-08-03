@@ -124,7 +124,7 @@ state WindingUp
         WindUpSound.Play();
         //Can't use the AudioComponent.OnAudioFinished delegate because it doesn't work on dedicated servers, so use a timer instead.
         //SetTimer(WindUpSound.SoundCue.GetCueDuration()/2, false);
-        SetTimer(0.25, false);
+        SetTimer(0.10, false);
         //SkelControl = SkelControlSingleBone(Cannon.WeaponComponent.FindSkelControl('GunSpinner'));
     }
 
@@ -193,26 +193,25 @@ state Running
         local Vector HitLocation, HitNormal;
 
         TraceStart = Start;
-        TraceEnd = Vector(BarrelDir) + (Normal(VRand()) * FireInfo.Spread);
-        TraceEnd = Normal(TraceEnd);
-        TraceEnd *= FireInfo.MaxRange;
-        TraceEnd += TraceStart;
-
+		TraceEnd = End;
+		
         HitActor = Cannon.Trace(HitLocation, HitNormal, TraceEnd, TraceStart, true, vect(0,0,0),, TRACEFLAG_Bullet);
-    
+	
+		if(HitActor == none)
+        {
+			HitActor = Cannon.Trace(HitLocation, HitNormal, TraceEnd, TraceStart, true, vect(10,10,10),, TRACEFLAG_Bullet);
+		}
+	
         if(HitActor == none)
         {
-            HitLocation    = TraceEnd;
+            HitLocation = TraceEnd;
         }
         else if(Pawn(HitActor) == none || !Cannon.IsSameTeam(Pawn(HitActor)))
         {
             HitActor.TakeDamage(FireInfo.Damage, Cannon.InstigatorController, HitLocation, FireInfo.Momentum * Normal(TraceEnd - TraceStart), FireInfo.DamageType,, Cannon);
         }
 
-//        HitActor = Cannon.Target; // possible performance optimization ? need to get hitlocation on mesh somehow too though 
-
         LastHitLocation = HitLocation;
-
         bCanFire = false;
         SetTimer(FireInfo.FireInterval, false, 'FireTimer');
         if(HitActor != Cannon.Target) {
@@ -232,20 +231,22 @@ state Running
     }
 }
 
-function bool CanHit(Pawn PotentialTarget) {
-    local Actor HitActor;
-    local Vector TraceStart, TraceEnd, HitLocation, HitNormal;
+function bool CanHit(Pawn PotentialTarget, vector End) {
+	local Vector TraceStart, TraceEnd;
+	local Actor HitActor;
+	local Vector HitLocation, HitNormal;
 
-    TraceStart = Cannon.GetPawnViewLocation();
-    TraceEnd = PotentialTarget.location;
+	TraceStart = Cannon.GetPawnViewLocation();
+	TraceEnd = End;
+	
+	HitActor = Cannon.Trace(HitLocation, HitNormal, TraceEnd, TraceStart, true, vect(0,0,0),, TRACEFLAG_Bullet);
 
-    HitActor = Cannon.Trace(HitLocation, HitNormal, TraceEnd, TraceStart, true, vect(0,0,0),, TRACEFLAG_Bullet);
+	if(HitActor == none)
+	{
+		HitActor = Cannon.Trace(HitLocation, HitNormal, TraceEnd, TraceStart, true, vect(10,10,10),, TRACEFLAG_Bullet);
+	}
 
-    if(HitActor != PotentialTarget)
-    {
-        return false;
-    }
-    return true;
+    return HitActor == PotentialTarget;
 }
 
 state WindingDown
@@ -326,8 +327,7 @@ simulated function FlashMuzzleFlash()
 defaultproperties
 {
     FriendlyName="AGT_MG"
-//    Description="In acknowledgement of the continuing popularity of kinetic weapons, Evil Corp. has developed a new minigun attachment for the Mk III Sentinel. Incorporating patented \"3-wave\" technology, the new minigun exhibits far higher barrel strength and thermal capacity compared to previous models, allowing for an indefinitely sustainable high rate of fire*.\n\nThe 15mm aluminium rounds fired by this weapon exhibit hypersonic muzzle velocity and maintain that velocity with the use of miniature gravitomagnetic thrusters, giving exceptional damage potential against lightly armoured targets at all ranges. Standard configuration is one tracer every fourth round.\n\n\n*Non-military model limited to 600rpm to meet NEG safety guidelines."
-
+	
     WindDownDelay=6.0
     FlyingTargetPreference=0.0 // dont prefer aircrafts
 
@@ -350,13 +350,13 @@ defaultproperties
     TracerInterval=3    // Leuchtspur
 
     Begin Object Class=Rx_SentinelWeaponComponent_FireInfo Name=FireInfo0
-        FireInterval=0.20
+        FireInterval=0.15//0.20
         FireOffset=(X=70.0,Y=0.0,Z=10.0)
         Damage=10.0		// 40
         Momentum=0.0
         DamageType=class'Rx_DmgType_AGT_MG'
         MaxRange=7000.0
-        Spread=0.01
+        Spread=0.005//0.01
         FireSound=SoundCue'RX_BU_AGT.Sounds.SC_AGT_Gun_Fire'
     End Object
     FireInfo=FireInfo0

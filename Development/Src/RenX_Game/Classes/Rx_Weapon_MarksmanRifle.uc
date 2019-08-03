@@ -1,4 +1,4 @@
-class Rx_Weapon_MarksmanRifle extends Rx_Weapon_Reloadable
+class Rx_Weapon_MarksmanRifle extends Rx_Weapon_Scoped
 	abstract;
 
 
@@ -29,6 +29,13 @@ simulated function UpdateAmmoCounter()
 	}
 }
 
+simulated function PerformRefill()
+{
+	Super.PerformRefill();
+
+	UpdateAmmoCounter();
+} 
+
 simulated function SetSkin(Material NewMaterial)
 {
 	if( ( Instigator != none ) && ( NewMaterial == none ) ) // Clear the materials
@@ -44,7 +51,7 @@ simulated function SetSkin(Material NewMaterial)
 	}
 }
 
-function ConsumeAmmo( byte FireModeNum )
+simulated function ConsumeAmmo( byte FireModeNum )
 {
 	super.ConsumeAmmo(FireModeNum);
 	UpdateAmmoCounter();
@@ -68,7 +75,7 @@ simulated function FireAmmunition()
 	WeaponPlaySound( WeaponDistantFireSnd );
 }
 
-function bool IsInstantHit()
+simulated function bool IsInstantHit()
 {
 	return true; 
 }
@@ -99,8 +106,12 @@ defaultproperties
 	
 	PlayerViewOffset=(X=5.0,Y=1.0,Z=-1.0)
 	
-	LeftHandIK_Offset=(X=0.5,Y=-1,Z=3)
-	RightHandIK_Offset=(X=0,Y=0,Z=0)
+	LeftHandIK_Offset=(X=0,Y=0,Z=0)
+	RightHandIK_Offset=(X=3,Y=1,Z=-1)
+	
+	LeftHandIK_Relaxed_Offset = (X=-1.000000,Y=0.000000,Z=-1.000000)
+	RightHandIK_Relaxed_Offset = (X=0.000000,Y=0.000000,Z=-5.000000)
+	RightHandIK_Relaxed_Rotation = (Pitch=-2730,Yaw=1820,Roll=7281)
 
 	ArmsAnimSet = AnimSet'RX_WP_SniperRifle.Anims.AS_MarksmanRifle_Arms'
 	
@@ -116,8 +127,8 @@ defaultproperties
 	RecoilDeclinePct = 1.0
 	RecoilDeclineSpeed = 5.0
 	MaxSpread = 0.05
-	RecoilSpreadIncreasePerShot = 0.004
-	RecoilSpreadDeclineSpeed = 0.1
+	RecoilSpreadIncreasePerShot = 0.0025
+	RecoilSpreadDeclineSpeed = 0.2
 	RecoilSpreadDecreaseDelay = 0.3
 	RecoilSpreadCrosshairScaling = 3000;
 
@@ -143,14 +154,14 @@ defaultproperties
 	IronSightAndScopedSpread(0)= 0.0//0.0001
 	
 	WeaponRange=30000.0
-	WeaponFireTypes(0)=EWFT_Projectile
+	//WeaponFireTypes(0)=EWFT_Projectile
 	
 	WeaponFireTypes(1)=EWFT_None
 	
-	//WeaponFireTypes(0)=EWFT_InstantHit
+	WeaponFireTypes(0)=EWFT_InstantHit
 	
-	InstantHitDamage(0)=30
-	InstantHitDamage(1)=30
+	InstantHitDamage(0)=25
+	InstantHitDamage(1)=25
 	
 	HeadShotDamageMult=2.0
 
@@ -160,14 +171,14 @@ defaultproperties
 	InstantHitMomentum(0)=20000
 	InstantHitMomentum(1)=20000
 	
-	bInstantHit=false
+	bInstantHit=true
 
 	WeaponProjectiles(0)=class'Rx_Projectile_MarksmanRifle'
 
 	FiringStatesArray(1)=Active
 
 
-	ClipSize = 10 //8
+	ClipSize = 8 //8
 	InitalNumClips = 12
 	MaxClips = 12
 
@@ -204,19 +215,36 @@ defaultproperties
 	InventoryMovieGroup=28
 
 	WeaponIconTexture=Texture2D'RX_WP_SniperRifle.UI.T_WeaponIcon_MarksmanRifle'
+
+	HudMaterial=Material'RenX_AssetBase.PostProcess.M_Scope_Marksman'
+
+	NightVisionEffect = none
+    NightVisionAnim = none
+
+    NightVisionTurnOnSound = none
+    NightVisionTurnOffSound = none
+    
+    ZoomOutSound=SoundCue'RX_WP_SniperRifle.Sounds.SC_Scope_ZoomOut'
+    ZoomInSound=SoundCue'RX_WP_SniperRifle.Sounds.SC_Scope_ZoomIn'
+
+	ZoomedRate = 20.0
+    ZoomedFOVIncrement = 0
+    ZoomedFOVMin = 20.0 // Lower is more zoomed
+    ZoomedFOVMax = 20.0 // Higher is less zoomed
+    ZoomedTargetFOV = 20.0
 	
 	//==========================================
 	// IRON SIGHT PROPERTIES
 	//==========================================
 	
 	// IronSight:
-	bIronSightCapable = true	
-	IronSightViewOffset=(X=-6,Y=-7.7925,Z=0.75)		// (X=-15.0,Y=-11.675,Z=0.27)
+	bIronSightCapable = false	
+	IronSightViewOffset=(X=-8,Y=-7.7925,Z=0.75)		// (X=-15.0,Y=-11.675,Z=0.27)
 	IronSightFireOffset=(X=10,Y=0,Z=-2)
-	IronSightBobDamping=30
+	IronSightBobDamping=80
 	IronSightPostAnimDurationModifier=0.2
 	// This sets how much we want to zoom in, this is a value to be subtracted because smaller FOV values are greater levels of zoom
-	ZoomedFOVSub=70.0 
+	ZoomedFOVSub=85.0 
 	// New lower speed movement values for use while zoom aiming
 	ZoomGroundSpeed=160.0
 	ZoomAirSpeed=340.0
@@ -232,4 +260,33 @@ defaultproperties
 
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_MarksmanRifle'
+	
+	/*******************/
+	/*Veterancy*/
+	/******************/
+	
+	Vet_DamageModifier(0)=1  //Applied to instant-hits only
+	Vet_DamageModifier(1)=1.10 
+	Vet_DamageModifier(2)=1.25 
+	Vet_DamageModifier(3)=1.50 
+	
+	Vet_ROFModifier(0) = 1
+	Vet_ROFModifier(1) = 1 
+	Vet_ROFModifier(2) = 1  
+	Vet_ROFModifier(3) = 1  
+	
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)	
+	Vet_ClipSizeModifier(1)=0 //Veteran 
+	Vet_ClipSizeModifier(2)=2 //Elite
+	Vet_ClipSizeModifier(3)=4 //Heroic
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.9 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+	/**********************/
+	//This may or may not work right now
+	bLocSync = true; 
+	LocSyncIncrement = 4; 
+	ROFTurnover = 4;
 }

@@ -1,371 +1,365 @@
-/*********************************************************
-*
-* File: Rx_CharInfo_Singleplayer.uc
-* Author: RenegadeX-Team
-* Pojekt: Renegade-X UDK <www.renegade-x.com>
-*
-* Desc:
-*
-*
-* ConfigFile: 
-*
-*********************************************************
-*  
-*********************************************************/
+
 class Rx_SquadAI extends UTSquadAI;
 
-var float VehicleFormationSize;
-const RX_NEAROBJECTIVEDIST = 3500.0;
+var bool bOnboardForTactics;
+var bool bSquadTacticsAnnounced;
+var float RepairerRatio;
+var int NumberOfEngineer;
+var Rx_AITactics CurrentTactics;
+var Array<class<Rx_AITactics> >  GDITactics,NodTactics;
+var bool bTacticsCommenced;
+var int NumOfBotsOnboard;
+var float BaseTacticsDelay;
 
-function bool CheckSquadObjectives(UTBot B)
+event PostBeginPlay()
 {
-	local Actor DesiredPosition;
-	local bool bInPosition;
-	local Vehicle V;
-	local UTGameObjective UTObjective;
-	local vector DesiredLocation;
-	local Float Dist;
+	super.PostBeginPlay();
 
-	if (WorldInfo.TimeSeconds - B.Pawn.CreationTime < 5.0 && B.NeedWeapon() && B.FindInventoryGoal(0.0004))
-	{
-		B.GoalString = "Need weapon or ammo";
-		B.NoVehicleGoal = B.RouteGoal;
-		B.SetAttractionState();
-		return true;
-	}
-	if (CheckVehicle(B))
-		return true;
-	if ( B.NeedWeapon() && B.FindInventoryGoal(0) )
-	{
-		B.GoalString = "Need weapon or ammo";
-		B.NoVehicleGoal = B.RouteGoal;
-		B.SetAttractionState();
-		return true;
-	}
+	SetTimer(3.0, false, 'ChooseTactics');
 
-	if ( (PlayerController(SquadLeader) != None) && (SquadLeader.Pawn != None) )
-	{
-		if ( UTHoldSpot(B.DefensePoint) == None )
-		{
-			// attack objective if close by
-			if ( OverrideFollowPlayer(B) )
-				return true;
-
-			// follow human leader
-			return TellBotToFollow(B,SquadLeader);
-		}
-		// hold position as ordered (position specified by DefensePoint)
-	}
-
-	if ( B.Pawn.bStationary && Vehicle(B.Pawn) != None)
-	{
-		if ( UTHoldSpot(B.DefensePoint) != None )
-		{
-			if ( UTHoldSpot(B.DefensePoint).HoldVehicle != B.Pawn && UTHoldSpot(B.DefensePoint).HoldVehicle != B.Pawn.GetVehicleBase() )
-			{
-				B.LeaveVehicle(true);
-				return true;
-			}
-		}
-	}
-	V = Vehicle(B.Pawn);
-
-	UTObjective = UTGameObjective(SquadObjective);
-	if ( B.DefensePoint != None )
-	{
-		DesiredPosition = B.DefensePoint.GetMoveTarget();
-		bInPosition = (B.Pawn == DesiredPosition) || B.Pawn.ReachedDestination(DesiredPosition);
-		if ( bInPosition && (Vehicle(DesiredPosition) != None) )
-		{
-			if (V != None && B.Pawn != DesiredPosition && B.Pawn.GetVehicleBase() != DesiredPosition)
-			{
-				B.LeaveVehicle(true);
-				return true;
-			}
-			if (V == None)
-			{
-				B.EnterVehicle(Vehicle(DesiredPosition));
-				return true;
-			}
-		}
-		if (B.ShouldDefendPosition())
-		{
-			return true;
-		}
-	}
-	else if ( SquadObjective == None )
-		return TellBotToFollow(B,SquadLeader);
-	else if ( GetOrders() == 'Freelance' && (UTVehicle(B.Pawn) == None || !UTVehicle(B.Pawn).bKeyVehicle) )
-	{
-		return false;
-	}
-	else
-	{
-		if ( UTObjective.DefenderTeamIndex != Team.TeamIndex )
-		{
-			if ( UTObjective.bIsDisabled )
-			{
-				B.GoalString = "Objective already disabled";
-				return false;
-			}
-			B.GoalString = "Disable Objective "$SquadObjective;
-			return UTObjective.TellBotHowToDisable(B);
-		}
-		if (B.DefensivePosition != None && AcceptableDefensivePosition(B.DefensivePosition, B))
-		{
-			DesiredPosition = B.DefensivePosition;
-		}
-		else if (UTObjective.bBlocked)
-		{
-			DesiredPosition = FindDefensivePositionFor(B);
-		}
-		else
-		{
-			DesiredPosition = UTObjective;
-		}
-		if(DesiredPosition == UTObjective) {
-			DesiredLocation = Rx_BuildingObjective(UTObjective).GetShootTarget().location;
-		} else {
-			DesiredLocation = DesiredPosition.location;
-		} 
-		bInPosition = ( VSize(DesiredLocation - B.Pawn.Location) < RX_NEAROBJECTIVEDIST &&
-				(B.LineOfSightTo(Rx_BuildingObjective(UTObjective).GetShootTarget()) || (UTObjective.bHasAlternateTargetLocation && B.LineOfSightTo(Rx_BuildingObjective(UTObjective).GetShootTarget(),, true))) );
-	}
-
-	if ( B.Enemy != None )
-	{
-		if ( B.LostContact(5) )
-			B.LoseEnemy();
-		if ( B.Enemy != None )
-		{
-			if ( B.LineOfSightTo(B.Enemy) || (WorldInfo.TimeSeconds - B.LastSeenTime < 3 && (SquadObjective == None || !UTGameObjective(SquadObjective).TeamLink(Team.TeamIndex))) 
-				&& (UTVehicle(B.Pawn) == None || !UTVehicle(B.Pawn).bKeyVehicle) )
-			{
-				Dist = VSize(B.location - B.Enemy.location);
-				if(!Rx_Bot(B).HasRepairGun()) {
-					B.FightEnemy(BotsEnemyIsCloserToObjective(B), 0); 
-					return true;	
-				} else if(Dist < 2600 && (SquadObjective == None || Rx_BuildingObjective(SquadObjective) == None 
-							|| !Rx_BuildingObjective(SquadObjective).NeedsHealing() 
-							|| Rx_BuildingObjective(SquadObjective).KillEnemyFirstBeforeHealing(B))) {
-					B.FightEnemy(false, 0);
-					return true;	
-				}
-			}
-		}
-	}
-	if ( bInPosition )
-	{
-		B.GoalString = "Near defense position" @ DesiredPosition;
-		if ( !B.bInitLifeMessage )
-		{
-			B.bInitLifeMessage = true;
-			B.SendMessage(None, 'INPOSITION', 25);
-		}
-
-		if ( B.DefensePoint != None )
-			B.MoveToDefensePoint();
-		else
-		{
-			if ( UTObjective.TellBotHowToHeal(B) )
-				return true;
-
-			if (B.Enemy != None && (B.LineOfSightTo(B.Enemy) || WorldInfo.TimeSeconds - B.LastSeenTime < 3))
-			{
-				B.FightEnemy(false, 0);
-				return true;
-			}
-
-			B.WanderOrCamp();
-		}
-		return true;
-	}
-
-	if (B.Pawn.bStationary )
-		return false;
-
-	B.GoalString = "Follow path to "$DesiredPosition;
-	if (DesiredPosition == UTObjective && UTObjective.bAllowOnlyShootable)
-	{
-		if (B.ActorReachable(UTObjective))
-		{
-			B.MoveTarget = UTObjective;
-		}
-		else
-		{
-			UTObjective.MarkShootSpotsFor(B.Pawn);
-			// make sure Anchor wasn't marked, because if it was acceptable we wouldn't have reached this code
-			if (B.Pawn.Anchor != None)
-			{
-				B.Pawn.Anchor.bTransientEndPoint = false;
-			}
-			B.FindBestPathToward(DesiredPosition, true, true);
-		}
-	}
-	else
-	{
-		B.FindBestPathToward(DesiredPosition, false, true);
-	}
-	if ( B.StartMoveToward(DesiredPosition) )
-		return true;
-
-	if ( (B.DefensePoint != None) && (DesiredPosition == B.DefensePoint) )
-	{
-		B.FreePoint();
-		if ( (UTObjective != None) && (VSize(B.Pawn.Location - UTObjective.Location) > 1200) )
-		{
-			B.FindBestPathToward(UTObjective,false,true);
-			if ( B.StartMoveToward(UTObjective) )
-				return true;
-		}
-	}
-	return false;
 }
 
-function bool BotsEnemyIsCloserToObjective(UTBot B) {
-	if(SquadObjective != None 
-		&& VSize(B.location - Rx_BuildingObjective(SquadObjective).GetShootTarget().location) 
-			> VSize(B.Enemy.location - Rx_BuildingObjective(SquadObjective).GetShootTarget().location)) {
-		return true;
+function NotifyMembersOnDeployable(Rx_Weapon_DeployedActor DA)
+{
+	local Rx_Bot B;
+
+	for(B=Rx_Bot(SquadMembers); B!=None; B=Rx_Bot(B.NextSquadMember))
+	{
+		if(B.DetectedDeployable == None)
+			B.DetectedDeployable = DA;
 	}
-	return false;
 }
 
-function bool CloseToLeader(Pawn P)
+function InitializeNoObjective(UTTeamInfo T, Controller C)
 {
-	local bool ret;
-	local float dist;
-	
-	ret = super.CloseToLeader(P);
-	if(ret) {
-		return true;
-	}
-	if(Vehicle(P) == None) {
-		return false;
-	} 
-	
-	dist = VSize(P.Location - SquadLeader.Pawn.Location);
-	if ( dist > FormationSize ) {
-		if(dist <= VehicleFormationSize) {
-			return true;
-		} else { // then its not the distance so check the other stuff again
-			if ( PhysicsVolume.bWaterVolume ) { // check if leader is moving away
-				if ( VSize(SquadLeader.Pawn.Velocity) > 0 )
-					return false;
-			}
-			else if ( VSize(SquadLeader.Pawn.Velocity) > SquadLeader.Pawn.WalkingPct * SquadLeader.Pawn.GroundSpeed ) {
-				return false;
-			}
-		
-			return ( P.Controller.LineOfSightTo(SquadLeader.Pawn) );	
-		}
-	}
-	return false;
+	Team = T;
+	SetLeader(C);
 }
 
-function float RateDefensivePosition(NavigationPoint N, UTBot CurrentBot, Actor Center)
+function CommenceTactics()
 {
-	local float Rating, Dist;
-	local UTBot B;
+	bTacticsCommenced = true;
+	CurrentTactics.CommenceTactics();
+	ClearTimer('CheckReadiness');
+
+	if(CurrentTactics.bTimeLimited)
+		SetTimer(CurrentTactics.TacticsTimeLimit,false,'ResetStrategy');
+
+}
+
+function CheckReadiness()
+{
+	local UTBot S;
 	local int i;
-	local ReachSpec ReverseSpec;
-	local bool bNeedSpecialMove;
-	local UTPawn P;
-	//local vector out_HitLocation;
-	//local vector out_HitNormal;	
-	local Rx_Building Building;
+	local bool bHasVehicle;
 
-	if(!Center.IsA('Rx_BuildingObjective')) {
-		if (N.bDestinationOnly || N.IsA('Teleporter') || N.IsA('PortalMarker') || (N.bFlyingPreferred && !CurrentBot.Pawn.bCanFly))
-			//(!FastTrace(N.Location, Center.GetTargetLocation()) && (!Center.bHasAlternateTargetLocation || !FastTrace(N.Location, Center.GetTargetLocation(, true)))))
-			return -1.0;
-	} else {
-		Building = Rx_BuildingObjective(Center).myBuilding;
-		Dist = VSize(N.Location - Building.GetTargetLocation());
-		/**
-		if (Dist > CurrentBot.Pawn.Weapon.MaxRange())
-		{
-			if(Building != Trace( out_HitLocation, out_HitNormal, Building.GetTargetLocation(), N.Location)) {
-				return -1.0;
-			}
-			Dist = VSize(N.Location - out_HitLocation);
-			if(Dist > CurrentBot.Pawn.Weapon.MaxRange() - 50) {
-				return -1.0; 
-			}
-		}
-		*/
-	}
-
-	// if bot can't double jump, disregard points only reachable by that method
-	P = UTPawn(CurrentBot.Pawn);
-	if ( P == None || !P.bCanDoubleJump )
+	for(S=SquadMembers; S!= None; S=S.NextSquadMember)
 	{
-		bNeedSpecialMove = true;
-		for (i = 0; i < N.PathList.length; i++)
-		{
-			if (N.PathList[i].GetEnd() != None)
-			{
-				ReverseSpec = N.PathList[i].GetEnd().GetReachSpecTo(N);
-				if ( ReverseSpec != None &&
-					!ReverseSpec.IsBlockedFor(P) &&
-					((ReverseSpec.reachFlags & 16) == 0 || (P != None && P.bCanDoubleJump)) )
-				{
-					bNeedSpecialMove = false;
-					break;
-				}
-			}
-		}
-		if (bNeedSpecialMove)
-		{
-			return -1.0;
-		}
+		if(Rx_Bot(S).bReadyForTactics)
+			i++;
+
+		if(!bHasVehicle && Vehicle(S.Pawn) != None)
+			bHasVehicle = true;
+
 	}
 
-	// make sure no squadmate using this point, and adjust rating based on proximity
-	Rating = 1;
-	for ( B=SquadMembers; B!=None; B=B.NextSquadMember )
+	if(i >= CurrentTactics.MinimumParticipant && (CurrentTactics.VehicleToMass.Length <= 0 || bHasVehicle || CurrentTactics.bPrioritizeInfantry))
 	{
-		if ( B != CurrentBot )
-		{
-			if ( (B.DefensePoint == N) || (B.DefensivePosition == N) )
-			{
-				return -1;
-			}
-			else if ( B.Pawn != None )
-			{
-				Rating *= 0.002*VSize(B.Pawn.Location - N.Location);
-			}
-		}
-	}
 
-	if(Center.IsA('Rx_BuildingObjective')) {
-		Dist = VSize(N.Location - Building.GetTargetLocation());
-	} else {
-		Dist = VSize(N.Location - Center.Location);
-	}
-	if (Dist < 400.0)
-	{
-		return (0.00025 * Dist);
-	}
+		ClearTimer('ResetStrategy');
+		ClearTimer('CheckReadiness');
+		SetTimer(3.0,false,'CommenceTactics');
 
-	return Rating;
+	}
+//	else
+//		`log(self@":"@i@"out of"@CurrentTactics.MinimumParticipant@"remaining before tactics can start");
 }
 
-/** Dont enter vehicle when Bot should heal building instead */
-function bool CheckVehicle(UTBot B)
+function FormDeathball()
 {
-	if(SquadObjective != None && Rx_BuildingObjective(SquadObjective) != None 
-			&& Rx_Bot(B).HasRepairGun() 
-			&& Rx_BuildingObjective(SquadObjective).NeedsHealing() 
-			&& !Rx_BuildingObjective(SquadObjective).KillEnemyFirstBeforeHealing(B)) {
-			return false;
-	} else {
-		return super.CheckVehicle(B);
+	local UTBot S;
+
+	for(S=SquadMembers; S!= None; S=S.NextSquadMember)
+	{
+		if(SquadLeader == S)
+			S.FindRoamDest();
+		else
+			TellBotToFollow(S,SquadLeader);
 	}
+}
+
+function bool IsStealthDiscovered()
+{
+	local Rx_Bot B;
+	local int i;
+
+	for(B=Rx_Bot(SquadMembers); B!=None; B=Rx_Bot(B.NextSquadMember))
+	{
+		if(!B.IsCurrentlyInvisible())
+			i++;
+
+		if(i >= Size * 0.5)
+			return true;
+	}
+
+	return false;
+}
+
+
+// ToDo - Redesign the decision based on the framework
+
+function ChooseTactics()
+{
+	local Array<class<Rx_AITactics> > TacList;
+	local UTBot S;
+	local int i;
+
+	if(PlayerController(SquadLeader) != None || GetOrders() == 'DEFEND')
+		return;
+
+	ReassignLeader();
+
+	if(GetTeamNum() == 0)
+		TacList = FilterTactics(GDITactics);
+
+	else
+		TacList = FilterTactics(NodTactics);
+
+	if(TacList.Length <= 0)		//We can't find any viable tactics, rerun later
+	{
+//		`log(Self@"failed to choose tactics : No viable tactics found");
+		ResetStrategy();
+		return;
+	}
+
+	i = Rand(TacList.Length);
+
+	CurrentTactics = new TacList[i];
+	CurrentTactics.OwningSquadAI = self;
+
+	for(S=SquadMembers; S!= None; S=S.NextSquadMember)
+	{
+		if(Rx_Bot(S).CheckIfOnboard(CurrentTactics.CreditsNeeded))
+			NumOfBotsOnboard++;
+	}
+
+	if(NumOfBotsOnboard < CurrentTactics.MinimumParticipant)
+	{
+//		`log(Self@"failed to choose tactics : Insufficient participant");
+		ResetStrategy();
+		return;
+	}
+
+
+	if(CurrentTactics.PreparationTime > 0)
+	{
+		SetTimer(CurrentTactics.PreparationTime, false,'ResetStrategy');
+	}
+	else
+	{
+		CommenceTactics();
+	}
+
+	SetTimer(2.0,true,'CheckReadiness');
+
+	bOnboardForTactics = true;
+//	`log(Self@"successfully set up >>"@CurrentTactics@"<< as squad tactics");
+
+}
+
+function Array<class<Rx_AITactics> > FilterTactics(Array<class<Rx_AITactics> > List)
+{
+	local Array<class<Rx_AITactics> > TacList;
+	local class<Rx_AITactics> T;
+
+	Foreach List(T)	
+	{	
+
+		if(T.static.IsAvailable(Rx_Bot(SquadLeader)))
+		{
+			TacList.AddItem(T);
+		}
+	}
+
+	return TacList;
+}
+
+function ReassignLeader()
+{
+	local int CurSkill, BestSkill;
+	local UTBot BestB, S;
+
+
+	for (S=SquadMembers; S != None; S=S.NextSquadMember)
+	{
+		if(BestB == None)
+		{
+			BestSkill = S.Skill;
+			BestB = S;
+		}
+		else
+		{
+			CurSkill = S.Skill;
+			if(CurSkill > BestSkill)
+			{
+				BestSkill = CurSkill;
+				BestB = S;
+			}
+		}
+	}
+
+	SetLeader(BestB);
+
+}
+
+function DiscardFromTactic()
+{
+	NumOfBotsOnboard--;
+
+	if(NumOfBotsOnboard < 0)
+		ResetStrategy();
+	
+}
+
+function ResetStrategy()
+{
+	local Rx_Bot B;
+	local int i;
+
+	CurrentTactics = None;
+
+	if(bOnboardForTactics)
+		bOnboardForTactics = false;
+
+	ClearTimer('CheckReadiness');
+
+
+	for(B=Rx_Bot(SquadMembers); B != None;B=Rx_Bot(B.NextSquadMember))
+	{
+		if(B.bOnboardForTactics)
+		{
+			B.bOnboardForTactics = false;
+			if(B.PTTask == B.TacticsPTTask)
+				B.PTTask = "";
+			else
+			{
+				for(i=0;i<B.PTQueue.length;i++)
+				{
+					if(B.PTQueue[i] == B.TacticsPTTask)
+					{
+						B.PTQueue.Remove(i,1);
+						break;
+					}
+				}
+			}
+			B.TacticsPTTask = "";
+		
+			if(B.GetOrders() == 'ATTACK')
+				SetObjective(UTTeamInfo(Team).AI.GetPriorityAttackObjectiveFor(Self,SquadMembers),false);
+		}
+	}
+	
+	bSquadTacticsAnnounced = false;
+
+	SetTimer((BaseTacticsDelay/UTBot(SquadLeader).Skill + 1),false, 'ChooseTactics');
+}
+
+function AnnounceAttackPlan()
+{
+
+	if(!bSquadTacticsAnnounced)
+	{
+		bSquadTacticsAnnounced = true;
+		SetTimer(RandRange(1.0,4.0), false, 'DelayedAnnounceAttackPlan');
+	}
+
+	
+}
+
+function bool GotoVehicle(UTVehicle SquadVehicle, UTBot B)
+{
+	if(Rx_Bot(B).PTTask != "" && PlayerStart(B.RouteGoal) != None)
+		return false;
+
+	return Super.GotoVehicle(SquadVehicle,B);
+}
+
+function DelayedAnnounceAttackPlan()
+{
+	local UTBot S,FirstS;
+	local String Announcement, OtherMembers;
+	local int i;
+
+	if(Rx_BuildingObjective(SquadObjective) == None)
+		return;
+
+	if(Size == 1 && Rx_Bot(SquadMembers).bOnboardForTactics)
+	{
+		FirstS = SquadMembers;
+		Announcement = "I'm commencing"@CurrentTactics.TacticName@"on"@Rx_BuildingObjective(SquadObjective).myBuilding.GetHumanReadableName()@" on my own!";
+		i = 1;
+	}
+
+	else
+	{
+		for ( S=SquadMembers; S!=None; S=S.NextSquadMember )
+		{
+			if(Rx_Bot(S).bOnboardForTactics)
+			{
+				if(FirstS == None)
+				{
+					FirstS = S;
+					continue;
+				}
+				else
+				{
+					OtherMembers = OtherMembers@S.GetHumanReadableName()$",";
+				}
+
+				i++;
+			}
+		}
+
+		if(i > 1)		
+			Announcement = OtherMembers@"and I are commencing"@CurrentTactics.TacticName@"on"@Rx_BuildingObjective(SquadObjective).myBuilding.GetHumanReadableName()$"!";
+		else
+			Announcement = "I'm commencing"@CurrentTactics.TacticName@"on"@Rx_BuildingObjective(SquadObjective).myBuilding.GetHumanReadableName()@" on my own!";
+			
+	}
+	if(FirstS == None)
+	{
+		ResetStrategy(); // Nobody's onboard, reset
+		return;
+	}
+
+	Rx_Bot(FirstS).BroadcastSpotMessage(12,Announcement);
+}
+
+function int GetEngiNumber()
+{
+	local Rx_Bot B;
+	local int i;
+	local class<UTFamilyInfo> FamInfo;
+
+	
+	for (B=Rx_Bot(SquadMembers); B!=None; B=Rx_Bot(B.NextSquadMember) )
+	{
+		FamInfo = Rx_Pri(B.PlayerReplicationInfo).CharClassInfo;
+
+		if( Rx_Game(WorldInfo.Game).PurchaseSystem.DoesHaveRepairGun( FamInfo ) && (B.PTTask == "" || B.PTTask == "Refill")) 
+			i += 1;
+
+	}
+
+	return i;
 }
 
 function float VehicleDesireability(UTVehicle V, UTBot B)
 {
+
+	if (Rx_Defence(V) != None)		// Defenses are vehicles, but they will never be able to be entered normally. Leave it be
+		return 0;
+
 	// if a vehicle was purchased by the bot AND is bound to the bot, treat normally
 	if(Rx_Vehicle(V) != None && (Rx_Vehicle(V).buyerPri != B.PlayerReplicationInfo || (Rx_Vehicle(V).BoundPRI != None && Rx_Vehicle(V).BoundPRI != B.PlayerReplicationInfo)))
 	{
@@ -378,203 +372,241 @@ function float VehicleDesireability(UTVehicle V, UTBot B)
 		if ((Rx_Vehicle(V).BoundPRI != None && Rx_Vehicle(V).TimeLastOccupied >= 0 && WorldInfo.TimeSeconds - Rx_Vehicle(V).TimeLastOccupied < 30) // Bound & empty for 30 seconds
 			|| Rx_Vehicle(V).bDriverLocked) // Locked
 			return 0;
+
 	}
+
+	// Attackers should not use a 'Defence' Emplacement in the first place. 
+	// Bots are like cats though, if it fits, they sits.
+
+	if (B.GetOrders() == 'DEFEND')
+	{
+		if(Rx_Defence_Emplacement(V) == None || Rx_Bot(B).HasRepairGun())
+			return 0;
+	}
+	else if (Rx_Defence_Emplacement(V) != None) 
+		return 0;
+
+
+
 	return super.VehicleDesireability(V,B);
 }
-function bool ShouldUseAlternatePaths()
-{
-	local Rx_BuildingObjective BuildingObjective;
-	local bool ret;
 
-	// use alternate paths only when attacking active enemy objective
-	BuildingObjective = Rx_BuildingObjective(SquadObjective);
-	ret = (BuildingObjective != None && BuildingObjective.DefenderTeamIndex != Team.TeamIndex && !BuildingObjective.bIsDisabled);
-	return ret;
-}
-
-/** @return the maximum distance a bot should be from the given Actor it wants to defend */
-function float GetMaxDefenseDistanceFrom(Actor Center, UTBot B)
+function bool FindNewEnemyFor(UTBot B, bool bSeeEnemy)
 {
-	return (Pawn(Center) != None ? FormationSize : RX_NEAROBJECTIVEDIST);
-}
+	local int i;
+	local Pawn BestEnemy, OldEnemy;
+	local bool bSeeNew;
+	local float BestThreat,NewThreat;
 
-function bool CheckHoverboard(UTBot B) 
-{
-	return false;
-}
-
-function bool GotoVehicle(UTVehicle SquadVehicle, UTBot B) 
-{
-	if(Rx_Vehicle(squadVehicle).buyerPri != None && Rx_Vehicle(squadVehicle).buyerPri != B.PlayerReplicationInfo) {
+	if ( B.Pawn == None )
+		return true;
+	if ( (B.Enemy != None) && MustKeepEnemy(B.Enemy) && B.LineOfSightTo(B.Enemy) )
 		return false;
-	} else {
-		return super.GotoVehicle(SquadVehicle, B);
-	}
 
-}
-
-/** @return whether bot should continue along its path on foot or stay in its current vehicle */
-function bool AllowContinueOnFoot(UTBot B, UTVehicle V)
-{
-	return false;
-	/**
-	if ( V.Health > 0.2*V.Default.Health ) {
-		return false;
-	}
-	return super.AllowContinueOnFoot(B,V);
-	*/
-}
-
-/**
-function bool SetEnemy( UTBot B, Pawn NewEnemy )
-{
-	local bool ret;
-	if(super.SetEnemy(B,NewEnemy)) {
-		if(Rx_Vehicle(B.Pawn) != None) {
-			ret = Rx_Vehicle(B.Pawn).ValidEnemyForVehicle(NewEnemy); 
-		} else {
-			ret = true;
-		}
-	}
-	if(ret) {
-		Rx_Bot(B).InvalidEnemy = None;		
-	}
-	return ret;
-}
-*/
-
-function float AssessThreat( UTBot B, Pawn NewThreat, bool bThreatVisible )
-{
-	local float ret, Dist;
-
-	ret = super.AssessThreat(B,NewThreat,bThreatVisible);
-	if(Rx_Vehicle(B.Pawn) != None && !Rx_Vehicle(B.Pawn).ValidEnemyForVehicle(NewThreat)) {
-		ret -= 20;	
-	} 
-
-	// higher threat when a spy is getting close 
-	// TODO: when getting out of range bot should still have some kind of threat value to spy
-	if (Rx_Pawn(NewThreat) != none && Rx_Pawn(NewThreat).isSpy())
+	BestEnemy = B.Enemy;
+	OldEnemy = B.Enemy;
+	if ( BestEnemy != None )
 	{
-		Dist = VSize(NewThreat.Location - B.Pawn.Location);
-		if (Dist <= class'Rx_Hud_PlayerNames'.default.EnemyDisplayNamesRadius && bThreatVisible)
+		if ( (BestEnemy.Health < 0) || (BestEnemy.Controller == None) )
 		{
-			ret += (class'Rx_Hud_PlayerNames'.default.EnemyDisplayNamesRadius - Dist) / class'Rx_Hud_PlayerNames'.default.EnemyDisplayNamesRadius;
+			B.Enemy = None;
+			BestEnemy = None;
 		}
 		else
 		{
-			ret -= 10;
+			if ( ModifyThreat(0,BestEnemy,bSeeEnemy,B) > 5 )
+				return false;
+			BestThreat = AssessThreat(B,BestEnemy,bSeeEnemy);
 		}
 	}
-	return ret;	
-}
-
-
-function bool ValidEnemy(Pawn NewEnemy)
-{
-	local bool bRet;
-	local UTBot M;
-	
-	bRet = super.ValidEnemy(NewEnemy);
-
-	// if upper logic says yes, check for spy
-	if (bRet && Rx_Pawn(NewEnemy) != none && Rx_Pawn(NewEnemy).isSpy())
+	for ( i=0; i<ArrayCount(Enemies); i++ )
 	{
-		// look for a bot that is near the spy, if so add as enemy
-		// TODO: if player spots spy, bots should add spy as enemy too
-		for	( M = SquadMembers; M != None; M = M.NextSquadMember )
+		if (Enemies[i] != None && Enemies[i].Health > 0 && Enemies[i].Controller != None && (B.bBetrayTeam || !WorldInfo.GRI.OnSameTeam(Enemies[i], B)) )
 		{
-			if (VSize(NewEnemy.Location - M.Pawn.Location) <= class'Rx_Hud_PlayerNames'.default.EnemyDisplayNamesRadius)
+			if ( BestEnemy == None || (Rx_Bot(B) != None && !Rx_Bot(B).IdealToAttack(BestEnemy)) && Rx_Bot(B).IdealToAttack(Enemies[i]))
 			{
-				return true;
+				BestEnemy = Enemies[i];
+				bSeeEnemy = B.CanSee(Enemies[i]);
+				BestThreat = AssessThreat(B,BestEnemy,bSeeEnemy);
+			}
+			else if ( Enemies[i] != BestEnemy )
+			{
+				if ( VSize(Enemies[i].Location - B.Pawn.Location) < 1500 )
+					bSeeNew = B.LineOfSightTo(Enemies[i]);
+				else
+					bSeeNew = B.CanSee(Enemies[i]);	// only if looking at him
+				NewThreat = AssessThreat(B,Enemies[i],bSeeNew);
+				if ( NewThreat > BestThreat )
+				{
+					BestEnemy = Enemies[i];
+					BestThreat = NewThreat;
+					bSeeEnemy = bSeeNew;
+				}
 			}
 		}
-		return false;
-	}
-	return bRet;
-}
-
-function SetObjective(UTGameObjective O, bool bForceUpdate)
-{
-	if(Rx_AreaObjective(O) != None) {
-		if ( SquadObjective == O )
-		{
-			if ( SquadObjective == None )
-				return;
-			if ( Rx_AreaObjective(O).TeamSquads[GetTeamNum()] == None )
-				Rx_AreaObjective(O).TeamSquads[GetTeamNum()] = self;
-			if ( !bForceUpdate )
-				return;
-		}
 		else
-		{
-			if ( Rx_AreaObjective(O).TeamSquads[GetTeamNum()] == None )
-				Rx_AreaObjective(O).TeamSquads[GetTeamNum()] = self;			
-			bForceNetUpdate = TRUE;
-			SquadObjective = O;
-		}	
-	} else {
-		super.SetObjective(O,bForceUpdate);
+			Enemies[i] = None;
 	}
-}
-
-function bool TellBotToFollow(UTBot B, Controller C)
-{
-	if(C != None && UTPlayercontroller(C) == None && Rx_Vehicle(B.Pawn) != None && Rx_Vehicle(C.Pawn) == None) {
-		return false;
-	}
-	return super.TellBotToFollow(B,C);
-}
-
-function bool OverrideFollowPlayer(UTBot B)
-{
-	local UTGameObjective PickedObjective;
-	local UTTeamAI TeamAI;
-	
-	TeamAI = UTTeamInfo(Team).AI;
-	PickedObjective = TeamAI.GetPriorityAttackObjectiveFor(self, B);
-	if ( (PickedObjective == None) )
-		return false;
-
-	if(Rx_BuildingObjective(PickedObjective) == None && UTPlayerController(SquadLeader) != None) {
-		return false; // follow player until enemy base is reached	
-	}
-		
-	if ( PickedObjective.BotNearObjective(B) )
+	B.Enemy = BestEnemy;
+	if ( (B.Enemy != OldEnemy) && (B.Enemy != None) )
 	{
-		if ( PickedObjective.DefenderTeamIndex == Team.TeamIndex )
-		{
-			return PickedObjective.TellBotHowToHeal(B);
-		}
-		else
-			return PickedObjective.TellBotHowToDisable(B);
+		B.EnemyChanged(bSeeEnemy);
+		return true;
 	}
-	if ( PickedObjective.DefenderTeamIndex == Team.TeamIndex )
-		return false;
-	if ( PickedObjective.Shootable() && B.LineOfSightTo(PickedObjective) )
-		return PickedObjective.TellBotHowToDisable(B);
 	return false;
 }
 
-function bool NeverBail(Pawn P)
+function bool MustKeepEnemy(Pawn E)
 {
-	local bool ret;
-	
-	ret = super.NeverBail(P);
-	if(!ret && Vehicle(P).StuckCount <= 3)
+	local Rx_Building B;
+
+	if(GetOrders() == 'DEFEND')
 	{
-		ret=true;
+		if(ActorInBuilding(E,B) && B.GetTeamNum() == GetTeamNum() && !B.IsDestroyed())
+			return true; // Infiltrators will not be ignored
 	}
-	return ret;
+
+	return false;
 }
 
+function bool ActorInBuilding(Actor A, optional out Rx_Building B)
+{
+	local vector Dummy1,Dummy2;
+
+	if(A == None)
+		return false;
+
+	B = Rx_Building(Trace(Dummy1, Dummy2, A.location + vect(0,0,2000), A.location, TRUE, , , TRACEFLAG_Bullet));
+
+	if(B != None)
+		return true;
+
+	return false;
+}
+
+//
+//	BOT ORDERING SYSTEM - WIP
+//	Functions that handles all the orders given to bots
+//	This is Squad-wide handler
+//
+
+function bool OnBuildingNeedsRepair (Rx_Controller OrderingPlayer, Rx_Building B)
+{
+
+	if(B.myObjective == SquadObjective)
+		return false;
+
+	if(GetOrders() != 'DEFEND' && GetOrders() != 'FOLLOW')
+	{
+		return false;
+	}
+
+	if(Rx_Bot(SquadLeader).AckPlayer == None)
+		Rx_Bot(SquadLeader).AckPlayer = OrderingPlayer;
+
+	if(B.GetArmor() < B.GetMaxArmor())
+	{
+		if(OrderingPlayer.bPlayerIsCommander() || (Rx_BuildingObjective(SquadObjective).myBuilding.GetArmor() > Rx_BuildingObjective(SquadObjective).myBuilding.GetMaxArmor() * 0.75)) // Commanders will be obeyed. Otherwise, check their own building
+		{
+			SquadObjective = B.myObjective;
+			Rx_Bot(SquadLeader).AcknowledgeOrder();
+			return true;
+		}
+	}
+
+	Rx_Bot(SquadLeader).RejectOrder();
+	return false;
+}
+
+function bool OnDisarmObject(Rx_Controller OrderingPlayer, Rx_Weapon_DeployedActor D)
+{
+	local Rx_Bot S;
+	local bool bOrderSuccessful;
+
+	if(GetOrders() != 'DEFEND' && GetOrders() != 'FOLLOW')
+	{
+		return false;
+	}
+	for(S=Rx_Bot(SquadMembers); S!= None; S=Rx_Bot(S.NextSquadMember))
+	{
+		if(S != None)
+		{
+			if(OrderingPlayer.bPlayerIsCommander() || S.DetectedDeployable == None || CheckDeployablePriority(S,D))
+			{
+				S.DetectedDeployable = D;
+				if(!bOrderSuccessful)
+					bOrderSuccessful = true;
+			}	
+		}
+	}
+
+	return bOrderSuccessful;
+}
+
+function bool CheckDeployablePriority(Rx_Bot B, Rx_Weapon_DeployedActor D)
+{
+	local bool bSelectedIsImportant, bCurrentIsImportant;
+	local Rx_Weapon_DeployedActor DA;
+
+	DA = B.DetectedDeployable;
+
+	if(Rx_Weapon_DeployedBeacon(DA) != None && VSize(DA.location - Rx_BuildingObjective(SquadObjective).myBuilding.location) < 1000)
+	{
+		bCurrentIsImportant = true;
+	}
+	else if(Rx_Weapon_DeployedC4(DA) != None && Rx_BuildingAttachment_MCT(DA.Base) != None)
+	{
+		bCurrentIsImportant = true;
+	}
+
+	if(Rx_Weapon_DeployedBeacon(D) != None && VSize(D.location - Rx_BuildingObjective(SquadObjective).myBuilding.location) < 1000)
+	{
+		bSelectedIsImportant = true;
+	}
+	else if(Rx_Weapon_DeployedC4(D) != None && Rx_BuildingAttachment_MCT(D.Base) != None)
+	{
+		bSelectedIsImportant = true;
+	}
+
+	if(bSelectedIsImportant && !bCurrentIsImportant)
+		return true;
+
+	return false;
+
+}
 
 DefaultProperties
 {
-	 MaxSquadSize=2 // counts only for Attack and Freelance Squads ! Defense Squads have no limit.
-	 bRoamingSquad=true
-	 bShouldUseGatherPoints=true	 
-	 FormationSize=1100.0
-	 VehicleFormationSize=2500.0
-	 MaxSquadRoutes=5
-}
+	RepairerRatio = 0.4
+	BaseTacticsDelay = 90;
+
+	GDITactics.Add(class'Rx_AITactics_Opening_GDI_EngiRush')
+	GDITactics.Add(class'Rx_AITactics_Opening_GDI_FarlandRush')
+	GDITactics.Add(class'Rx_AITactics_Opening_GDI_Shotgun')
+	GDITactics.Add(class'Rx_AITactics_Opening_GDI_Standard')
+	GDITactics.Add(class'Rx_AITactics_Opening_GDI_OfficerRush')
+
+	GDITactics.Add(class'Rx_AITactics_GDI_MobiusRush')
+	GDITactics.Add(class'Rx_AITactics_GDI_PatchRush')
+	GDITactics.Add(class'Rx_AITactics_GDI_MiniBeaconRush')
+	GDITactics.Add(class'Rx_AITactics_GDI_CommandoDeathball')
+
+	GDITactics.Add(class'Rx_AITactics_GDI_APCRush')
+	GDITactics.Add(class'Rx_AITactics_GDI_MedRush')
+
+
+	NodTactics.Add(class'Rx_AITactics_Opening_Nod_ChemRush')
+	NodTactics.Add(class'Rx_AITactics_Opening_Nod_OfficerRush')
+	NodTactics.Add(class'Rx_AITactics_Opening_Nod_Shotgun')
+	NodTactics.Add(class'Rx_AITactics_Opening_Nod_FlameTroopers')
+	NodTactics.Add(class'Rx_AITactics_Opening_Nod_EngiRush')	
+
+	NodTactics.Add(class'Rx_AITactics_Nod_MendozaRush')
+	NodTactics.Add(class'Rx_AITactics_Nod_MiniBeaconRush')
+	NodTactics.Add(class'Rx_AITactics_Nod_StealthBeaconRush')
+	NodTactics.Add(class'Rx_AITactics_Nod_CommandoDeathball')
+
+	NodTactics.Add(class'Rx_AITactics_Nod_FlameRush')
+	NodTactics.Add(class'Rx_AITactics_Nod_StankRush')
+	NodTactics.Add(class'Rx_AITactics_Nod_ArtyParty')
+

@@ -18,7 +18,7 @@ defaultproperties
     
     bPiercesArmor=false
 	
-	BleedDamageFactor=0.3
+	BleedDamageFactor=0.1
 	BleedCount=5
 	
 	KDamageImpulse=100
@@ -31,4 +31,5 @@ defaultproperties
 
 	IconTextureName="RenXHud_I110"
 	IconTexture=Texture2D'RX_WP_TiberiumAutoRifle.UI.T_WeaponIcon_TiberiumAutoRifle'
+	bUnsourcedDamage=false
 }

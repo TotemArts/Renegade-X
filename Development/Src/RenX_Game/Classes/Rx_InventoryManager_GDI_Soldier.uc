@@ -4,4 +4,5 @@ DefaultProperties
 {
 	PrimaryWeapons[0] = class'Rx_Weapon_AutoRifle_GDI' //2
 	
+	//AvailableAbilityWeapons[0] = class'Rx_WeaponAbility_Grenade'
 }

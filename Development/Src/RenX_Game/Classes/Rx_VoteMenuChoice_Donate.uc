@@ -24,7 +24,7 @@ function array<string> GetDisplayStrings()
 		for (i = 0; i < GRI.PRIArray.Length; i++)
 		{
 			if (GRI.PRIArray[i].bBot) continue;
-			ret.AddItem(string(GRI.PRIArray[i].PlayerID) $ ": " $ GRI.PRIArray[i].PlayerName);
+			ret.AddItem(string(GRI.PRIArray[i].PlayerID) $ "|    " $ GRI.PRIArray[i].PlayerName);
 		}
 	}
 	else
@@ -73,8 +73,7 @@ function InputFromConsole(string text)
 		pNameLen = Len(pname);
 
 		CurrentTier++;
-		//Handler.PlayerOwner.ShowVoteMenuConsole("How much credits do you want to donate to " $ pname $ ": ");
-		Handler.PlayerOwner.HowMuchCreditsString = "How much credits do you want to donate to " $ pname $ ": ";
+		Handler.PlayerOwner.HowMuchCreditsString = "How many credits do you want to donate to " $ pname $ "? ";
 	}
 	else
 	{

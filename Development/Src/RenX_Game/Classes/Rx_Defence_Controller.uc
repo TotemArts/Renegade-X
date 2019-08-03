@@ -25,10 +25,48 @@ var float MaxPredictionSpeed;
 var float AimAhead;
 var rotator AimAheadAimRotation;
 
+var int Veterancy_Points; //Held by the controller for defences for ease of use
+var bool bAutoVet; //Automatic defence, so automatically handle veterancy
+
+enum Target
+{
+	TYPE_AIR, TYPE_GROUND, TYPE_BOTH
+};
+
+var const Target targets;
+
+//Weapons
+var float Misc_DamageBoostMod; 
+var float Misc_RateOfFireMod;
+var float Misc_ReloadSpeedMod;
+
+//Survivablity
+var float Misc_DamageResistanceMod;
+var float Misc_RegenerationMod; 
+
+//Healing Related Variables//
+var int	LastSupportHealTime;
+
+//Buff/Debuff modifiers//
+
+var float Misc_SpeedModifier; 
+
+
+struct ActiveModifier
+{
+	var class<Rx_StatModifierInfo> ModInfo; 
+	var float				EndTime; 
+	var bool				Permanent; 
+};
+
+var array<ActiveModifier> ActiveModifications; 
+
+
 event PostBeginPlay()
 {
 	Super.PostBeginPlay();
 	InitPlayerReplicationInfo();
+	SetTimer(0.1,true,'CheckActiveModifiers');
 }
 
 function InitPlayerReplicationInfo()
@@ -50,13 +88,8 @@ function bool IsTargetRelevant( Pawn thisTarget )
 	if (Rx_Pawn(thisTarget) != None && Rx_Pawn(thisTarget).isSpy()) // added spy exception
 		return false;
 
-	if(Rx_Defence_SAMSite(Pawn) == None && Rx_Defence_AATower(Pawn) == None) 
-	{
-		if(Rx_Vehicle_Air_Jet(thisTarget) != None || Rx_Vehicle_Air(thisTarget) != None) 
-		{
-			return false;
-		}
-	}
+	if(targets != TYPE_AIR && (Rx_Vehicle_Air_Jet(thisTarget) != None || Rx_Vehicle_Air(thisTarget) != None || Rx_SupportVehicle_Air(thisTarget) != none))
+		return false;
 	
 	if(Rx_VehicleSeatPawn(thisTarget) != none)
 	{
@@ -103,11 +136,16 @@ auto state Searching
 	
 	event SeePlayer( Pawn Seen )
 	{
+		
 		if ( IsTargetRelevant( Seen ) )
 		{
 			Enemy = Seen;
 			Focus = Seen;
 			GotoState('Engaged');
+		} 
+		else {
+			Enemy = None;
+			Focus = None;
 		}
 	}
 	
@@ -149,6 +187,7 @@ state Engaged
 	
 	function EnemyNotVisible()
 	{
+		
 		if ( IsTargetRelevant( Enemy ) )
 		{
 			Focus = None;
@@ -213,8 +252,10 @@ State WaitForTarget
 {
 	event SeePlayer(Pawn SeenPlayer)
 	{
+		`log("Relevant?" @ SeenPlayer);
 		if ( IsTargetRelevant( SeenPlayer ) )
 		{
+			`log("Seen in" @ "WaitForTarget");
 			Enemy = SeenPlayer;
 			GotoState('Engaged');
 		}
@@ -276,11 +317,188 @@ state Idle
 {
 }
 
+function GiveVeterancy(int VP)
+{
+	if(!bAutoVet || Rx_Defence(Pawn) == none) return;
+	
+	Veterancy_Points+=VP; 
+	
+	if(Veterancy_Points >= 20 && Rx_Defence(Pawn).VRank < 1) Rx_Defence(Pawn).PromoteUnit(1); //50 
+	else
+	if(Veterancy_Points >= 60 && Rx_Defence(Pawn).VRank < 2) Rx_Defence(Pawn).PromoteUnit(2); //100
+	else
+	if(Veterancy_Points >= 120 && Rx_Defence(Pawn).VRank < 3) Rx_Defence(Pawn).PromoteUnit(3); //150
+}
+
+/*****************/
+/**Set modifiers**/
+/*****************/
+
+function AddActiveModifier(class<Rx_StatModifierInfo> Info)//class<Rx_StatModifierInfo> Info) 
+{
+	local int FindI; 
+	local ActiveModifier TempModifier; 
+	//local class<Rx_StatModifierInfo> Info; 
+	
+	//Info = class'Rx_StatModifierInfo_Nod_PTP';
+	
+	FindI = ActiveModifications.Find('ModInfo', Info);
+	
+	//Do not allow stacking of the same modification. Instead, reset the end time of said modification
+	if(FindI != -1) 
+	{
+		//`log("Found in array");
+		ActiveModifications[FindI].EndTime = WorldInfo.TimeSeconds+Info.default.Mod_Length; 
+		//return; 	
+	}
+	else //New modifier, so add it in and re-update modification numbers
+	{
+		
+		//`log("Adding to array"); 
+		TempModifier.ModInfo = Info; 
+		if(Info.default.Mod_Length > 0) TempModifier.EndTime = WorldInfo.TimeSeconds+Info.default.Mod_Length;
+		else
+		TempModifier.Permanent = true; 
+		ActiveModifications.AddItem(TempModifier);	
+	}
+	
+	UpdateModifiedStats(); 
+}
+
+
+function UpdateModifiedStats()
+{
+	local ActiveModifier TempMod;
+	local byte			 HighestPriority; 
+	//local LinearColor	 PriorityColor; 
+	local bool			 bAffectsWeapon;
+	local class<Rx_StatModifierInfo> PriorityModClass; /*Highest priority modifier class (For deciding what overlay to use)*/
+	
+	ClearAllModifications(); //start from scratch
+	HighestPriority = 255 ; // 255 for none
+	
+	if(ActiveModifications.Length < 1) 
+	{
+		if(Rx_Pawn(Pawn) != none) 
+		{
+			//In case speed was modified. Update animation info
+			Rx_Pawn(Pawn).SetSpeedUpgradeMod(0.0);
+			Rx_Pawn(Pawn).UpdateRunSpeedNode(); 
+			Rx_Pawn(Pawn).SetGroundSpeed();
+			Rx_Pawn(Pawn).ClearOverlay();
+		}
+		else if(Rx_Vehicle(Pawn) != none)
+		{
+			Rx_Vehicle(Pawn).ClearOverlay();
+		}
+		//TODO: Insert code to handle vehicles 
+		return; 	
+	}
+	
+	foreach ActiveModifications(TempMod) //Build all buffs
+	{
+		Misc_SpeedModifier+=TempMod.ModInfo.default.SpeedModifier;	
+		Misc_DamageBoostMod+=TempMod.ModInfo.default.DamageBoostMod;	
+		Misc_RateOfFireMod-=TempMod.ModInfo.default.RateOfFireMod;
+		Misc_ReloadSpeedMod-=TempMod.ModInfo.default.ReloadSpeedMod;
+		Misc_DamageResistanceMod-=TempMod.ModInfo.default.DamageResistanceMod;
+		Misc_RegenerationMod+=TempMod.ModInfo.default.RegenerationMod;
+		bAffectsWeapon=TempMod.ModInfo.static.bAffectsWeapons();
+		if(TempMod.ModInfo.default.EffectPriority < HighestPriority || TempMod.ModInfo.default.EffectPriority == 0) 
+		{
+			HighestPriority = TempMod.ModInfo.default.EffectPriority;
+			//PriorityColor = TempMod.ModInfo.default.EffectColor;
+			PriorityModClass = TempMod.ModInfo;
+		}
+	}
+	
+	
+	if(Rx_Pawn(Pawn) != none) 
+	{
+		//In case speed was modified. Update animation info
+		Rx_Pawn(Pawn).SetSpeedUpgradeMod(Misc_SpeedModifier);
+		Rx_Pawn(Pawn).UpdateRunSpeedNode();
+		Rx_Pawn(Pawn).SetGroundSpeed();
+		Rx_Pawn(Pawn).SetOverlay(PriorityModClass, bAffectsWeapon) ; 
+		
+		if(Rx_Weapon(Pawn.Weapon) != none) Rx_Weapon(Pawn.Weapon).SetROFChanged(true);	
+	}
+	else if(Rx_Vehicle(Pawn) != none) 
+	{
+		//Misc_SpeedModifier+=1.0; //Add one to account for vehicles not operating like Rx_Pawn 
+		Rx_Vehicle(Pawn).UpdateThrottleAndTorqueVars();
+		Rx_Vehicle(Pawn).SetOverlay(PriorityModClass.default.EffectColor) ; 
+		
+		if(Rx_Vehicle_Weapon(Pawn.Weapon) != none) Rx_Vehicle_Weapon(Pawn.Weapon).SetROFChanged(true);	
+	}
+}
+
+function ClearAllModifications()
+{
+	//Buff/Debuff modifiers
+	Misc_SpeedModifier 			= default.Misc_SpeedModifier;
+
+	//Weapons
+	Misc_DamageBoostMod 		= default.Misc_DamageBoostMod; 
+	Misc_RateOfFireMod 			= default.Misc_RateOfFireMod; 
+	Misc_ReloadSpeedMod 		= default.Misc_ReloadSpeedMod; 
+
+	//Survivablity
+	Misc_DamageResistanceMod 	= default.Misc_DamageResistanceMod;
+	Misc_RegenerationMod 		= default.Misc_RegenerationMod; 	
+}
+
+function RemoveAllEffects()
+{
+	ActiveModifications.Length = 0; 
+	
+	UpdateModifiedStats(); 
+}
+
+function CheckActiveModifiers()
+{
+	local ActiveModifier TempMod;
+	local float			 TimeS; 
+	
+	if(ActiveModifications.Length < 1) return; 
+	
+	TimeS=WorldInfo.TimeSeconds; 
+	
+	//Should never be more than 1 or 2 of these at any given time, so shouldn't affect tick, though can be moved to a timer if necessary. 
+	foreach ActiveModifications(TempMod) 
+	{
+		if(!TempMod.Permanent && TimeS >= TempMod.EndTime) 
+		{
+			ActiveModifications.RemoveItem(TempMod);
+			
+			UpdateModifiedStats(); 
+		}
+	}
+}
+
 defaultproperties
 {
+	targets=TYPE_GROUND
 	bIsPlayer = false
 	RotationRate=(Pitch=32768,Yaw=60000,Roll=0)
 	bSeeFriendly=false
 	MaxPredictionSpeed=1000.0
 	AimAhead = 1.0	
+	bAutoVet = true
+	Veterancy_Points=0
+	
+	//Buff/Nerf Stats
+	
+	//Buff/Debuff modifiers//
+
+	Misc_SpeedModifier 			= 0.0 
+
+	//Weapons
+	Misc_DamageBoostMod 		= 0.0  
+	Misc_RateOfFireMod 			= 0.0f //1.0 
+	Misc_ReloadSpeedMod 		= 0.0f //1.0 
+
+	//Survivablity
+	Misc_DamageResistanceMod 	= 1.0 
+	Misc_RegenerationMod 		= 1.0  
 }

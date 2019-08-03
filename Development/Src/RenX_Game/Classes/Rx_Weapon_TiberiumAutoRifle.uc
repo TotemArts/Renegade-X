@@ -34,8 +34,13 @@ defaultproperties
 	
 	PlayerViewOffset=(X=0.0,Y=0.0,Z=0.0)
 	
-	LeftHandIK_Offset=(X=0.5,Y=-1,Z=3)
+	LeftHandIK_Offset=(X=0.0,Y=0.0,Z=0.0)
 	RightHandIK_Offset=(X=0,Y=0,Z=0)
+	
+	LeftHandIK_Relaxed_Offset = (X=0.0,Y=0.0,Z=0.0)
+	LeftHandIK_Relaxed_Rotation = (Pitch=-1456,Yaw=-3458,Roll=-2366)
+	RightHandIK_Relaxed_Offset = (X=-2.0,Y=2.0,Z=-5.0)
+	RightHandIK_Relaxed_Rotation = (Pitch=-3822,Yaw=182,Roll=9284)
 
 	ArmsAnimSet = AnimSet'RX_WP_TiberiumAutoRifle.Anims.AS_TiberiumAutoRifle_Arms'
 	
@@ -83,10 +88,12 @@ defaultproperties
 
 	FiringStatesArray(1)=Active
 
-	ClipSize = 25
+	ClipSize = 30
 	InitalNumClips = 7
 	MaxClips = 7
-
+	bHasInfiniteAmmo = true
+	
+	
 	ReloadAnimName(0) = "weaponreload"
 	ReloadAnimName(1) = "weaponreload2"
 	ReloadAnim3PName(0) = "H_M_Autorifle_Reload"
@@ -152,4 +159,29 @@ defaultproperties
 
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_TiberiumAutoRifle'
+	
+	/*******************/
+	/*Veterancy*/
+	/******************/
+	
+	Vet_DamageModifier(0)=1  //Applied to instant-hits only
+	Vet_DamageModifier(1)=1.10 
+	Vet_DamageModifier(2)=1.25 
+	Vet_DamageModifier(3)=1.50 
+	
+	Vet_ROFModifier(0) = 1
+	Vet_ROFModifier(1) = 1 
+	Vet_ROFModifier(2) = 1  
+	Vet_ROFModifier(3) = 1  
+	
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)	
+	Vet_ClipSizeModifier(1)=5 //Veteran 
+	Vet_ClipSizeModifier(2)=10 //Elite
+	Vet_ClipSizeModifier(3)=20 //Heroic
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=1 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.9 //Elite
+	Vet_ReloadSpeedModifier(3)=0.8 //Heroic
+	/**********************/
 }

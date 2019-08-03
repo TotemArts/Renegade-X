@@ -7,8 +7,8 @@ DefaultProperties
 	PrimaryWeapons[0] = class'Rx_Weapon_RepairGunAdvanced' //2
 	PrimaryWeapons[1] = class'Rx_Weapon_RemoteC4' //4
 	
-	SidearmWeapons[0] = class'Rx_Weapon_HeavyPistol' //1
-	AvailableSidearmWeapons(0) = class'Rx_Weapon_HeavyPistol' //1
+	SidearmWeapons[0] = class'Rx_Weapon_Pistol'// class'Rx_Weapon_HeavyPistol' //1
+	AvailableSidearmWeapons(0) = class'Rx_Weapon_Pistol' // class'Rx_Weapon_HeavyPistol' //1
  	
 	PrimaryWeapons[2] = class'Rx_Weapon_TimedC4_Multiple' //3
  	ExplosiveWeapons[0] = class'Rx_Weapon_ProxyC4'  //5

@@ -14,15 +14,99 @@
 *********************************************************/
 class Rx_Vehicle_MRLS_Weapon extends Rx_Vehicle_Weapon_Reloadable;
 
-
-
 var	SoundCue WeaponDistantFireSnd;	// A second firing sound to be played when weapon fires. (Used for distant sound)
-
 
 /*********************************************************************************************
  * Shoot methods
  *********************************************************************************************/
 
+ 
+simulated function Projectile ProjectileFireOld() //Edited to change the accelrate on missiles fired whilst the turret is locked.
+{
+    local UDKProjectile SpawnedProjectile;
+    local vector ForceLoc;
+
+    SpawnedProjectile = UDKProjectile(Super(UTVehicleWeapon).ProjectileFire());
+	
+	//`log("Call Projectile Fire Old" @ SpawnedProjectile); 
+	//ScriptTrace();
+	
+	if(Rx_Projectile(SpawnedProjectile) != none ) 
+	{
+		Rx_Projectile(SpawnedProjectile).Vrank=VRank; 
+		Rx_Projectile(SpawnedProjectile).FMTag=CurrentFireMode; 
+		Rx_Projectile(SpawnedProjectile).SetWeaponInstigator(self);
+	}
+	else if(Rx_Projectile_Rocket(SpawnedProjectile) != none)
+	{
+		Rx_Projectile_Rocket(SpawnedProjectile).SetWeaponInstigator(self);
+		if(Rx_Vehicle_MRLS(Instigator).bLockTurret)
+		{
+			Rx_Projectile_Rocket(SpawnedProjectile).AccelRate = (SpawnedProjectile.default.AccelRate*0.4);
+			Rx_Vehicle_MRLS_Projectile(SpawnedProjectile).bUseAlternateAccelRate = true;
+		}
+			
+	}
+	
+	if(bLockedOnTarget && bDropOnTarget && CurrentFireMode != 1) 
+	{
+		UseArcShot( Rx_Projectile_Rocket(SpawnedProjectile) );
+		SpawnedProjectile.Init( vector(AddSpread(MyVehicle.GetWeaponAim(self))) );
+	}
+    if ( (Role==ROLE_Authority) && (SpawnedProjectile != None) && MyVehicle != none && MyVehicle.Mesh != none)
+    {
+        // apply force to vehicle
+        ForceLoc = MyVehicle.GetTargetLocation();
+        ForceLoc.Z += 100;
+        MyVehicle.Mesh.AddImpulse(RecoilImpulse*SpawnedProjectile.Velocity, ForceLoc);
+    }  
+
+	
+	if (bTargetLockingActive && Rx_Projectile_Rocket(SpawnedProjectile) != None)
+    {
+		SetRocketTarget(Rx_Projectile_Rocket(SpawnedProjectile));
+    }    
+    return SpawnedProjectile;
+}
+
+simulated function SetRocketTarget(Rx_Projectile_Rocket Rocket)
+{
+	local vector CameraLocation, HitLocation, HitNormal, DesiredAimPoint;
+	local rotator CameraRotation;	
+	local Controller C;
+	
+	if (bLockedOnTarget && (!SecondaryLockingDisabled || CurrentFireMode != 1 || AIController(UTVehicle(Owner).Controller) != None ))
+	{
+		Rocket.SeekTarget = LockedTarget;
+		Rocket.GotoState('Homing');
+	}
+	else
+	{
+		//Rocket.Target = GetDesiredAimPoint() // The Trace in GetDesiredAimPoint() sometimes wasent accurate enough in all situations and has been modified below
+		
+		C = (MyVehicle != None) ? MyVehicle.Seats[SeatIndex].SeatPawn.Controller : None;
+		if(PlayerController(C) != None)
+		{
+			PlayerController(Instigator.Controller).GetPlayerViewPoint(CameraLocation, CameraRotation);
+			
+			if(Rx_Controller(Instigator.Controller).bBehindView && Rx_Controller(Instigator.Controller).ViewTarget != none) CameraLocation = CameraLocation + vector(CameraRotation) * VSize(CameraLocation - MyVehicle.GetEffectLocation(SeatIndex) );//Rx_Controller(Instigator.Controller).ViewTarget.location); //Again, the camera is capable of getting stuck in both geometry and behind vehicles. Scan up closer to the actual vehicle so we don't shoot behind ourselves.
+			//`log(VSize(CameraLocation -  MyVehicle.GetEffectLocation(SeatIndex)));//Rx_Controller(Instigator.Controller).ViewTarget.location));
+			DesiredAimPoint = CameraLocation + Vector(CameraRotation) * GetTraceRange(); 
+			if (GetTraceOwner().Trace(HitLocation, HitNormal, DesiredAimPoint, CameraLocation, true, vect(0,0,0),,TRACEFLAG_Bullet) != None)
+			{
+				DesiredAimPoint = HitLocation;
+			}
+		}
+		else if ( C != None )
+		{
+			DesiredAimPoint = C.GetFocalPoint();
+		}	
+		Rocket.Target = DesiredAimPoint;	
+		
+		Rocket.GotoState('Homing');
+	}
+} 
+ 
 simulated function FireAmmunition()
 {
     Super.FireAmmunition();
@@ -146,6 +230,37 @@ DefaultProperties
     Spread(0)=0.05
     Spread(1)=0.05
    
+   /****************************************/
+	/*Veterancy*/
+	/****************************************/
+	
+	//*X (Applied to instant-hits only) Modify Projectiles separately
+	Vet_DamageModifier(0)=1  //Normal
+	Vet_DamageModifier(1)=1.10  //Veteran
+	Vet_DamageModifier(2)=1.25  //Elite
+	Vet_DamageModifier(3)=1.50  //Heroic
+	
+	//*X Reverse percentage (0.75 is 25% increase in speed)
+	Vet_ROFModifier(0) = 1 //Normal
+	Vet_ROFModifier(1) = 0.90  //Veteran
+	Vet_ROFModifier(2) = 0.80  //Elite
+	Vet_ROFModifier(3) = 0.65  //Heroic
+ 
+	//+X
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)
+	Vet_ClipSizeModifier(1)=2 //Veteran 
+	Vet_ClipSizeModifier(2)=4 //Elite
+	Vet_ClipSizeModifier(3)=6 //Heroic
+
+	//*X Reverse percentage (0.75 is 25% increase in speed)
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.9 //Elite
+	Vet_ReloadSpeedModifier(3)=0.80 //Heroic
+	
+	
+	/********************************/
+   
     WeaponFireSnd(0)     = SoundCue'RX_VH_MRLS.Sounds.MRLS_FireCue'
     WeaponFireTypes(0)   = EWFT_Projectile
     WeaponProjectiles(0) = Class'Rx_Vehicle_MRLS_Projectile'
@@ -153,6 +268,10 @@ DefaultProperties
     WeaponFireSnd(1)     = SoundCue'RX_VH_MRLS.Sounds.MRLS_FireCue'
     WeaponFireTypes(1)   = EWFT_Projectile
     WeaponProjectiles(1) = Class'Rx_Vehicle_MRLS_Projectile'
+	
+	//Heroic Modifiers
+	WeaponProjectiles_Heroic(0)= Class'Rx_Vehicle_MRLS_Projectile_Heroic'
+	WeaponProjectiles_Heroic(1)= Class'Rx_Vehicle_MRLS_Projectile_Heroic'
 	
 	ReloadSound(0)=SoundCue'RX_VH_Apache.Sounds.SC_Reload_Missiles'
     ReloadSound(1)=SoundCue'RX_VH_Apache.Sounds.SC_Reload_Missiles'
@@ -166,6 +285,9 @@ DefaultProperties
 
     bTargetLockingActive = true
     bHasRecoil = true
+    bOkAgainstLightVehicles = True
+    bOkAgainstArmoredVehicles = True
+    bOkAgainstBuildings = True
     
     //==========================================
     // LOCKING PROPERTIES
@@ -182,4 +304,7 @@ DefaultProperties
     LockAcquireTime      = 1.0 			// 0.7
     StayLocked           = 0.1 			// 0.1		// This does nothing    
     
+	FM0_ROFTurnover = 6; //9 for most automatics. Single shot weapons should be more, except the shotgun
+	FM1_ROFTurnover = 6;
+	
 }

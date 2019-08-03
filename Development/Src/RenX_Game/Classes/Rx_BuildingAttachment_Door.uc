@@ -185,4 +185,8 @@ defaultproperties
 	
 	OpeningSound=SoundCue'rx_bu_door.Sounds.SC_Door_Open'
 	ClosingSound=SoundCue'rx_bu_door.Sounds.SC_Door_Open'
+	
+	/**
+	OpeningSound=SoundCue'TS_BU_Barracks.Sounds.SC_Door_Open'
+	ClosingSound=SoundCue'TS_BU_Barracks.Sounds.SC_Door_Close'*/
 }

@@ -153,4 +153,9 @@ DefaultProperties
      // AI
     bRecommendSplashDamage = True
     bTargetLockingActive = true
+
+    bOkAgainstLightVehicles = True
+    bOkAgainstArmoredVehicles = True
+    bOkAgainstBuildings = True
+
 }

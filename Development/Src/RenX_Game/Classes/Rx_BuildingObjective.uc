@@ -1,9 +1,11 @@
-class Rx_BuildingObjective extends UTGameObjective
+class Rx_BuildingObjective extends Rx_GameObjective
 	placeable;
 
 var()	Rx_Building	myBuilding;
 var int DamageCapacity;
 var float LastWarnTime;
+var NavigationPoint InfiltrationPoint;
+var bool bAlreadyReported;
 
 replication
 {
@@ -13,13 +15,54 @@ replication
 
 
 simulated function PostBeginPlay()
-{  
+{
+	local Rx_Building BI, NearestBuilding;
+	local int NearestBuildingDistance; 
+	local array<NavigationPoint> NavPoints;
+	local NavigationPoint N,BestN;
+	local float Dist, BestDist;
+	
+	NearestBuildingDistance = -1; 
+	//Failed to find a building objective
+	if(ROLE == ROLE_Authority && myBuilding == none){
+		foreach WorldInfo.AllActors(class'Rx_Building', BI){
+			if(NearestBuildingDistance == -1 || VSize(location-BI.location) < NearestBuildingDistance){
+				NearestBuildingDistance = VSize(location-BI.location);
+				NearestBuilding=BI; 
+			}
+		}
+	myBuilding=NearestBuilding; 
+	}		
+	
 	DefenderTeamIndex = myBuilding.ScriptGetTeamNum();
-	DamageCapacity = myBuilding.HealthMax;
-	if(Rx_Building_Barracks(myBuilding) != None) {
+	DamageCapacity = myBuilding.GetMaxArmor();
+	if(Rx_Building_GDI_InfantryFactory(myBuilding) != None) {
 		bFirstObjective = true;
 	}
 	myBuilding.myObjective = self;
+
+	BestDist = 100000;
+
+	class'NavigationPoint'.static.GetAllNavInRadius(myBuilding.GetMCT(),myBuilding.GetMCT().location,1000.0,NavPoints);
+	
+		Foreach NavPoints(N)
+		{
+			if(N.PathList.Length <= 0)
+				continue;
+ 
+			Dist = VSize(myBuilding.GetMCT().location - N.location);
+
+			if(Dist <= BestDist)
+			{
+				BestDist = Dist;
+				BestN = N;
+			}	
+		}
+
+	InfiltrationPoint = BestN;
+
+
+
 	super.PostBeginPlay();
 }
 
@@ -28,7 +71,7 @@ simulated function float GetObjectiveProgress()
 {
 	if ( bIsDisabled )
 		return 0;
-	return myBuilding.GetHealth()/DamageCapacity;
+	return myBuilding.GetHealth()/myBuilding.GetMaxHealth();
 }
 
 /* Reset()
@@ -36,7 +79,7 @@ reset actor to initial state - used when restarting level without reloading.
 */
 function Reset()
 {
-	myBuilding.Health = DamageCapacity;
+	myBuilding.Health = myBuilding.GetMaxHealth();
 	super.Reset();
 }
 
@@ -47,24 +90,78 @@ function bool NearObjective(Pawn P)
 	return super.NearObjective(P);
 }
 
+function AIReported()
+{
+	if(!IsCritical())
+	{
+		bAlreadyReported = true;
+		SetTimer(15.0,false,'ClearAIReport');
+	}
+}
+
+function ClearAIReport()
+{
+	bAlreadyReported = false;
+}
+
 function bool Shootable()
 {
 	return true;
 }
 
+
 simulated function bool NeedsHealing()
 {
-	return (!bIsDisabled && myBuilding.GetHealth() < DamageCapacity);
+
+		return (!bIsDisabled && myBuilding.GetArmor() < myBuilding.GetMaxArmor());
 }
 
-function Actor GetShootTarget()
-{
+function Actor GetShootTarget(UTBot B)
+{	
+	local Rx_BuildingAttachment MCT;
+	local Rx_Weapon_DeployedC4 C4;
+
+	MCT = myBuilding.GetMCT();
+
+	if(myBuilding.IsA('Rx_Building_Techbuilding'))
+	{
+		return MCT;
+	}
+
+	if(B.GetTeamNum() == myBuilding.GetTeamNum())
+	{
+
+		if(isCritical() && !B.LineOfSightTo(MCT))
+			return myBuilding;
+
+		if (Vehicle(B.Pawn) == none && (IsCritical() || B.LineOfSightTo(MCT)))
+		{
+			if(IsCritical())
+				return MCT;
+			
+			else
+			{
+				foreach VisibleCollidingActors(class 'Rx_Weapon_DeployedC4', C4, 300, MCT.Location)
+				{	
+					if(C4 != None && C4.TeamNum != B.GetTeamNum())
+						return C4;
+				}
+			}
+		}
+	}
+	else if(B.LineOfSightTo(MCT))
+		return MCT;
+
 	return myBuilding;
+	
 }
 
 simulated event bool IsCritical()
 {
-	return false; // make true when it needs immediate defense
+	if(myBuilding.GetArmor() < myBuilding.GetMaxArmor()/2)
+		return true;
+
+	return false;
 }
 
 event actor GetBestViewTarget()
@@ -78,25 +175,75 @@ return true if valid/useable instructions were given
 */
 function bool TellBotHowToDisable(UTBot B)
 {
-	
-	if ( !B.Pawn.bStationary && B.Pawn.Weapon != None && B.Pawn.TooCloseToAttack(GetShootTarget()) )
+
+	if(Rx_Bot(B).BaughtVehicle != None)
+		return false;
+
+	if(myBuilding.IsA('Rx_Building_Techbuilding'))
+	{	
+		if (myBuilding.GetTeamNum() == B.GetTeamNum() && myBuilding.GetHealth() >= myBuilding.GetMaxHealth())
+		{
+			UTTeamGame(WorldInfo.Game).FindNewObjectives(self);
+			return false;
+		}
+		else 
+		{
+			TellBotHowToHeal(B);
+			return true;
+		}
+		
+	}
+	if(myBuilding.GetTeamNum() == B.GetTeamNum())
 	{
+		return TellBotHowToHeal(B);
+	}
+	
+	if (myBuilding.GetTeamNum() != B.GetTeamNum() && Vehicle(B.Pawn) == None 
+		&& (Rx_Weapon(B.Pawn.InvManager.FindInventoryType(Class'Rx_Weapon_TimedC4', true)).HasAnyAmmo() 
+		|| Rx_Weapon(B.Pawn.Weapon).bOkAgainstBuildings))
+	
+	{
+		Rx_Bot(B).bInfiltrating = true;
+		if(Rx_Bot(B).FindInfiltrationPath())
+		{
+			if(B.LineOfSightTo(myBuilding.GetMCT()) && B.CanAttack(myBuilding.GetMCT()))
+			{
+				Rx_Bot(B).AssaultMCT();
+			}
+			return true;
+		}	
+
+		return false;
+	
+	}
+	else if(Vehicle(B.Pawn) != None)
+	{
+		return Rx_Bot(B).FindVehicleAssaultPath();
+	}
+
+	else if ( !B.Pawn.bStationary && B.Pawn.Weapon != None && B.Pawn.TooCloseToAttack(GetShootTarget(B)) )
+	{
+		Rx_Bot(B).bInfiltrating = false;
 		B.GoalString = "Back off from objective";
 		B.RouteGoal = B.FindRandomDest();
 		B.MoveTarget = B.RouteCache[0];
 		B.SetAttractionState();
 		return true;
 	}
-	else if ( B.CanAttack(GetShootTarget()) )
+	else if ( B.CanAttack(GetShootTarget(B)) )
 	{
-		
+		Rx_Bot(B).bInfiltrating = false;
+
 		if (KillEnemyFirstBeforeAttacking(B))
 			return false;		
 		
 		B.GoalString = "Attack Objective";
-		B.DoRangedAttackOn(GetShootTarget());
+
+		B.DoRangedAttackOn(GetShootTarget(B));
 		return true;
 	}
+
+	Rx_Bot(B).bInfiltrating = false;
 	
 	if(B.Enemy != None) {
 		return false;
@@ -122,6 +269,12 @@ function bool TellBotHowToHeal(UTBot B)
 	if (KillEnemyFirstBeforeHealing(B))
 		return false;		
 
+	if (Rx_Bot(B).IsHealing(False) && (B.Focus == myBuilding.GetMCT() || Rx_Weapon_Deployable(B.Focus) != None))
+	{
+		Rx_Bot(B).GoToState('Defending','Healing');
+		return true;
+	}
+
 	if (B.Squad.SquadObjective == None)
 	{
 		if (Vehicle(B.Pawn) != None)
@@ -146,10 +299,22 @@ function bool TellBotHowToHeal(UTBot B)
 		}
 	}
 
+	if(Rx_Building_Techbuilding(myBuilding) != None && Rx_Bot(B).HasRepairGun())
+	{
+		B.SwitchToBestWeapon();
+		if(B.CanAttack(myBuilding.GetMCT()))
+			B.DoRangedAttackOn(myBuilding.GetMCT());
+
+		return true;
+	}
+
+
+//DEPRECATED	-	The Bot knows exactly what to do in their Defending state
+/*
 	if (UTWeapon(B.Pawn.Weapon) != None && UTWeapon(B.Pawn.Weapon).CanHeal(myBuilding))
 	{
 		
-		if (!B.Pawn.CanAttack(GetShootTarget()))
+		if (!B.Pawn.CanAttack(GetShootTarget(B)))
 		{
 			// need to move to somewhere else near objective
 			if(FindClosestDefensePointForHealing(B)) {
@@ -164,8 +329,9 @@ function bool TellBotHowToHeal(UTBot B)
 				return false;
 			}
 		}
+		B.Focus = GetShootTarget(B);
 		B.GoalString = "Heal "$myBuilding;
-		B.DoRangedAttackOn(GetShootTarget());
+		B.DoRangedAttackOn(GetShootTarget(B));
 		return true;
 	}
 	else
@@ -176,8 +342,18 @@ function bool TellBotHowToHeal(UTBot B)
 		}
 		if (UTWeapon(B.Pawn.InvManager.PendingWeapon) != None && UTWeapon(B.Pawn.InvManager.PendingWeapon).CanHeal(myBuilding))
 		{
-			if (!B.Pawn.CanAttack(GetShootTarget()))
+
+			if(InfiltrationPoint != None)
 			{
+				B.FindBestPathToward(InfiltrationPoint,true,true);
+				B.GoalString = "Move closer to "$B.DefensePoint$" for healing";
+				B.SetAttractionState();
+				return true;
+			}
+
+			if (!B.Pawn.CanAttack(GetShootTarget(B)))
+			{
+				
 				// need to move to somewhere else near objective
 				if(FindClosestDefensePointForHealing(B)) {
 					B.GoalString = "Move closer to "$B.DefensePoint$" for healing";
@@ -192,7 +368,7 @@ function bool TellBotHowToHeal(UTBot B)
 				}
 			}
 			B.GoalString = "Heal "$myBuilding;
-			B.DoRangedAttackOn(GetShootTarget());
+			B.DoRangedAttackOn(GetShootTarget(B));
 			return true;
 		}
 		if (B.FindInventoryGoal(0.0005)) // try to find a weapon to heal the objective
@@ -201,11 +377,18 @@ function bool TellBotHowToHeal(UTBot B)
 			B.SetAttractionState();
 			return true;
 		}
-	}
 
+	}
+*/
 	if (OldVehicle != None)
 	{
 		OldVehicle.UsedBy(B.Pawn);
+	}
+
+	if(Rx_Bot(B).HasRepairGun() && B.GetOrders() == 'DEFEND')
+	{
+		B.MoveToDefensePoint();
+		return true;
 	}
 
 	return false;
@@ -218,7 +401,7 @@ private function bool FindClosestDefensePointForHealing(UTBot B) {
 	
 	BestPoint = B.DefensePoint;
 	
-	if(BestPoint != None && BestPoint.DefendedObjective == Self && Rx_Weapon(B.Pawn.Weapon).CanAttackFromPosition(BestPoint.location, GetShootTarget())) {
+	if(BestPoint != None && BestPoint.DefendedObjective == Self && Rx_Weapon(B.Pawn.Weapon).CanAttackFromPosition(BestPoint.location, GetShootTarget(B))) {
 		ShortestDist = VSize(BestPoint.location - B.location);
 	} else {
 		ShortestDist = 0;
@@ -231,7 +414,7 @@ private function bool FindClosestDefensePointForHealing(UTBot B) {
 		}
 		*/
 		if(DefensePoint.DefendedObjective != Self 
-			|| !Rx_Weapon(B.Pawn.Weapon).CanAttackFromPosition(DefensePoint.location, GetShootTarget())) {
+			|| !Rx_Weapon(B.Pawn.Weapon).CanAttackFromPosition(DefensePoint.location, GetShootTarget(B))) {
 			continue;
 		}
 		
@@ -248,7 +431,7 @@ private function bool FindClosestDefensePointForHealing(UTBot B) {
 	if(FRand() > 0.7) {
 		DefensePoint = BestPoint.NextDefensePoint;
 		if(DefensePoint != None && DefensePoint.DefendedObjective == Self
-			&& Rx_Weapon(B.Pawn.Weapon).CanAttackFromPosition(DefensePoint.location, GetShootTarget())) {
+			&& Rx_Weapon(B.Pawn.Weapon).CanAttackFromPosition(DefensePoint.location, GetShootTarget(B))) {
 			BestPoint = DefensePoint;		
 		}
 	}
@@ -257,6 +440,7 @@ private function bool FindClosestDefensePointForHealing(UTBot B) {
 
 function TakeDamage(int Damage, Controller InstigatedBy, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)
 {
+
 	if (Damage <= 0 || bIsDisabled)
 		return;
 
@@ -276,9 +460,51 @@ function TakeDamage(int Damage, Controller InstigatedBy, vector HitLocation, vec
 		SetTimer(3.0, false, 'DisableUnderAttack');
 	}
 	//DefensePriority++
+
 }
 
-function DisableBuildingObjective() {
+function float CalcDefensePriority(Controller C)
+{
+	local float Distance, DistanceMod, ArmorMod, HealthMod, DefendersMod;
+
+	if(myBuilding.IsDestroyed())			// There really is no need to defend a destroyed building :v
+		return 0;
+
+	DefendersMod = 750 / (1 + GetNumDefenders()); // We don't wanna run into null number
+	ArmorMod = 1000 + (10 *(myBuilding.GetMaxArmor() - myBuilding.GetArmor()));
+	
+	if(C.Pawn == None)
+		Distance = 0;
+	else
+		Distance = VSize(C.Pawn.Location - InfiltrationPoint.Location);
+	
+	DistanceMod = 1000 + Distance;
+	
+	if (C.Enemy != None && VSize(C.Enemy.Location - InfiltrationPoint.Location) < Distance)
+	{
+
+		DistanceMod *= 5;
+	}
+
+	if(DefensePriority == 0)
+	{
+		DefensePriority = 1;
+	}
+
+	if(myBuilding.GetMaxArmor() > myBuilding.GetArmor())
+		return (ArmorMod + DistanceMod + DefendersMod) * (DefensePriority + 1) / 5;
+
+	if(myBuilding.GetHealth() <= myBuilding.GetMaxHealth())
+		return (DistanceMod + DefendersMod) * (DefensePriority + 1) / 5;
+
+	HealthMod = 3000 / GetObjectiveProgress();
+	
+	return (HealthMod + DistanceMod + DefendersMod) * (DefensePriority + 1) / 5;
+
+}
+
+function DisableBuildingObjective() 
+{
 	bIsDisabled = true;
 	UTTeamGame(WorldInfo.Game).FindNewObjectives(self);	
 }
@@ -289,7 +515,7 @@ function bool IsDisabled() {
 
 event bool HealDamage(int Amount, Controller Healer, class<DamageType> DamageType)
 {
-	if(myBuilding.GetHealth() >= myBuilding.GetMaxHealth()) {
+	if(myBuilding.GetArmor() >= myBuilding.GetMaxArmor()) {
 		if(UTBot(Healer) != None) {
 			UTTeamGame(WorldInfo.Game).Teams[UTBot(Healer).GetTeamNum()].AI.PutOnDefense(UTBot(Healer));
 		}
@@ -298,7 +524,7 @@ event bool HealDamage(int Amount, Controller Healer, class<DamageType> DamageTyp
 }
 
 function int HealthDiff() {
-	return DamageCapacity - myBuilding.GetHealth();
+	return DamageCapacity - myBuilding.GetArmor();
 }
 
 function DisableUnderAttack() {
@@ -316,14 +542,14 @@ function bool KillEnemyFirstBeforeHealing(UTBot B)
 	//Dist = VSize(B.Enemy.Location - B.Location);
 	
 	if( B.Enemy.Controller != None && !bUnderAttack 
-			&& myBuilding.GetHealth() > DamageCapacity * 0.7) {
+			&& myBuilding.GetArmor() > DamageCapacity * 0.7) {
 		if(Rx_Weapon_RepairGun(B.Pawn.Weapon) != None) { 
 			B.SwitchToBestWeapon(true);
 		}
 		return true;	
 	}
 	
-	if ( myBuilding.GetHealth() < DamageCapacity * 0.2 ) {
+	if ( myBuilding.GetArmor() < myBuilding.GetMaxArmor() * 0.5 ) {
 		return false;
 	}
 	else if (B.Enemy.Controller != None 
@@ -347,11 +573,11 @@ function bool KillEnemyFirstBeforeAttacking(UTBot B)
 		if(!Rx_Vehicle(B.Pawn).bOkAgainstBuildings) {
 			return true;
 		}
-	} else if(!Rx_Weapon(B.Pawn.Weapon).bOkAgainstBuildings) {
+	} else if(!Rx_Weapon(B.Pawn.Weapon).bOkAgainstBuildings || Rx_Weapon(B.Pawn.Weapon).IsA('Rx_Weapon_Deployable')) {
 		return true;
 	}
 	
-	if ( myBuilding.GetHealth() < DamageCapacity * 0.2  && UTVehicle(B.Pawn) != None)
+	if ( myBuilding.GetArmor() < myBuilding.GetMaxArmor() * 0.4  && UTVehicle(B.Pawn) != None)
 	{
 		return false;
 	}

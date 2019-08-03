@@ -254,8 +254,9 @@ DefaultProperties
     VehicleEffects(8)=(EffectStartTag=DamageSmoke,EffectEndTag=NoDamageSmoke,bRestartRunning=false,EffectTemplate=ParticleSystem'RX_VH_A-10.Effects.P_EngineFire',EffectSocket=DamageSmoke02)
     VehicleEffects(9)=(EffectStartTag=DamageSmoke,EffectEndTag=NoDamageSmoke,bRestartRunning=false,EffectTemplate=ParticleSystem'RX_VH_A-10.Effects.P_EngineFire',EffectSocket=DamageSmoke03)
 
-    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Vehicle')
-    BigExplosionSocket=VH_Death
+    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Medium')//ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Vehicle_Air')
+	BigExplosionSocket=VH_Death
+	SecondaryExplosion=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Vehicle'
 
 
 //========================================================\\

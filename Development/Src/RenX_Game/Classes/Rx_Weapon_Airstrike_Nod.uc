@@ -3,6 +3,7 @@ class Rx_Weapon_Airstrike_Nod extends Rx_Weapon_Airstrike;
 DefaultProperties
 {
 	AttachmentClass = class'Rx_Attachment_Airstrike_Nod'
+	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_Airstrike_Nod'
 	AirstrikeType=class'Rx_Airstrike_AC130'
 	DecalM=DecalMaterial'RX_WP_Binoculars.Materials.DM_AirstrikePattern_AC130'
 	BeamEffect=ParticleSystem'RX_WP_Binoculars.Beams.P_Airstrike_Beam_Nod'

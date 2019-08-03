@@ -136,14 +136,52 @@ DefaultProperties
 	
 	MaxSprintSpeedMultiplier=1.2
 	
+/************************/
+/*Veterancy Multipliers*/
+/***********************/
+
+//VP Given on death (by VRank)
+	VPReward(0) = 6 
+	VPReward(1) = 8 
+	VPReward(2) = 10 
+	VPReward(3) = 14 
+	
+	VPCost(0) = 30
+	VPCost(1) = 60
+	VPCost(2) = 120
+
+/**Vet_HealthMod(0)=1 //600
+Vet_HealthMod(1)=1.083334 //650 
+Vet_HealthMod(2)=1.166667 //700
+Vet_HealthMod(3)=1.333334 //800
+	*/
+
+Vet_HealthMod(0)=1 //600
+Vet_HealthMod(1)=1.083334 //650 
+Vet_HealthMod(2)=1.166667 //700
+Vet_HealthMod(3)=1.25 //750	
+
+Vet_SprintSpeedMod(0)=1
+Vet_SprintSpeedMod(1)=1
+Vet_SprintSpeedMod(2)=1.05
+Vet_SprintSpeedMod(3)=1.15
+	
+// +X as opposed to *X
+Vet_SprintTTFD(0)=0
+Vet_SprintTTFD(1)=0
+Vet_SprintTTFD(2)=0.05
+Vet_SprintTTFD(3)=0.15
+
+/**********************/
+
 	CustomGravityScaling=1.5
 
     Begin Object Class=SVehicleSimTank Name=SimObject
         bClampedFrictionModel=true
 
-        WheelSuspensionStiffness=25
+        WheelSuspensionStiffness=200
         WheelSuspensionDamping=2.0
-        WheelSuspensionBias=0.2
+        WheelSuspensionBias=0.0
 
 //        WheelLongExtremumSlip=0
 //        WheelLongExtremumValue=20
@@ -247,6 +285,8 @@ DefaultProperties
                 TurretControls=(TurretPitch,TurretRotate),
                 GunPivotPoints=(MainTurretYaw,MainTurretPitch),
                 CameraTag=CamView3P,
+				SeatBone=Base,
+				SeatSocket=VH_Death,
                 CameraBaseOffset=(X=-50,Z=-20),
                 CameraOffset=-400,
                 SeatIconPos=(X=0.5,Y=0.33),
@@ -295,7 +335,7 @@ DefaultProperties
     VehicleEffects(2)=(EffectStartTag=DamageSmoke,EffectEndTag=NoDamageSmoke,bRestartRunning=false,EffectTemplate=ParticleSystem'RX_FX_Vehicle.Damage.P_EngineFire',EffectSocket=DamageSmoke01)
 	VehicleEffects(3)=(EffectStartTag=DamageSmoke,EffectEndTag=NoDamageSmoke,bRestartRunning=false,EffectTemplate=ParticleSystem'RX_FX_Vehicle.Damage.P_SteamSmoke',EffectSocket=DamageSmoke02)
 
-    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Vehicle')
+    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_VH_APC_GDI.Effects.P_Explosion_Vehicle')
     BigExplosionSocket=VH_Death
 	
 	DamageMorphTargets(0)=(InfluenceBone=MT_APC_F,MorphNodeName=MorphNodeW_Front,LinkedMorphNodeName=none,Health=120,DamagePropNames=(Damage1))

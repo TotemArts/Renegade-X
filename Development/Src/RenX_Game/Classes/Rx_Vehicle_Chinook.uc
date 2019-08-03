@@ -22,7 +22,25 @@ var() SoundCue FiringStopSound;
 
 var GameSkelCtrl_Recoil    Recoil_R, Recoil_L;
 
-	  
+//Left gun variables
+var repnotify rotator GunnerLeftWeaponRotation ;
+var repnotify vector GunnerLeftFlashLocation ;
+var repnotify byte GunnerLeftFlashCount ;
+var repnotify byte GunnerLeftFiringMode ; 
+
+//Right gun variables
+var repnotify rotator GunnerRightWeaponRotation ;
+var repnotify vector GunnerRightFlashLocation ;
+var repnotify byte GunnerRightFlashCount ;
+var repnotify byte GunnerRightFiringMode ; 
+
+replication
+{
+if (bNetDirty && !bDemoRecording)
+	GunnerLeftWeaponRotation, GunnerLeftFlashLocation, GunnerLeftFlashCount, GunnerLeftFiringMode,
+	GunnerRightWeaponRotation, GunnerRightFlashLocation, GunnerRightFlashCount, GunnerRightFiringMode ; 
+	
+}	  
 	  
 // function InitializeSeats()
 // {
@@ -30,6 +48,22 @@ var GameSkelCtrl_Recoil    Recoil_R, Recoil_L;
 // }
 
 
+simulated event ReplicatedEvent(name VarName)
+{
+	if ( (VarName == 'GunnerLeftWeaponRotation' || VarName == 'GunnerLeftFlashLocation' || VarName == 'GunnerLeftFlashCount' || VarName == 'GunnerLeftFiringMode'  ) && Seats[1].SeatPawn !=none && Seats[1].SeatPawn.Controller != none )
+	{
+		return;
+	}
+	else
+	if ( (VarName == 'GunnerRightWeaponRotation' || VarName == 'GunnerRightFlashLocation' || VarName == 'GunnerRightFlashCount' || VarName == 'GunnerRightFiringMode'  ) && Seats[2].SeatPawn !=none &&  Seats[2].SeatPawn.Controller != none )
+	{
+		return;
+	}
+	else
+	{
+		Super.ReplicatedEvent(VarName);
+	}
+}
 
 simulated event PostInitAnimTree(SkeletalMeshComponent SkelComp)
 {
@@ -139,6 +173,22 @@ simulated function VehicleWeaponStoppedFiring( bool bViaReplication, int SeatInd
     FiringAmbient.Stop();
 }
 
+function PromoteUnit(byte rank)
+{
+	local int i; 
+	super.PromoteUnit(rank); 
+	
+	for(i=1;i<Seats.Length;i++)
+	{
+		if(Rx_Vehicle_Weapon(Seats[i].Gun) != none) 
+			Rx_Vehicle_Weapon(Seats[i].Gun).PromoteWeapon(rank); 
+		else
+			continue;
+	}
+}
+
+
+
 defaultproperties
 {
 
@@ -173,6 +223,9 @@ defaultproperties
     SimObj=SimObject
     Components.Add(SimObject)
 
+	DestroyedRotatorAddend = (Pitch=0,Roll=0,Yaw=16364)
+	DestroyedImpulseOffset = 800 
+	
     Health=500
     bLightArmor=false
 	bisAirCraft=true
@@ -203,7 +256,8 @@ defaultproperties
 	
 	bIsConsoleTurning=False
 	bJostleWhileDriving=True
-
+	
+	MomentumMult=0.20
 
 //========================================================\\
 //*************** Vehicle Visual Properties **************\\
@@ -260,7 +314,8 @@ defaultproperties
 	VehicleAnims(1)=(AnimTag=EngineStop,AnimSeqs=(BladesDrop),AnimRate=0.33,bAnimLoopLastSeq=false,AnimPlayerName=ChinookPlayer)
 
 	BigExplosionTemplates[0]=(Template=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Vehicle_Air')
-    BigExplosionSocket=VH_Death
+	BigExplosionSocket=VH_Death
+	SecondaryExplosion=ParticleSystem'RX_VH_Chinook.Effects.P_Explosion_Vehicle'
 	
 	DamageMorphTargets(0)=(InfluenceBone=MT_F,MorphNodeName=MorphNodeW_F,LinkedMorphNodeName=none,Health=80,DamagePropNames=(Damage1))
     DamageMorphTargets(1)=(InfluenceBone=MT_R,MorphNodeName=MorphNodeW_R,LinkedMorphNodeName=none,Health=80,DamagePropNames=(Damage2))
@@ -306,5 +361,19 @@ defaultproperties
     // Initialize sound parameters.
     EngineStartOffsetSecs=2.74
     EngineStopOffsetSecs=0.0
+	
+	//VP Given on death (by VRank)
+	VPReward(0) = 6 
+	VPReward(1) = 8 
+	VPReward(2) = 10 
+	VPReward(3) = 14 
 
+	ExplosionInAirAngVel = 1.25
+	
+	BurnOutTime=2.0
+	DeadVehicleLifeSpan=3.0
+	
+	bStayUprightOnDeath = true
+	
+	
 }

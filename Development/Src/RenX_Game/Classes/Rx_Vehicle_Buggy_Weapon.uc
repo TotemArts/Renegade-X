@@ -53,6 +53,37 @@ DefaultProperties
     Spread(1)=0.01
 	
 	RecoilImpulse = -0.01f
+	
+	/****************************************/
+	/*Veterancy*/
+	/****************************************/
+	
+	//*X (Applied to instant-hits only) Modify Projectiles separately
+	Vet_DamageModifier(0)=1  //Normal
+	Vet_DamageModifier(1)=1.10  //Veteran
+	Vet_DamageModifier(2)=1.25  //Elite
+	Vet_DamageModifier(3)=1.50  //Heroic
+	
+	//*X Reverse percentage (0.75 is 25% increase in speed)
+	Vet_ROFModifier(0) = 1 //Normal
+	Vet_ROFModifier(1) = 0.95  //Veteran
+	Vet_ROFModifier(2) = 0.90  //Elite
+	Vet_ROFModifier(3) = 0.85  //Heroic
+ 
+	//+X
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)
+	Vet_ClipSizeModifier(1)=25 //Veteran 
+	Vet_ClipSizeModifier(2)=50 //Elite
+	Vet_ClipSizeModifier(3)=100 //Heroic
+
+	//*X Reverse percentage (0.75 is 25% increase in speed)
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=1 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.90 //Elite
+	Vet_ReloadSpeedModifier(3)=0.75 //Heroic
+	
+	
+	/********************************/
  
     WeaponFireSnd(0)     = none //SoundCue'RX_VH_Buggy.Sounds.SC_Buggy_Fire'
 //    WeaponFireTypes(0)   = EWFT_Projectile
@@ -64,7 +95,7 @@ DefaultProperties
     bRecommendSplashDamage=False
 	
 	
-	WeaponRange=6000.0
+	WeaponRange=7000.0 //6000.0
 
 	WeaponFireTypes(0)=EWFT_InstantHit
 	WeaponFireTypes(1)=EWFT_None
@@ -83,7 +114,7 @@ DefaultProperties
 	bInstantHit=true
 
 	BeamTemplates[0]=ParticleSystem'RX_FX_Munitions.Beams.P_InstantHit_Tracer_Nod_Large'
-	
+	BeamTemplates_Heroic[0]= ParticleSystem'RX_FX_Munitions.Beams.P_InstantHit_Tracer_Nod_Large_Heroic'
 	
 	DefaultImpactEffect=(ParticleTemplate=ParticleSystem'RX_FX_Munitions2.Particles.bullets.P_Bullet_Impact_Stone_Heavy',Sound=SoundCue'RX_SoundEffects.Bullet_Impact.SC_BulletImpact_Stone')
 	

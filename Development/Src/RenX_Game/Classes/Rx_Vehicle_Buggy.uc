@@ -20,6 +20,8 @@ class Rx_Vehicle_Buggy extends Rx_Vehicle
 /** Firing sounds */
 var() AudioComponent FiringAmbient;
 var() SoundCue FiringStopSound;
+//var	  SoundCue Snd_FiringAmbient_Heroic; 
+
 
 var SkeletalMeshComponent AntennaMeshA;
 var SkeletalMeshComponent AntennaMeshB;
@@ -81,6 +83,31 @@ simulated function VehicleWeaponStoppedFiring(bool bViaReplication, int SeatInde
     FiringAmbient.Stop();
 }
 
+/**simulated function SetHeroicMuzzleFlash(bool SetTrue)
+{
+	super.SetHeroicMuzzleFlash(SetTrue);
+	
+}
+
+simulated function SetHeroicMuzzleFlash(bool SetTrue)
+ {
+	 local int i; 
+	 
+	 for(i=0;i<VehicleEffects.Length;i++)
+	 {
+		 if(VehicleEffects[i].EffectStartTag=='MainGun' && default.VehicleEffects[i].EffectRef != none) 
+		 {
+			 if(SetTrue) VehicleEffects[i].EffectRef.SetTemplate(none);//Heroic_MuzzleFlash); //Special case for lasers
+			 else
+			VehicleEffects[i].EffectRef.SetTemplate(default.VehicleEffects[i].EffectTemplate);
+			//return;
+		 }
+	 }
+	 
+	 if(SetTrue) FiringAmbient.SoundCue=Snd_FiringAmbient_Heroic;
+		else
+		FiringAmbient.SoundCue=FiringAmbient.default.SoundCue; 
+ }*/
     
 DefaultProperties
 {
@@ -111,6 +138,31 @@ DefaultProperties
 	
 	CustomGravityScaling=0.8
 
+/************************/
+/*Veterancy Multipliers*/
+/***********************/
+
+//VP Given on death (by VRank)
+	VPReward(0) = 4 
+	VPReward(1) = 6 
+	VPReward(2) = 8 
+	VPReward(3) = 10
+	
+	VPCost(0) = 10
+	VPCost(1) = 25
+	VPCost(2) = 60
+
+Vet_HealthMod(0)=1 //250
+Vet_HealthMod(1)=1.1 //275 
+Vet_HealthMod(2)=1.2 //300
+Vet_HealthMod(3)=1.4 //350
+	
+Vet_SprintSpeedMod(0)=1
+Vet_SprintSpeedMod(1)=1.1
+Vet_SprintSpeedMod(2)=1.2
+Vet_SprintSpeedMod(3)=1.3
+/**********************/
+	
     HeavySuspensionShiftPercent=0.75f;
     bLookSteerOnNormalControls=true
     bLookSteerOnSimpleControls=true
@@ -216,6 +268,8 @@ DefaultProperties
                 GunSocket=(Fire_01),
                 TurretControls=(TurretPitch,TurretRotate),
                 GunPivotPoints=(MainTurretYaw),
+				SeatBone=Base,
+				SeatSocket=VH_Death,
                 CameraTag=CamView3P,
                 CameraBaseOffset=(Z=-20),
                 CameraOffset=-400,
@@ -230,7 +284,8 @@ DefaultProperties
                 CameraOffset=-400,
                 )}
 
-
+	//Heroic_MuzzleFlash = ParticleSystem'RX_WP_LaserChaingun.Effects.P_LaserChainGun_MuzzleFlash_3P'
+	//Snd_FiringAmbient_Heroic = SoundCue'RX_WP_LaserChaingun.Sounds.SC_LaserChainGun_Fire_Loop'
 //========================================================\\
 //********* Vehicle Material & Effect Properties *********\\
 //========================================================\\
@@ -246,7 +301,7 @@ DefaultProperties
     VehicleEffects(4)=(EffectStartTag=EngineStart,EffectEndTag=EngineStop,bRestartRunning=false,EffectTemplate=ParticleSystem'RX_VH_Humvee.Effects.GenericExhaust',EffectSocket=Exhaust_01)
     VehicleEffects(5)=(EffectStartTag=EngineStart,EffectEndTag=EngineStop,bRestartRunning=false,EffectTemplate=ParticleSystem'RX_VH_Humvee.Effects.GenericExhaust',EffectSocket=Exhaust_02)
 
-    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Vehicle')
+    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_VH_Buggy.Effects.P_Explosion_Vehicle')
     BigExplosionSocket=VH_Death
 
 	DamageMorphTargets(0)=(InfluenceBone=MT_Buggy_Front,MorphNodeName=MorphNodeW_Front,LinkedMorphNodeName=none,Health=40,DamagePropNames=(Damage1))

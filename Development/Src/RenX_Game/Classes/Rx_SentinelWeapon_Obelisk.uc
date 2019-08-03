@@ -35,7 +35,7 @@ var MaterialInstanceConstant CrystalGlowMIC;
 replication
 {
     if(Role == ROLE_Authority && bNetDirty)
-        FiringState, targetedActor;
+        FiringState, targetedActor, LastHitLocation;
 }
 
 simulated event ReplicatedEvent(name VarName)
@@ -61,12 +61,6 @@ simulated event ReplicatedEvent(name VarName)
                 GotoState('Idle');
         }
     }
-    else if ( VarName == 'targetedActor' )
-    {
-        if ( targetedActor != None )
-        {
-        }
-    }
     else
     {
         super.ReplicatedEvent(VarName);
@@ -88,13 +82,13 @@ simulated function PostBeginPlay()
  */
 simulated function ClientInitializeFor()
 {
-	local Rx_Building_Obelisk_Internals Ob;
+	local Rx_Building_Nod_Defense Ob;
 	if(CrystalGlowMIC == None) {
 		super.ClientInitializeFor();
-		ForEach AllActors(class'Rx_Building_Obelisk_Internals',Ob)
+		ForEach AllActors(class'Rx_Building_Nod_Defense',Ob)
 		{
-			CrystalGlowMIC = Ob.BuildingSkeleton.CreateAndSetMaterialInstanceConstant(0);
-			InitAndAttachMuzzleFlashes(Ob.BuildingSkeleton, 'Ob_Fire');
+			CrystalGlowMIC = Ob.BuildingInternals.BuildingSkeleton.CreateAndSetMaterialInstanceConstant(0);
+			InitAndAttachMuzzleFlashes(Ob.BuildingInternals.BuildingSkeleton, 'Ob_Fire');
 			break;
 		}	
 	}
@@ -114,21 +108,26 @@ simulated function FlashMuzzleFlash()
     ChargeUpMuzzleFlash.Flash();
 
     SpawnBeam(start, LastHitLocation, false);
-
+		
     CrystalGlowMIC.SetScalarParameterValue('Obelisk_Glow', 0.1);
     SetTimer(0.25, true, 'crystalChargingGlow');
-
 }
 
 
 simulated function SpawnBeam(vector Start, vector End, bool bFirstPerson)
 {
-    local vector HitNormal;
-
+	//`log("SpawningBeam"); 
     E = WorldInfo.MyEmitterPool.SpawnEmitter(BeamTemplate, Start);
     E.SetVectorParameter('LaserRifle_Endpoint', End);
     beamEndPointLocationMarker.SetLocation(End);
-    impactEmitter = WorldInfo.MyEmitterPool.SpawnEmitter(DefaultImpactEffect.ParticleTemplate, End, rotator(HitNormal), beamEndPointLocationMarker);
+    //impactEmitter = WorldInfo.MyEmitterPool.SpawnEmitter(DefaultImpactEffect.ParticleTemplate, End, rotator(HitNormal), beamEndPointLocationMarker);
+	
+	if(HitEffects != none)
+	{
+		HitEffects.PlayImpactEffects(Cannon.GetPawnViewLocation(), end, self);
+		UDKEmitterPool(WorldInfo.MyEmitterPool).SpawnExplosionLight(ImpactLightClass, end);
+	}
+	
     if (bFirstPerson)
     {
         E.SetDepthPriorityGroup(SDPG_Foreground);
@@ -146,7 +145,9 @@ auto state Idle
         if(Role == ROLE_Authority)
         {
             FiringState = 0;
-        }        
+        }      
+		//loginternal("idle");
+		//ScriptTrace();		
         FiringState = 0;
         LastHitLocation = vect(0.0, 0.0, 0.0);
         ClearTimer('crystalChargingGlow');
@@ -230,6 +231,8 @@ state Running
         global.NotifyWaiting();
         bWaiting = true;
         SetTimer(WindDownDelay, false, 'Idle_');
+		//loginternal("waiting");
+		//ScriptTrace();
     }
 
     function NotifyNewTarget(Actor NewTarget)
@@ -252,16 +255,21 @@ state Running
         local Actor HitActor;
         local Vector HitLocation, HitNormal;
 
-		Start = Rx_Sentinel_Obelisk_Laser_Base(Cannon).FireStartLoc;
-        Start.Z -= 90;
+		Start = Cannon.GetPawnViewLocation();
 
         ClearTimer('Idle_');
         bWaiting=false;
 
         Start = Start + vector(rotator(End-Start)) * 300.0;
-
+		
         HitActor = Cannon.Trace(HitLocation, HitNormal, End, Start, true, vect(0,0,0),, TRACEFLAG_Bullet);
-        targetedActor = HitActor;
+	
+		if(HitActor == none)
+        {
+			HitActor = Cannon.Trace(HitLocation, HitNormal, End, Start, true, vect(10,10,10),, TRACEFLAG_Bullet);
+		}		
+		
+		//`log("CANNON TARGET" @ HITACTOR) ; 
 
         if(HitActor != Cannon.Target)
         {
@@ -269,7 +277,8 @@ state Running
         }
         else if(!Cannon.IsSameTeam(Pawn(HitActor)))
         {
-            HitActor.TakeDamage(FireInfo.Damage, Cannon.InstigatorController, HitLocation, FireInfo.Momentum * Normal(End - Start), FireInfo.DamageType,, Cannon);
+            targetedActor = HitActor;
+			HitActor.TakeDamage(FireInfo.Damage, Cannon.InstigatorController, HitLocation, FireInfo.Momentum * Normal(End - Start), FireInfo.DamageType,, Cannon);
         } else {
             return false;
         }
@@ -295,18 +304,20 @@ state Running
 
     simulated event Tick(float DeltaTime)
     {
-        local vector hitLocation,norm;
+        local vector hitLocation,norm,Start;
         local Actor hitActor;
         Super.Tick(DeltaTime);
 
         if ( WorldInfo.NetMode != NM_DedicatedServer ) {
-            if(!bWaiting && targetedActor != none) {
-                hitActor = Trace(hitLocation, norm, targetedActor.Location, self.location, true);
-                if(hitActor == targetedActor) {
+            if(!bWaiting && targetedActor != none && E.bIsActive) {	
+				Start = Cannon.GetPawnViewLocation();
+				Start = Start + vector(rotator(targetedActor.Location-Start)) * 300.0;
+                hitActor = Trace(hitLocation, norm, targetedActor.Location, Start, true);
+				if(hitActor == targetedActor) {
                     LastHitLocation = hitLocation;
                 }            
             }
-            if(E != none) {
+            if(E != none && LastHitLocation != vect(0,0,0)) {
                 E.SetVectorParameter('LaserRifle_Endpoint', LastHitLocation);
                 beamEndPointLocationMarker.SetLocation(LastHitLocation);
             }
@@ -315,25 +326,24 @@ state Running
 
 }
 
-function bool CanHit(Pawn PotentialTarget) {
-    local Actor HitActor;
-    local Vector Start, End, HitLocation, HitNormal;
-
+function bool CanHit(Pawn PotentialTarget, vector End) {
+	local Actor HitActor;
+	local Vector Start, HitLocation, HitNormal;
 
 	Start = Cannon.GetPawnViewLocation();
-    Start.Z -= 90;
-    End = PotentialTarget.location;
 
-    Start = Start + vector(rotator(End-Start)) * 300.0;
+	Start = Start + vector(rotator(End-Start)) * 300.0;
+	
+	HitActor = Cannon.Trace(HitLocation, HitNormal, End, Start, true, vect(0,0,0),, TRACEFLAG_Bullet);
 
-    HitActor = Cannon.Trace(HitLocation, HitNormal, End, Start, true, vect(0,0,0),, TRACEFLAG_Bullet);
-    targetedActor = HitActor;
+	if(HitActor == none)
+	{
+		HitActor = Cannon.Trace(HitLocation, HitNormal, End, Start, true, vect(10,10,10),, TRACEFLAG_Bullet);
+	}	
 
-    if(HitActor != PotentialTarget)
-    {
-        return false;
-    }
-    return true;
+	//loginternal("CanHit"@HitActor == PotentialTarget);	
+	
+	return HitActor == PotentialTarget;
 }
 
 simulated function crystalChargingGlow() {
@@ -389,7 +399,7 @@ defaultproperties
     //Description="The Mass Oscillation Generator creates dense projectiles of negative mass, which strongly repel any normal mass in proximity. Normally unstable, the negative mass is kept in a tenuous equilibrium sufficient to give a large effective range in the absence of obstacles. The repulsive force is stronger on more massive objects, creating some spectacular interactions.\n\nThe reduced lethality of the MOG makes it ideal for crowd pacification with minimal risk of lawsuits."
 
     BeamTemplate=ParticleSystem'RX_BU_Oblisk.Effects.P_Obelisk_LaserBeam'
-    ImpactLightClass=Class'UTGame.UTShockImpactLight'
+    ImpactLightClass=Class'Renx_Game.Rx_Light_ObeliskImpact'
     
    // bHidden=true
 
@@ -406,7 +416,7 @@ defaultproperties
     ExtraStrength=0
     AmmoCost=50
     ActivateSound=None
-    DefaultImpactEffect=(ParticleTemplate=ParticleSystem'RX_BU_Oblisk.Effects.P_Obelisk_Impact')
+    //DefaultImpactEffect=(ParticleTemplate=ParticleSystem'RX_BU_Oblisk.Effects.P_Obelisk_Impact', Sound=SoundCue'RX_BU_Oblisk.Sounds.SC_Obelisk_Impact' )
     
     Begin Object Class=Rx_SentinelWeaponComponent_FireInfo Name=FireInfo0
         FireInterval = 4.0
@@ -443,8 +453,29 @@ defaultproperties
         TimeShift=((StartTime=0.0,Radius=200,Brightness=5,LightColor=(R=255,G=10,B=10,A=255)),(StartTime=0.8,Radius=64,Brightness=0,LightColor=(R=255,G=10,B=10,A=255)))
     End Object
     MuzzleFlashLight=MuzzleFlashLightComponent0
-
+//RX_BU_Oblisk.Sounds.SC_Obelisk_Impact
     Begin Object Class=Rx_SentinelWeaponComponent_HitEffects Name=HitEffectsComp
+	
+	ImpactEffects(0)=(MaterialType=Dirt, ParticleTemplate=ParticleSystem'RX_BU_Oblisk.Effects.P_Obelisk_Impact', Sound=SoundCue'RX_BU_Oblisk.Sounds.SC_Obelisk_Impact')
+    ImpactEffects(1)=(MaterialType=Stone, ParticleTemplate=ParticleSystem'RX_BU_Oblisk.Effects.P_Obelisk_Impact', Sound=SoundCue'RX_BU_Oblisk.Sounds.SC_Obelisk_Impact')
+	ImpactEffects(2)=(MaterialType=Concrete, ParticleTemplate=ParticleSystem'RX_BU_Oblisk.Effects.P_Obelisk_Impact', Sound=SoundCue'RX_BU_Oblisk.Sounds.SC_Obelisk_Impact')
+    ImpactEffects(3)=(MaterialType=Metal, ParticleTemplate=ParticleSystem'RX_BU_Oblisk.Effects.P_Obelisk_Impact', Sound=SoundCue'RX_BU_Oblisk.Sounds.SC_Obelisk_Impact')
+    ImpactEffects(4)=(MaterialType=Glass, ParticleTemplate=ParticleSystem'RX_BU_Oblisk.Effects.P_Obelisk_Impact', Sound=SoundCue'RX_BU_Oblisk.Sounds.SC_Obelisk_Impact')
+    ImpactEffects(5)=(MaterialType=Wood, ParticleTemplate=ParticleSystem'RX_BU_Oblisk.Effects.P_Obelisk_Impact', Sound=SoundCue'RX_BU_Oblisk.Sounds.SC_Obelisk_Impact') 
+	ImpactEffects(6)=(MaterialType=Water, ParticleTemplate=ParticleSystem'RX_BU_Oblisk.Effects.P_Obelisk_Impact', Sound=SoundCue'RX_BU_Oblisk.Sounds.SC_Obelisk_Impact')
+    ImpactEffects(7)=(MaterialType=Liquid, ParticleTemplate=ParticleSystem'RX_BU_Oblisk.Effects.P_Obelisk_Impact', Sound=SoundCue'RX_BU_Oblisk.Sounds.SC_Obelisk_Impact')
+	ImpactEffects(8)=(MaterialType=Flesh, ParticleTemplate=ParticleSystem'RX_BU_Oblisk.Effects.P_Obelisk_Impact', Sound=SoundCue'RX_BU_Oblisk.Sounds.SC_Obelisk_Impact')
+	ImpactEffects(9)=(MaterialType=TiberiumGround, ParticleTemplate=ParticleSystem'RX_BU_Oblisk.Effects.P_Obelisk_Impact', Sound=SoundCue'RX_BU_Oblisk.Sounds.SC_Obelisk_Impact')
+	ImpactEffects(10)=(MaterialType=TiberiumCrystal, ParticleTemplate=ParticleSystem'RX_BU_Oblisk.Effects.P_Obelisk_Impact', Sound=SoundCue'RX_BU_Oblisk.Sounds.SC_Obelisk_Impact')
+	ImpactEffects(11)=(MaterialType=TiberiumGroundBlue, ParticleTemplate=ParticleSystem'RX_BU_Oblisk.Effects.P_Obelisk_Impact', Sound=SoundCue'RX_BU_Oblisk.Sounds.SC_Obelisk_Impact')
+	ImpactEffects(12)=(MaterialType=TiberiumCrystalBlue, ParticleTemplate=ParticleSystem'RX_BU_Oblisk.Effects.P_Obelisk_Impact', Sound=SoundCue'RX_BU_Oblisk.Sounds.SC_Obelisk_Impact')
+	ImpactEffects(13)=(MaterialType=Mud, ParticleTemplate=ParticleSystem'RX_BU_Oblisk.Effects.P_Obelisk_Impact', Sound=SoundCue'RX_BU_Oblisk.Sounds.SC_Obelisk_Impact')
+	ImpactEffects(14)=(MaterialType=WhiteSand, ParticleTemplate=ParticleSystem'RX_BU_Oblisk.Effects.P_Obelisk_Impact', Sound=SoundCue'RX_BU_Oblisk.Sounds.SC_Obelisk_Impact')
+	ImpactEffects(15)=(MaterialType=YellowSand, ParticleTemplate=ParticleSystem'RX_BU_Oblisk.Effects.P_Obelisk_Impact', Sound=SoundCue'RX_BU_Oblisk.Sounds.SC_Obelisk_Impact')
+	ImpactEffects(16)=(MaterialType=Grass, ParticleTemplate=ParticleSystem'RX_BU_Oblisk.Effects.P_Obelisk_Impact', Sound=SoundCue'RX_BU_Oblisk.Sounds.SC_Obelisk_Impact')
+	ImpactEffects(17)=(MaterialType=YellowStone, ParticleTemplate=ParticleSystem'RX_BU_Oblisk.Effects.P_Obelisk_Impact', Sound=SoundCue'RX_BU_Oblisk.Sounds.SC_Obelisk_Impact')
+	DefaultImpactEffect=(ParticleTemplate=ParticleSystem'RX_BU_Oblisk.Effects.P_Obelisk_Impact', Sound=SoundCue'RX_BU_Oblisk.Sounds.SC_Obelisk_Impact')
+
     End Object
     HitEffects=HitEffectsComp
 

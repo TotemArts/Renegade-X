@@ -1,15 +1,6 @@
-class Rx_Building_AdvancedGuardTower extends Rx_Building
+class Rx_Building_AdvancedGuardTower extends Rx_Building_GDI_Defense
    placeable
    implements (RxIfc_TargetedDescription);
-   
-var() bool bWeaponsDisabled;   
-var vector SentinelLocation;
-
-replication
-{
-	if( bNetDirty && Role == ROLE_Authority )
-		SentinelLocation;
-}
 
 simulated function String GetHumanReadableName()
 {

@@ -262,6 +262,8 @@ defaultproperties
     End Object
     SimObj=SimObject
     Components.Add(SimObject)
+	
+	DestroyedRotatorAddend = (Pitch=0,Roll=50000,Yaw=0)
 
     bAutoLand=true
     ContrailColorParameterName=ContrailColor
@@ -282,6 +284,8 @@ defaultproperties
     
     CustomGravityScaling=0.35
 
+    CollisionDamageMult=0.003
+
     IconCoords=(U=989,V=24,UL=43,VL=48)
 
     bEjectPassengersWhenFlipped=false
@@ -296,4 +300,9 @@ defaultproperties
 
     bJostleWhileDriving=true
     bFloatWhenDriven=true
+	
+	BurnOutTime=1.5
+	DeadVehicleLifeSpan=2.0
+	SecondaryExplosion=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Vehicle'
+
 }

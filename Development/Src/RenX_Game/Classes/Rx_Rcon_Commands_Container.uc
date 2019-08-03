@@ -1,10 +1,9 @@
-// This is an actor so that it can be included in the seamless travel list without depending on Rx_Rcon.
-class Rx_Rcon_Commands_Container extends Actor;
+class Rx_Rcon_Commands_Container extends Object;
 
-var array<Rx_Rcon_Command> RconCommands;
-var array<string> BlockedConsoleCommands;
+var privatewrite array<Rx_Rcon_Command> RconCommands;
+var privatewrite array<string> BlockedConsoleCommands;
 
-function InitRconCommands()
+final function InitRconCommands()
 {
 	local Rx_Mutator M;
 	SpawnCommand(class'Rx_Rcon_Command_Help');
@@ -45,30 +44,37 @@ function InitRconCommands()
 	SpawnCommand(class'Rx_Rcon_Command_BuildingInfo');
 	SpawnCommand(class'Rx_Rcon_Command_Rotation');
 	SpawnCommand(class'Rx_Rcon_Command_MineBan');
+	SpawnCommand(class'Rx_Rcon_Command_MineUnban');
 	SpawnCommand(class'Rx_Rcon_command_TeamInfo');
 	SpawnCommand(class'Rx_Rcon_Command_SpectateMode');
 	SpawnCommand(class'Rx_Rcon_Command_NormalMode');
 	SpawnCommand(class'Rx_Rcon_Command_AddMap');
 	SpawnCommand(class'Rx_Rcon_Command_RemoveMap');
-	if (!Rx_Game(WorldInfo.Game).bIsCompetitive)
+	SpawnCommand(class'Rx_Rcon_Command_LockBuildingHealth');
+	SpawnCommand(class'Rx_Rcon_Command_ToggleSuspect');
+	SpawnCommand(class'Rx_Rcon_Command_DumpKillLog');
+	SpawnCommand(class'Rx_Rcon_Command_SetCommander');
+	SpawnCommand(class'Rx_Rcon_Command_ToggleBotVoice');
+	SpawnCommand(class'Rx_Rcon_Command_ToggleCheatBots');
+	
+	if (!Rx_Game(`WorldInfoObject.Game).bIsCompetitive)
 	{
 		SpawnCommand(class'Rx_Rcon_Command_Kill');
-		SpawnCommand(class'Rx_Rcon_Command_GiveCredits');
 		SpawnCommand(class'Rx_Rcon_Command_Disarm');
 		SpawnCommand(class'Rx_Rcon_Command_DisarmBeacon');
 		SpawnCommand(class'Rx_Rcon_Command_DisarmC4');
 	}
 	//SpawnCommand(class'Rx_Rcon_Command_');
-	for (M = Rx_Game(WorldInfo.Game).GetBaseRxMutator(); M != None; M = M.GetNextRxMutator())
+	for (M = Rx_Game(`WorldInfoObject.Game).GetBaseRxMutator(); M != None; M = M.GetNextRxMutator())
 		M.InitRconCommands();
 }
 
-function SpawnCommand(class<Rx_Rcon_Command> command)
+final function SpawnCommand(class<Rx_Rcon_Command> command)
 {
 	RconCommands.AddItem(new(self) command);
 }
 
-function Rx_Rcon_Command GetCommand(string trigger)
+final function Rx_Rcon_Command GetCommand(string trigger)
 {
 	local int index;
 	for (index = 0; index != RconCommands.Length; index++)
@@ -77,7 +83,7 @@ function Rx_Rcon_Command GetCommand(string trigger)
 	return None;
 }
 
-function bool IsBlockedCommand(string trigger)
+final function bool IsBlockedCommand(string trigger)
 {
 	local string command;
 	foreach BlockedConsoleCommands(command)

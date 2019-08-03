@@ -1,4 +1,4 @@
-class Rx_FamilyInfo_Nod_Engineer extends Rx_FamilyInfo;
+class Rx_FamilyInfo_Nod_Engineer extends Rx_FamilyInfo_Nod;
 
 DefaultProperties
 {
@@ -13,6 +13,16 @@ DefaultProperties
 	Armor_Type 				= A_FLAK
 	SpeedMultiplier			= 0.95 //0.85
 
+	/*PT Block Info*/
+	/*------------*/
+	bHighTier			= false
+	PT_Damage			= 1
+	PT_Range			= 2
+	PT_RateOfFire		= 1
+	PT_MagazineCapacity = 6
+	PT_Icon				= Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RepairGun'
+	/*---------------*/
+	
 	CharacterMesh=SkeletalMesh'rx_ch_engineer.Mesh.SK_CH_Engineer_Nod'
 	
 	ArmMeshPackageName="RX_CH_Arms" //"RX_CH_GDI_Havoc"
@@ -26,4 +36,32 @@ DefaultProperties
 	//StartWeapons[4] = class'Rx_Weapon_Grenade'
 
 	InvManagerClass = class'Rx_InventoryManager_Nod_Engineer' 
+	
+	/***********/
+	/*Veterancy*/
+	/***********/
+	
+	VPCost(0) = 5
+	VPCost(1) = 15
+	VPCost(2) = 30
+	
+	//+X
+	Vet_HealthMod(0)=0
+	Vet_HealthMod(1)=25
+	Vet_HealthMod(2)=50
+	Vet_HealthMod(3)=75
+	
+	//+X
+	Vet_SprintSpeedMod(0)=0
+	Vet_SprintSpeedMod(1)=0.05
+	Vet_SprintSpeedMod(2)=0.075
+	Vet_SprintSpeedMod(3)=0.1
+	
+	/******************/
+
+	PowerUpClasses.Add(class'Rx_Pickup_HealthSmall');
+	PowerUpClasses.Add(class'Rx_Pickup_ArmourLight');
+	
+	Role = ROLE_Defense
+	PTString="Buy Char - Engi"
 }

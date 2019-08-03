@@ -55,9 +55,11 @@ static function string ParseToken(Rx_Controller C, string token)
 	case "ADMIN":
 		return getAdminStatus(Rx_PRI(C.PlayerReplicationInfo));
 	case "STEAM":
-		return class'WorldInfo'.static.GetWorldInfo().Game.OnlineSub.UniqueNetIdToString(C.PlayerReplicationInfo.UniqueId);
+		return `WorldInfoObject.Game.OnlineSub.UniqueNetIdToString(C.PlayerReplicationInfo.UniqueId);
 	case "IP":
 		return C.GetPlayerNetworkAddress();
+	case "HWID":
+		return C.PlayerUUID;
 	case "ID":
 		return string(C.PlayerReplicationInfo.PlayerID);
 	case "NAME":
@@ -115,10 +117,11 @@ static function string ParseTokenPRI(Rx_PRI PRI, string token)
 		return string(PRI.GetKDRatio());
 	case "PING":
 		return string(PRI.Ping * 4);
+	case "ADMINSTATUS":
 	case "ADMIN":
 		return getAdminStatus(PRI);
 	case "STEAM":
-		return class'WorldInfo'.static.GetWorldInfo().Game.OnlineSub.UniqueNetIdToString(PRI.UniqueId);
+		return `WorldInfoObject.Game.OnlineSub.UniqueNetIdToString(PRI.UniqueId);
 	case "IP":
 		if (PlayerController(PRI.Owner) != None)
 			return PlayerController(PRI.Owner).GetPlayerNetworkAddress();
@@ -141,31 +144,30 @@ function string trigger(string parameters)
 	local Rx_Controller C;
 	local int index;
 	local Array<string> format;
-	ParseStringIntoArray(Caps(parameters), format, `nbsp, true);
+	ParseStringIntoArray(parameters, format, " ", true);
 
 	if (format.Length == 0)
 	{
-		format = Rx_Game(WorldInfo.Game).BuildClientList(`nbsp);
+		format = Rx_Game(`WorldInfoObject.Game).BuildClientList(`rcon_delim);
 		parameters = "PlayerID"`s"IP"`s"SteamID"`s"AdminStatus"`s"Team"`s"Name";
 		for (index = 0; index != format.Length; index++)
 			parameters $= "\n" $ format[index];
+		return parameters;
 	}
 
-	foreach WorldInfo.AllControllers(class'Rx_Controller', C)
+	parameters = format[0];
+	for (index = 1; index != format.Length; ++index)
+		parameters $= `rcon_delim $ format[index];
+
+	foreach `WorldInfoObject.AllControllers(class'Rx_Controller', C)
 	{
 		parameters $= "\n";
-		index = 0;
-loop_do:
-		// Has to be casted to a string first due to an unreal bug.
-		parameters $= ParseToken(C, format[index]);
 
-		// loop_while
-		if (++index != format.Length)
-		{
-			parameters $= `nbsp;
-			goto loop_do;
-		}
+		parameters $= ParseToken(C, format[0]);
+		for (index = 1; index != format.Length; ++index)
+			parameters $= `rcon_delim $ ParseToken(C, format[index]);
 	}
+
 	return parameters;
 }
 

@@ -43,7 +43,7 @@ simulated function SetSkin(Material NewMaterial)
 	}
 }
 
-function ConsumeAmmo( byte FireModeNum )
+simulated function ConsumeAmmo( byte FireModeNum )
 {
 	super.ConsumeAmmo(FireModeNum);
 	UpdateAmmoCounter();
@@ -67,7 +67,7 @@ simulated function FireAmmunition()
 	WeaponPlaySound( WeaponDistantFireSnd );
 }
 
-function bool IsInstantHit()
+simulated function bool IsInstantHit()
 {
 	return true; 
 }
@@ -99,8 +99,9 @@ DefaultProperties
 	
 	PlayerViewOffset=(X=2.0,Y=0.0,Z=-1.0)		// (X=-5.0,Y=-3.0,Z=-0.5)
 	
-	LeftHandIK_Offset=(X=1.0,Y=-1,Z=1)
-	RightHandIK_Offset=(X=-2.0,Y=-2.0,Z=0)
+	LeftHandIK_Offset=(X=0.0,Y=0.0,Z=0.0)
+	RightHandIK_Offset=(X=3.0,Y=-1.0,Z=-2.0)
+	LeftHandIK_Relaxed_Offset = (X=2.0,Y=-1.5,Z=3.5)
 
 	//-------------- Recoil
 	RecoilDelay = 0.02
@@ -136,14 +137,14 @@ DefaultProperties
 	EquipTime=0.75
 //	PutDownTime=0.5
 	
-	Spread(0)=0.0
+	Spread(0)=0.15 //0.1 //0.0
 	IronSightAndScopedSpread(0)= 0.0
 	
 	InstantHitDamage(0)=100
 	InstantHitDamage(1)=0
 	InstantHitMomentum(0)=10000.0
 	
-	HeadShotDamageMult=3.0
+	HeadShotDamageMult=3.5 //3.25 //3.0
 
 //	BotDamagePercentage = 0.4;
 
@@ -203,10 +204,10 @@ DefaultProperties
 	CrosshairWidth = 256
 	CrosshairHeight = 256
 	
-	CrosshairMIC = MaterialInstanceConstant'RenX_AssetBase.UI.MI_Reticle_Simple'
-//	CrosshairMIC = MaterialInstanceConstant'RenXHud.MI_Reticle_SniperRifle'
-//  CrosshairMIC = MaterialInstanceConstant'RenX_AssetBase.UI.MI_Reticle_None'
-//	CrosshairDotMIC = MaterialInstanceConstant'RenX_AssetBase.UI.MI_Reticle_None'
+//	CrosshairMIC = MaterialInstanceConstant'RenX_AssetBase.UI.MI_Reticle_Simple'
+	CrosshairMIC = MaterialInstanceConstant'RenXHud.MI_Reticle_SniperRifle'
+	//CrosshairMIC = MaterialInstanceConstant'RenX_AssetBase.UI.MI_Reticle_None'
+	CrosshairDotMIC = MaterialInstanceConstant'RenX_AssetBase.UI.MI_Reticle_None'
 
 	CrossHairCoordinates=(U=256,V=64,UL=64,VL=64)
 	IconCoordinates=(U=726,V=532,UL=165,VL=51)
@@ -219,4 +220,32 @@ DefaultProperties
 
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_SniperRifle'
+	
+	/*******************/
+	/*Veterancy*/
+	/******************/
+	
+	Vet_DamageModifier(0)=1  //Applied to instant-hits only
+	Vet_DamageModifier(1)=1.10 
+	Vet_DamageModifier(2)=1.25 
+	Vet_DamageModifier(3)=1.50 
+	
+	Vet_ROFModifier(0) = 1
+	Vet_ROFModifier(1) = 1 
+	Vet_ROFModifier(2) = 1  
+	Vet_ROFModifier(3) = 1  
+	
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)	
+	Vet_ClipSizeModifier(1)=0 //Veteran 
+	Vet_ClipSizeModifier(2)=1 //Elite
+	Vet_ClipSizeModifier(3)=2 //Heroic
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.9 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+	/**********************/
+	
+	bLocSync = true; 
+	ROFTurnover = 2;
 }

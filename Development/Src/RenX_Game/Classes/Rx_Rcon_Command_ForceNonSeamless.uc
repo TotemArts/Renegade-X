@@ -2,7 +2,7 @@ class Rx_Rcon_Command_ForceNonSeamless extends Rx_Rcon_Command;
 
 function string trigger(string parameters)
 {
-	Rx_Game(WorldInfo.Game).bForceNonSeamless=true;
+	Rx_Game(`WorldInfoObject.Game).bForceNonSeamless=true;
 	return "";
 }
 

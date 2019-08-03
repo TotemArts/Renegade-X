@@ -1,4 +1,4 @@
-class Rx_Building_Barracks extends Rx_Building
+class Rx_Building_Barracks extends Rx_Building_GDI_InfantryFactory
    placeable;
 
 simulated function String GetHumanReadableName()

@@ -1,6 +1,8 @@
 class Rx_CratePickup extends Rx_Pickup
    config(RenegadeX);
 
+`include(RenX_Game\RenXStats.uci);
+
 var()   bool                bNoVehicleSpawn; // vehicles will not spawn at this crate (use for tunnels!)
 var()   bool                bNoNukeDeath; // no nuke explosion (big death crate)
 var     bool                bRespawn;
@@ -83,6 +85,18 @@ function Rx_CrateType DetermineCrateType(Rx_Pawn Recipient)
 	local int i;
 	local float probabilitySum, random;
 	local array<float> probabilities;
+	local Rx_Mutator RxMut;
+	local Rx_CrateType crateType;
+	
+	// This allows a mutator to overwrite the returned crate type, if anything else is returned that is not
+	// 	a child of this current class, it's ignored. -- Ax
+	RxMut = Rx_Game(WorldInfo.Game).GetBaseRxMutator();
+	if ( RxMut != None )
+	{
+		crateType = RxMut.OnDetermineCrateType(Recipient,self);
+		if ( crateType != None && ClassIsChildOf(crateType.class, class'Rx_CrateType') )
+			return crateType;
+	}
 
 	// Get sum of probabilities, and cache values
 	for (i = 0; i < InstancedCrateTypes.Length; i++)
@@ -90,7 +104,7 @@ function Rx_CrateType DetermineCrateType(Rx_Pawn Recipient)
 		if (WorldInfo.GRI.ElapsedTime >= InstancedCrateTypes[i].StartSpawnTime)
 		{
 			probabilities.AddItem(InstancedCrateTypes[i].GetProbabilityWeight(Recipient,self));
-			`log(InstancedCrateTypes[i] @ "probability:" @ probabilities[i]);
+			//`log(InstancedCrateTypes[i] @ "probability:" @ probabilities[i]);
 			probabilitySum += probabilities[i];
 		}
 		else
@@ -102,12 +116,12 @@ function Rx_CrateType DetermineCrateType(Rx_Pawn Recipient)
 
 	for (i = 0; i < InstancedCrateTypes.Length; i++)
 	{
-		if (random < probabilities[i])
+		if (random <= probabilities[i])
 			return InstancedCrateTypes[i];
 		else
 			random -= probabilities[i];
 	}
-	
+
 	return InstancedCrateTypes[InstancedCrateTypes.Length - 1]; // Should never happen
 }
 
@@ -115,12 +129,9 @@ function ExecutePickup(Pawn Recipient)
 {
 	local Rx_PRI pri;
 	local Rx_CrateType CrateType;
-	local Rx_Controller RxController;
 
 	if (Rx_Pawn(Recipient) == none) // Only allow Rx_Pawns to pickup crates
 		return;
-
-	RxController = Rx_Controller(Recipient.Controller);
 
 	pri = Rx_PRI(Recipient.PlayerReplicationInfo);
 	CrateType = DetermineCrateType(Rx_Pawn(Recipient));
@@ -129,8 +140,13 @@ function ExecutePickup(Pawn Recipient)
 		Recipient.PlaySound(CrateType.PickupSound);
 
 	CrateType.BroadcastMessage(pri,self);
-	CrateType.SendLocalMessage(RxController);
+	
+	if(Rx_Controller(Recipient.Controller) != None )
+		CrateType.SendLocalMessage(Rx_Controller(Recipient.Controller));
+	
 	`LogRxPub(CrateType.GetGameLogMessage(pri,self));
+
+	`RecordGamePositionStat(PICKUP_CRATE, location, 1);
 }
 
 simulated function SetPickupMesh()
@@ -188,5 +204,8 @@ DefaultProperties
 	DefaultCrateTypes[8] = class'Rx_CrateType_Speed'
 	DefaultCrateTypes[9] = class'Rx_CrateType_Abduction'
 	DefaultCrateTypes[10] = class'Rx_CrateType_TSVehicle'
-	//DefaultCrateTypes[11] = class'Rx_CrateType_RAVehicle'
+	DefaultCrateTypes[11] = class'Rx_CrateType_Veterancy'
+	DefaultCrateTypes[12] = class'Rx_CrateType_DamageResistance'
+	DefaultCrateTypes[13] = class'Rx_CrateType_ClassicVehicle'
+	DefaultCrateTypes[14] = class'Rx_CrateType_EpicCharacter'
 }

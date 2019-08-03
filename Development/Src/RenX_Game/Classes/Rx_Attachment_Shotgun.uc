@@ -1,7 +1,6 @@
-class Rx_Attachment_Shotgun extends Rx_WeaponAttachment;
+class Rx_Attachment_Shotgun extends Rx_WeaponAttachment_Varying;
 
 
-var ParticleSystem BeamTemplate;
 var class<UDKExplosionLight> ImpactLightClass;
 
 
@@ -97,6 +96,7 @@ defaultproperties
 
 	BulletWhip=SoundCue'RX_SoundEffects.Bullet_WhizBy.SC_Bullet_WhizBy'
 	BeamTemplate=ParticleSystem'RX_FX_Munitions.Beams.P_InstantHit_Tracer'
+	BeamTemplate_Heroic=ParticleSystem'RX_FX_Munitions.Beams.P_InstantHit_Tracer_GDI_Large_Heroic'
 
 	WeaponClass=class'Rx_Weapon_Shotgun'
 	MuzzleFlashSocket=MuzzleFlashSocket
@@ -109,6 +109,6 @@ defaultproperties
 	ShellEjectDuration = 1.0
 	ShellEjectSocket = ShellEjectSocket
 	
-	AimProfileName = Shotgun
-	WeaponAnimSet = AnimSet'RX_CH_Animations.Anims.AS_WeapProfile_Shotgun'
+	AimProfileName = AutoRifle
+	WeaponAnimSet = AnimSet'RX_CH_Animations.Anims.AS_WeapProfile_AutoRifle'
 }

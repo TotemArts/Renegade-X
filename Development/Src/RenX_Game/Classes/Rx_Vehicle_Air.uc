@@ -27,6 +27,22 @@ var float PushForce;    // for AI when landing;
 var localized string RadarLockMessage;  /** Displayed when enemy raptor fires locked missile at you */
 
 var float LastRadarLockWarnTime;
+var repnotify bool bLockedYaw;
+
+replication {
+	if(bNetDirty && ROLE == ROLE_Authority)
+		bLockedYaw;
+}
+
+simulated event ReplicatedEvent(name VarName)
+{
+	if (VarName == 'bLockedYaw')
+	{
+		LockYaw(bLockedYaw); 
+	}
+	else
+		super.ReplicatedEvent(VarName); 
+}
 
 simulated event LockOnWarning(UDKProjectile IncomingMissile)
 {
@@ -39,7 +55,7 @@ reliable server function IncreaseSprintSpeed()
 
 	Super.IncreaseSprintSpeed();
 
-	SprintSpeed_Max = Default.MaxSpeed * MinSprintSpeedMultiplier;
+	SprintSpeed_Max = Default.AirSpeed * MinSprintSpeedMultiplier * Vet_SprintSpeedMod[VRank]; //default.AirSpeed * MinSprintSpeedMultiplier; //Default.AirSpeed * MinSprintSpeedMultiplier;
 
 	if(PlayerController(Controller) != None)
 	{
@@ -52,7 +68,10 @@ reliable server function IncreaseSprintSpeed()
 	{
 		UDKVehicleSimChopper(SimObj).MaxStrafeForce = UDKVehicleSimChopper(SimObj).Default.MaxStrafeForce * MaxStrafeForce;
 		UDKVehicleSimChopper(SimObj).MaxRiseForce = UDKVehicleSimChopper(SimObj).Default.MaxRiseForce * MaxRiseForce;
-		UDKVehicleSimChopper(SimObj).MaxYawRate = UDKVehicleSimChopper(SimObj).Default.MaxYawRate * MaxYawRate;
+		
+		if(!bLockedYaw) 
+			UDKVehicleSimChopper(SimObj).MaxYawRate = UDKVehicleSimChopper(SimObj).Default.MaxYawRate * MaxYawRate;
+		
 		UDKVehicleSimChopper(SimObj).RollTorqueStrafeFactor = UDKVehicleSimChopper(SimObj).Default.RollTorqueStrafeFactor * RollTorqueStrafeFactor;
 		UDKVehicleSimChopper(SimObj).PitchTorqueFactor = UDKVehicleSimChopper(SimObj).Default.PitchTorqueFactor * PitchTorqueFactor;
 	}
@@ -61,18 +80,23 @@ reliable server function DecreaseSprintSpeed()
 {
 	Super.DecreaseSprintSpeed();
 
-	if(PlayerController(Controller) != None)
+	/**if(PlayerController(Controller) != None)
 	{
-		ServerSetMaxSpeed(MaxSpeed);
+		ServerSetAirSpeed(AirSpeed);
 	}
 
-	MaxSpeed = Default.MaxSpeed;
-
+	AirSpeed = Default.AirSpeed;
+*/
 	if(UDKVehicleSimChopper(SimObj) != None)
 	{
 		UDKVehicleSimChopper(SimObj).MaxStrafeForce = UDKVehicleSimChopper(SimObj).Default.MaxStrafeForce;
 		UDKVehicleSimChopper(SimObj).MaxRiseForce = UDKVehicleSimChopper(SimObj).Default.MaxRiseForce;
-		UDKVehicleSimChopper(SimObj).MaxYawRate = UDKVehicleSimChopper(SimObj).Default.MaxYawRate;
+		
+		if(!bLockedYaw)
+			UDKVehicleSimChopper(SimObj).MaxYawRate = UDKVehicleSimChopper(SimObj).Default.MaxYawRate;
+		else
+			UDKVehicleSimChopper(SimObj).MaxYawRate = 0;	
+		
 		UDKVehicleSimChopper(SimObj).RollTorqueStrafeFactor = UDKVehicleSimChopper(SimObj).Default.RollTorqueStrafeFactor;
 		UDKVehicleSimChopper(SimObj).PitchTorqueFactor = UDKVehicleSimChopper(SimObj).Default.PitchTorqueFactor;
 	}
@@ -84,6 +108,7 @@ simulated function SetDriving(bool bNewDriving)
     {
         if (Role == ROLE_Authority)
         {
+			ServerLockYaw(false);
             GotoState('AutoLanding');
         }
     }
@@ -149,7 +174,7 @@ state AutoLanding
         }
     }
 
-	function bool EMPHit(Controller InstigatedByController, Actor EMPCausingActor)
+	simulated function bool EMPHit(Controller InstigatedByController, Actor EMPCausingActor, optional int TimeModifier = 0)
 	{
 		if (super.EMPHit(InstigatedByController, EMPCausingActor))
 		{
@@ -201,15 +226,107 @@ function DamageVehicleSurfers()
     }
 }
 
+//set shadow frustum scale (nBab)
+simulated function SetShadowboundsScale()
+{
+    MyLightEnvironment = DynamicLightEnvironmentComponent(Mesh.LightEnvironment);
+    MyLightEnvironment.LightingBoundsScale = Rx_MapInfo(WorldInfo.GetMapInfo()).AirVehicleShadowBoundsScale;
+    Mesh.SetLightEnvironment(MyLightEnvironment);
+}
+
+event Touch ( Actor Other, PrimitiveComponent OtherComp, vector HitLocation, vector HitNormal )
+{
+if(Rx_VehicleBlockingVolume(Other) != none) 
+	return; 
+else
+	super.Touch(Other,OtherComp,HitLocation,HitNormal);
+}
+
+event UnTouch ( Actor Other)
+{
+if(Rx_VehicleBlockingVolume(Other) != none) 
+	return; 
+else
+	super.UnTouch(Other);
+}
+
+
+simulated function LockYaw(bool Lock){
+	local UDKVehicleSimChopper Chopper; 
+	
+	Chopper = UDKVehicleSimChopper(SimObj);
+	
+	if(SimObj == none) return; 
+	
+	if(Lock){
+		Chopper.MaxYawRate = 0;
+		//Chopper.RollTorqueMax = 0;
+	}
+	else {
+		Chopper.MaxYawRate = Chopper.default.MaxYawRate;
+		//Chopper.RollTorqueMax = Chopper.default.RollTorqueMax;
+	}
+} 
+
+simulated function StartLockYaw(bool Lock){
+		local UDKVehicleSimChopper Chopper; 
+		
+		Chopper = UDKVehicleSimChopper(SimObj);
+	
+	if(Chopper == none) return; 
+	
+	/**if(Lock){
+		Chopper.MaxYawRate = 0;
+		//Chopper.RollTorqueMax = 0;
+	}
+	else {
+		Chopper.MaxYawRate = Chopper.default.MaxYawRate;
+		//Chopper.RollTorqueMax = Chopper.default.RollTorqueMax;
+	}*/
+		bLockedYaw = Lock; 
+		ServerLockYaw(Lock); 
+}
+
+reliable server function ServerLockYaw(bool Lock){
+	local UDKVehicleSimChopper Chopper; 
+	
+	Chopper = UDKVehicleSimChopper(SimObj);
+	
+	if(Chopper == none) return; 
+	
+	if(Lock){
+		Chopper.MaxYawRate = 0;
+		//Chopper.RollTorqueMax = 0;
+		
+	}
+	else {
+		Chopper.MaxYawRate = Chopper.default.MaxYawRate;
+		//Chopper.RollTorqueMax = Chopper.default.RollTorqueMax;
+	}
+	
+	bLockedYaw = Lock; 
+}
+
 defaultproperties
 {
-	bSeparateTurretFocus=True
+	//nBab
+    /*Begin Object Name=MyLightEnvironment
+        bSynthesizeSHLight=true
+        bUseBooleanEnvironmentShadowing=FALSE
+        //setting shadow frustum scale (nBab)
+        LightingBoundsScale=0.35
+    End Object
+    LightEnvironment=MyLightEnvironment
+    Components.Add(MyLightEnvironment)*/
+
+    bSeparateTurretFocus=True
 	
 	MaxStrafeForce=0.25
 	MaxRiseForce=0.25
 	MaxYawRate=0.25
 	RollTorqueStrafeFactor=0.25
 	PitchTorqueFactor=1.3
+	MomentumMult=0.55
 	
 	bisAircraft=true
 	
@@ -240,6 +357,8 @@ defaultproperties
     bEjectPassengersWhenFlipped=false
     bMustBeUpright=false
     UpsideDownDamagePerSec=0.0
+	OccupiedUpsideDownDamagePerSec=0.0
+
     
     bDropDetailWhenDriving=true
     bFindGroundExit=false
@@ -249,4 +368,12 @@ defaultproperties
     
     bJostleWhileDriving=true
     bFloatWhenDriven=true
+	
+	BurnOutTime=1.5
+	DeadVehicleLifeSpan=2.0
+	
+	SecondaryExplosion=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Vehicle'
+	
+	DestroyedRotatorAddend = (Pitch=0,Roll=50000,Yaw=8000) //Most aircraft here aren't single rotor, so roll more than yaw
+
 }

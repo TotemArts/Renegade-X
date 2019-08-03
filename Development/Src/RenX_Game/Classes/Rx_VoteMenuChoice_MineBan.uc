@@ -16,9 +16,7 @@ function InputFromConsole(string text)
 {
 	local string Pname;
 	local Rx_PRI P_PRI;
-	local color MyColor;
 	
-	MyColor=MakeColor(255,0,0,255);
 	
 	Pname = Right(text, Len(text) - 22);
 	
@@ -33,7 +31,7 @@ function InputFromConsole(string text)
 		ComID = FindPlayerIDfromName(Pname);
 
 		if (ComID <= 0)
-			Handler.PlayerOwner.CTextMessage("GDI",80, "Player not found on team",MyColor,255,255, false,1,0.6);		
+			Handler.PlayerOwner.CTextMessage("Player not found on team",'Red', 80);		
 	
 		Finish();
 	}
@@ -128,13 +126,11 @@ function ServerSecondTick(Rx_Game game)
 function Execute(Rx_Game game)
 {
 	local Rx_PRI PRI;
-	local color MyColor;
 	local Rx_Controller RXC;
 	
 	if (ComC == none)
 		return;
 
-	MyColor=MakeColor(50,190,255,255);
 	PRI = Rx_PRI(ComC.PlayerReplicationInfo);
 
 	foreach PRI.Owner.LocalPlayerControllers(class'Rx_Controller',RXC) //This is why we use variables as references kids... but meh, too lazy to be neat X.x
@@ -142,9 +138,9 @@ function Execute(Rx_Game game)
 		if (RXC.GetTeamNum() == RX_Controller(PRI.Owner).GetTeamNum() && RXC != RX_Controller(PRI.Owner)) 
 		{
 			if(PRI.GetMineStatus())
-				Rx_Controller(PRI.Owner).CTextMessage("GDI",80, PRI.PlayerName @ "Has Been Banned from Mining",MyColor,255,255, false,1,0.6);
+				Rx_Controller(PRI.Owner).CTextMessage(PRI.PlayerName @ "Has Been Banned from Mining",'LightBlue',80);
 			else
-				Rx_Controller(PRI.Owner).CTextMessage("GDI",80, PRI.PlayerName @ "'s Mine Ban Lifted",MyColor,255,255, false,1,0.6);
+				Rx_Controller(PRI.Owner).CTextMessage(PRI.PlayerName @ "'s Mine Ban Lifted",'LightBlue',80);
 		}
 	}
 	PRI.SwitchMineStatus();	

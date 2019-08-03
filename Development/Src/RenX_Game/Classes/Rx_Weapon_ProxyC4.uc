@@ -26,14 +26,47 @@ simulated function DrawCrosshair( Hud HUD )
 	local UTHUDBase H;
 	local Pawn MyPawnOwner;
 	local actor TargetActor;
-	local int targetTeam, rectColor;
+	local int targetTeam;
 	local int MineNum, MaxMineNum;
 	local color TempColor;
 	local float MineTextL, MineTextH, MineEmphasisScale;
+	local LinearColor LC; //nBab
 	
-	// rectColor is an integer representing what we will pass to the texture's parameter(ReticleColourSwitcher):
-	// 0=Default, 1=Red, 2=Green, 3=Yellow
-	rectColor = 0;	
+	//set initial color based on settings (nBab)
+	LC.A = 1.f;
+	switch (Rx_HUD(Rx_Controller(Instigator.Controller).myHUD).SystemSettingsHandler.GetCrosshairColor())
+	{
+		//white
+		case 0:
+			LC.R = 1.f;
+			LC.G = 1.f;
+			LC.B = 1.f;
+			break;
+		//orange
+		case 1:
+			LC.R = 2.f;
+			LC.G = 0.5f;
+			LC.B = 0.f;
+			break;
+		//violet
+		case 2:
+			LC.R = 2.f;
+			LC.G = 0.f;
+			LC.B = 2.f;
+			break;
+		//blue
+		case 3:
+			LC.R = 0.f;
+			LC.G = 0.f;
+			LC.B = 2.f;
+			break;
+		//cyan
+		case 4:
+			LC.R = 0.f;
+			LC.G = 2.f;
+			LC.B = 2.f;
+			break;	
+	}	
 	
 	H = UTHUDBase(HUD);
 	if ( H == None )
@@ -70,24 +103,47 @@ simulated function DrawCrosshair( Hud HUD )
 				if (targetTeam != MyPawnOwner.GetTeamNum())
 				{
 					if (!TargetActor.IsInState('Stealthed') && !TargetActor.IsInState('BeenShot'))
-						rectColor = 1; //enemy, go red, except if stealthed (else would be cheating ;] )
+					{
+						//enemy, go red, except if stealthed (else would be cheating ;] )
+						//nBab
+						LC.R = 10.f;
+						LC.G = 0.f;
+						LC.B = 0.f;
+					}
 				}
 				else
-					rectColor = 2; //Friendly
+				{
+					//Friendly
+					//nBab
+					LC.R = 0.f;
+					LC.G = 10.f;
+					LC.B = 0.f;
+				}
 			}
 		}
 	}
 	
 	if (!HasAnyAmmo()) //no ammo, go yellow
-		rectColor = 3;
+	{
+		//nBab
+		LC.R = 10.f;
+		LC.G = 8.f;
+		LC.B = 0.f;
+	}
 	else
 	{
 		if (CurrentlyReloading || CurrentlyBoltReloading || BoltActionReload && HasAmmo(CurrentFireMode) && IsTimerActive('BoltActionReloadTimer')) //reloading, go yellow
-			rectColor = 3;
+		{
+			//nBab
+			LC.R = 10.f;
+			LC.G = 8.f;
+			LC.B = 0.f;
+		}
 	}
 
-	CrosshairMIC2. SetScalarParameterValue('ReticleColourSwitcher', rectColor);
-	CrosshairDotMIC2. SetScalarParameterValue('ReticleColourSwitcher', rectColor);
+	//nBab
+	CrosshairMIC2.SetVectorParameterValue('Reticle_Colour', LC);
+	CrosshairDotMIC2.SetVectorParameterValue('Reticle_Colour', LC);
 	
 	H.Canvas.SetPos( CrosshairLinesX, CrosshairLinesY );
 	if(bDisplayCrosshair) {
@@ -137,21 +193,21 @@ simulated function DrawCrosshair( Hud HUD )
 }
 
 
-
+simulated function bool IsValidPosition() 
+{
+	return true;
+}
 
 function bool Deploy()
 {
 	local Rx_Controller IPC;
-	local color MyColor;
 	
-	MyColor=MakeColor(255,20,50,255);
 	IPC=Rx_Controller(Instigator.Controller);
 	
 	if(Rx_PRI(IPC.PlayerReplicationInfo).bCanMine == false) /*Nobody likes you; you can't use these things that have been badly designed for 12+ years now.*/
-	{
-		
-	IPC.CTextMessage("GDI", 60, "You are currently banned from Mining",MyColor,255, 255, false, 1,0.75);
-	return false;
+	{	
+		IPC.CTextMessage("You are currently banned from Mining");
+		return false;
 	}
 	
 	//if(super(Rx_Weapon_Deployable).Deploy()) {
@@ -207,6 +263,10 @@ simulated function PerformRefill()
 	AmmoCount = MaxAmmoCount;
 }
 
+function bool CanAttack(Actor Other)
+{
+	return false; //temporarily don't let bots use this
+}
 
 DefaultProperties
 {
@@ -239,6 +299,7 @@ DefaultProperties
 	
 	bRemoveWhenDepleted = false
 	bBlockDeployCloseToOwnBase=false
+	bAffectedByNoDeployVolume=false
 	
 	//-------------- Recoil
 	RecoilDelay = 0.07

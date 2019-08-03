@@ -46,6 +46,31 @@ simulated function Destroyed() {
 	}
 }
 
+function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)
+{
+	if( (Rx_Pawn(Base) !=none || Rx_Vehicle(base) !=none) && EventInstigator.GetTeamNum() != GetTeamNum()) 
+	{
+	super(Actor).TakeDamage(DamageAmount,EventInstigator,HitLocation,Momentum,DamageType,HitInfo,DamageCauser);	
+
+		if (DamageAmount <= 0 || HP <= 0 || bDisarmed )
+		  return;
+
+		HP -= DamageAmount*3.0; //Remotes should be fairly frail
+
+		if (HP <= 0)
+		{
+			if(EventInstigator != InstigatorController) 
+			{
+				InstigatorController = EventInstigator; 
+				TeamNum = InstigatorController.GetTeamNum();
+			}
+			Explosion();
+		}
+	}
+	else
+	super.TakeDamage(DamageAmount,EventInstigator,HitLocation,Momentum,DamageType,HitInfo,DamageCauser);	
+}
+
 defaultproperties
 {
    
@@ -56,7 +81,6 @@ defaultproperties
 	DamageMomentum=8000.0
 	bUsesMineLimit=false
 	bIsRemoteC4=true
-
 	ExplosionLightClass=Class'RenX_Game.Rx_Light_Tank_Explosion'
 	ExplosionTemplate=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Small'
 	ExplosionSound=SoundCue'RX_SoundEffects.Explosions.SC_Explosion_C4'

@@ -43,6 +43,8 @@ var const string GDIPTAttachment;
 var array<vector>	Trace2dTargets;
 const MAX_TRACE2D_TARGETS = 10;
 
+
+
 replication
 {
 	
@@ -238,6 +240,7 @@ simulated function bool IsDestroyed()
 	return false;
 }
 
+simulated function OnBuildingDestroyed();
 
 DefaultProperties
 {

@@ -2,27 +2,22 @@ class Rx_Rcon_Command_Help extends Rx_Rcon_Command;
 
 function string trigger(string parameters)
 {
-	local Rx_Rcon_Command cmd;
-	local string listOut;
+	local string cmd;
 	local int pos;
 	if (parameters == "")
-	{
-		listOut = "The following commands are available:";
-		foreach RconCommands(cmd)
-			if (cmd.triggers.Length != 0)
-				listOut $= `nbsp $ cmd.getTrigger(0);
-		return listOut;
-	}
+		return "The following commands are available:" $ `RxEngineObject.GetRconCommandsString();
 	else
 	{
 		pos = InStr(parameters," ");
 		if (pos < 0)
-			cmd = GetCommand(parameters);
+			cmd = parameters;
 		else
-			cmd = GetCommand(Left(parameters, pos));
-		if (cmd == None)
-			return "Error: Command \"" $ Left(parameters, InStr(parameters," ")) $ "\" not found." @ getSyntax();
-		return cmd.getHelp(pos < 0 ? "" : Mid(parameters, pos + 1));
+			cmd = Left(parameters, pos);
+
+		if (`RxEngineObject.HasRconCommand(cmd) == false)
+			return "Error: Command \"" $ cmd $ "\" not found." @ getSyntax();
+
+		return `RxEngineObject.GetRconCommandHelpString(cmd, pos < 0 ? "" : Mid(parameters, pos + 1));
 	}
 }
 

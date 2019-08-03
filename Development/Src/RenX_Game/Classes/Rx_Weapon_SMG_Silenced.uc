@@ -1,6 +1,6 @@
 class Rx_Weapon_SMG_Silenced extends Rx_Weapon_Charged;		// Rx_Weapon_Reloadable;
 
-function bool IsInstantHit()
+simulated function bool IsInstantHit()
 {
 	return true; 
 }
@@ -33,8 +33,12 @@ DefaultProperties
 	
 	PlayerViewOffset=(X=4.5,Y=-1.5,Z=-1.5)
 	
-	LeftHandIK_Offset=(X=1,Y=8,Z=1)
+	LeftHandIK_Offset=(X=-4.704200,Y=-2.984400,Z=0.071600)
+	LeftHandIK_Rotation=(Pitch=-2730,Yaw=-4915,Roll=3640)
 	RightHandIK_Offset=(X=2,Y=-2,Z=-5)
+	bUseHandIKWhenRelax=False
+	bOverrideLeftHandAnim=true
+	LeftHandAnim=H_M_Hands_Closed
 	
 	FireOffset=(X=20,Y=8,Z=-10)
 	

@@ -1,6 +1,6 @@
-class Rx_Attachment_LaserRifle extends Rx_WeaponAttachment;
+class Rx_Attachment_LaserRifle extends Rx_WeaponAttachment_Varying;
 
-var ParticleSystem BeamTemplate;
+//var ParticleSystem BeamTemplate;
 var class<UDKExplosionLight> ImpactLightClass;
 
 var int CurrentPath;
@@ -79,9 +79,12 @@ DefaultProperties
     Begin Object Name=SkeletalMeshComponent0
         SkeletalMesh=SkeletalMesh'RX_WP_LaserRifle.Mesh.SK_WP_LaserRifle_3P'    
     End Object
-    
+
     DefaultImpactEffect=(ParticleTemplate=ParticleSystem'RX_WP_LaserRifle.Effects.P_Laser_Impact',Sound=SoundCue'RX_WP_LaserRifle.Sounds.SC_LaserRifle_Impact')
-    DefaultAltImpactEffect=(ParticleTemplate=ParticleSystem'RX_WP_LaserRifle.Effects.P_Laser_Impact',Sound=SoundCue'RX_WP_LaserRifle.Sounds.SC_LaserRifle_Impact')
+   
+    DefaultImpactEffect_Heroic=(ParticleTemplate=ParticleSystem'RX_WP_LaserRifle.Effects.P_Laser_Impact_Blue',Sound=SoundCue'RX_WP_LaserRifle.Sounds.SC_LaserRifle_Impact')
+	
+	DefaultAltImpactEffect=(ParticleTemplate=ParticleSystem'RX_WP_LaserRifle.Effects.P_Laser_Impact',Sound=SoundCue'RX_WP_LaserRifle.Sounds.SC_LaserRifle_Impact')
 
     BulletWhip=SoundCue'RX_WP_LaserRifle.Sounds.SC_LaserRifle_WizzBy'
     BeamTemplate=ParticleSystem'RX_WP_LaserRifle.Effects.P_LaserRifle_Beam'
@@ -95,4 +98,8 @@ DefaultProperties
     
     AimProfileName = AutoRifle
     WeaponAnimSet = AnimSet'RX_CH_Animations.Anims.AS_WeapProfile_AutoRifle'
+	
+	BeamTemplate_Heroic	= ParticleSystem'RX_WP_LaserRifle.Effects.P_LaserRifle_Beam_Blue'
+	MuzzleFlashPSCTemplate_Heroic= ParticleSystem'RX_WP_LaserRifle.Effects.P_LaserRifle_MuzzleFlash_3P_Blue'
+	MuzzleFlashLightClass_Heroic=class'Rx_Light_Blue_MuzzleFlash'
 }

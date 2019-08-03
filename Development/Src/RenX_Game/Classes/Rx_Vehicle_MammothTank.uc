@@ -76,8 +76,6 @@ simulated event PostInitAnimTree(SkeletalMeshComponent SkelComp)
 {
     Super.PostInitAnimTree(SkelComp);
 
-
-
     if (SkelComp == Mesh)
     {
         Recoil_R = GameSkelCtrl_Recoil( mesh.FindSkelControl('Recoil_Right') );
@@ -211,13 +209,29 @@ function init_() {
 //Is it really OP to regenerate 2 health per second back to full?? I.. don't think so, at all. 
 function regenerateHealth()
 {
+	if(bTakingDamage) return; 
     //if(Health  < HealthMax/2) {
     if(Health  < HealthMax) {    
-		Health += 1;
+		Health += RegenerationRate+(VRank*0.5);
     }
+	if(Health > HealthMax) Health=HealthMax; 
 }
     
-
+simulated function SetHeroicMuzzleFlash(bool SetTrue)
+ {
+	 local int i; 
+	 
+	 for(i=0;i<VehicleEffects.Length;i++)
+	 {
+		 if((VehicleEffects[i].EffectStartTag=='PrimaryFire_Right' || VehicleEffects[i].EffectStartTag=='PrimaryFire_Left') && VehicleEffects[i].EffectRef != none) 
+		 {
+			 if(SetTrue) VehicleEffects[i].EffectRef.SetTemplate(Heroic_MuzzleFlash);
+			 else
+			VehicleEffects[i].EffectRef.SetTemplate(default.VehicleEffects[i].EffectTemplate);
+			//break;
+		 }
+	 }
+ }
 
 DefaultProperties
 {
@@ -245,9 +259,54 @@ DefaultProperties
     HornIndex=1
     COMOffset=(x=0.0,y=0.0,z=-40.0)
 	bRotateCameraUnderVehicle=true
+	bAlwaysRegenerate = true
+	
+	RegenerationRate = 2 
+	
+	BarrelLength(0)=450
+	BarrelLength(1)=100
+	BarrelLength(2)=100
+	BarrelLength(3)=100
+	BarrelLength(4)=100
+	BarrelLength(5)=100
 
+/************************/
+/*Veterancy Multipliers*/
+/***********************/
+
+//VP Given on death (by VRank)
+	VPReward(0) = 12 
+	VPReward(1) = 15 
+	VPReward(2) = 20 
+	VPReward(3) = 30 
+	
+	VPCost(0) = 50
+	VPCost(1) = 110
+	VPCost(2) = 220
+
+Vet_HealthMod(0)=1 //1200
+Vet_HealthMod(1)=1.125 //1350
+Vet_HealthMod(2)=1.25 //1500
+Vet_HealthMod(3)=1.4583333334 //1750
+	
+Vet_SprintSpeedMod(0)=1
+Vet_SprintSpeedMod(1)=1
+Vet_SprintSpeedMod(2)=1
+Vet_SprintSpeedMod(3)=1
+	
+// +X as opposed to *X
+Vet_SprintTTFD(0)=0
+Vet_SprintTTFD(1)=0.0
+Vet_SprintTTFD(2)=0.0
+Vet_SprintTTFD(3)=0.0
+
+/**********************/
+
+Heroic_MuzzleFlash=ParticleSystem'RX_VH_MediumTank.Effects.MuzzleFlash_Heroic'
+	
     Begin Object Class=SVehicleSimTank Name=SimObject
 
+	
         bClampedFrictionModel=true
 
         WheelSuspensionStiffness=175
@@ -355,6 +414,8 @@ DefaultProperties
                 GunPivotPoints=(MainTurretYaw,MainTurretPitch),
                 CameraTag=CamView3P,
                 CameraBaseOffset=(Z=20),
+				SeatBone=Base,
+				SeatSocket=VH_Death,
                 CameraOffset=-600,
                 SeatIconPos=(X=0.5,Y=0.33),
                 MuzzleFlashLightClass=class'Rx_Light_Tank_MuzzleFlash'
@@ -425,7 +486,7 @@ DefaultProperties
 	WheelParticleEffects[9]=(MaterialType=YellowSand,ParticleTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_YellowSand_Small')
 	DefaultWheelPSCTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_Dirt_Small'	
 	
-    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Vehicle_Huge')
+    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_VH_MammothTank.Effects.P_Explosion_Vehicle')
     BigExplosionSocket=VH_Death
 
     DamageMorphTargets(0)=(InfluenceBone=MT_Ch_F,MorphNodeName=MorphNodeW_Ch_F,LinkedMorphNodeName=none,Health=80,DamagePropNames=(Damage1))

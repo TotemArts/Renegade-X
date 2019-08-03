@@ -25,6 +25,7 @@ var MaterialInstanceConstant MICFlag;
 
 var Rx_CapturePoint_TechBuilding CP;
 
+var float LastCaptureTime; 
 var float LastUnderAttackAnnouncement;
 var float UnderAttackAnnouncementCooldown;
 
@@ -36,8 +37,9 @@ replication
 
 simulated event ReplicatedEvent(name VarName)
 {
-	if ( VarName == 'FlagTeam' ) 
+	if ( VarName == 'FlagTeam' ){		
 		FlagChanged();
+	}
 	else
 		super.ReplicatedEvent(VarName);
 }
@@ -49,8 +51,19 @@ simulated function Init(Rx_Building Visuals, bool isDebug )
 	MICFlag = BuildingSkeleton.CreateAndSetMaterialInstanceConstant(0);
 	FlagChanged();
 	Armor=0;
+	
+	if(ROLE == ROLE_Authority)
+		AddToGRIArray();
 }
 
+simulated function AddToGRIArray()
+{
+	if(Rx_GRI(WorldInfo.GRI) != none && Rx_GRI(WorldInfo.GRI).TechBuildingArray.Find(self) == -1){
+		Rx_GRI(WorldInfo.GRI).TechBuildingArray.AddItem(self); 
+	}
+		else
+	SetTimer(1.0, false, 'AddToGRIArray'); //Probably unnecessary now, but in for whatever special case 
+}
 
 simulated function int GetTrueMaxHealth() 
 {
@@ -126,10 +139,22 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
 				if(Healer.GetTeamNum() == TEAM_NOD) {	
 					`LogRx("GAME"`s "Captured;"`s class'Rx_Game'.static.GetTeamName(TeamID)$","$self.class `s "id" `s GetRightMost(self) `s "by" `s `PlayerLog(Healer.PlayerReplicationInfo) );
 					BroadcastLocalizedMessage(MessageClass,NOD_CAPTURED,Healer.PlayerReplicationInfo,,self);
+					if(LastCaptureTime == 0 || (WorldInfo.TimeSeconds - LastCaptureTime) >= 30) 
+					{
+						LastCaptureTime = WorldInfo.TimeSeconds;
+						Rx_Controller(Healer).DisseminateVPString("[Tech-Building Captured]&" $ class'Rx_VeterancyModifiers'.default.Ev_CaptureTechBuilding $ "&");
+						Rx_PRI(Healer.PlayerReplicationInfo).AddTechBuildingCapture(); 
+					}
 					ChangeTeamReplicate(TEAM_NOD,true);
 				} else {
 					`LogRx("GAME"`s "Captured;"`s class'Rx_Game'.static.GetTeamName(TeamID)$","$self.class `s "id" `s GetRightMost(self) `s "by" `s `PlayerLog(Healer.PlayerReplicationInfo) );
 					BroadcastLocalizedMessage(MessageClass,GDI_CAPTURED,Healer.PlayerReplicationInfo,,self);
+					if(LastCaptureTime == 0 || (WorldInfo.TimeSeconds - LastCaptureTime) >= 30) 
+					{
+						LastCaptureTime = WorldInfo.TimeSeconds;
+						Rx_Controller(Healer).DisseminateVPString("[Tech-Building Captured]&" $ class'Rx_VeterancyModifiers'.default.Ev_CaptureTechBuilding $ "&");
+						Rx_PRI(Healer.PlayerReplicationInfo).AddTechBuildingCapture(); 
+					}
 					ChangeTeamReplicate(TEAM_GDI,true);
 				}
 			} else {
@@ -292,6 +317,11 @@ static function string GetLocalString(
 		}
 	}
 	return "";
+}
+
+simulated event byte ScriptGetTeamNum()
+{
+	return ReplicatedTeamID;
 }
 
 DefaultProperties

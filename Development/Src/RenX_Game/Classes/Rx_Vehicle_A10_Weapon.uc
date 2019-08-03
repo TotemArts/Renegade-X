@@ -74,4 +74,53 @@ DefaultProperties
      // AI
     bRecommendSplashDamage=True
     bTargetLockingActive = true;
+	
+	/****************************************/
+	/*Veterancy*/
+	/****************************************/
+	
+	//*X (Applied to instant-hits only) Modify Projectiles separately
+	Vet_DamageModifier(0)=1  //Normal
+	Vet_DamageModifier(1)=1.10  //Veteran
+	Vet_DamageModifier(2)=1.25  //Elite
+	Vet_DamageModifier(3)=1.50  //Heroic
+	
+	//*X Reverse percentage (0.75 is 25% increase in speed)
+	Vet_ROFModifier(0) = 1 //Normal
+	Vet_ROFModifier(1) = 1.10  //Veteran
+	Vet_ROFModifier(2) = 1.25  //Elite
+	Vet_ROFModifier(3) = 1.50  //Heroic
+ 
+	//+X
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)
+	Vet_ClipSizeModifier(1)=0 //Veteran 
+	Vet_ClipSizeModifier(2)=0 //Elite
+	Vet_ClipSizeModifier(3)=0 //Heroic
+
+	//*X Reverse percentage (0.75 is 25% increase in speed)
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.90 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+	
+	Vet_SecondaryClipSizeModifier(0)=0 //Normal +X
+	Vet_SecondaryClipSizeModifier(1)=0 //Veteran 
+	Vet_SecondaryClipSizeModifier(2)=2 //Elite
+	Vet_SecondaryClipSizeModifier(3)=4 //Heroic
+	
+	Vet_SecondaryReloadSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
+	Vet_SecondaryReloadSpeedModifier(1)=1 //Veteran 
+	Vet_SecondaryReloadSpeedModifier(2)=1 //Elite
+	Vet_SecondaryReloadSpeedModifier(3)=0.9 //Heroic
+	
+	Vet_SecondaryROFSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
+	Vet_SecondaryROFSpeedModifier(1)=1 //Veteran 
+	Vet_SecondaryROFSpeedModifier(2)=1.0 //Elite
+	Vet_SecondaryROFSpeedModifier(3)=1.0 //Heroic 
+	
+	
+	/********************************/
+    bOkAgainstLightVehicles = True
+	bOkAgainstArmoredVehicles = True
+	bOkAgainstBuildings = False
 }

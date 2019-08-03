@@ -26,6 +26,8 @@ function SpawnCopyFor(Pawn Recipient)
 	if (RenPawn != none)
 	{
 		RenPawn.GiveHealth(HealthGain,RenPawn.HealthMax);
+		RenPawn.DamageRate = 0; 
+		
 	}
 
 	super.SpawnCopyFor(Recipient);

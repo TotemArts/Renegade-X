@@ -3,19 +3,27 @@
  * Never include this file before the class definition.
  */
 
+`define WorldInfoObject class'Engine'.static.GetCurrentWorldInfo()
+`define EngineObject class'Engine'.static.GetEngine()
+`define RxEngineObject Rx_GameEngine(`EngineObject)
+`define GameObject `WorldInfoObject.Game
+`define RxGameObject Rx_Game(`GameObject)
+
 /**
  * Macro for accessing RxLog outside of the Game class.
  */
-`define	LogRx(Msg)	Rx_Game(WorldInfo.Game).RxLog(`Msg)
+`define	LogRx(Msg) Rx_Game(WorldInfo.Game).RxLog(`Msg)
 `define LogRxPub(Msg) Rx_Game(WorldInfo.Game).RxLogPub(`Msg)
+`define LogRxObject(Msg) Rx_Game(`WorldInfoObject.Game).RxLog(`Msg)
+`define LogRxPubObject(Msg) Rx_Game(`WorldInfoObject.Game).RxLogPub(`Msg)
 
 `define PlayerLog(Player) class'Rx_Game'.static.GetPRILogName(`Player)
 
-`define GamePort int(Mid(WorldInfo.GetAddressURL(),InStr(WorldInfo.GetAddressURL(),":")+1))
+`define GamePort int(Mid(`WorldInfoObject.GetAddressURL(),InStr(`WorldInfoObject.GetAddressURL(),":")+1))
 
 `define BlankSteamID "0x0000000000000000"
 
-`define nbsp Chr(0xA0)
+`define rcon_delim Chr(0x02)
 
 // Log Message seperator
-`define s $`nbsp$
+`define s $`rcon_delim$

@@ -41,4 +41,5 @@ DefaultProperties
 	DeathAnimRate=0.5
 	bAnimateHipsForDeathAnim=FALSE
 	MotorDecayTime=1.0
+	bUnsourcedDamage=true
 }

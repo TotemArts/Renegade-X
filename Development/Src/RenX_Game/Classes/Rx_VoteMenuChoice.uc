@@ -41,6 +41,7 @@ function array<string> GetDisplayStrings()
 
 function bool GoBack()
 {
+	
 	// return true to kill this submenu
 	return true;
 }
@@ -87,6 +88,12 @@ function ServerInit(Rx_Controller instigator, string param, int t)
 	else
 		Rx_Game(instigator.WorldInfo.Game).RxLog("VOTE"`s "Called;" `s TeamTypeToString(t) `s class `s "by" `s `PlayerLog(instigator.PlayerReplicationInfo) );
 
+	if (`RxGameObject.NumPlayers == 1) {
+		`RxGameObject.RxLog("VOTE" `s "Results;" `s TeamTypeToString(ToTeam) `s class `s "pass" `s "Yes=1" `s "No=0");
+		Execute(`RxGameObject);
+		`RxGameObject.DestroyVote(self);
+	}
+
 	// update on players
 	UpdatePlayers(instigator.WorldInfo);
 }
@@ -107,26 +114,24 @@ static function string TeamTypeToString(int type)
 
 function ServerSecondTick(Rx_Game game)
 {
-	local byte nt;
-
-	nt = byte(EndTime - game.WorldInfo.TimeSeconds);
-	if (nt < TimeLeft)
-	{
+	local byte NewTimeLeft;
+	
+	NewTimeLeft = byte(EndTime - game.WorldInfo.TimeSeconds);
+	if (NewTimeLeft < TimeLeft) {
 		// update time
-		TimeLeft = nt;
-
+		TimeLeft = NewTimeLeft;
 		UpdatePlayers(game.WorldInfo);
-
-		if (nt == 0)
-		{
+			
+		if (NewTimeLeft == 0) {
 			// todo: finish vote
-			if (CanExecute(game))
-			{
+			if (CanExecute(game)) {
 				game.RxLog("VOTE" `s "Results;" `s TeamTypeToString(ToTeam) `s class `s "pass" `s "Yes="$PlayerCount(Yes) `s "No="$PlayerCount(No) );
 				Execute(game);
 			}
-			else
+			else {
 				game.RxLog("VOTE" `s "Results;" `s TeamTypeToString(ToTeam) `s class `s "fail" `s "Yes="$PlayerCount(Yes) `s "No="$PlayerCount(No) );
+			}
+				
 			game.DestroyVote(self);
 		}
 	}
@@ -140,6 +145,8 @@ function UpdatePlayers(WorldInfo wi)
 
 	foreach wi.AllActors(class'Rx_Controller', rxc)
 	{
+		if(rxc.PlayerReplicationInfo.Team == none) continue;
+		
 		if (ToTeam == -1 || rxc.PlayerReplicationInfo.Team.TeamIndex == ToTeam)
 		{
 			rxc.VoteTopString = TopString;
@@ -175,7 +182,7 @@ function int GetTotalVoters(Rx_Game game)
 
 		foreach game.AllActors(class'Rx_Controller', rxc)
 		{
-			if (rxc.PlayerReplicationInfo.Team.TeamIndex == ToTeam)
+			if (rxc.PlayerReplicationInfo.Team != none && rxc.PlayerReplicationInfo.Team.TeamIndex == ToTeam)
 				count++;
 		}
 
@@ -278,6 +285,11 @@ function PlayerVoteNo(Rx_Controller p)
 
 	No.AddItem(p);
 	UpdatePlayers(p.WorldInfo);
+}
+
+static function bool bIsAvailable(Rx_Controller MyHandler)
+{
+	return true; //Most should just be true, sans things that can be disabled 
 }
 
 DefaultProperties

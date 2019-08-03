@@ -3,6 +3,7 @@ class Rx_Weapon_RepairTool extends Rx_Weapon_RepairGun;
 var float RechargeRate, RechargeTime;
 var bool bRecharging;  
 
+
 replication 
 {
 	if(ROLE == ROLE_AUTHORITY && bNetDirty)
@@ -128,8 +129,6 @@ simulated function int GetReserveAmmo()
 
 simulated function bool ShouldRefire()
 {
-	if(bKeepFiring)
-		return true;
 	
 	if(IsTimerActive('RechargeTimer'))
 	{ 
@@ -161,28 +160,36 @@ DefaultProperties
 
 	// Weapon SkeletalMesh
 	Begin Object Name=PickupMesh
-		SkeletalMesh=SkeletalMesh'RX_WP_RepairGun.Mesh.SK_WP_RepairGun_Back'
+		SkeletalMesh=SkeletalMesh'RX_WP_RepairGun.Mesh.SK_WP_RepairTool_Back'
 		Scale=1.0
 	End Object
 	
 	PlayerViewOffset=(X=16.0,Y=3.0,Z=-4.0)
 	
-	LeftHandIK_Offset=(X=1,Y=8,Z=1)
+	LeftHandIK_Offset=(X=-3.511200,Y=-4.500000,Z=0.230000)
+	LeftHandIK_Rotation=(Pitch=-3094,Yaw=0,Roll=2366)
+	LeftHandIK_Relaxed_Offset=(X=0.0,Y=0.0,Z=0.0)
 	RightHandIK_Offset=(X=2,Y=-2,Z=-5)
+	RightHandIK_Relaxed_Offset=(X=0.0,Y=0.0,Z=0.0)
+	RightHandIK_Relaxed_Rotation=(Pitch=0,Yaw=0,Roll=0)
+	
+	bUseHandIKWhenRelax=false	
+	bOverrideLeftHandAnim=true
+	LeftHandAnim=H_M_Hands_Closed
 
 	AttachmentClass = class'Rx_Attachment_RepairTool'
 
-	WeaponRange=350.0
+	WeaponRange=500 //350.0
 	
 	ShotCost(0)=1
-	ClipSize = 250//350//400
+	ClipSize = 350//250//350//400
 	FireInterval(0)=+0.3
 	FireInterval(1)=+0.3
 	
 
-	HealAmount = 15
+	HealAmount = 18 //15
 	MinHealAmount = 1
-	MineDamageModifier  = 1.5
+	MineDamageModifier  = 1.75 //1.5
 	RechargeTime = 5.0f
 	RechargeRate = 1.0f
 	
@@ -209,4 +216,16 @@ DefaultProperties
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_RepairTool'
 
+	/*******************/
+	/*Veterancy*/
+	/******************/
+	
+	Vet_DamageModifier(0)=1  //Applied to instant-hits only
+	Vet_DamageModifier(1)=1.11111 //17
+	Vet_DamageModifier(2)=1.22222 //1.1.2667 //19
+	Vet_DamageModifier(3)=1.33333 //1.4 //21
+	
+	/**********************/
+	
+	bUseClientAmmo = false ;
 }

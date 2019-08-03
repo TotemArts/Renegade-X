@@ -35,14 +35,14 @@ DefaultProperties
     MyDamageType=class'Rx_DmgType_FlakCannon_Alt'
     
 //    TossZ=100.0
-    Speed=6000
-    MaxSpeed=6000
+    Speed=6000 //6000
+    MaxSpeed=6000//6000
     AccelRate=0
     LifeSpan=0.53
-    Damage=12
+    Damage= 13 //14 //12
     DamageRadius=0
-	HeadShotDamageMult=2.0
-    MomentumTransfer=10000
+	HeadShotDamageMult=1.5 //2.0 //2.25
+    MomentumTransfer=5000
 	
 //	TossZ=100.0
 	
@@ -55,8 +55,24 @@ DefaultProperties
     bBounce=false
     bNetTemporary=false
     bRotationFollowsVelocity=true
-    bBlockedByInstigator=true
+    bBlockedByInstigator=false
     bSuppressExplosionFX=true // Do not spawn hit effect in mid air
 	bWaitForEffectsAtEndOfLifetime = true
     bWaitForEffects=true
+	
+	/*************************/
+	/*VETERANCY*/
+	/************************/
+	
+	Vet_DamageIncrease(0)=1 //Normal (should be 1)
+	Vet_DamageIncrease(1)=1.10 //Veteran 
+	Vet_DamageIncrease(2)=1.25 //Elite
+	Vet_DamageIncrease(3)=1.50 //Heroic
+
+	Vet_SpeedIncrease(0)=1 //Normal (should be 1)
+	Vet_SpeedIncrease(1)=1.25 //Veteran 
+	Vet_SpeedIncrease(2)=1.5 //Elite
+	Vet_SpeedIncrease(3)=3.0 //Heroic 
+	
+	/***********************/
 }

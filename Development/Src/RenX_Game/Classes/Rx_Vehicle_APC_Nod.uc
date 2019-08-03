@@ -18,6 +18,7 @@ class Rx_Vehicle_APC_Nod extends Rx_Vehicle //_Treaded
 
 /** Firing sounds */
 var() AudioComponent FiringAmbient;
+//var  SoundCue Snd_FiringAmbient_Heroic;
 var() SoundCue FiringStopSound;
 
 var SkeletalMeshComponent AntennaMeshA;
@@ -97,6 +98,13 @@ simulated function VehicleWeaponStoppedFiring( bool bViaReplication, int SeatInd
     FiringAmbient.Stop();
 }
 
+/**simulated function SetHeroicMuzzleFlash(bool SetTrue)
+{
+	super.SetHeroicMuzzleFlash(SetTrue);
+	if(SetTrue) FiringAmbient.SoundCue=Snd_FiringAmbient_Heroic;
+	else
+	FiringAmbient.SoundCue=FiringAmbient.default.SoundCue; 
+}*/
 
 DefaultProperties
 {
@@ -129,6 +137,33 @@ DefaultProperties
 	
 	CustomGravityScaling=1.0
 
+/************************/
+/*Veterancy Multipliers*/
+/***********************/
+
+//VP Given on death (by VRank)
+	VPReward(0) = 6 
+	VPReward(1) = 8 
+	VPReward(2) = 10 
+	VPReward(3) = 14 
+	
+	VPCost(0) = 20
+	VPCost(1) = 50
+	VPCost(2) = 110
+
+Vet_HealthMod(0)=1 //600
+Vet_HealthMod(1)=1.083334 //650 
+Vet_HealthMod(2)=1.166667 //700
+Vet_HealthMod(3)=1.25 //750
+	
+Vet_SprintSpeedMod(0)=1
+Vet_SprintSpeedMod(1)=1.075
+Vet_SprintSpeedMod(2)=1.15
+Vet_SprintSpeedMod(3)=1.225
+
+/**********************/
+	
+	
     Begin Object Class=UDKVehicleSimCar Name=SimObject
         WheelSuspensionStiffness=50
         WheelSuspensionDamping=1.5
@@ -247,6 +282,8 @@ DefaultProperties
                 TurretControls=(TurretPitch,TurretRotate),
                 GunPivotPoints=(MainTurretYaw,MainTurretPitch),
                 CameraTag=CamView3P,
+				SeatBone=Base,
+				SeatSocket=VH_Death,
                 CameraBaseOffset=(Z=-30),
                 CameraOffset=-350,
                 SeatIconPos=(X=0.5,Y=0.33),
@@ -281,7 +318,9 @@ DefaultProperties
                 CameraOffset=-350,
                 )}
 
-
+	//Heroic_MuzzleFlash = ParticleSystem'RX_WP_LaserChaingun.Effects.P_LaserChainGun_MuzzleFlash_3P_Blue'
+	//Snd_FiringAmbient_Heroic = SoundCue'RX_WP_LaserChaingun.Sounds.SC_LaserChainGun_Fire_Loop'
+				
 //========================================================\\
 //********* Vehicle Material & Effect Properties *********\\
 //========================================================\\
@@ -305,7 +344,7 @@ DefaultProperties
 	VehicleEffects(5)=(EffectStartTag=DamageSmoke,EffectEndTag=NoDamageSmoke,bRestartRunning=false,EffectTemplate=ParticleSystem'RX_FX_Vehicle.Damage.P_Sparks_Random',EffectSocket=DamageSparks01)
 	VehicleEffects(6)=(EffectStartTag=DamageSmoke,EffectEndTag=NoDamageSmoke,bRestartRunning=false,EffectTemplate=ParticleSystem'RX_FX_Vehicle.Damage.P_Sparks_Random',EffectSocket=DamageSparks02)
 
-    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Vehicle')
+    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_VH_APC_Nod.Effects.P_Explosion_Vehicle')
     BigExplosionSocket=VH_Death
 	
 	DamageMorphTargets(0)=(InfluenceBone=MT_Front,MorphNodeName=MorphNodeW_Front,LinkedMorphNodeName=none,Health=40,DamagePropNames=(Damage1))

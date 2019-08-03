@@ -1,11 +1,9 @@
 /** Child class spawned from Rx_Rcon to handle a connection. */
-class Rx_RconConnection extends TcpLink;
+class Rx_RconConnection extends Rx_TCPLink;
 
 `include(RconProtocol.uci)
 
 `define SendError(ErrorMsg) SendText(`ERROR$`ErrorMsg)
-
-`define ForceDC bForceDisconnect=true;Close()
 
 /** Has the client logged in with a valid password yet. */
 var bool bAuthd;
@@ -16,41 +14,19 @@ var bool bForceDisconnect;
 var Rx_Rcon Rcon;
 
 /** IP Address this Rcon Connection is coming from in string form for logging. */
-var string IPstring;
+var string ConnectionID;
+
+var bool TimeoutPending;
+var float TimeoutTimeRemaining;
 
 event Accepted()
 {
-	LinkMode = MODE_Line;
-	OutLineMode = LMODE_UNIX;
-	//InLineMode left as auto to deal with silly people possibly sending \n\r
+	Rcon = Rx_Rcon(Parent);
+	ConnectionID = "Conn" $ ++Rcon.connectionId;
 
-	Rcon = Rx_Rcon(Owner);
-	IPstring = "Conn"$++Rcon.connectionId;
-	/*
-	IPstring = IpAddrToString(RemoteAddr);
-	IPstring = Left( IPstring, InStr(IPstring,":"));
+	`LogRxObject("RCON"`s "Connected;" `s ConnectionID);
 
-	// Check that the IP is allowed.
-	
-	if ( !WorldInfo.Game.AccessControl.CheckIPPolicy(IPstring) )
-	{
-		`LogRx("RCON"`s "Blocked;" `s IPstring `s "(Denied by IP Policy)");
-		`SendError(`Err_PolicyDenied);
-		`ForceDC;
-	}
-	else if ( Rcon.bWhitelistOnly && !Rcon.OnWhitelist(IPstring) )
-	{
-		`LogRx("RCON"`s "Blocked;" `s IPstring `s "(Not on Whitelist)");
-		`SendError(`Err_NotWhitelisted);
-		`ForceDC;
-	}*/
-	//else
-	//{
-		`LogRx("RCON"`s "Connected;" `s IPstring);
-
-		SendText(`VERSION$`ProtocolVersion$Rx_Game(WorldInfo.Game).GameVersion);
-		SetTimer(10.0f, false, 'AuthTimeout');    // if the client doesn't auth, drop them.
-	//}
+	SendText(`VERSION $ `ProtocolVersion `s `RxGameObject.GameVersionNumber `s `RxGameObject.GameVersion);
 }
 
 event ReceivedLine( string Text )
@@ -63,29 +39,19 @@ event ReceivedLine( string Text )
 	
 	if (type == `AUTH)
 	{
-		authResult = Rcon.Authenticate(IPstring, `PacketContent(Text));
+		authResult = Rcon.Authenticate(ConnectionID, `PacketContent(Text));
 		if (authResult == 0)
 		{
-			`LogRx("RCON"`s "Authenticated;" `s IPstring);
-			ClearTimer('AuthTimeout');
+			`LogRxObject("RCON"`s "Authenticated;" `s ConnectionID);
+			TimeoutPending = false;
 			bAuthd = true;
-			SendText(`AUTH$IPstring);
-		}
-		else if (authResult == -1)
-		{
-			`LogRx("RCON"`s "Banned;" `s IPstring `s "reason"`s "(Too many password attempts)");
-			`SendError(`Err_TooManyAttempts);
-			`ForceDC;
+			SendText(`AUTH $ ConnectionID);
 		}
 		else
 		{
-			//`LogRx("RCON:"`s Pstring `s"invalid password"`s"(Attempt "$authResult$" of "$Rcon.MaxPasswordAttemptsActual$")");
-			`LogRx("RCON"`s "InvalidPassword;" `s IPstring);
-			SetTimer(10.0f, false, 'AuthTimeout');
-			//if (Rcon.bHideAttempts)
-				`SendError(`Err_InvalidPass);
-			//else
-			//	`SendError(`Err_InvalidPass$" - Attempt "$authResult$" of "$Rcon.MaxPasswordAttemptsActual);
+			`LogRxObject("RCON"`s "InvalidPassword;" `s ConnectionID);
+			TimeoutTimeRemaining = 10;
+			`SendError(`Err_InvalidPass);
 		}
 	}
 	else
@@ -96,8 +62,8 @@ event ReceivedLine( string Text )
 		{
 			if (type == `COMMAND)
 			{
-				`LogRx("RCON" `s "Command;"`s IPstring `s "executed:"`s `PacketContent(Text));
-				temp = Rx_Game(WorldInfo.Game).RconCommand(`PacketContent(Text));
+				`LogRxObject("RCON" `s "Command;"`s ConnectionID `s "executed:"`s `PacketContent(Text));
+				temp = `RxEngineObject.RconCommand(`PacketContent(Text));
 				if (temp != "")
 					SendMultiLine(`RESPONSE,temp);
 				SendText( `COMMAND );
@@ -121,15 +87,11 @@ event ReceivedLine( string Text )
  *  @param Content The packet content. */
 function SendMultiLine(string Header, string Content)
 {
-	//local string Message;
 	local int i;
 	local array<string> Lines;
 	
 	ParseStringIntoArray(Content, Lines, "\n", false);
-	/*for (i=0; i<Lines.Length-1; ++i)
-		Message = Message$ Header$Lines[i]$"\n";
-	Message = Message$ Header$Lines[i];
-	SendText(Message);*/
+
 	for (i=0; i<Lines.Length; ++i)
 		SendText(Header$Lines[i]);
 }
@@ -142,7 +104,7 @@ function int SendText(coerce string txt)
 	for (index = 0; index != size; ++index)
 	{
 		value = Asc(Mid(txt, index, 1));
-		if (value > 255)
+		if (value > 127)
 			str $= "\\u" $ codepointToHex(value);
 		else if (value == Asc("\\"))
 			str $= "\\\\";
@@ -210,19 +172,125 @@ static function string intToHex(int value)
 	return codepointToHex(value >> 16) $ codepointToHex(value & 0xFFFF);
 }
 
-function AuthTimeout()
+static function int hexToInt(string hex)
 {
-	`LogRx("RCON"`s "Dropped;" `s IPstring `s "reason"`s"(Auth Timeout)");
-	`SendError(`Err_AuthTimeout);
-	`ForceDC;
+	hex = left(hex, 1);
+
+	switch (hex)
+	{
+	case "0":
+		return 0x00;
+	case "1":
+		return 0x01;
+	case "2":
+		return 0x02;
+	case "3":
+		return 0x03;
+	case "4":
+		return 0x04;
+	case "5":
+		return 0x05;
+	case "6":
+		return 0x06;
+	case "7":
+		return 0x07;
+	case "8":
+		return 0x08;
+	case "9":
+		return 0x09;
+	case "A":
+	case "a":
+		return 0x0A;
+	case "B":
+	case "b":
+		return 0x0B;
+	case "C":
+	case "c":
+		return 0x0C;
+	case "D":
+	case "d":
+		return 0x0D;
+	case "E":
+	case "e":
+		return 0x0E;
+	case "F":
+	case "f":
+		return 0x0F;
+	default:
+		return 0;
+	}
+}
+
+static function string ProcessEscapeSequences(string txt)
+{
+	local string str;
+	local int size, index, value;
+	size = Len(txt);
+
+	for (index = 0; index < size; ++index)
+	{
+		value = Asc(Mid(txt, index, 1));
+		if (value == Asc("\\"))
+		{
+			value = Asc(Mid(txt, ++index, 1));
+
+			// process escape sequence
+			switch (value)
+			{
+			case Asc("\\"):
+				str $= "\\";
+				break;
+			case Asc("\""):
+				str $= "\"";
+				break;
+			case Asc("\'"):
+				str $= "\'";
+				break;
+
+			case Asc("U"):
+			case Asc("u"):
+				value = hexToInt(Mid(txt, ++index, 1)) << 12;
+				value += hexToInt(Mid(txt, ++index, 1)) << 8;
+				value += hexToInt(Mid(txt, ++index, 1)) << 4;
+				value += hexToInt(Mid(txt, ++index, 1));
+
+				str $= Chr(value);
+				break;
+
+			default:
+				break;
+			}
+		}
+		else
+			str $= Chr(value);
+	}
+
+	return str;
+}
+
+event OnTick(float DeltaTime)
+{
+	if (SocketState == STATE_Initialized && TimeoutPending)
+	{
+		TimeoutTimeRemaining -= DeltaTime;
+		if (TimeoutTimeRemaining <= 0.0) // time to timeout. I feel dirty.
+		{
+			`LogRxObject("RCON"`s "Dropped;" `s ConnectionID `s "reason"`s"(Auth Timeout)");
+			`SendError(`Err_AuthTimeout);
+	
+			bForceDisconnect = true;
+			Close();
+		}
+	}
 }
 
 event Closed()
 {
 	Rcon.UnSubscribe(self, true);
-	// Don't log disconnect message if the server caused the disconnect, as it will have already been logged (with specifics).
+
 	if (!bForceDisconnect)
-		`LogRx("RCON"`s "Disconnected;" `s IPstring);
+		`LogRxObject("RCON"`s "Disconnected;" `s ConnectionID);
+
 	Destroy();
 }
 
@@ -230,4 +298,10 @@ DefaultProperties
 {
 	bAuthd=false
 	bForceDisconnect=false
+	TimeoutPending = true;
+	TimeoutTimeRemaining = 10;
+
+	LinkMode = MODE_Line
+	InLineMode = LMODE_UNIX
+	OutLineMode = LMODE_UNIX
 }

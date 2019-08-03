@@ -15,7 +15,16 @@ simulated function bool IsEffectedByEMP()
 	return false;
 }
 
+simulated function BuildingInternalsReplicated()
+{
+	super.BuildingInternalsReplicated();
+	
+	if(Rx_Building_TechBuilding_Internals(BuildingInternals) != none)
+		Rx_Building_TechBuilding_Internals(BuildingInternals).AddToGRIArray();  
+}
+
 defaultproperties
 {
+	myBuildingType=BT_Neutral
 	HealthMax				= 400
 }

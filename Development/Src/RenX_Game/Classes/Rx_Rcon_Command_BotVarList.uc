@@ -15,18 +15,23 @@ function string trigger(string parameters)
 	local int index;
 	local Array<string> format;
 	local string token;
-	ParseStringIntoArray(Caps(parameters), format, `nbsp, true);
+
+	ParseStringIntoArray(Caps(parameters), format, " ", true);
 
 	if (format.Length == 0)
 	{
 		parameters = "Team,PlayerID,Name";
-		foreach WorldInfo.AllControllers(class'Rx_Bot', C)
+		foreach `WorldInfoObject.AllControllers(class'Rx_Bot', C)
 			parameters $= "\n" $ `PlayerLog(C.PlayerReplicationInfo);
 
 		return parameters;
 	}
 
-	foreach WorldInfo.AllControllers(class'Rx_Bot', C)
+	parameters = format[0];
+	for (index = 1; index != format.Length; ++index)
+		parameters $= `rcon_delim $ format[index];
+
+	foreach `WorldInfoObject.AllControllers(class'Rx_Bot', C)
 	{
 		parameters $= "\n";
 		index = 0;
@@ -96,7 +101,7 @@ loop_do:
 		// loop_while
 		if (++index != format.Length)
 		{
-			parameters $= `nbsp;
+			parameters $= `rcon_delim;
 			goto loop_do;
 		}
 	}

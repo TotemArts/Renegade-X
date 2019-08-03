@@ -7,6 +7,8 @@ var bool bParkingNodeReachable;
 var Pawn driver;
 var Vehicle vehicleTemp;
 var int i;
+var float DistToBuyerMax;
+var float DistToBuyer;
 var UTVehicle shouldWaitVehicle;
 
 event SetTeam(int inTeamIdx)
@@ -16,22 +18,31 @@ event SetTeam(int inTeamIdx)
 
 function GetRolloutNodes()
 {
-	local Rx_VehRolloutPendingNode navPoint;
+	local Rx_VehRolloutPendingNode navPoint,BestPoint;
 	local Rx_VehRolloutNode parkingNode;
-	
-	foreach WorldInfo.AllNavigationPoints(class'Rx_VehRolloutNode',parkingNode) {
-		if(parkingNode.ScriptGetTeamNum() == TeamNum) 
+	local float Dist,BestDist;
+
+	ForEach WorldInfo.AllNavigationPoints(class'Rx_VehRolloutNode',parkingNode) {
+		if(parkingNode.ScriptGetTeamNum() == TeamNum && Rx_HelipadVehRolloutNode(parkingNode) == None)
 		{
 			rolloutNodes.AddItem(parkingNode);
 		}
 	}
 	ForEach WorldInfo.AllNavigationPoints(class'Rx_VehRolloutPendingNode',navPoint)
 	{
-		if(navPoint.ScriptGetTeamNum() == TeamNum) 
+		if(navPoint.ScriptGetTeamNum() == TeamNum && Rx_HelipadVehRolloutPendingNode(navPoint) == None)
 		{
-			rolloutPendingNode = navPoint;
+			Dist = VSize(navPoint.Location - Controller(Rx_Vehicle(Pawn).buyerPri.Owner).Pawn.Location);
+			if(BestPoint == None || BestDist > Dist)
+			{
+				BestPoint = navPoint;
+				BestDist = Dist;
+			}
 		}
 	}
+	if(BestPoint != None)
+		rolloutPendingNode = BestPoint;
+
 }
 
 auto state Idle
@@ -54,6 +65,7 @@ Begin:
 		MoveToward(rolloutPendingNode, rolloutPendingNode);
 	}
 	ScriptedMoveTarget = none;
+	DistToBuyerMax = 0.0;
 	while (Pawn != None) {
 		if(ScriptedMoveTarget == none) {
 
@@ -67,9 +79,13 @@ Begin:
 						bParkingNodeReachable = false;
 						break;
 					}
-					if(bParkingNodeReachable) {
-						ScriptedMoveTarget = rolloutNodes[i];				
-						break;
+					if(bParkingNodeReachable) {										
+						DistToBuyer = VSize(rolloutNodes[i].Location - Controller(Rx_Vehicle(Pawn).buyerPri.Owner).Pawn.Location);
+						if(DistToBuyerMax == 0.0 || DistToBuyer < DistToBuyerMax)
+						{
+							ScriptedMoveTarget = rolloutNodes[i];	
+							DistToBuyerMax = DistToBuyer;		
+						}
 					}
 				}
 				rolloutNodes.Remove(i,1);

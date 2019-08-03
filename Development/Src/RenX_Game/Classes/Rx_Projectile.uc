@@ -10,6 +10,9 @@ var() float SlowHeadshotScale;
 /** headshot scale factor when running or falling */
 var() float RunningHeadshotScale;
 
+/** Scale Multiplier for explosion particle */
+var() float ProjExplosionScale;
+
 //percentage of weapon damage done by bots
 var float BotDamagePercentage;
 var bool bWaitForEffectsAtEndOfLifetime;
@@ -24,13 +27,43 @@ var float AddedZTranslate;
 
 var bool bLogExplosion;
 
+//Veterancy options 
+var byte VRank; //Veterancy Rank
+var float Vet_SpeedIncrease[4]; 
+var float Vet_DamageIncrease[4]; 
+var float Vet_LifespanModifier[4] ; //*X  Used to keep projectile ranges from getting totally out of hand. 
+
+var byte FMTag; //Identify what firemode you belong to for when ServerALHit is called 
+var Weapon MyWeaponInstigator; 
+
+//Pawn piercing 
+var bool bPierceInfantry;
+var bool bPierceVehicles; 
+/**
+* This controls how much piercing power the shot has. 
+* Hitting infantry subtracts '1' from its piercing ability
+* Where as vehicles subtract 3
+* So if the Max pierce rating is 5, you could fire through 5 infantry before the 6th guy stopped it   
+*/  
+var int MaximumPiercingAbility;
+var int	CurrentPiercingPower;  
+
+var array<Actor> PiercedActors; //Don't double dip on actors you've pierced but touch again 
+
+var class<DamageType>	ExplosionDamageType; //Used for the damage type for the explosion. If blank, just use normal damage type (The Usual case) 
+
 simulated function PostBeginPlay()
 {
 	super.PostBeginPlay();
-	if(bWaitForEffects && bWaitForEffectsAtEndOfLifetime) {
-		SetTimer(LifeSpan,false,'ShutDownBeforeEndOfLife');
-		LifeSpan += 0.5;
-	}
+	//We don't get our VRank immediately 
+	//RxInitLifeSpan();
+}
+
+
+replication
+{
+    if (Role == ROLE_Authority && bNetDirty)
+        VRank;
 }
 
 simulated event SetInitialState()
@@ -47,8 +80,54 @@ simulated event SetInitialState()
 	}
 }
 
+//Sets Lifespan for Rx_Projectiles with regard for their veterancy
+simulated function RxInitLifeSpan()
+{
+	LifeSpan = default.LifeSpan*Vet_LifespanModifier[VRank] ; 
+	
+	if(bWaitForEffects && bWaitForEffectsAtEndOfLifetime) 
+	{
+		SetTimer(LifeSpan,false,'ShutDownBeforeEndOfLife');
+		LifeSpan += 0.5;
+	}
+}
+
+simulated function SetWeaponInstigator (Weapon SetTo)
+{
+	MyWeaponInstigator = SetTo; 
+}
+
+simulated function Weapon GetWeaponInstigator()
+{
+	return MyWeaponInstigator; 
+}
+
+/**
+ * Initialize the Projectile [RX] Add modifiers for veterancy
+ */
+function Init(vector Direction)
+{
+	local Rx_Weapon Rx_Inst; 
+	local Rx_Vehicle_Weapon Rx_VInst;
+	
+	Rx_Inst=Rx_Weapon(MyWeaponInstigator);
+	Rx_VInst=Rx_Vehicle_Weapon(MyWeaponInstigator) ;
+	
+	if(Rx_Inst != none) VRank=Rx_Inst.VRank; 
+	else
+	if(Rx_VInst != none) VRank=Rx_VInst.VRank; 
+	SetRotation(rotator(Direction));
+
+	RxInitLifeSpan();
+	
+	Velocity = (Speed*Vet_SpeedIncrease[VRank]) * Direction;
+	Velocity.Z += TossZ;
+	Acceleration = AccelRate * Normal(Velocity);
+}
+
 state WaitingForVelocityAndInstigator
 {
+	
 	simulated function Tick(float DeltaTime)
 	{ 		
 		if (bDoWaitingForVelocityAndInstigatorTimer && instigator != None 
@@ -57,10 +136,10 @@ state WaitingForVelocityAndInstigator
 			if(AccelRate != 0.f) {
 				Acceleration = AccelRate * Normal(Velocity);
 			}
-			if(Instigator.IsLocallyControlled() 
+			/**if(Instigator.IsLocallyControlled() 
 						&& Rx_Vehicle_Weapon(Instigator.Weapon) != None 
 						&& Rx_Vehicle_Weapon(Instigator.Weapon).CanReplicationFire())
-				UTWeapon(Instigator.Weapon).FireAmmunition(); 
+				UTWeapon(Instigator.Weapon).FireAmmunition(); */
 			if (Instigator.IsHumanControlled() && Instigator.IsLocallyControlled()) {
 				HideProjectile();
 				SetCollision(false,false);
@@ -79,8 +158,10 @@ state WaitingForVelocityAndInstigator
 simulated function Shutdown()
 {
 	local vector HitLocation, HitNormal;
-
+	
 	bShuttingDown=true;
+	
+	CurrentPiercingPower = 0; 
 	
 	if (WorldInfo.NetMode != NM_DedicatedServer && !bSuppressExplosionFX)
 	{
@@ -144,6 +225,12 @@ simulated function Shutdown()
 
 simulated function ShutDownBeforeEndOfLife() 
 {
+	//do appropriate damage
+	if ( !bShuttingDown && DamageRadius > 0)
+		{
+		HurtRadius(Damage, DamageRadius, MyDamageType, MomentumTransfer, location,,,false); 
+		}
+		
 	Shutdown();
 }
 
@@ -165,30 +252,57 @@ simulated function float GetBotDamagePercentage()
 
 simulated function ProcessTouch(Actor Other, Vector HitLocation, Vector HitNormal)
 {
-    if(DamageRadius == 0.0 && TryHeadshot(Other, HitLocation, HitNormal, Damage)) {
+	local float VAdjustedDamage; //Adjusted for veterancy
+	local Rx_DestroyableObstaclePlus DObj;
+		
+	//Don't double dip on pierced actor
+	if(PiercedActors.Find(Other) > -1)
+		return;
+	
+	VAdjustedDamage=Damage*GetDamageModifier(VRank, InstigatorController); //*Vet_DamageIncrease[VRank];
+	
+	DObj = Rx_DestroyableObstaclePlus(Other); 
+	
+	if(bPierceInfantry && Rx_Pawn(Other) != none && CurrentPiercingPower > 0){
+		CurrentPiercingPower-=1 ;
+		PiercedActors.AddItem(Other);
+	}	
+	else if(bPierceVehicles && Rx_Vehicle(Other) != none && CurrentPiercingPower > 2){
+		CurrentPiercingPower-=3 ;
+		PiercedActors.AddItem(Other); 
+	}
+	else
+		CurrentPiercingPower = 0; 
+		
+		
+	
+    if(CurrentPiercingPower == 0 && DamageRadius == 0.0 && TryHeadshot(Other, HitLocation, HitNormal, VAdjustedDamage)) {
         SpawnExplosionEffects(HitLocation, HitNormal);
         return;
     } else {
 		if (DamageRadius > 0.0)
 		{
+			if(DObj !=none && !DObj.bTakeRadiusDamage) //|| (Rx_BasicPawn(Other) !=none && !Rx_BasicPawn(Other).bTakeRadiusDamage))  
+				Other.TakeDamage(VAdjustedDamage,InstigatorController,HitLocation,MomentumTransfer * Normal(Velocity), MyDamageType,, self);	
 			Explode( HitLocation, HitNormal );
 		}
 		else
 		{
 			SpawnExplosionEffects(HitLocation, HitNormal);
 			if(WorldInfo.NetMode != NM_DedicatedServer
-						&& (Rx_Weapon(Instigator.Weapon) != None || Rx_Vehicle_Weapon(Instigator.Weapon) != None)
+						&& (Rx_Weapon(MyWeaponInstigator) != None || Rx_Vehicle_Weapon(MyWeaponInstigator) != None)
 						&& !isAirstrikeProjectile()) {
 				if(Pawn(Other) != None && Pawn(Other).Health > 0 && UTPlayerController(Instigator.Controller) != None && Pawn(Other).GetTeamNum() != Instigator.GetTeamNum()) {
 					Rx_Hud(UTPlayerController(Instigator.Controller).myHud).ShowHitMarker();
+					if(Rx_Pawn(Other) != None) Rx_Controller(Instigator.Controller).AddHit() ;
 				}
-				if(FracturedStaticMeshActor(Other) != None)
-					Other.TakeDamage(Damage,InstigatorController,HitLocation,MomentumTransfer * Normal(Velocity), MyDamageType,, self);	
+				if(FracturedStaticMeshActor(Other) != None || DObj != None)
+					Other.TakeDamage(VAdjustedDamage,InstigatorController,HitLocation,MomentumTransfer * Normal(Velocity), MyDamageType,, self);	
 				CallServerALHit(Other,HitLocation,HitInfo,false);
 			} else if(ROLE == ROLE_Authority && (AIController(InstigatorController) != None || isAirstrikeProjectile())) {
-				Other.TakeDamage(Damage,InstigatorController,HitLocation,MomentumTransfer * Normal(Velocity), MyDamageType,, self);
+				Other.TakeDamage(VAdjustedDamage,InstigatorController,HitLocation,MomentumTransfer * Normal(Velocity), MyDamageType,, self);
 			}
-			Shutdown();
+			if(CurrentPiercingPower <= 0) Shutdown();
 		}        
     }
 }
@@ -199,13 +313,20 @@ simulated function bool ProjectileHurtRadius( vector HurtOrigin, vector HitNorma
 {
 	local vector AltOrigin, TraceHitLocation, TraceHitNormal;
 	local Actor TraceHitActor;
-
+	local float VAdjustedDamage; //veterancy adjusted damage
+	
+	//`log("PROJECTILE HURT RADIUS");
+	
 	// early out if already in the middle of hurt radius
 	if ( bHurtEntry )
+	{
 		return false;
+	}
+		
 
+	VAdjustedDamage=Damage*GetDamageModifier(VRank, InstigatorController) ;//Vet_DamageIncrease[VRank];
+	
 	AltOrigin = HurtOrigin;
-
 	if ( (ImpactedActor != None) && ImpactedActor.bWorldGeometry )
 	{
 		// try to adjust hit position out from hit location if hit world geometry
@@ -223,8 +344,7 @@ simulated function bool ProjectileHurtRadius( vector HurtOrigin, vector HitNorma
 			AltOrigin = HurtOrigin + 0.5*(TraceHitLocation - HurtOrigin);
 		}
 	}
-
-	return HurtRadius(Damage, DamageRadius, MyDamageType, MomentumTransfer, AltOrigin);
+	return HurtRadius(VAdjustedDamage, DamageRadius, MyDamageType, MomentumTransfer, AltOrigin);
 }
 
 simulated function bool TryHeadshot(Actor Other, Vector HitLocation, Vector HitNormal, float DamageAmount)
@@ -254,9 +374,9 @@ simulated function bool TryHeadshot(Actor Other, Vector HitLocation, Vector HitN
         CheckHitInfo(Impact.HitInfo, UTPawn(Other).Mesh, Impact.RayDir, Impact.HitLocation);
         
         if(HeadShotDamageType != None) {
-        	return Rx_Pawn(Other).TakeHeadShot(Impact, HeadShotDamageType, DamageAmount, Scaling, InstigatorController, false);
+        	return Rx_Pawn(Other).TakeHeadShot(Impact, HeadShotDamageType, DamageAmount, Scaling, InstigatorController, false, GetWeaponInstigator());
         } else {
-        	return Rx_Pawn(Other).TakeHeadShot(Impact, MyDamageType, DamageAmount, Scaling, InstigatorController, false);
+        	return Rx_Pawn(Other).TakeHeadShot(Impact, MyDamageType, DamageAmount, Scaling, InstigatorController, false, GetWeaponInstigator());
         }
     }
     
@@ -269,9 +389,41 @@ simulated singular event HitWall(vector HitNormal, actor Wall, PrimitiveComponen
 	local StaticMeshComponent HitStaticMesh;
 	local TraceHitInfo WallHitInfo;
 	local bool mctDamage;
+	local Pawn WallPawn; 
+	
+	if(PiercedActors.Find(Wall) > -1)
+		return;
+	
+	WallPawn = Pawn(Wall);
 
+	
+	//We don't own the projectile, so don't be the one to determine its effects 
+	if(ROLE < ROLE_Authority){
+		if (DamageRadius > 0.0){
+			Explode(Location, HitNormal);
+		}
+		else {
+			SpawnExplosionEffects(Location, HitNormal);
+			Shutdown();
+		}
+		
+		return; 
+	}
+		//`log("Hit Wall, using instigator:" @ MyWeaponInstigator); 
+		
 	TriggerEventClass(class'SeqEvent_HitWall', Wall);
 
+	if(bPierceInfantry && Rx_Pawn(Wall) != none && CurrentPiercingPower > 0){
+		CurrentPiercingPower-=1 ;
+		PiercedActors.AddItem(Wall);
+	}	
+	else if(bPierceVehicles && Rx_Vehicle(Wall) != none && CurrentPiercingPower > 2){
+		CurrentPiercingPower-=3 ;
+		PiercedActors.AddItem(Wall); 
+	}
+	else
+		CurrentPiercingPower = 0; 
+	
 	if ( Wall.bWorldGeometry )
 	{
 		HitStaticMesh = StaticMeshComponent(WallComp);
@@ -289,10 +441,10 @@ simulated singular event HitWall(vector HitNormal, actor Wall, PrimitiveComponen
 	if ( ( !Wall.bStatic && (DamageRadius == 0) ) || ClassIsChildOf(Wall.Class,class'Rx_Building') )
 	{
 		if(WorldInfo.NetMode != NM_DedicatedServer 
-			&& ( Instigator != none && (Rx_Weapon(Instigator.Weapon) != None || Rx_Vehicle_Weapon(Instigator.Weapon) != None))
+			&& ( Instigator != none && (Rx_Weapon(MyWeaponInstigator) != None || Rx_Vehicle_Weapon(MyWeaponInstigator) != None))
 			&& !isAirstrikeProjectile()) 
 		{
-			if(Pawn(Wall) != None && Pawn(Wall).Health > 0 && UTPlayerController(Instigator.Controller) != None && Pawn(Wall).GetTeamNum() != Instigator.GetTeamNum()) 
+			if(WallPawn != None && WallPawn.Health > 0 && UTPlayerController(Instigator.Controller) != None && WallPawn.GetTeamNum() != Instigator.GetTeamNum()) 
 			{
 				Rx_Hud(UTPlayerController(Instigator.Controller).myHud).ShowHitMarker();
 			}	
@@ -305,7 +457,6 @@ simulated singular event HitWall(vector HitNormal, actor Wall, PrimitiveComponen
 				mctDamage = true;
 	
 			} 
-
 			CallServerALHit(Wall,location,WallHitInfo,mctDamage);		
 		} 
 		else if(ROLE == ROLE_Authority && (AIController(InstigatorController) != None || isAirstrikeProjectile())) 
@@ -313,30 +464,59 @@ simulated singular event HitWall(vector HitNormal, actor Wall, PrimitiveComponen
 			Wall.TakeDamage( Damage, InstigatorController, Location, MomentumTransfer * Normal(Velocity), MyDamageType,, self);
 		}
 	}
-
-	Explode(Location, HitNormal);
-	ImpactedActor = None;
+	
+	if(CurrentPiercingPower <= 0)
+	{
+		Explode(Location, HitNormal);
+		ImpactedActor = None;
+	}		
 }
 
 simulated function CallServerALHit(Actor Target, vector HitLocation, TraceHitInfo ProjHitInfo, bool mctDamage)
 {
-	if(Rx_Weapon(Instigator.Weapon) != None) 
+	
+	if(Rx_Weapon(MyWeaponInstigator) != None) 
 	{
-		Rx_Weapon(Instigator.Weapon).ServerALHit(Target,HitLocation,ProjHitInfo,mctDamage);
+		Rx_Weapon(MyWeaponInstigator).ServerALHit(Target,HitLocation,ProjHitInfo,mctDamage, FMTag);
 	} 
 	else 
 	{
-		Rx_Vehicle_Weapon(Instigator.Weapon).ServerALHit(Target,HitLocation,ProjHitInfo,mctDamage);
+		//`log("ServerALHit:" @ MyWeaponInstigator);
+		Rx_Vehicle_Weapon(MyWeaponInstigator).ServerALHit(Target,HitLocation,ProjHitInfo,mctDamage, FMTag);
 	}
 }
 
 simulated function SpawnExplosionEffects(vector HitLocation, vector HitNormal)
 {
 	local vector NewHitLoc;
-	local MaterialImpactEffect ImpactEffect;	
-		
+	local MaterialImpactEffect ImpactEffect;
+	local PlayerController PC;
+	local float Distance;	
+		 
 	if (WorldInfo.NetMode != NM_DedicatedServer)
 	{
+		
+		if(!self.isA('Rx_Vehicle_A10_Bombs') && !self.isA('Rx_Vehicle_AC130_AutoCannon') && !self.isA('Rx_Vehicle_AC130_HeavyCannon'))
+		{
+			foreach LocalPlayerControllers(class'PlayerController', PC)
+			{
+				Distance = VSize(PC.ViewTarget.Location - HitLocation);
+				 
+				// dont spawn explosion effect if far away and no direct line of sight or if behind and relatively far away 
+				//EDIT: Yosh: Fairly certain the line-of-sight is already checked for! 
+				if (ROLE < ROLE_Authority && ( PC.ViewTarget != None && Distance > 12000))
+				{
+					if (ExplosionSound != None && !bSuppressSounds)
+					{
+						PlaySound(ExplosionSound, true);
+					}
+
+					bSuppressExplosionFX = true; // so we don't get called again				
+					return;
+				}
+			}	
+		}	
+		
 		if(ImpactedActor != None && ImpactedActor.isA('Rx_Vehicle')){
 			ProjExplosionTemplate = ImpactEffects[3].ParticleTemplate;
 			ExplosionSound = ImpactEffects[3].Sound;
@@ -353,6 +533,13 @@ simulated function SpawnExplosionEffects(vector HitLocation, vector HitNormal)
 	super.SpawnExplosionEffects(HitLocation,HitNormal);
 }
 
+simulated function SetExplosionEffectParameters(ParticleSystemComponent ProjExplosion)
+{
+    Super.SetExplosionEffectParameters(ProjExplosion);
+
+    ProjExplosion.SetScale(ProjExplosionScale);
+}
+
 simulated function bool HurtRadius( float DamageAmount,
 								    float InDamageRadius,
 				    				class<DamageType> DamageType,
@@ -364,7 +551,10 @@ simulated function bool HurtRadius( float DamageAmount,
 									)
 {
 	local bool bCausedDamage, bResult;
+	local class<DamageType>	TrueDamageType; 
 
+	//`log("HURT RADIUS--");
+	
 	if ( bHurtEntry )
 		return false;
 
@@ -374,16 +564,25 @@ simulated function bool HurtRadius( float DamageAmount,
 		InstigatedByController = InstigatorController;
 	}
 
+	//Do we have a specific damage type for blast radius?  
+	if(ExplosionDamageType != none){
+		TrueDamageType = ExplosionDamageType; 
+	}
+	else
+		TrueDamageType = DamageType; 
+		
+		//`log("True:" @ TrueDamageType);
+	
 	// if ImpactedActor is set, we actually want to give it full damage, and then let him be ignored by super.HurtRadius()
 	if ( (ImpactedActor != None) && (ImpactedActor != self) && Rx_Building(ImpactedActor) == None )
 	{
 		if(!TryHeadshot(ImpactedActor, HurtOrigin, Velocity, Damage)) {
-			ImpactedActor.TakeRadiusDamage(InstigatedByController, DamageAmount, InDamageRadius, DamageType, Momentum, HurtOrigin, true, self);
+			ImpactedActor.TakeRadiusDamage(InstigatedByController, DamageAmount, InDamageRadius, TrueDamageType, Momentum, HurtOrigin, true, self);
 		}
 		bCausedDamage = ImpactedActor.bProjTarget;
 	}
 
-	bResult = Super(Actor).HurtRadius(DamageAmount, InDamageRadius, DamageType, Momentum, HurtOrigin, ImpactedActor, InstigatedByController, bDoFullDamage);
+	bResult = Super(Actor).HurtRadius(DamageAmount, InDamageRadius, TrueDamageType, Momentum, HurtOrigin, ImpactedActor, InstigatedByController, bDoFullDamage);
 	return ( bResult || bCausedDamage );
 }
 
@@ -419,12 +618,50 @@ simulated function Explode(vector HitLocation, vector HitNormal)
 	super.Explode(HitLocation, HitNormal);
 }
 
+/** returns the maximum distance this projectile can travel */
+simulated static function float GetRange()
+{
+	if (default.LifeSpan == 0.0)
+	{
+		return 15000.0;
+	}
+	else
+	{
+		return (default.MaxSpeed * default.LifeSpan );
+	}
+}
+
+simulated static function float RxGetRange(optional byte rank)
+{
+	local float tempCachedRange; 
+	
+	tempCachedRange =  GetRange(); 
+	
+	tempCachedRange = tempCachedRange*default.Vet_SpeedIncrease[rank]*default.Vet_LifespanModifier[rank]; 
+	
+	return tempCachedRange; 
+	
+}
+
+simulated static function float GetDamageModifier(byte Rank, Controller RxC)
+{
+	if(Rx_Controller(RxC) != none) 
+		return default.Vet_DamageIncrease[Rank]+Rx_Controller(RxC).Misc_DamageBoostMod; 
+	else
+	if(Rx_Bot(RxC) != none) 
+		return default.Vet_DamageIncrease[Rank]+Rx_Bot(RxC).Misc_DamageBoostMod; 
+	else
+		return 1.0; 
+}
+
 DefaultProperties
 {    
     ImpactSound=SoundCue'RX_SoundEffects.Bullet_Impact.SC_BulletImpact_Flesh'
     HeadShotDamageMult=5.0 
     SlowHeadshotScale=1.75
     RunningHeadshotScale=1.5
+
+    ProjExplosionScale=1.0
 
 /*    
     ImpactEffects(0)=(MaterialType=Dirt, ParticleTemplate=ParticleSystem'RX_FX_Munitions.Impact_Bullet.P_Bullet_Impact_Dirt',Sound=SoundCue'RX_SoundEffects.Bullet_Impact.SC_BulletImpact_Dirt',DecalMaterials=(DecalMaterial'RX_FX_Munitions.bullet_decals.MDecal_Bullet_Dirt'),DecalWidth=20.0,DecalHeight=20.0)
@@ -456,6 +693,30 @@ DefaultProperties
     bCanBeDamaged=false
 	bLogExplosion=false
     
-//    bAttachExplosionToPawns=False    This needs to return
+	//    bAttachExplosionToPawns=False    This needs to return
 
+	//Veterancy Base stats 
+
+	VRank=0
+
+	Vet_DamageIncrease(0)=1 //Normal (should be 1)
+	Vet_DamageIncrease(1)=1.10 //Veteran 
+	Vet_DamageIncrease(2)=1.25 //Elite
+	Vet_DamageIncrease(3)=1.50 //Heroic
+
+	Vet_SpeedIncrease(0)=1 //Normal (should be 1)
+	Vet_SpeedIncrease(1)=1 //Veteran 
+	Vet_SpeedIncrease(2)=1 //Elite
+	Vet_SpeedIncrease(3)=1 //Heroic
+
+	Vet_LifespanModifier(0)=1 //Normal (should be 1)
+	Vet_LifespanModifier(1)=1 //Veteran 
+	Vet_LifespanModifier(2)=1 //Elite
+	Vet_LifespanModifier(3)=1 //Heroic
+	
+	//For instant hit weapons 
+	bPierceInfantry = false
+	bPierceVehicles = false
+	MaximumPiercingAbility	= 0 
+	CurrentPiercingPower	= 0 
 }

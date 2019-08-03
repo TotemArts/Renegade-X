@@ -6,7 +6,7 @@
 
 class Rx_SeqAct_GetCredits extends SequenceAction;
 
-var int Credits;
+var float Credits;
 
 event Activated()
 {
@@ -30,5 +30,5 @@ defaultproperties
 	ObjCategory="Ren X"
 	ObjName="Get Credits"
 	VariableLinks(0)=(MaxVars=1)
-	VariableLinks(1)=(ExpectedType=class'SeqVar_Int',LinkDesc="Credits",PropertyName=Credits,MaxVars=1,bWriteable=true)
+	VariableLinks(1)=(ExpectedType=class'SeqVar_Float',LinkDesc="Credits",PropertyName=Credits,MaxVars=1,bWriteable=true)
 }

@@ -4,9 +4,13 @@
  * */
 class Rx_Pawn extends UTPawn
 	implements (RxIfc_ClientSideInstantHitRadius)
-	implements (RxIfc_TargetedCustomName);
+	implements (RxIfc_TargetedCustomName)
+	implements(RxIfc_TargetedDescription)
+	implements(RxIfc_RadarMarker)
+	implements (RxIfc_PassiveAbility);
 
-
+`include(RenX_Game\RenXStats.uci);
+	
 /** one1: added */
 var float CameraSmoothZOffset;
 
@@ -49,6 +53,7 @@ var Rx_BackWeaponAttachment CurrentBackWeaponComponents[5];
 var name BackWeaponSocketNames[5];
 
 var SkeletalMeshComponent ParachuteMesh;
+//var SkeletalMeshComponent CapeMesh; 
 // All in range -1 to 1
 // X: -1: full stall 1: forward
 // Y: -1: Turn Left 0: straight 1:Turn Right
@@ -75,17 +80,18 @@ var bool bRepairing;
 //Variables for Health
 var int DamageRate;
 var bool bTakingDamage;
+var int BleedDamageType; 			// HANDEPSILON - 0 for none, 1 for burn, 2 for Tiberium
 
 //Enumerated values for armour types. 
 enum ENUM_Armor 
 {
 	A_Kevlar,
 	A_FLAK, 
-	A_Lazurus
+	A_Lazurus,
+	A_NONE
 };
 
 var ENUM_Armor Armor_Type;
-
 
 /** Is the player climbing downward? */
 var bool            bClimbDown;
@@ -124,7 +130,8 @@ var float		WalkingSpeed;
 var float		RunningSpeed;
 var float       IntendedGroundSpeed;
 var repnotify float       SpeedUpgradeMultiplier;
-var float JumpHeightMultiplier; 
+var float		SpeedUpgradeMultiplier_NonReplicated; //Used Explicitly for 
+var float 		JumpHeightMultiplier; 
 
 var name 		DodgeForwardAnim;
 var name 		DodgeBackwardAnim;
@@ -176,6 +183,7 @@ var bool bPTInitialized;
 /**Shahman: Variables when being being targetted*/
 var bool bTargetted;
 var bool bStartFirePressedButNoStopFireYet;
+var bool bFocused;
 
 /**Variables for anti cheat purposes*/
 var vector LastLocation;
@@ -189,6 +197,15 @@ struct Bleed
 	var class<DamageType> Type; // Damage type (must be different from the type that created the bleed)
 	// var int NextTick; // When to apply this tick next
 };
+
+struct VoiceBlock
+{
+	var int	 VoiceIndex;
+	var name SoundType;
+	var bool bCanOverride;
+};
+
+var repnotify VoiceBlock ReplicatedVoice;
 
 var array<Bleed> Bleeds;
 var float BleedInterval; // How often to apply bleed effects
@@ -210,8 +227,8 @@ var int ShotgunPelletCount;
 var repnotify vector ShotgunPelletHitLocations[12];
 var bool bHeadshot;
 
-var Rx_Building_Obelisk Obelisk;
-var Rx_Building_AdvancedGuardTower Agt;
+var Rx_Building_Nod_Defense Obelisk;
+var Rx_Building_GDI_Defense Agt;
 var bool bCheckedForOb;
 var bool bCheckedForAgt;
 var bool bWasInIronsightBeforeAction;
@@ -222,10 +239,15 @@ var Rx_AuthenticationClient authenticationClient;
 var float SeekAimAheadModifier;
 var float SeekAccelrateModifier;
 
+var AnimNodeSequence LeftHandAnimName; //Animation to use for the left hand
+var AnimNodeBlendPerBone LeftHandOverride; //Left Professional Ass-Grabbin' Kontrol!
 var SkelControlSingleBone LeftHandIK_SB; //Left Professional Ass-Grabbin' Kontrol!
+var SkelControlSingleBone LeftHandIK_SBR; //Left Professional Ass-Grabbin Rotational' Kontrol!
 var SkelControlSingleBone RightHandIK_SB; //Right Professional Ass-Grabbin' Kontrol!
+var SkelControlSingleBone RightHandIK_SBR; //Right Professional Ass-Grabbin' Rotational Kontrol!
 
-var bool bBlinkingName;
+//var bool bBlinkingName;
+var byte UISymbol; 
 var byte HitEnemyForDemorec;
 var byte HitEnemyWithHeadshotForDemoRec;
 var float LastRanInto;
@@ -234,6 +256,72 @@ var float LastRanInto;
 var float SavedLocationZ[5];
 var int SavedLocationZIter;
 
+/*For commander targeting*/
+var bool bIsTarget;
+var bool bIsDefensiveTarget; 
+var bool bIsAdminTarget;  
+
+//Veterancy
+var repnotify byte VRank; 
+var float Vet_HealthMod[4]; //Health Increases for this vehicle as it ranks up (*X)
+var float Vet_SprintSpeedMod[4]; //Sprint speed increases for this vehicle as it ranks up. (*X)
+
+var float RegenerationRate, HeroicRegenerationRate; 
+var float MaxDR; //Maximum resistance. Lower numbers are more resilient (0.0 is 100% resistance, 1.0 is no resistance)
+
+
+//For determining some VP stuff
+var string SpotLocation; //Updated once per SpotUpdateTime
+var float SpotUpdateTime; //Time to wait between updates (in seconds)
+ var float LegitamateDamage; //Store how much damage we took that was from enemy sources, and not just from jumping off of stuff
+ 
+/*Copied from beacons*/
+var float					  Damage_Taken;
+
+/*Track who does damage to me so I can distribute points correctly on disarming*/
+struct Attacker
+{
+	var PlayerReplicationInfo PPRI; 
+	var float DamageDone; 
+	var float LastDamageTime; 
+};
+
+var array<Attacker>	DamagingParties;	//Track who is doing damage to me to evenly distribute points
+
+ //Comm Centre
+var byte RadarVisibility; //Set radar visibility. 0: Invisible to all 1: visible to your team 2: visible to enemy team/ Pawn copy to replicate to all
+var bool bSpotted; 
+
+//Shadow Bounds Scale (nBab)
+var DynamicLightEnvironmentComponent MyLightEnvironment; 
+
+//Pawn Voices
+var Rx_AudioComponent VoiceComponent; 
+var bool		   bCanHitReact; //Used to determine if we should play a hit reaction sound
+
+var bool		   bPlayAssistSound;
+var byte 			LastPicked_KillConfirm, LastPicked_Hit, LastPicked_VKillConfirm, LastPicked_BKill, LastPicked_Assist, DeathSound; //Used in Randomization for voice sounds
+
+
+//-------------Vaulting Variables
+var int ClimbHeight;
+var bool bVaulted;
+var Rx_Weapon MyGrenade; 
+var MaterialInstanceConstant CustomBuffMat; 
+
+var byte CurrentStoredWeaponOverlayByte; //For remembering what weapon overlay we're using
+
+var class<Rx_Weapon> PreviousWeaponClass; //Hold incase weapons need to know where they're coming from
+
+// Vars for Transitioning between vehicle and pawn cam when entering/exiting vehicles
+var vector VehiclePawnTransitionStartLoc;
+var float BlendPct;
+var float BlendSpeed;
+var vector lastRxPawnOutCamLoc;
+
+var Rx_PassiveAbility PassiveAbilities[3]; //What passive abilities, if any, does this pawn have? (0 = Jump / 1 = G key / 2 = X Key) 
+
+var bool bTickHandIK; //Controls if we need to be ticking hand IK on this Pawn usually only briefly after reloads
 
 //-----------------------------------------------------------------------------
 // Pawn control
@@ -242,9 +330,9 @@ var int SavedLocationZIter;
 replication
 {
 	if ( bNetDirty)
-		Armor, ArmorMax, CurrentBackWeapons, AirstrikeLocation, SpeedUpgradeMultiplier, Armor_Type, JumpHeightMultiplier; 
+		Armor, ArmorMax, CurrentBackWeapons, AirstrikeLocation, SpeedUpgradeMultiplier, Armor_Type, JumpHeightMultiplier, bIsTarget, VRank, RadarVisibility, bSpotted, bFocused, ReplicatedVoice; 
 	if ( bNetDirty && (!bNetOwner || bDemoRecording))
-		DodgeAnim, ReloadAnim, BoltReloadAnim, ParachuteDeployed, bRepairing, bBeaconDeployAnimating, bBlinkingName, bSprintingServer;
+		DodgeAnim, ReloadAnim, BoltReloadAnim, ParachuteDeployed, bRepairing, bBeaconDeployAnimating, UISymbol, bSprintingServer; //bBlinkingName
 	// Only replicate if our current weapon is a shotgun. Otherwise this is irrelivant.
 	if ( bNetDirty && (!bNetOwner || bDemoRecording) && RemoteRole == ROLE_SimulatedProxy && Rx_Weapon_Shotgun(Weapon) != none)
 		ShotgunPelletHitLocations;
@@ -255,11 +343,13 @@ replication
 
 simulated event PreBeginPlay()
 {
+	
 	// important that this comes before Super so mutators can modify it
 	if (ArmorMax == 0)
 	{
 		ArmorMax = default.Armor;
 	}
+	
 	//Armor = GetShieldStrength();
 	super.PreBeginPlay();
 	SpawnSound.VolumeMultiplier=0.0;
@@ -270,6 +360,11 @@ simulated event PreBeginPlay()
 simulated function PostBeginPlay()
 {  
 	super.PostBeginPlay();
+	
+	
+	//set shadow frustum scale (nBab)
+	SetShadowBoundsScale();
+
 	// Start the relax timer when the pawn spawns
 	SetTimer( 0.5, false, 'RelaxTimer' );
 	SetHandIKEnabled(false);
@@ -277,7 +372,21 @@ simulated function PostBeginPlay()
 	if(WorldInfo.NetMode == NM_DedicatedServer)
 	{
 		SetTimer( 1.0, true, 'CheckLoc' );
+		
+		bAlwaysRelevant = Rx_Game(WorldInfo.Game).bInfantryAlwaysRelevant; 
+		
+		if(!bAlwaysRelevant) SetTimer(0.1,true,'UpdatePRILocation'); 
+		//SetTimer(2.0,true,'TestVisAct');
 	}	
+		SetTimer(SpotUpdateTime,true,'UpdateSpotLocation');
+}
+
+//set shadow frustum scale (nBab)
+simulated function SetShadowBoundsScale()
+{
+	MyLightEnvironment = DynamicLightEnvironmentComponent(Mesh.LightEnvironment);
+	MyLightEnvironment.LightingBoundsScale = Rx_MapInfo(WorldInfo.GetMapInfo()).CharacterShadowBoundsScale;
+	Mesh.SetLightEnvironment(MyLightEnvironment);
 }
 
 function CheckLoc()
@@ -285,8 +394,47 @@ function CheckLoc()
 	if(VSize(location - LastLocation) > 8)
 	{
 		TempTime = WorldInfo.TimeSeconds;
+		
 	}
 	LastLocation = location;
+}
+
+function UpdatePRILocation()
+{
+	//`log("Update Location"); 
+	if(Controller != none && DrivenVehicle == none)
+		Rx_PRI(Controller.PlayerReplicationInfo).UpdatePawnLocation(location,rotation,velocity); 
+	else
+		if(Controller != none && DrivenVehicle !=none)
+			Rx_PRI(Controller.PlayerReplicationInfo).UpdatePawnLocation(DrivenVehicle.location,DrivenVehicle.rotation, DrivenVehicle.velocity); 
+}
+
+function SetRadarVisibility(byte Visibility)
+{
+	RadarVisibility = Visibility;
+	if(Controller != none)
+		Rx_PRI(Controller.PlayerReplicationInfo).PawnRadarVis = Visibility;
+}
+
+simulated function SendRadarSpotted()
+{
+	if(WorldInfo.NetMode != NM_DedicatedServer) 
+	{
+		ServerSetRadarSpotted(); 
+	}
+} 
+
+reliable server function ServerSetRadarSpotted()
+{
+	if(Rx_Controller(Controller) != none )
+	{
+		Rx_Controller(Controller).SetSpottedRadarVisibility();
+	}
+	else
+	if(Rx_Bot(Controller) != none )
+	{
+		Rx_Bot(Controller).SetSpottedRadarVisibility();
+	}
 }
 
 simulated function ClientReStart()
@@ -295,6 +443,25 @@ simulated function ClientReStart()
 	if(Rx_Controller(Controller) != None) {
 		Rx_Controller(Controller).SetOurCameraMode(Rx_Controller(Controller).camMode);
 	}
+}
+
+simulated function UpdateSpotLocation()
+{
+	local string STS; 
+	if(Rx_Controller(Controller) == none || Rx_Bot(Controller) == none)
+	{
+		ClearTimer('UpdateSpotLocation'); //Don't keep updating. 
+		return;
+	}
+	
+	STS = GetPawnLocation(self);
+	SpotLocation = STS; 
+	ServerSendLocationInfo(STS);  
+}
+
+reliable server function ServerSendLocationInfo(coerce string STR)
+{
+	SpotLocation = STR; 
 }
 
 simulated function MakeHumanCharInvisibleToBots() {
@@ -306,6 +473,7 @@ simulated function MakeHumanCharInvisibleToBots() {
 simulated event ReplicatedEvent(name VarName)
 {
 	local int i;
+	
 	if ( VarName == 'DodgeAnim' ) 
 	{
 		if(DodgeAnim != '') {
@@ -322,10 +490,12 @@ simulated event ReplicatedEvent(name VarName)
 		if (bBeaconDeployAnimating)
 		{
 			PlayBeaconDeployAnimation();
+			SetHandIKEnabled(false);
 		}
 		else
 		{
 			CancelBeaconDeployAnimation();
+			SetHandIKEnabled(true);
 		}
 	}
 	else if ( VarName == 'ReloadAnim' ) 
@@ -339,6 +509,8 @@ simulated event ReplicatedEvent(name VarName)
 		{
 			TopHalfAnimSlot.StopCustomAnim(1.0);
 			SetHandIKEnabled(true);
+			ResetHandIKVectorRotator();
+			bTickHandIK = true; 
 		}		
 	} 
 	else if ( VarName == 'BoltReloadAnim' ) 
@@ -352,6 +524,8 @@ simulated event ReplicatedEvent(name VarName)
 		{
 			TopHalfAnimSlot.StopCustomAnim(1.0);
 			SetHandIKEnabled(true);
+			ResetHandIKVectorRotator();
+			bTickHandIK = true; 
 		}		
 	} 
 	else if( VarName == 'FlashLocation' )	
@@ -396,7 +570,31 @@ simulated event ReplicatedEvent(name VarName)
 		}
 	}
 	else if (VarName == 'SpeedUpgradeMultiplier')
+	{
 		UpdateRunSpeedNode();
+	}
+	else
+	if ( VarName == 'VRank')
+	{
+		
+		if(Rx_Controller(Controller) != none ) Rx_Controller(Controller).ClientUpdateVPMenu(true); //Tell controller to update the menu if VRank changed
+		if(Vrank == 3 && Rx_WeaponAttachment_Varying(CurrentWeaponAttachment) != none ) Rx_WeaponAttachment_Varying(CurrentWeaponAttachment).SetHeroic(true); 
+		SetGroundSpeed();
+		UpdateRunSpeedNode();
+	}
+	else
+		if(VarName == 'bIsTarget')
+		{
+			if(bIsTarget) SetTargetAlarm(25);
+		}
+	else
+		if(VarName == 'ReplicatedVoice')
+		{
+			//`log("Replicated Voice"); 
+			if(ReplicatedVoice.SoundType != 'NULL')
+				PlayVoiceSound(ReplicatedVoice.SoundType, 
+			ReplicatedVoice.bCanOverride, ReplicatedVoice.VoiceIndex) ;
+		}
 	else
 	{
 		Super.ReplicatedEvent(VarName);
@@ -460,6 +658,9 @@ simulated function RefreshBackWeaponComponents()
 	}
 }
 
+
+
+
 /** on1: Overriden to clean backweapons. */
 simulated event Destroyed()
 {
@@ -488,6 +689,9 @@ simulated function class<Rx_FamilyInfo> GetRxFamilyInfo()
 {
 	local class<Rx_FamilyInfo> famInfo;
 	famInfo = class<Rx_FamilyInfo>(self.CurrCharClassInfo);
+	
+	if(famInfo == None) return class'Rx_FamilyInfo_GDI_Soldier' ;
+	
 	return famInfo;
 }
 
@@ -529,27 +733,18 @@ simulated function HealthRegen()
 {
 	if (!bTakingDamage)
 	{
-		SetTimer(0.1, false, 'RegenTimer');
+		SetTimer(0.1, true, 'RegenTimer');
 	}
 }
 
 function RegenTimer()
-{
+{	
 	if (Controller != none && Controller.IsA('PlayerController') && !IsInPain() && DamageRate > 0)
 	{
-		DamageRate -= 5;
-	}
-
-	if (bTakingDamage || Health <= 0 || DamageRate <= 0)
-	{
-		DamageRate = 0;
-		ClearTimer('DelayRegen');
-		ClearTimer('HealthRegen');
+		DamageRate = fMax(0,DamageRate-5);
 	}
 	else
-	{
-		HealthRegen();
-	}
+	ClearTimer('RegenTimer');
 }
 
 /* Add a bleed to the current player
@@ -627,10 +822,18 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 	local Controller Killed;
 	local class<Rx_DmgType_Special> DmgType;
 	local float Scr;
+	local string DeathVPString; 
+	local int InstigatorIndex;
+	local Attacker TempAttacker;
+	local Attacker PRII;
+	local float TempAssistPoints; 
+	local Controller C; 
+	local int	SavedHealth, SavedArmour; 
+	local Rx_PRI InstigatorPRI; 
 	
 	//`log("Took Damage"); 
 		
-	if(!ValidRotation(EventInstigator, DamageCauser)) {
+	if(EventInstigator != none && !ValidRotation(EventInstigator, DamageCauser)) {
 		return;	
 	}
 	
@@ -648,7 +851,7 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 			`warn("No damagetype for damage by "$EventInstigator.Pawn$" with weapon "$EventInstigator.Pawn.Weapon);
 		DamageType = class'DamageType';
 	}
-
+	
 	if(Damage < 0) 
 	{
 		Damage = 0;
@@ -657,9 +860,10 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 	if(Rx_Controller(EventInstigator) != None && GetTeamNum() != EventInstigator.GetTeamNum()) {
 		if(Rx_Projectile_Rocket(DamageCauser) != None && Rx_Controller(EventInstigator) != None && GetTeamNum() != EventInstigator.GetTeamNum()) { 
 			Rx_Controller(EventInstigator).IncReplicatedHitIndicator();
+			
 		}
 	}
-
+	
 	if (Physics == PHYS_None && DrivenVehicle == None)
 	{
 		SetMovementPhysics();
@@ -668,6 +872,7 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 	{
 		momentum.Z = FMax(momentum.Z, 0.4 * VSize(momentum));
 	}
+	
 	momentum = momentum/Mass;
 
 	if ( DrivenVehicle != None )
@@ -706,6 +911,10 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 		}
 	}
 
+	//Save health and armor pre-change for later
+	SavedHealth = Health; 
+	SavedArmour = Armor; 
+	
 	// When Taking Falling Damage Armor is not Useful
 	// Also water (drowning damage) is not useful to armor - halo2pac
 	if ( DamageType == class'Rx_DmgType_Fell' || DamageType == class'Rx_DmgType_Drowned' || DmgType != none && DmgType.default.bPiercesArmor)
@@ -754,13 +963,99 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 		//---
 		*/
 		// pawn died
+		
+		
+		
 		Killer = SetKillInstigator(EventInstigator, DamageType);
+
+		if(EventInstigator != none && EventInstigator == controller && LastHitBy != none)
+			Killer = SetKillInstigator(LastHitBy, DamageType); //Suiciding with explosives still gives the kill to whoever hit last. 
+		
 		TearOffMomentum = momentum;
+		
+		if(bIsTarget || bIsDefensiveTarget) ClientNotifyTargetKilled();
+		
+		//Clear out those who who haven't attacked us in the last 10 seconds
+		foreach DamagingParties(PRII)
+		{
+			if(WorldInfo.TimeSeconds - PRII.LastDamageTime >= 10.0) 
+			{
+				Damage_Taken-=PRII.DamageDone; //Rid yourselves of irrelevant excessive damage
+				DamagingParties.RemoveItem(PRII);
+			}
+		continue;
+		}
+		
+		//Divi out assist points to those who didn't get the kill
+		foreach DamagingParties(PRII)
+		{
+		if(PRII.PPRI != none)
+			{
+			if(PRII.DamageDone >= 50 && EventInstigator != none && PRII.PPRI.Owner != EventInstigator) 
+				{
+					C=Controller(PRII.PPRI.Owner); 
+					//`log(PRII.PPRI.Owner @ EventInstigator @ PRII.DamageDone); 
+					TempAssistPoints =fmax(1, GetRxFamilyInfo().default.VPReward[VRank]*(PRII.DamageDone/Damage_Taken)); // at least one point
+					TempAssistPoints=fmax(1,TempAssistPoints+BuildAssistVPString(C));
+			
+					if(Rx_Controller(C) != none ) {
+						Rx_Controller(C).DisseminateVPString("[Infantry Kill Assist]&" $ TempAssistPoints $ "&");
+						if(Rx_Pawn(C.Pawn) != none) Rx_Pawn(C.Pawn).PlayVoiceSound('Assist', false);
+					}
+					else
+					if(Rx_Bot(C) != none ) {
+						Rx_Bot(C).DisseminateVPString("[Infantry Kill Assist]&" $ TempAssistPoints $ "&"); 
+						if(Rx_Pawn(C.Pawn) != none) Rx_Pawn(C.Pawn).PlayVoiceSound('Assist', false);
+					}
+				}
+			}
+		}
+		
+		//Give points to vehicle healers 
+		if(Killer != none && Rx_Vehicle(Killer.Pawn) != none)
+			Rx_Vehicle(Killer.Pawn).HealerKillAssistBonus(class'Rx_VeterancyModifiers'.default.Ev_InfantryRepairKillAssists);		
+		
+		if(EventInstigator == none)
+		{
+			//Skip everything and just go to being dead
+				PlayVoiceSound('Death', true) ;
+				Died(Killer, DamageType, HitLocation);
+		}
+		
+		//Get VP modifiers and build the string to go along with it
+
+		if(Rx_Defence_Controller(Killer) != none) //Just give defences VP, nothing else
+		{
+			Rx_Defence_Controller(Killer).GiveVeterancy(GetRxFamilyInfo().default.VPReward[VRank]);	
+		}
+		
+		if(EventInstigator != none && RX_PRI(EventInstigator.PlayerReplicationInfo) != none)
+		{
+			DeathVPString = BuildDeathVPString(Killer, DamageType, bHeadshot);
+		
+			if(Rx_Controller(EventInstigator) != None && GetTeamNum() != EventInstigator.GetTeamNum()) Rx_Controller(EventInstigator).DisseminateVPString(DeathVPString); 
+			else
+			if(Rx_Bot(EventInstigator) != None && GetTeamNum() != EventInstigator.GetTeamNum()) Rx_Bot(EventInstigator).DisseminateVPString(DeathVPString); 
+		}
+		
+		if(Killer != none && Rx_Pawn(Killer.Pawn) != none && (DamageType != class'Rx_DmgType_ProxyC4' && DamageType !=class'Rx_DmgType_TimedC4' )) 
+		{
+			Rx_Pawn(Killer.Pawn).SetTimer(1.5,false,'PlayKillConfirmTimer');
+		
+		}
+		else if(Killer != none && Rx_Vehicle(Killer.Pawn) != none && Rx_Pawn( Rx_Vehicle(Killer.Pawn).Driver) != none && (DamageType != class'Rx_DmgType_ProxyC4' && DamageType !=class'Rx_DmgType_TimedC4' ))
+		{
+			//`log("Pawn Driver is" @ Rx_Pawn( Rx_Vehicle(Killer.Pawn).Driver) );
+			Rx_Pawn( Rx_Vehicle(Killer.Pawn).Driver).SetTimer(1.5,false,'PlayKillConfirmTimer');	
+		}			
+		
+		PlayVoiceSound('Death', true) ;
 		Died(Killer, DamageType, HitLocation);
+		SetRadarVisibility(0); 
 	}
 	else
 	{
-
+		
 		NotifyTakeHit(EventInstigator, HitLocation, ActualDamage, DamageType, Momentum, DamageCauser);
 		if (DrivenVehicle != None)
 		{
@@ -768,23 +1063,37 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 		}
 		if ( EventInstigator != None && EventInstigator != controller )
 		{
+			
 			LastHitBy = EventInstigator;
+			if(isTimerActive('ResetLastHit')) ClearTimer('ResetLastHit');
+			SetTimer(10.0, false, 'ResetLastHit'); 
 		}
 	}
 
 	if(InGodMode())
 		DamageRate = 0;
 
-	DamageRate += ActualDamage * 2;
+	if(class<Rx_DmgType_Burn>(DamageType) != None || class<Rx_DmgType_Electric>(DamageType) != None)
+		BleedDamageType=1;
+	else if(class<Rx_DmgType_Tiberium>(DamageType) != None)
+		BleedDamageType=2;
+	else
+		BleedDamageType=0;
+		
+	DamageRate += ActualDamage * 4;
+	Clamp(DamageRate,0,100);
 
 	if ( DamageRate > 0)
 	{
 		bTakingDamage = true;
-		SetTimer(1.0, false, 'DelayRegen');
+		SetTimer(0.5, false, 'DelayRegen');
 	}
 
 	if (EventInstigator != none)
 	{
+		if(EventInstigator.GetTeamNum() != GetTeamNum() && bTakingDamage && bCanHitReact && DrivenVehicle == none && Health > 0) 
+			PlayVoiceSound('Damage', true) ;
+		
 		// add score (or sub, if bIsFriendlyFire is on)
 		if(!EventInstigator.IsA('SentinelController') && EventInstigator.PlayerReplicationInfo != None)
 		{
@@ -798,17 +1107,75 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 			
 			if (((Killed == None && GetTeamNum() != EventInstigator.GetTeamNum()) || Killed.GetTeamNum() != EventInstigator.GetTeamNum()) && Rx_PRI(EventInstigator.PlayerReplicationInfo) != None)
 			{
-				Rx_PRI(EventInstigator.PlayerReplicationInfo).AddScoreToPlayerAndTeam(Scr);
+				InstigatorPRI = Rx_PRI(EventInstigator.PlayerReplicationInfo);
+				
+				LegitamateDamage+=ActualDamage;
+				
+				if(InstigatorPRI.bUseLegacyScoreSystem)
+						InstigatorPRI.AddScoreToPlayerAndTeam(Scr);
+					else
+					{
+						InstigatorPRI.AddScoreToPlayerAndTeam(Scr);
+						InstigatorPRI.AddInfantryDamage(ScoreDamage);
+					}
+				
+				
+				
+				/*Now track who's doing the damage if it's legit*/
+				InstigatorIndex=DamagingParties.Find('PPRI',EventInstigator.PlayerReplicationInfo);
+				if(InstigatorIndex == -1)  //New damager
+				{
+					TempAttacker.PPRI=EventInstigator.PlayerReplicationInfo;
+					
+					TempAttacker.DamageDone = Min(ActualDamage,SavedHealth+SavedArmour);
+					
+					TempAttacker.LastDamageTime = WorldInfo.TimeSeconds; 
+					
+					Damage_Taken+=TempAttacker.DamageDone; //Add this damage to the total damage taken.
+					
+					DamagingParties.AddItem(TempAttacker) ;
+				
+				}
+				else
+				{
+					
+					if(ActualDamage <= float(SavedHealth+SavedArmour))
+					{
+						DamagingParties[InstigatorIndex].DamageDone+=ActualDamage;
+						Damage_Taken+=ActualDamage; //Add this damage to the total damage taken.
+						DamagingParties[InstigatorIndex].LastDamageTime = WorldInfo.TimeSeconds; 
+					}
+					else
+					{
+						DamagingParties[InstigatorIndex].DamageDone+=SavedHealth+SavedArmour;
+						DamagingParties[InstigatorIndex].LastDamageTime = WorldInfo.TimeSeconds; 					
+						Damage_Taken+=SavedHealth; //Add this damage to the total damage taken.
+					}
+				}
 			}
 		}
 	}
 
 	//Rx_Controller(Controller).InitDamagePPC();
 	//ScriptTrace();
+	
 	PlayHit(actualDamage,Controller, hitLocation, DamageType, Momentum, HitInfo);
 	MakeNoise(1.0);
 	//loginternal(actualDamage);
 	bHeadshot = false;
+
+	if(Rx_Game(WorldInfo.Game).GameplayEventsWriter != none)
+	{
+		if(EventInstigator != none && Controller != none)
+		{
+			`RecordDamage(WEAPON_DAMAGE, EventInstigator, DamageType, Controller, Damage_Taken);
+		}
+		else if(Controller != none)
+			`RecordDamage(DAMAGE, Controller, DamageType, Controller, Damage_Taken);
+
+		if(ClassIsChildOf(DamageType, class'Rx_DmgType_Tiberium'))
+			 `RecordDamage(DAMAGE_TIBERIUM, Controller, DamageType, Controller, Damage_Taken);
+	}
 }
 
 function bool ValidRotation(Controller EventInstigator, Actor DamageCauser)
@@ -850,32 +1217,417 @@ function bool ValidRotation(Controller EventInstigator, Actor DamageCauser)
 
 function AdjustDamage(out int InDamage, out vector Momentum, Controller InstigatedBy, vector HitLocation, class<DamageType> DamageType, TraceHitInfo HitInfo, Actor DamageCauser)
 {
+	local float FinalResistance;
 	//Editted for RenX armor system. Armor reduces/increases damage so long as it's up. 	
 	
 	//`log("Damage Type in AdjustDamage():" @ DamageType );
 	//Even if they only have 1 armor left, the damage is reduced. 
+	
+	FinalResistance = 1.0 ;
+	
 	if(Armor > 0 && class<Rx_DmgType>(DamageType) != none )
 	{
 		switch(Armor_Type)
 		{
-		case A_Kevlar :
-		InDamage*=class<Rx_DmgType>(DamageType).static.KevlarDamageScalingFor();
-		break; 
+			case A_Kevlar :
+			//InDamage*=class<Rx_DmgType>(DamageType).static.KevlarDamageScalingFor();
+			FinalResistance -= (1.0 - class<Rx_DmgType>(DamageType).static.KevlarDamageScalingFor());
+			break; 
+			
+			case A_FLAK :
+			//InDamage*=class<Rx_DmgType>(DamageType).static.FLAKDamageScalingFor(); 
+			FinalResistance -= (1.0 - class<Rx_DmgType>(DamageType).static.FLAKDamageScalingFor());
+			break; 
+			
+			case A_Lazurus : 
+			//InDamage*=class<Rx_DmgType>(DamageType).static.LazarusDamageScalingFor();
+			FinalResistance -= (1.0 - class<Rx_DmgType>(DamageType).static.LazarusDamageScalingFor());
+			break;
+			
+			case A_NONE : 
+			//InDamage*=class<Rx_DmgType>(DamageType).static.NoArmourDamageScalingFor() ; 
+			FinalResistance -= (1.0 - class<Rx_DmgType>(DamageType).static.NoArmourDamageScalingFor());
+			break;
 		
-		case A_FLAK :
-		InDamage*=class<Rx_DmgType>(DamageType).static.FLAKDamageScalingFor(); 
-		break; 
-		
-		case A_Lazurus : 
-		InDamage*=class<Rx_DmgType>(DamageType).static.LazarusDamageScalingFor();
-		break;
 		}
 	}
 	
+	FinalResistance -= (1.0 - fmax(GetResistanceModifier(), MaxDR)) ;
+	//Adjusted damage for random buffs/nerfs
+	
+	InDamage*=fmax(0.01, FinalResistance);  //GetResistanceModifier(); 
 	
 	////UT3 call////
 	super.AdjustDamage(InDamage, Momentum, InstigatedBy, HitLocation, DamageType, HitInfo, DamageCauser);
 	
+}
+
+function string BuildDeathVPString(Controller Killer, class<DamageType> DamageType, bool Headshot)
+{
+	local string VPString;
+	local int IntHolder; //Hold current number we'll be using 
+	local int KillerVRank; 
+	local float BaseVP;
+	//local class<Rx_Vehicle> Killer_VehicleType; 
+	local class<Rx_FamilyInfo> Victim_FamInfo;//Killer_FamInfo
+	local string Killer_Location, Victim_Location; 
+	local bool  KillerisPawn; //KillerisVehicle KillerInBase, KillerInEnemyBase, VictimInBase, VictimInEnemyBase, 
+	local Rx_PRI KillerPRI; 
+	local bool	bNeutral; //Only set to false if this is Offensive or Defensive 
+	//Remember that -I- am the victim here
+	//Begin by finding WHAT we are
+	
+	//if(Killer == none) return ""; 
+	
+	if((Rx_Controller(Killer) == none && Rx_Bot(Killer) == none)) return ""; 
+	
+	Victim_FamInfo=GetRxFamilyInfo();
+
+	KillerPRI = Rx_PRI(Killer.PlayerReplicationInfo) ;
+	
+	bNeutral = true; 
+	
+	if(Rx_Vehicle(Killer.Pawn) != none ) //I got shot by a vehicool  
+	{
+		//KillerisVehicle = true; 
+		//Killer_VehicleType = class<Rx_Vehicle>(Killer.Pawn.class); Shouldn't really come into play.
+		//Get Veterancy Rank
+		KillerVRank = Rx_Vehicle(Killer.Pawn).GetVRank(); 
+
+	}
+	else 
+	//They're a Pawn, Harry
+	if(Rx_Pawn(Killer.Pawn) != none )
+	{
+		KillerisPawn = true; 
+		//Killer_FamInfo = Rx_Pawn(Killer.Pawn).GetRxFamilyInfo();
+		//Get Veterancy Rank
+		KillerVRank = Rx_Pawn(Killer.Pawn).GetVRank(); 
+	}
+	
+	/*Finding location info*/ 
+	
+	IntHolder=Killer.GetTeamNum(); 
+
+	Killer_Location = GetPawnLocation(Killer.Pawn); 
+	
+	IntHolder=GetTeamNum(); 
+	
+	Victim_Location = GetPawnLocation(self); 
+	
+	/*End Getting location*/
+	
+	//VP count starts here. 
+	BaseVP = Victim_FamInfo.default.VPReward[VRank]; 
+	
+	VPString = "[Infantry Kill]&+" $ BaseVP $ "&" ; 
+	
+	//Are THEY defending a beacon 
+	
+	if(NearEnemyBeacon()) //If we're near an enemy beacon 
+	{
+		IntHolder = class'Rx_VeterancyModifiers'.default.Mod_BeaconDefense;	
+			
+		BaseVP+=IntHolder;
+		
+		if(KillerPRI != none)
+			KillerPRI.AddBeaconKill(); 
+		
+		VPString = VPString $ "[Beacon Defence]&+" $ IntHolder $ "&";
+	} 
+		
+		//Are WE defending an enemy beacon?
+		
+	if(NearFriendlyBeacon()) //If we're near a friendly beacon 
+	{
+		IntHolder = class'Rx_VeterancyModifiers'.default.Mod_BeaconAttack;	
+			
+		BaseVP+=IntHolder;
+		
+		VPString = VPString $ "[Beacon Offence]&+" $ IntHolder $ "&";
+	} 
+	
+	if(IHaveABeacon() ) //If we were carrying a beacon 
+	{
+		IntHolder = class'Rx_VeterancyModifiers'.default.Mod_BeaconHolderKill;	
+			
+		BaseVP+=IntHolder;
+		
+		VPString = VPString $ "[Beacon Prevention]&+" $ IntHolder $ "&";
+	} 
+	
+	if(Headshot) //If we got headshot-ed
+	{
+		IntHolder = class'Rx_VeterancyModifiers'.default.Mod_Headshot;	
+			
+		BaseVP+=IntHolder;
+		
+		VPString = VPString $ "[HEADSHOT]&+" $ IntHolder $ "&";
+	} 
+		
+	if(KillerisPawn && IsSniper() ) //If we're a sniper class
+	{
+		IntHolder = class'Rx_VeterancyModifiers'.default.Mod_SniperKilled;	
+			
+		BaseVP+=IntHolder;
+		
+		VPString = VPString $ "[Sniper Killed]&+" $ IntHolder $ "&";
+	} 
+		
+	if(WasSniper(Killer) ) //If we're a sniper class
+	{
+		IntHolder = class'Rx_VeterancyModifiers'.default.Mod_SniperKill;	
+			
+		BaseVP+=IntHolder;
+		
+		VPString = VPString $ "[Sniper Kill]&+" $ IntHolder $ "&";
+	} 
+		
+	if(VRank > KillerVRank ) //Ya' done got fucked, son  [Negative Modifiers] (Leave out the '+') 
+	{
+		IntHolder = class'Rx_VeterancyModifiers'.default.Mod_Disadvantage*(VRank - KillerVRank);	
+			
+		BaseVP+=IntHolder;
+		
+		VPString = VPString $ "[Disadvantage]&+" $ IntHolder $ "&";
+	} 
+		
+	if( PawnInFriendlyBase(Victim_Location, self) ) // Getting wrecked in your own base
+	{
+		IntHolder = class'Rx_VeterancyModifiers'.default.Mod_AssaultKill;	
+			
+		BaseVP+=IntHolder;
+		
+		if(KillerPRI != none)
+			KillerPRI.AddOffensiveKill(); 
+		
+		bNeutral = false; 
+		
+		VPString = VPString $ "[Offensive Kill]&+" $ IntHolder $ "&";
+	} 
+		
+	/********************/
+	/*Negative Modifiers*/
+	/********************/
+		
+	if(KillerVRank > VRank ) //Is this bastard gimping ? [Negative Modifiers] (Leave out the '+') 
+	{
+		IntHolder = class'Rx_VeterancyModifiers'.default.Mod_UnfairAdvantage*(KillerVRank-VRank);	
+			
+		BaseVP+=IntHolder;
+		
+		VPString = VPString $ "[Vet Advantage]&" $ IntHolder $ "&";
+	} 
+		
+	if(DamageType == class'Rx_DmgType_ProxyC4' ) //Kills with mines 
+	{
+		IntHolder = class'Rx_VeterancyModifiers'.default.Mod_MineKill;	
+			
+		BaseVP+=IntHolder;
+		
+		if(KillerPRI != none)
+			KillerPRI.AddMineKill(); 
+		
+		VPString = VPString $ "[Mine Kill]&" $ IntHolder $ "&";
+	} 
+		
+	if( PawnInFriendlyBase(Killer_Location, Killer.Pawn) ) //Is this bastard in his own base ? [Negative Modifiers] (Leave out the '+') 
+	{
+		IntHolder = class'Rx_VeterancyModifiers'.default.Mod_DefenseKill;	
+			
+		BaseVP+=IntHolder;
+		
+		if(KillerPRI != none)
+			KillerPRI.AddDefensiveKill(); 
+		
+		if(IsInfiltrator()){
+			KillerPRI.AddInfiltratorKill();
+		}
+		
+		bNeutral = false; 
+		
+		VPString = VPString $ "[Defensive Kill]&" $ IntHolder $ "&";
+	} 
+		
+	BaseVP=fmax(1.0, BaseVP); //Offer at least 1 VP cuz... why not ? Consolation prize
+		
+	if(KillerPRI != none)
+		KillerPRI.AddTotalKill(); 
+	
+	if(bNeutral)
+		KillerPRI.AddNeutralKill(); 
+		
+	return "[Infantry Kill]&+" $ BaseVP $ "&" ;
+		
+	//Uncomment to use full feat strings 
+	//return VPString ; /*Complicated for the sake of you entitled, ADHD kids that need flashing lights to pet your ego. BaseVP$"&"$*/
+}
+
+
+//A much lighter variant of the VPString builder, used to calculate assists (Which only add in negative modifiers for in-base and higher VRank)
+function int BuildAssistVPString(Controller Killer) 
+{
+	local int EndAssistModifier;
+	local int KillerVRank; 
+	local string Killer_Location, Victim_Location; 
+	//local bool  KillerisPawn; 
+	local Rx_PRI KillerPRI; 
+	local bool	 bNeutral; 
+	//Remember that -I- am the victim here
+	
+	//if(Killer == none) return 0; 
+	
+	if((Rx_Controller(Killer) == none && Rx_Bot(Killer) == none)) return 0;
+	
+	bNeutral = true;  
+	
+	KillerPRI = Rx_PRI(Killer.PlayerReplicationInfo) ;
+	
+	if(Rx_Vehicle(Killer.Pawn) != none ) //I got shot by a vehicool  
+	{
+		KillerVRank = Rx_Vehicle(Killer.Pawn).GetVRank(); 
+	}
+	else 
+	//They're a Pawn, Harry
+	if(Rx_Pawn(Killer.Pawn) != none )
+	{
+		KillerVRank = Rx_Pawn(Killer.Pawn).GetVRank(); 
+	}
+	/*Finding location info*/ 
+	
+	Killer_Location = GetPawnLocation(Killer.Pawn); 
+	
+	Victim_Location = GetPawnLocation(self); 
+	
+	/*End Getting location*/
+	
+	//VP count starts here. 
+	
+	/********************/
+	/*Positive Modifiers*/
+	/********************/
+	
+	if( PawnInFriendlyBase(Victim_Location, self) ) // Getting wrecked in your own base
+	{
+		EndAssistModifier += class'Rx_VeterancyModifiers'.default.Mod_AssaultKill;	
+
+		if(KillerPRI != none)
+			KillerPRI.AddOffensiveAssist(); 
+		
+		bNeutral = false;  
+	} 
+		
+	/********************/
+	/*Negative Modifiers*/
+	/********************/
+		
+	if(KillerVRank > VRank ) //Is this bastard gimping ? [Negative Modifiers] (Leave out the '+') 
+	{
+		EndAssistModifier += class'Rx_VeterancyModifiers'.default.Mod_UnfairAdvantage*(KillerVRank-VRank);	
+	} 
+		
+	if( PawnInFriendlyBase(Killer_Location, Killer.Pawn) ) //Is this bastard in his own base ? [Negative Modifiers] (Leave out the '+') 
+	{
+		if(KillerPRI != none)
+			KillerPRI.AddDefensiveAssist(); 
+		
+		bNeutral = false;  
+		
+		EndAssistModifier += class'Rx_VeterancyModifiers'.default.Mod_DefenseKill;	
+	} 
+		
+	if(KillerPRI != none)
+	{
+		KillerPRI.AddTotalAssists(); 
+		
+		if(bNeutral)
+			KillerPRI.AddNeutralAssists(); 
+		
+		KillerPRI.AddScoreToPlayerAndTeam(0); //Add 0 for assists. That way they don't affect Legacy, but also call the update for Score in the new PRI score system.
+	}
+		
+	
+	
+	
+	return EndAssistModifier ;
+	
+}
+
+
+function bool NearFriendlyBeacon()
+{
+local Rx_Weapon_DeployedBeacon CloseBeacon; 
+
+foreach OverlappingActors(class'Rx_Weapon_DeployedBeacon', CloseBeacon, 1500)
+	{
+			if(CloseBeacon.GetTeamNum() == GetTeamNum()) return true; 
+	}
+	return false; 
+}
+
+function bool NearEnemyBeacon()
+{
+	local Rx_Weapon_DeployedBeacon CloseBeacon; 
+
+	foreach OverlappingActors(class'Rx_Weapon_DeployedBeacon', CloseBeacon, 1500)
+		{
+			if(CloseBeacon.GetTeamNum() != GetTeamNum()) return true; 
+		}
+		return false; 
+} 
+
+function bool IsSniper()
+{
+	local class<Rx_FamilyInfo> Fam; 
+	
+	Fam=GetRxFamilyInfo();
+	
+	if(Fam == class'Rx_FamilyInfo_GDI_Deadeye' || Fam == class'Rx_FamilyInfo_GDI_Havoc' || Fam == class'Rx_FamilyInfo_Nod_BlackHandSniper' || Fam == class'Rx_FamilyInfo_Nod_Sakura') return true; 
+	else
+	return false; 
+}
+
+function bool IsInfiltrator()
+{
+	local class<Rx_FamilyInfo> Fam; 
+	
+	Fam=GetRxFamilyInfo();
+	
+	if(Fam == class'Rx_FamilyInfo_GDI_Hotwire' || Fam == class'Rx_FamilyInfo_GDI_Engineer' || Fam == class'Rx_FamilyInfo_Nod_Engineer' || Fam == class'Rx_FamilyInfo_Nod_Technician' || Fam == class'Rx_FamilyInfo_Nod_StealthBlackHand') return true; 
+	else
+	return false; 
+}
+
+function bool IHaveABeacon()
+{
+	local Rx_InventoryManager MyInventory; 
+	local class<Rx_Weapon> MyWeapon; 
+	MyInventory = Rx_InventoryManager(InvManager);
+	
+	foreach MyInventory.Items(MyWeapon)
+	{
+		if(MyWeapon.isA('Rx_Weapon_Beacon')) return true; 
+	}
+	return false; 
+}
+
+function int GetVRank()
+{
+	return VRank; 
+}
+
+function bool WasSniper (Controller C)
+{
+	local class<Rx_Weapon> Weaps;
+
+	if(C.Pawn != none && C.Pawn.Weapon != none)
+	{
+		Weaps = class<Rx_Weapon>(C.Pawn.Weapon.class) ;
+		if(Weaps == class'Rx_Weapon_SniperRifle_GDI' || Weaps == class'Rx_Weapon_SniperRifle_Nod')
+			return true; 
+	}
+	
+	return false; 
 }
 
 simulated function ENUM_Armor GetArmor()
@@ -888,11 +1640,31 @@ function bool Died(Controller Killer, class<DamageType> damageType, vector HitLo
 	local Rx_Bot bot;
 	local Rx_CapturePoint CP;
 	local byte WasTeam;
+	//local Rx_ORI ORI; 
 	
 	WasTeam = GetTeamNum();
+	
 	if(Rx_Controller(Controller) != None)
-		Rx_Controller(Controller).LastKiller = Killer;
-	Rx_PRI(PlayerReplicationInfo).SetIsSpy(false);
+	{
+		Rx_Controller(Controller).RemoveAllEffects();
+	}
+	else
+	if(Rx_Bot(Controller) != None)
+	{
+		Rx_Bot(Controller).RemoveAllEffects();
+	}
+	//Notify ORI that this target was destroyed [Deprecated]
+	//if(ORI != none && bIsTarget) ORI.NotifyTargetKilled(self); 
+
+	if(PlayerReplicationInfo != none)
+	{
+		Rx_PRI(PlayerReplicationInfo).SetIsSpy(false);
+		Rx_PRI(PlayerReplicationInfo).SetTargetEliminated(1); 
+	}
+
+	//Don't awkwardly continue regenerating health on your dead body.... 
+	if(IsTimerActive('regenerateHealthTimer') ) ClearTimer('regenerateHealthTimer');
+	
 	foreach Worldinfo.AllControllers(class'Rx_Bot', bot) 
 	{
 		if(Rx_SquadAI(bot.squad).SquadLeader == controller && bot.GetOrders() == 'Follow') 
@@ -906,7 +1678,7 @@ function bool Died(Controller Killer, class<DamageType> damageType, vector HitLo
 		ActualPackParachute();
 		HideParachute();
 	}
-
+	
 	if (super.Died(Killer, damageType, HitLocation))
 	{
 		foreach TouchingActors(class'Rx_CapturePoint', CP)
@@ -991,6 +1763,9 @@ simulated function TakeRadiusDamage
 	optional float      DamageFalloffExponent=1.f
 )
 {
+	//The hell ACTUALLY shot me? 
+	local Weapon ProjectileWeaponOwner; 
+	
 	if(InstigatedBy != None 
 			&& (InstigatedBy.GetTeamNum() == GetTeamNum() && InstigatedBy != Controller) 
 			&& Rx_Weapon_DeployedActor(DamageCauser) == None) {
@@ -1001,26 +1776,52 @@ simulated function TakeRadiusDamage
 		if(InstigatedBy != Controller && DamageCauser.GetTeamNum() == GetTeamNum())
 			return; // Beacons/C4 only damages the planter
 	}
-	if(Rx_Projectile(DamageCauser) != None && !Rx_Projectile(DamageCauser).isAirstrikeProjectile()) {
+	
+	if(Rx_Projectile(DamageCauser) != none) 
+		ProjectileWeaponOwner = Rx_Projectile(DamageCauser).GetWeaponInstigator();
+	else if(InstigatedBy != None)
+		ProjectileWeaponOwner = InstigatedBy.Pawn.Weapon; // Was likely instant and not a projectile 
+	
+	//&& Rx_Projectile_Grenade(DamageCauser) == none) {
+	//EDIT: Grenades and anything that's going to have a delayed explosion [like really really slow, timer projectiles] should just go straight to TakeRadiusDamage 
+	
+	if(Rx_Projectile(DamageCauser) != None && !Rx_Projectile(DamageCauser).isAirstrikeProjectile()) { 
 		if(WorldInfo.NetMode != NM_DedicatedServer 
-					&& InstigatedBy != None && (Rx_Weapon(InstigatedBy.Pawn.Weapon) != None || Rx_Vehicle_Weapon(InstigatedBy.Pawn.Weapon) != None)) {	
+					&& InstigatedBy != None && InstigatedBy.Pawn != none && (Rx_Weapon(ProjectileWeaponOwner) != None || Rx_Vehicle_Weapon(ProjectileWeaponOwner) != None)) {	
 			if(Health > 0 && self.GetTeamNum() != InstigatedBy.GetTeamNum() && UTPlayerController(InstigatedBy) != None) {
 				Rx_Hud(UTPlayerController(InstigatedBy).myHud).ShowHitMarker();
 			}
 
-			if (Rx_Weapon_VoltAutoRifle(InstigatedBy.Pawn.Weapon) != None)
-				Rx_Weapon_VoltAutoRifle(InstigatedBy.Pawn.Weapon).ServerALRadiusDamageCharged(self,HurtOrigin,bFullDamage,class'Rx_Projectile_VoltBolt'.static.GetChargePercentFromDamage(BaseDamage));
-			else if(Rx_Weapon(InstigatedBy.Pawn.Weapon) != None) {
-				Rx_Weapon(InstigatedBy.Pawn.Weapon).ServerALRadiusDamage(self,HurtOrigin,bFullDamage);
+			if (InstigatedBy != None && InstigatedBy.Pawn != none && Rx_Weapon_VoltAutoRifle(ProjectileWeaponOwner) != None)
+				Rx_Weapon_VoltAutoRifle(ProjectileWeaponOwner).ServerALRadiusDamageCharged(self,HurtOrigin,bFullDamage,class'Rx_Projectile_VoltBolt'.static.GetChargePercentFromDamage(BaseDamage));
+			else if(InstigatedBy != None && InstigatedBy.Pawn != none && Rx_Weapon(ProjectileWeaponOwner) != None) {
+				Rx_Weapon(ProjectileWeaponOwner).ServerALRadiusDamage(self,HurtOrigin,bFullDamage);
 			} else {
-				Rx_Vehicle_Weapon(InstigatedBy.Pawn.Weapon).ServerALRadiusDamage(self,HurtOrigin,bFullDamage);
+				Rx_Vehicle_Weapon(ProjectileWeaponOwner).ServerALRadiusDamage(self,HurtOrigin,bFullDamage, Rx_Projectile(DamageCauser).FMTag);
 			}	
 		} else if(ROLE == ROLE_Authority && AIController(InstigatedBy) != None) {
 			super.TakeRadiusDamage(InstigatedBy,BaseDamage,DamageRadius,DamageType,Momentum,HurtOrigin,bFullDamage,DamageCauser,DamageFalloffExponent);
 		}
 	} else {
+		//`log("Base Damage is: " @ BaseDamage); 
 		super.TakeRadiusDamage(InstigatedBy,BaseDamage,DamageRadius,DamageType,Momentum,HurtOrigin,bFullDamage,DamageCauser,DamageFalloffExponent);
 	}
+}
+
+simulated function byte GetHealNecessity() //On a scale from 0 to 5, how much does it hurt? 
+{
+	local float HealthFraction; 
+	
+	HealthFraction = (float(Health+Armor)/float(HealthMax+ArmorMax))*100.0 ;
+	
+	
+	if(HealthFraction < 33) return 3 ; //Critical
+	else
+	if(HealthFraction <= 66) return 2 ; // Should probably heal me, bro 
+	else
+	if(HealthFraction <= 95) return 1; //Not much in the way of necessity on healing
+	else
+	return 0 ; 
 }
 
 function bool HealDamage(int Amount, Controller Healer, class<DamageType> DamageType)
@@ -1032,18 +1833,24 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
 		return false;
 
 	HealthAmmount = Min(Amount, HealthMax - Health);
+	
 	Health += HealthAmmount;
 
 	ArmorAmmount = Min(Amount - HealthAmmount, ArmorMax - Armor);
 	Armor += ArmorAmmount;
-
+	
 	TotalAmmount = HealthAmmount + ArmorAmmount;
-
-	// Give score to the healer
-	if (TotalAmmount > 0)
+	
+	DamageRate = (fmax(0,DamageRate-TotalAmmount));
+	
+	// Give score to the healer (EDIT-Yosh: Only if it was legitimate damage, i.e from an enemy)
+	if (TotalAmmount > 0 && LegitamateDamage > 0)
 	{
+		LegitamateDamage=fMax(0,LegitamateDamage-TotalAmmount); 
 		Score = TotalAmmount * class<Rx_FamilyInfo>(CurrCharClassInfo).default.HealPointsMultiplier;
 		Rx_PRI(Healer.PlayerReplicationInfo).AddScoreToPlayerAndTeam(Score);
+		Rx_PRI(Healer.PlayerReplicationInfo).AddRepairPoints_P(TotalAmmount); //Add to amount of Pawn repair points this 
+		
 	}
 
 	return true;
@@ -1055,11 +1862,59 @@ function bool DoJump( bool bUpdating )
 	{			
 		JumpZ = MaxJumpZ * CurrentHopStamina;
 		CurrentHopStamina = FMax(CurrentHopStamina - HopCost,MinHopStamina);
-		}*/
+	}*/
+
+	local Actor TraceHit; 
+	Local Vector StartLoc, EndLoc, VaultStartLoc, VaultEndLoc; 
+	
+	Local Vector MyPosition, MyRotation; 
+	
+	Local Vector HitNormal, HitLocation; 
+	
+	Local Int Magnitude;
+
+	if(IsTimerActive('JumpRecoilTimer'))
+		return false; 
+	
+	VaultStartLoc = Location;
+	VaultStartLoc.Z -= 40.0;
+	StartLoc = VaultStartLoc;
+	
+	Magnitude = 40;
+	MyPosition = Location;
+	MyRotation = Vector(Rotation);
+	
+	MyRotation.X *= Magnitude;
+	MyRotation.Y *= Magnitude;
+	
+	MyPosition.X += MyRotation.X;
+	MyPosition.Y += MyRotation.Y;
+	MyPosition.Z -= 40.0;
+
+	VaultEndLoc = MyPosition;
+	EndLoc = VaultEndLoc;
+
+	TraceHit = Trace (HitLocation, HitNormal, StartLoc, EndLoc, true ,,, 
+	TRACEFLAG_Bullet | TRACEFLAG_PhysicsVolumes | 
+	TRACEFLAG_SkipMovers | TRACEFLAG_Blocking); 
+
+	//DrawDebugLine (StartLoc, EndLoc, 255, 250, 100, true); 
+
+	if (TraceHit != none && TraceHit.IsA ('VaultActor') && bVaulted == false && Physics == Phys_Walking) 
+	{ 
+		GotoState ('Vaulting'); 
+	}	
+	else
+	{	
+		//Save our speed from our jump 
+		if(bSprinting)
+			IntendedGroundSpeed = SprintSpeed; //*GetSpeedModifier();
+		else
+			IntendedGroundSpeed = RunningSpeed;  //*GetSpeedModifier();
 		
 		JumpZ = default.JumpZ * JumpHeightMultiplier;
 		return super.DoJump(bUpdating);
-	
+	}
 	return false;
 }
 
@@ -1075,7 +1930,7 @@ simulated function SetGroundSpeed(optional float Speed) {
 	if (Speed != 0)
 		IntendedGroundSpeed = Speed;
 	Speed = FMax(IntendedGroundSpeed * CurrentHopStamina, WalkingSpeed);
-	GroundSpeed = Speed * SpeedUpgradeMultiplier;
+	GroundSpeed = Speed * GetSpeedModifier(); //(SpeedUpgradeMultiplier+GetRxFamilyInfo().default.Vet_SprintSpeedMod[VRank]);
 	ServerSetGroundSpeed(Speed);
 }
 
@@ -1086,15 +1941,19 @@ reliable server function ServerSetGroundSpeed(float Speed) {
 	} else {
 		bSprintingServer = false;
 	}
-	Groundspeed = Speed * SpeedUpgradeMultiplier;
+	Groundspeed = Speed * GetSpeedModifier(); //(SpeedUpgradeMultiplier+GetRxFamilyInfo().default.Vet_SprintSpeedMod[VRank]);
 }
 
 simulated function UpdateRunSpeedNode()
 {
-	RunSpeedAnimNode.Constraints[0] = 0;
-	RunSpeedAnimNode.Constraints[1] = WalkingSpeed * SpeedUpgradeMultiplier - 5;
-	RunSpeedAnimNode.Constraints[2] = RunningSpeed * SpeedUpgradeMultiplier - 5;
-	RunSpeedAnimNode.Constraints[3] = SprintSpeed * SpeedUpgradeMultiplier - 5;
+	if(RunSpeedAnimNode != None)
+	{
+		RunSpeedAnimNode.Constraints[0] = 0;
+		RunSpeedAnimNode.Constraints[1] = WalkingSpeed * GetSpeedModifier() - 5 ;//(SpeedUpgradeMultiplier+GetRxFamilyInfo().default.Vet_SprintSpeedMod[VRank]) - 5;
+		RunSpeedAnimNode.Constraints[2] = RunningSpeed * GetSpeedModifier() - 5 ;//(SpeedUpgradeMultiplier+GetRxFamilyInfo().default.Vet_SprintSpeedMod[VRank])  - 5;
+		RunSpeedAnimNode.Constraints[3] = SprintSpeed * GetSpeedModifier() - 5 ;// (SpeedUpgradeMultiplier+GetRxFamilyInfo().default.Vet_SprintSpeedMod[VRank])  - 5;
+		//`log(RunSpeedAnimNode.Constraints[1]);
+	}
 }
 
 /**
@@ -1106,7 +1965,7 @@ function StartSprint()
 {
 	if (!bSprinting)
 	{
-		if (Stamina <=0 || (PlayerController(Controller) != None && Rx_PlayerInput(PlayerController(Controller).PlayerInput).aBaseYTemp <= 0))
+		if (Stamina <=0 || (PlayerController(Controller) != None && Rx_PlayerInput(PlayerController(Controller).PlayerInput).aBaseYTemp <= 0) || Rx_weapon(Weapon).GetHolderCanSprint() == false ) 
 		{
 			//Make entry in log and return
 			//`log("Sprinting set to false because player isn't moving forward.");
@@ -1132,7 +1991,7 @@ function StartSprint()
 		} else {
 			bWasInIronsightBeforeAction = false;	
 		}
-	
+		
 		//StopFiring();
 		//if(PlayerController(Controller) != None) {
 			SetGroundSpeed(SprintSpeed);
@@ -1140,17 +1999,22 @@ function StartSprint()
 		SetHandIKEnabled(false);
 
 		Relax(true);
+		
 		if(bSprinting == false && Rx_Controller(Controller) != None && !Rx_Controller(Controller).bBehindView && IsWeaponAllowingSprintAnim()) {
 			BeginSprintAnims();
 		}
 		bSprinting = true;
+		
+		//Tell weapons we began sprinting 
+		if(Rx_weapon(Weapon) != none) 
+			Rx_Weapon(Weapon).OnSprintStart(); 
 	}
 }
 
-function Rx_Building_Obelisk GetObelisk()
+function Rx_Building_Nod_Defense GetObelisk()
 {
 	if(!bCheckedForOb) {
-		ForEach AllActors(class'Rx_Building_Obelisk', Obelisk) {
+		ForEach AllActors(class'Rx_Building_Nod_Defense', Obelisk) {
 			break;
 		}
 		bCheckedForOb = true;
@@ -1158,10 +2022,10 @@ function Rx_Building_Obelisk GetObelisk()
 	return Obelisk;
 }
 
-function Rx_Building_AdvancedGuardTower GetAgt()
+function Rx_Building_GDI_Defense GetAgt()
 {
 	if(!bCheckedForAgt) {
-		ForEach AllActors(class'Rx_Building_AdvancedGuardTower', Agt) {
+		ForEach AllActors(class'Rx_Building_GDI_Defense', Agt) {
 			break;
 		}
 		bCheckedForAgt = true;
@@ -1195,6 +2059,8 @@ function StopSprinting()
 	{
 		SetGroundSpeed(RunningSpeed);
 		StopSprintSelf();
+		if(Rx_Controller(Controller) != None)
+			Rx_Controller(Controller).bHoldSprint = false;
 	}
 }
 
@@ -1207,6 +2073,9 @@ function StopSprintSelf()
 		Rx_Weapon(weapon).PlayArmAnimation(WeaponRestToAimedAnim, 0.0);
 	}
 	bSprinting = false;
+	
+	//Notify Weapon 
+	Rx_Weapon(weapon).OnSprintStop(); 
 	/** // Go back into ironsight after sprint
 	if(bWasInIronsightBeforeAction && Rx_Controller(Controller) != None) {
 		Rx_Weapon(Weapon).StartZoom(UTPlayercontroller(Controller));	
@@ -1224,22 +2093,37 @@ simulated function Tick(float DeltaTime)
 {	
 	local vector TempVect;
 	
-	if (LeftHandIK_SB != None && Rx_Weapon(Weapon) != None)
+	if(Rx_Controller(Controller) == none)
 	{
-		LeftHandIK_SB.BoneTranslation = Rx_Weapon(Weapon).LeftHandIK_Offset;
+		TickParachute(DeltaTime);
+		super.Tick(DeltaTime); 
+		
+		if (Stamina < MaxStamina && !bExhausted) //Tick Stamina appropriately
+		{
+			Stamina += (StaminaRegenRate * DeltaTime);
+			if (Stamina > MaxStamina) 
+				{
+					Stamina = MaxStamina;
+				}
+		}
+		
+		return; //Ignore all of this if we're not the pawn we need to be concerned with. 
 	}
-	if (RightHandIK_SB != None && Rx_Weapon(Weapon) != None)
+	
+	if((WorldInfo.NetMode != NM_DedicatedServer && (bTickHandIK || Rx_Controller(Controller) != none )) || WorldInfo.IsPlayingDemo()) 
 	{
-		RightHandIK_SB.BoneTranslation = Rx_Weapon(Weapon).RightHandIK_Offset;
+		TickHandIK(DeltaTime); //Calculate all of the hand IK repositioning crap.
+		bTickHandIK = false; //Reset, as we don't need to do this constantly
 	}
-
+		
+	
 	if (bSprinting && Worldinfo.Netmode != NM_DedicatedServer && DrivenVehicle == None)
 	{
 		if(PlayerController(Controller) != None) 
 		{
-			Weapon.StopFire(0);
+			/**Weapon.StopFire(0);
 			Weapon.StopFire(1);
-			Weapon.StopFire(2);
+			Weapon.StopFire(2);*/
 			
 			if (Rx_PlayerInput(PlayerController(Controller).PlayerInput).aBaseYTemp <= 0)
 				StopSprinting();
@@ -1263,7 +2147,7 @@ simulated function Tick(float DeltaTime)
 			SetGroundSpeed();
 	}
 */
-	TickParachute(DeltaTime);
+	
 	
 	if(WorldInfo.IsPlayingDemo())
 	{
@@ -1274,7 +2158,153 @@ simulated function Tick(float DeltaTime)
 			setlocation(TempVect);
 
 	}
+	TickParachute(DeltaTime);
 	super.Tick(DeltaTime);
+}
+
+simulated function TickHandIK(float DeltaTime)
+{
+	local vector LeftHandVec;
+	local rotator TempRot, NoRot;
+	local Rx_WeaponAttachment CurrentRxAttachment;
+	local Rx_Weapon PawnWeapon;
+	
+	NoRot.Pitch = 0;
+	NoRot.Yaw = 0;
+	NoRot.Roll = 0;
+	
+	if (Rx_Weapon(Weapon) != None) 
+		PawnWeapon = Rx_Weapon(Weapon); 
+	if(CurrentWeaponAttachment != none) 
+			CurrentRxAttachment = Rx_WeaponAttachment(CurrentWeaponAttachment); 
+		
+	if(PawnWeapon == none || CurrentRxAttachment == none)
+	{
+		SetHandIKEnabled(false);
+			ResetHandIKVectorRotator();
+			return;
+	}
+	
+	if(PawnWeapon.bByPassHandIK == false)
+	{		
+		if (TopHalfAnimSlot.bIsPlayingCustomAnim == false)
+		{
+				
+			if (LeftHandIK_SB != None)
+			{
+				CurrentRxAttachment.Mesh.GetSocketWorldLocationAndRotation((CurrentRxAttachment.LeftHandIKSocket),LeftHandVec, TempRot, 1);
+		
+				if (CurrentRxAttachment.Mesh.GetSocketByName(CurrentRxAttachment.LeftHandIKSocket) != None)
+				{
+					LeftHandIK_SB.bAddTranslation = false;
+					SetHandIKEnabled(true);
+			
+					if (!IsRelaxed)
+						LeftHandIK_SB.BoneTranslation = LeftHandVec + PawnWeapon.LeftHandIK_Offset;
+					else
+					{
+						if (PawnWeapon.bUseHandIKWhenRelax)
+						{
+							LeftHandIK_SB.bAddTranslation = false;
+							SetHandIKEnabled(true);
+							LeftHandIK_SB.BoneTranslation = LeftHandVec + PawnWeapon.LeftHandIK_Relaxed_Offset;
+						}
+						else
+						{
+							LeftHandIK_SB.bAddTranslation = True;
+							SetHandIKEnabled(false);
+							LeftHandIK_SB.BoneTranslation = PawnWeapon.LeftHandIK_Relaxed_Offset;
+						}
+					}
+				}
+				else
+				{
+					LeftHandIK_SB.bAddTranslation = True;
+					SetHandIKEnabled(false);
+			
+					if (!IsRelaxed)
+						LeftHandIK_SB.BoneTranslation = PawnWeapon.LeftHandIK_Offset;
+					else
+						LeftHandIK_SB.BoneTranslation = PawnWeapon.LeftHandIK_Relaxed_Offset;
+				}
+			}
+			if (LeftHandIK_SBR != None)
+			{
+				if (!IsRelaxed)
+					LeftHandIK_SBR.BoneRotation = PawnWeapon.LeftHandIK_Rotation;
+				else
+					LeftHandIK_SBR.BoneRotation = PawnWeapon.LeftHandIK_Relaxed_Rotation;
+			}
+			if (RightHandIK_SB != None)
+			{
+				if (!IsRelaxed)
+					RightHandIK_SB.BoneTranslation = PawnWeapon.RightHandIK_Offset;
+				else
+					RightHandIK_SB.BoneTranslation = PawnWeapon.RightHandIK_Relaxed_Offset;
+			}
+			if (RightHandIK_SBR != None)
+			{
+				if (IsRelaxed)
+					RightHandIK_SBR.BoneRotation = PawnWeapon.RightHandIK_Relaxed_Rotation;
+				else
+				{
+					RightHandIK_SBR.BoneRotation = NoRot;
+				}
+			}
+
+			if (LeftHandOverride != None)
+			{
+				if (PawnWeapon.bOverrideLeftHandAnim)
+				{
+					LeftHandOverride.SetBlendTarget(1.0, 0.25);
+					LeftHandAnimName.SetAnim(PawnWeapon.LeftHandAnim);
+				}
+				else
+				{
+					LeftHandOverride.SetBlendTarget(0.0, 0.25);
+					LeftHandAnimName.SetAnim(PawnWeapon.LeftHandAnim);
+				}
+			}
+		}
+		else
+		{
+			SetHandIKEnabled(false);
+			ResetHandIKVectorRotator();
+		}
+		
+		if (bVaulted || (Rx_Weapon_Reloadable(Weapon) != none && Rx_Weapon_Reloadable(Weapon).CurrentlyReloading))
+		{
+			SetHandIKEnabled(false);
+			ResetHandIKVectorRotator();
+		}
+	}
+	else
+	{
+		SetHandIKEnabled(false);
+		ResetHandIKVectorRotator();
+	}
+}
+
+simulated function ResetHandIKVectorRotator()
+{
+	local vector NoVec;
+	local rotator NoRot;
+	
+	NoVec.X = 0;
+	NoVec.Y = 0;
+	NoVec.Z = 0;
+	NoRot.Pitch = 0;
+	NoRot.Yaw = 0;
+	NoRot.Roll = 0;
+	
+	// SetHandIKEnabled(false);
+	// Relax(true);
+	LeftHandIK_SB.bAddTranslation = true;
+	LeftHandIK_SB.BoneTranslation = NoVec;
+	LeftHandIK_SBR.BoneRotation = NoRot;
+	RightHandIK_SB.bAddTranslation = true;
+	RightHandIK_SB.BoneTranslation = NoVec;
+	RightHandIK_SBR.BoneRotation = NoRot;	
 }
 
 client reliable function ClientSetStamina(float value)
@@ -1332,7 +2362,7 @@ simulated function CatchBreath()
 /** Walking System */
 function StartWalking()
 {
-	if(Rx_Weapon(Weapon).bIronsightActivated)
+	if(Rx_Weapon(Weapon).bIronsightActivated )
 		return;	
 	ConsoleCommand("Walking");
 	SetGroundSpeed(WalkingSpeed);
@@ -1340,9 +2370,14 @@ function StartWalking()
 
 function StopWalking()
 {
-	if(Rx_Weapon(Weapon).bIronsightActivated)
+	if(Rx_Weapon(Weapon).bIronsightActivated || Rx_Weapon(Weapon).GetZoomedState() != ZST_NotZoomed )
 		return;
 	SetGroundSpeed(RunningSpeed);
+}
+
+reliable server function ServerStopWalking()
+{
+	StopWalking();
 }
 
 
@@ -1350,6 +2385,34 @@ function StopWalking()
 // animation related
 //-----------------------------------------------------------------------------
 
+simulated function SetOverlay(class<Rx_StatModifierInfo> StatClass, bool bAffectWeapons)//SetOverlay(LinearColor MatColour, float MatOpacity, float MatInflation, bool bAffectWeapons)
+{
+	//Incase we're hanging onto anything
+	ClearOverlay();  
+	
+	SetOverlayMaterial(StatClass.default.PawnMIC); 
+	
+	if(bAffectWeapons) 
+	{
+		CurrentStoredWeaponOverlayByte = StatClass.default.EffectPriority;
+	
+		if(Rx_GRI(WorldInfo.GRI).WeaponOverlays.Length == 0 && WorldInfo.NetMode != NM_DedicatedServer) Rx_GRI(WorldInfo.GRI).SetupWeaponOverlays(); //Tell GRI to setup weapon overlays if it hasn't already 
+		
+		SetWeaponOverlayFlag(StatClass.default.EffectPriority);
+	}
+	
+}
+
+simulated function ClearOverlay()
+{
+	SetOverlayMaterial(none);
+	
+	if(CurrentStoredWeaponOverlayByte != 255) 
+	{
+		ClearWeaponOverlayFlag(CurrentStoredWeaponOverlayByte);
+		CurrentStoredWeaponOverlayByte = 255; 
+	}
+}
 
 simulated event PostInitAnimTree(SkeletalMeshComponent SkelComp)
 {
@@ -1381,11 +2444,15 @@ simulated event PostInitAnimTree(SkeletalMeshComponent SkelComp)
 		FullBodyAnimSlot = AnimNodeSlot(Mesh.FindAnimNode('FullBodySlot'));
 		TopHalfAnimSlot = AnimNodeSlot(Mesh.FindAnimNode('TopHalfSlot'));
 
-		LeftHandIK = SkelControlLimb( mesh.FindSkelControl('LeftHandIK') );
-		LeftHandIK_SB = SkelControlSingleBone( mesh.FindSkelControl('LeftHandIK_Offset') );
-
+		LeftHandAnimName = AnimNodeSequence( mesh.FindAnimNode('LeftHandAnimSeq') );
+		LeftHandOverride = AnimNodeBlendPerBone(SkelComp.FindAnimNode('LeftHandOverride'));
+		LeftHandIK = SkelControlLimb( mesh.FindSkelControl('LeftHandIK') );		
 		RightHandIK = SkelControlLimb( mesh.FindSkelControl('RightHandIK') );
+		
+		LeftHandIK_SB = SkelControlSingleBone( mesh.FindSkelControl('LeftHandIK_Offset') );
+		LeftHandIK_SBR = SkelControlSingleBone( mesh.FindSkelControl('LeftHandIK_Rotation') );
 		RightHandIK_SB = SkelControlSingleBone( mesh.FindSkelControl('RightHandIK_Offset') );
+		RightHandIK_SBR = SkelControlSingleBone( mesh.FindSkelControl('RightHandIK_Rotation') );
 
 		RootRotControl = SkelControlSingleBone( mesh.FindSkelControl('RootRot') );
 		AimNode = AnimNodeAimOffset( mesh.FindAnimNode('AimNode') );
@@ -1493,37 +2560,43 @@ simulated function ResetRelaxStance(optional bool RestartTimer)
 /*Need to clean weapons up pretty bad*/
 simulated function StartFire(byte FireModeNum)
 {
-	if((Rx_Weapon(Weapon).bIronSightCapable
-		|| Rx_Weapon_SniperRifle(Weapon) != None 
+	local Rx_Weapon OurWeapon; 
+	
+	if(bThrowingGrenade) return; 
+	
+	if(Rx_Weapon(Weapon) != none)
+		OurWeapon = Rx_Weapon(Weapon); 
+	
+	if((OurWeapon.bIronSightCapable
+		|| Rx_Weapon_Scoped(Weapon) != None 
 		|| Rx_Weapon_PersonalIonCannon(weapon) != None 
-		|| Rx_Weapon_RamjetRifle(weapon) != None
 		|| Rx_Weapon_Airstrike(weapon) != None
 		|| Rx_Weapon_Railgun(weapon) != None) 
 		&& FireModeNum == 1) 
 	{
 		
 		if(Rx_Weapon_Reloadable(Weapon) != None && Rx_Weapon_Reloadable(Weapon).CurrentlyReloading)
-			return;
-		 
+			return;		 
 			
 		if(bSprinting)
-			return;	
-		if(!Rx_Weapon(Weapon).bDisplayCrosshair 
-			&& (!Rx_Weapon(Weapon).bIronSightCapable || Rx_PlayerInput(PlayerController(Controller).PlayerInput).bClickToGoOutOfADS))
+			StopSprinting();
+
+		if(!OurWeapon.bDisplayCrosshair 
+			&& (!OurWeapon.bIronSightCapable || Rx_PlayerInput(PlayerController(Controller).PlayerInput).bClickToGoOutOfADS))
 		{
-			Rx_Weapon(Weapon).EndZoom(UTPlayerController(Instigator.Controller));
+			OurWeapon.EndZoom(UTPlayerController(Instigator.Controller));
 		}			
-		else if((Rx_Weapon(Weapon).bDisplayCrosshair || (Rx_Weapon(Weapon).bIronSightCapable && !Rx_Weapon(Weapon).bIronsightActivated))
+		else if((OurWeapon.bDisplayCrosshair || (OurWeapon.bIronSightCapable && !OurWeapon.bIronsightActivated))
 				&& !Rx_Controller(Controller).bZoomed && Rx_Controller(Controller).DesiredFOV == Rx_Controller(Controller).GetFovAngle())
 		{
-			Rx_Weapon(Weapon).StartZoom(UTPlayerController(Instigator.Controller));	
+			OurWeapon.StartZoom(UTPlayerController(Instigator.Controller));	
 			bStartFirePressedButNoStopFireYet = true;
 		}
 		return;
 	} 	
-	if (Rx_Weapon_LaserRifle(Weapon) != none )
+	if (OurWeapon != none && OurWeapon.GetIsBurstFire())
 	{
-		Rx_Weapon_LaserRifle(Weapon).FireButtonPressed(FireModeNum);
+		OurWeapon.FireButtonPressed(FireModeNum);
 	}
 
 	if(bSprinting && Rx_Weapon(Weapon) != None)
@@ -1531,9 +2604,7 @@ simulated function StartFire(byte FireModeNum)
 		StopSprinting();
 	}
 	else if (bSprinting) return;
-
-
-
+	
 	if (!bDodging)
 	{
 		ResetRelaxStance();
@@ -1543,33 +2614,34 @@ simulated function StartFire(byte FireModeNum)
 
 simulated function StopFire(byte FireModeNum)
 {
+	local Rx_Weapon OurWeapon; 
+	
+	if(Rx_Weapon(Weapon) != none)
+		OurWeapon = Rx_Weapon(Weapon); 
+	
 	if(FireModeNum == 1)
 		bStartFirePressedButNoStopFireYet = false;
 		
-	if (Rx_Weapon_LaserRifle(Weapon) != none )
+	if(Weapon != none)
 	{
-		Rx_Weapon_LaserRifle(Weapon).FireButtonReleased(FireModeNum);
-	}
-	
-	if(!Rx_PlayerInput(PlayerController(Controller).PlayerInput).bClickToGoOutOfADS 
-			&& (Rx_Weapon(Weapon).bIronSightCapable && FireModeNum == 1)) 
-	{	
-		if((!Rx_Weapon(Weapon).bDisplayCrosshair || (Rx_Weapon(Weapon).bIronSightCapable && Rx_Weapon(Weapon).bIronsightActivated))
-				&& Rx_Controller(Controller).bZoomed && Rx_Controller(Controller).DesiredFOV == Rx_Controller(Controller).GetFovAngle()) 
+		if (OurWeapon != none && OurWeapon.GetIsBurstFire())
 		{
-			Rx_Weapon(Weapon).EndZoom(UTPlayerController(Instigator.Controller));
-			/**
-			if(Rx_Weapon_SniperRifle(Weapon).CurrentlyBoltReloading)
-			{
-				//Rx_Pawn(Owner).SetHandIKEnabled(true);
-				Rx_Weapon_SniperRifle(Weapon).PlayWeaponBoltReloadAnim();
-			}
-			*/
-			return;
+			OurWeapon.FireButtonReleased(FireModeNum);
 		}
-	}	
+	
+		if(!Rx_PlayerInput(PlayerController(Controller).PlayerInput).bClickToGoOutOfADS 
+				&& (OurWeapon.bIronSightCapable && FireModeNum == 1)) 
+		{	
+			if((!Rx_Weapon(Weapon).bDisplayCrosshair || (OurWeapon.bIronSightCapable && OurWeapon.bIronsightActivated))
+					&& Rx_Controller(Controller).bZoomed && Rx_Controller(Controller).DesiredFOV == Rx_Controller(Controller).GetFovAngle()) 
+			{
+				OurWeapon.EndZoom(UTPlayerController(Instigator.Controller));
+				return;
+			}
+		}	
 
-	SetTimer( RelaxTime, false, 'RelaxTimer' );
+		SetTimer( RelaxTime, false, 'RelaxTimer' );
+	}
 	Super.StopFire(FireModeNum);
 }
 
@@ -1615,7 +2687,24 @@ simulated function Relax( bool SetRelaxed )
 		}
 		AimNode = RelaxedAimNode;
 		IsRelaxed = true;
-		SetHandIKEnabled(false);
+		
+		if(LeftHandIK_SBR != none)
+			LeftHandIK_SBR.ControlStrength = 1.0;
+
+		if(RightHandIK_SBR != none)
+			RightHandIK_SBR.ControlStrength = 1.0;
+		
+		if (Weapon != none && Rx_Weapon(Weapon).bByPassHandIK == false)
+		{
+			if (Rx_Weapon(Weapon).bUseHandIKWhenRelax)
+				SetHandIKEnabled(true);
+			else
+				SetHandIKEnabled(false);
+		}
+		else
+		{
+			SetHandIKEnabled(false);
+		}
 	} 
 	else if( !SetRelaxed && IsRelaxed )
 	{
@@ -1625,7 +2714,16 @@ simulated function Relax( bool SetRelaxed )
 		}
 		AimNode = WeaponAimNode;
 		IsRelaxed = false;
-		SetHandIKEnabled(true);
+		if(LeftHandIK_SBR != none)
+			LeftHandIK_SBR.ControlStrength = 1.0;
+
+		if(RightHandIK_SBR != none)
+			RightHandIK_SBR.ControlStrength = 0.0;
+		
+		if (Weapon != none && Rx_Weapon(Weapon).bByPassHandIK == false)
+			SetHandIKEnabled(true);
+		else
+			SetHandIKEnabled(false);
 	}
 }
 
@@ -1682,41 +2780,58 @@ simulated event Vector GetWeaponStartTraceLocation(optional Weapon CurrentWeapon
  * @param	HeadDamage - amount of damage the weapon causes if this is a headshot
  * @param	AdditionalScale - head sphere scaling for head hit determination
  * @return		true if pawn handled this as a headshot, in which case the weapon doesn't need to cause damage to the pawn.
+ * @Param		ProjectileWeapon - If a projectile is calling takeheadshot, then you need a reference to the weapon that fired it(otherwise it references whatever weapon the Instigator is carrying when this is called)
 */
-simulated function bool TakeHeadShot(const out ImpactInfo Impact, class<DamageType> HeadShotDamageType, int HeadDamage, float AdditionalScale, controller InstigatingController, bool bRocketDamage)
+simulated function bool TakeHeadShot(const out ImpactInfo Impact, class<DamageType> HeadShotDamageType, int HeadDamage, float AdditionalScale, controller InstigatingController, bool bRocketDamage, optional Weapon ProjectileWeapon) 
 {
+	local Weapon WeaponToCall; //Weapon to call back to for dealing damage
 	
 	//`log("Took Headshot" @ HeadshotDamageType @ HeadDamage @ AdditionalScale @ InstigatingController @ bRocketDamage); 
 	if(Role < ROLE_Authority && InstigatingController != None && !InstigatingController.IsLocalPlayerController()) {
 		//`log("rETURN fase in take headshot");
 		return false;
 	}
+	
+	
+	
+	
 	if(InstigatingController != None && IsLocationOnHead(Impact, AdditionalScale) && (InstigatingController.IsA('PlayerController') || UTBot(InstigatingController) != None) )
 	{
-		bHeadshot = true;
+		bHeadshot = true; //Confirmed as a head shot 
+		
+		//This was a projectile, so seek which weapon it truly belonged to
+		if(ProjectileWeapon != none) 
+			WeaponToCall = ProjectileWeapon;
+		else
+			WeaponToCall = InstigatingController.Pawn.Weapon;
 		
 		//`log("Took Headshot" @ HeadshotDamageType); 
-		
-		if(WorldInfo.NetMode != NM_DedicatedServer && Rx_Pawn(InstigatingController.Pawn) != None && InstigatingController.Pawn.IsLocallyControlled()) {
-			
-			if(Health > 0 && self.GetTeamNum() != InstigatingController.GetTeamNum() && UTPlayerController(InstigatingController) != None) {
-				Rx_Hud(UTPlayerController(InstigatingController).myHud).ShowHitMarker();
+		if (WorldInfo.NetMode != NM_DedicatedServer && Rx_Pawn(InstigatingController.Pawn) != None && InstigatingController.Pawn.IsLocallyControlled())
+		{	
+			if(Health > 0 && self.GetTeamNum() != InstigatingController.GetTeamNum() && UTPlayerController(InstigatingController) != None)
+			{
+				Rx_Hud(UTPlayerController(InstigatingController).myHud).ShowHitMarker(true);
+				Rx_Controller(InstigatingController).AddHSHit()  ; 	
 			}	
-			//`log("Took Headshot(Local Pawn)" @ HeadshotDamageType); 
-			Rx_Weapon(InstigatingController.Pawn.Weapon).ServerALHeadshotHit(self,Impact.HitLocation,Impact.HitInfo);
-		} else if(WorldInfo.NetMode != NM_DedicatedServer && Rx_Vehicle(InstigatingController.Pawn) != None && InstigatingController.Pawn.IsLocallyControlled()) {
-			if(Health > 0 && self.GetTeamNum() != InstigatingController.GetTeamNum() && UTPlayerController(InstigatingController) != None) {
-				Rx_Hud(UTPlayerController(InstigatingController).myHud).ShowHitMarker();
-			}			
-			//`log("Took Headshot(Local V)" @ HeadshotDamageType); 
-			Rx_Vehicle_Weapon(InstigatingController.Pawn.Weapon).ServerALHeadshotHit(self,Impact.HitLocation,Impact.HitInfo);
-		} else if(WorldInfo.NetMode == NM_DedicatedServer && (AIController(InstigatingController) != None || bRocketDamage)) {
-			//`log("Took Headshot(Local Rocket)" @ HeadshotDamageType);
-			TakeDamage(HeadDamage, InstigatingController, Impact.HitLocation, Impact.RayDir, HeadShotDamageType, Impact.HitInfo);
+			
+			Rx_Weapon(WeaponToCall).ServerALHeadshotHit(self,Impact.HitLocation,Impact.HitInfo);
 		}
-		//`log("Was a headshot"); 
+		else if (WorldInfo.NetMode != NM_DedicatedServer && (Rx_Vehicle(InstigatingController.Pawn) != None || Rx_VehicleSeatPawn(InstigatingController.Pawn) != None) && InstigatingController.Pawn.IsLocallyControlled())
+		{
+			if(Health > 0 && self.GetTeamNum() != InstigatingController.GetTeamNum() && UTPlayerController(InstigatingController) != None)
+				{
+					Rx_Hud(UTPlayerController(InstigatingController).myHud).ShowHitMarker(true);
+					Rx_Controller(InstigatingController).AddHSHit()  ; 	
+				}
+			//`log("Weapon was " @ Rx_Vehicle_Weapon(InstigatingController.Pawn.Weapon) @ InstigatingController.Pawn.Weapon);
+			Rx_Vehicle_Weapon(WeaponToCall).ServerALHeadshotHit(self,Impact.HitLocation,Impact.HitInfo);
+		}
+		else if (WorldInfo.NetMode == NM_DedicatedServer && (AIController(InstigatingController) != None || bRocketDamage))
+			TakeDamage(HeadDamage, InstigatingController, Impact.HitLocation, Impact.RayDir, HeadShotDamageType, Impact.HitInfo);
+		
 		return true;
 	}
+	
 	return false;
 }
 
@@ -1757,16 +2872,32 @@ reliable server function ServerFeignDeath()
 
 simulated function SwitchWeapon(byte NewGroup)
 {
-    if( bThrowingGrenade && Rx_InventoryManager(InvManager) != None )
+	//if(NewGroup > 9 && !bThrowingGrenade) return; 
+	
+    if( NewGroup > 9 && Rx_InventoryManager(InvManager) != None ) // Over 9 means we're casting an ability
     {
 		Rx_InventoryManager(InvManager).PreviousInventoryGroup = Rx_Weapon(Weapon).InventoryGroup;
-		Super.SwitchWeapon(4);
+		Super.SwitchWeapon(NewGroup);
     }
 	else
-	{
+	{ 
 		Super.SwitchWeapon(NewGroup);
 	}
 }
+
+simulated function ThrowGrenade()
+{
+	if(!bThrowingGrenade) return; 
+	else
+	if(Rx_Weapon_RechargeableGrenade(Weapon) != none ) Weapon.StartFire(0); 
+}
+
+simulated function FinishGrenadeThrow()
+{
+	
+	Rx_InventoryManager(InvManager).SwitchToPreviousWeapon() ;	
+}
+
 
 function SetMoveDirection(EMoveDir dir) 
 {
@@ -1801,7 +2932,8 @@ function DoDodge(eDoubleClickDir DoubleClickMove)
 	local vector X,Y,Z;
 	
 	WasInFirstPersonBeforeDodge = false;
-	if(Rx_Controller(Controller) != None && !Rx_Controller(Controller).bBehindView && WorldInfo.NetMode != NM_DedicatedServer) {
+	if(Rx_Controller(Controller) != None && !Rx_Controller(Controller).bBehindView && WorldInfo.NetMode != NM_DedicatedServer) 
+	{
 		Rx_Controller(Controller).SetBehindView(true);
 		WasInFirstPersonBeforeDodge = true;
 	}
@@ -1839,10 +2971,11 @@ function DoDodge(eDoubleClickDir DoubleClickMove)
 			break;
 	}
 
-	Velocity = DodgeVelocity;
-	LastVelZInDodge = 0.f;
+	Velocity.X = DodgeVelocity.X;
+	Velocity.Y = DodgeVelocity.Y;
+//	LastVelZInDodge = 0.f;
 
-	SetPhysics(Phys_Flying); // gives the right physics
+//	SetPhysics(Phys_Flying); // gives the right physics
 	bDodgeCapable = false; // prevent dodging mid dodge
 	if(PlayerController(Controller) != None) {
 		PlayerController(Controller).IgnoreMoveInput(true); //prevent the player from controlling pawn direction
@@ -1930,8 +3063,8 @@ function UnDodge()
 	if(Controller != None && PlayerController(Controller) != None) {
 		PlayerController(Controller).IgnoreMoveInput(false);
 	}
-	GroundSpeed = default.GroundSpeed*SpeedUpgradeMultiplier;
-	AirSpeed = default.AirSpeed*SpeedUpgradeMultiplier;
+	GroundSpeed = default.GroundSpeed * GetSpeedModifier() ;//(SpeedUpgradeMultiplier+GetRxFamilyInfo().default.Vet_SprintSpeedMod[VRank]) ;
+	AirSpeed = default.AirSpeed*GetSpeedModifier();//SpeedUpgradeMultiplier * (SpeedUpgradeMultiplier+GetRxFamilyInfo().default.Vet_SprintSpeedMod[VRank]) ;
 	DodgeAnim = '';
 	if(WasInFirstPersonBeforeDodge) {
 		if(Controller != None && PlayerController(Controller) != None && WorldInfo.NetMode != NM_DedicatedServer) {
@@ -1994,6 +3127,23 @@ final simulated function SetOfflineChar(byte CharNum)
 	
 }
 
+simulated function resetZoom()
+{
+	if(Rx_Weapon(Weapon) == None || Rx_Controller(Controller) == None)
+		return;
+	if(Rx_Weapon(Weapon).bIronsightActivated || (!Rx_Weapon(Weapon).bIronSightCapable && Controller != None && Rx_Controller(Controller).bZoomed))
+	{		
+		if(Rx_Weapon(Weapon).bIronSightCapable && bWasInThirdPersonBeforeIronsight)
+		{
+			Rx_Weapon(Weapon).bIronsightActivated = false;
+			if(Controller != None && Rx_Controller(Controller).bZoomed) {
+				Rx_Controller(Controller).SetOurCameraMode(ThirdPerson);
+			}
+		}
+		Rx_Weapon(Weapon).EndZoom(UTPlayercontroller(Controller));
+	}
+}
+
 /** one1: Modified; custom inventory manager spawning */
 simulated function SetCharacterClassFromInfo(class<UTFamilyInfo> Info) {
 
@@ -2003,7 +3153,9 @@ simulated function SetCharacterClassFromInfo(class<UTFamilyInfo> Info) {
 	local class<Rx_Weapon> weapClass;
 
 	prev = CurrCharClassInfo;
-	
+
+	resetZoom();
+
 	super.SetCharacterClassFromInfo(Info);
 	
 	if(Mesh.SkeletalMesh != None) {
@@ -2015,6 +3167,10 @@ simulated function SetCharacterClassFromInfo(class<UTFamilyInfo> Info) {
 	/** one1: Set inventory manager according to family info class. */
 	if (Role == ROLE_Authority)
 	{
+		//Reseed Taunts 
+		ReseedVoiceOvers(); 
+		
+		
 		if (prev == Info)
 			return; // no changes, skip
 
@@ -2032,27 +3188,57 @@ simulated function SetCharacterClassFromInfo(class<UTFamilyInfo> Info) {
 		{
 			Rx_InventoryManager(InvManager).AddWeaponOfClass(weapClass, CLASS_ITEM);
 		}
+		
 	}		
 }
 
 simulated event StartDriving(Vehicle V)
 {
-	local Rx_Vehicle_StealthTank ST;
+	local Actor StealthedActor;
 	local Controller cntrl;
 	
+	resetZoom();
+
+	if(lastRxPawnOutCamLoc != vect(0,0,0))
+	{
+	    if(Rx_Vehicle(V) != None)
+	    {    
+	        Rx_Vehicle(V).VehiclePawnTransitionStartLoc = lastRxPawnOutCamLoc;
+			Rx_Vehicle(V).BlendPct = 0.0f;
+	    }
+	    else if(Rx_VehicleSeatPawn(V) != None)
+	    {
+	        Rx_Vehicle(Rx_VehicleSeatPawn(V).MyVehicle).VehiclePawnTransitionStartLoc = lastRxPawnOutCamLoc;
+			Rx_Vehicle(Rx_VehicleSeatPawn(V).MyVehicle).BlendPct = 0.0f;
+	    }	
+
+	    lastRxPawnOutCamLoc = vect(0,0,0);
+	}
+	
 	super.StartDriving(V);
+	
+	if(Rx_Weapon_Charged(Weapon) != none) 
+		Rx_Weapon_Charged(Weapon).StopFire(0); 
+	
+	ClearTimer('UpdatePRILocation'); 
+	
 	if(Controller != None)
 	{
 		cntrl = Controller;
+		
+		if(Rx_Controller(Controller) != none && Rx_Controller(Controller).Vet_Menu != none ) 
+		{
+			Rx_Controller(Controller).DestroyOldVetMenu(); //Kill Vet menu on start driving
+		}
 	} 
 	else 
 	{
 		cntrl = V.Controller;
 	}
 	if(cntrl != None && WorldInfo.NetMode != NM_DedicatedServer && cntrl.IsLocalPlayerController()) {
-		foreach DynamicActors(class'Rx_Vehicle_StealthTank', ST) {
-			if(cntrl.GetTeamNum() != ST.GetTeamNum()) {
-				ST.ChangeStealthVisibilityParam(false);    
+		foreach DynamicActors(class'Actor', StealthedActor, class'RxIfc_Stealth') {
+			if(cntrl.GetTeamNum() != StealthedActor.GetTeamNum()) {
+				RxIfc_Stealth(StealthedActor).ChangeStealthVisibilityParam(false);    
 			}
 		} 
 	}	
@@ -2060,10 +3246,32 @@ simulated event StartDriving(Vehicle V)
 
 simulated event StopDriving(Vehicle V)
 {
-    local Rx_Vehicle_StealthTank ST;
+    local Actor StealthedActor;
     local Controller cntrl;
     
+
+	if(DamageRate > 0)
+		DelayRegen();				//HANDEPSILON - Immediately try to fade out the remaining vignette
+	
+	OldPositions.Length = 0;
+    if(Rx_Vehicle(V) != None)
+    {    
+    	VehiclePawnTransitionStartLoc = Rx_Vehicle(V).CalcViewLocation;
+    }
+    else if(Rx_VehicleSeatPawn(V) != None)
+    {
+    	VehiclePawnTransitionStartLoc = Rx_Vehicle(Rx_VehicleSeatPawn(V).MyVehicle).CalcViewLocation;
+    }
+
+	BlendPct = 0.0f;
+
+	if(V.health == 0)
+		BlendSpeed = 0.6f;
+	else
+		BlendSpeed = 0.4f;	
+
 	super.StopDriving(V);
+
 	if(Rx_Weapon_RepairGun(Weapon) != None) 
 	{
 		if(Rx_Weapon_RepairGun(Weapon).BeamEmitter[0] != None) 
@@ -2078,22 +3286,50 @@ simulated event StopDriving(Vehicle V)
 		}
 	}
 	super.StopDriving(V);
+
 	if(Controller != None)
 	{
 		cntrl = Controller;
+		
+		if(Rx_Controller(Controller) != none && Rx_Controller(Controller).Vet_Menu != none ) 
+		{
+			Rx_Controller(Controller).DestroyOldVetMenu(); //Kill Vet menu on stop driving 
+		}
 	} 
 	else
 	{
 		cntrl = V.Controller;
 	}	
     if(cntrl != None && WorldInfo.NetMode != NM_DedicatedServer && cntrl.IsLocalPlayerController()) {
-	    foreach DynamicActors(class'Rx_Vehicle_StealthTank', ST) {
-	        if(cntrl.GetTeamNum() != ST.GetTeamNum()) {
-	            ST.ChangeStealthVisibilityParam(true);    
-	        }
-	    }
+	    foreach DynamicActors(class'Actor', StealthedActor, class'RxIfc_Stealth') {
+			if(cntrl.GetTeamNum() != StealthedActor.GetTeamNum()) {
+				RxIfc_Stealth(StealthedActor).ChangeStealthVisibilityParam(true);    
+			}
+		} 
     }	
     
+	//`log("Log stopped driving"); 
+	if(ROLE == ROLE_Authority && Rx_Controller(Controller) != none) 
+	{
+		if(Rx_Weapon(Weapon) != none) 
+			Rx_Weapon(Weapon).bIronsightActivated=false; //Get rid of of ironsights when they leave.
+		
+		SetRadarVisibility(Rx_Controller(Controller).GetRadarVisibility()); 
+		CheckVRank(); 
+		Rx_Controller(Controller).UpdateModifiedStats();
+		Rx_PRI(Controller.PlayerReplicationInfo).RemoveVehicleClass(); 
+		SetTimer(0.05, true, 'UpdatePRILocation'); 
+	}
+	else
+	if(ROLE == ROLE_Authority && Rx_Bot(Controller) != none) 
+	{
+		SetRadarVisibility(Rx_Bot(Controller).GetRadarVisibility());
+		CheckVRank(); 
+		Rx_Bot(Controller).UpdateModifiedStats();
+		Rx_PRI(Controller.PlayerReplicationInfo).RemoveVehicleClass(); 
+		SetTimer(0.1, true, 'UpdatePRILocation'); 
+	}
+	
     if(Rx_Bot(Controller) != None && Physics == PHYS_Falling)
     	SetTimer(FRand()+0.5f,false,'TryParachute');	
 }
@@ -2651,6 +3887,44 @@ exec function CamPrint() {
 	`log("Current Pitch: "$CurrentCamPitch);
 }*/
 
+simulated function bool CalcCamera( float fDeltaTime, out vector out_CamLoc, out rotator out_CamRot, out float out_FOV )
+{
+	super.CalcCamera(fDeltaTime, out_CamLoc, out_CamRot, out_FOV);
+
+	if(!bFixedView && IsFirstPerson())
+	{
+		if(VehiclePawnTransitionStartLoc != vect(0,0,0) && BlendPct < 1.0f)
+		{
+			if(WorldInfo.NetMode != NM_DedicatedServer) 
+			{
+				SetHidden(true);
+			    if (Weapon != None)
+			    {
+			        Weapon.SetHidden(true);
+			    }
+			}
+			if(fDeltaTime != 1.0f)
+			{
+				BlendPct += fDeltaTime/BlendSpeed;
+				out_CamLoc = VLerp(VehiclePawnTransitionStartLoc,  out_CamLoc, BlendPct);
+			}	
+		} else 
+		{
+			if(VehiclePawnTransitionStartLoc != vect(0,0,0) && WorldInfo.NetMode != NM_DedicatedServer) 
+			{
+				SetHidden(false);
+			    if (Weapon != None && (Rx_Weapon(Weapon).GetZoomedState() == ZST_NotZoomed || Rx_Weapon(Weapon).bIronsightActivated))
+			    {
+			        Weapon.SetHidden(false);
+			    }				
+			}
+			VehiclePawnTransitionStartLoc = vect(0,0,0);
+		}
+		lastRxPawnOutCamLoc = out_CamLoc;		
+	}
+	return true;
+}	
+
 simulated function bool CalcThirdPersonCam( float fDeltaTime, out vector out_CamLoc, out rotator out_CamRot, out float out_FOV )
 {
 	local vector DesiredCamStart, CamStart, CamEnd, HitLocation, HitNormal, CamDirX, CamDirY, CamDirZ, CurrentCamOffset, AngleOffset;
@@ -2745,20 +4019,47 @@ simulated function bool CalcThirdPersonCam( float fDeltaTime, out vector out_Cam
 	{
 		CurrentCamOffset.X += CurrentParachuteCamDistMod;
 	}
-
+	
 	out_CamLoc = CamStart - CamDirX* CurrentCamOffset.X+ CurrentCamOffset.Y*CamDirY + CurrentCamOffset.Z*CamDirZ;
+
 	CamStart.z -= 30;
 	CamEnd = out_CamLoc;
 	CamEnd.z -= 30;
-	if (!FastTrace(CamEnd,CamStart))
+
+	if(VehiclePawnTransitionStartLoc == vect(0,0,0))
 	{
-		CamStart.z += 30;
-		if (Trace(HitLocation, HitNormal, out_CamLoc, CamStart, false, vect(12,12,12)) != None) {
-			out_CamLoc = HitLocation;
-			return false;
-		}
+		if (!FastTrace(CamEnd,CamStart))
+		{
+			CamStart.z += 30;
+			if (Trace(HitLocation, HitNormal, out_CamLoc, DesiredCamStart, false, vect(12,12,12)) != None) {
+				out_CamLoc = HitLocation;
+				if(VSize(location-out_CamLoc) < 55.0)
+				{
+					if(WorldInfo.NetMode != NM_DedicatedServer)
+						SetHidden(true); // when cam gets near to prevent the cam showing the inside of the character	
+				}
+				else if(WorldInfo.NetMode != NM_DedicatedServer)
+					SetHidden(false);
+
+				return false;
+			} else if(WorldInfo.NetMode != NM_DedicatedServer)
+				SetHidden(false);
+		} else if(WorldInfo.NetMode != NM_DedicatedServer)
+			SetHidden(false);
 	}
-	
+
+	if(VehiclePawnTransitionStartLoc != vect(0,0,0) && BlendPct < 1.0f)
+	{
+		if(fDeltaTime != 1.0f)
+		{
+			BlendPct += fDeltaTime/BlendSpeed;
+			out_CamLoc = VLerp(VehiclePawnTransitionStartLoc,  out_CamLoc, BlendPct);
+		}	
+	} else 
+	{
+		VehiclePawnTransitionStartLoc = vect(0,0,0);
+	}
+	lastRxPawnOutCamLoc = out_CamLoc;
 	return true;
 }
 
@@ -3006,7 +4307,7 @@ reliable server function ServerSetIsRepairing(bool repairing)
 
 function bool CanParachute()
 {
-	if (self.Velocity.Z < ParachuteDeployVelocity && Physics == PHYS_Falling && !ParachuteDeployed)
+	if (GetRxFamilyInfo().default.bHasParachute && self.Velocity.Z < ParachuteDeployVelocity && Physics == PHYS_Falling && !ParachuteDeployed)
 		return true;
 	else return false;
 }
@@ -3155,19 +4456,36 @@ simulated function UpdateParachuteAnim(float DeltaTime)
 
 event Landed(vector HitNormal, actor FloorActor)
 {
+	local Controller KeepLastHit; //don't reset last hit on landing 
+	
+	if(LastHitBy != none) 
+		KeepLastHit=LastHitBy;  
+	
+	bVaulted = false;
 	super.Landed(HitNormal,FloorActor);
 
+	//SetTimer(0.15, false, 'JumpRecoilTimer'); 
+	
 	if(Health <= 0)
 		ActualPackParachute();
 
 	if (WorldInfo.NetMode != NM_DedicatedServer)
-		SetGroundSpeed();
+	{
+		if(Weapon != none && Rx_Weapon(Weapon).bIronsightActivated) 
+			SetGroundSpeed(Rx_Weapon(Weapon).ZoomGroundSpeed);
+		else
+			SetGroundSpeed();
+	}
 
 	if(bIsPtPawn) {
 		SetPhysics(PHYS_None);
 		bPTInitialized=true;
 	}
+	LastHitBy = KeepLastHit; 
 }
+
+simulated function JumpRecoilTimer(); //If this Timer's active, you still can't jump 
+
 
 simulated function SetHandIKEnabled(bool bEnabled)
 {
@@ -3217,10 +4535,15 @@ simulated function WeaponChanged(UTWeapon NewWeapon)
 {
     local UDKSkeletalMeshComponent UTSkel;
 
+	
     // Make sure the new weapon respects behindview
     if (NewWeapon.Mesh != None)
     {
         NewWeapon.Mesh.SetHidden(!IsFirstPerson());
+		
+		if(!IsFirstPerson()) 
+			Rx_Weapon(NewWeapon).CycleVisibility(); //Call to be sure animations will be ready and played correctly when switching from 3rd to 1st person the first time.
+		
         UTSkel = UDKSkeletalMeshComponent(NewWeapon.Mesh);
         if (UTSkel != none)
         {
@@ -3231,6 +4554,11 @@ simulated function WeaponChanged(UTWeapon NewWeapon)
             Rx_Weapon(NewWeapon).PlayWeaponEquipWithOptionalAnim(false);
         }
     }
+}
+
+exec function swapvis(bool Vis)
+{
+	Rx_weapon(Weapon).ChangeVisibility(Vis);
 }
 
 simulated function UTPlayerReplicationInfo GetRxPlayerReplicationInfo()
@@ -3245,15 +4573,26 @@ event EncroachedBy( actor Other )
 		gibbedBy(Other);
 }
 
-function setBlinkingName()
+/**function setBlinkingName()
 {
 	bBlinkingName = true;
 	SetTimer(3.5,false,'DisableBlinkingName');
 }
+*/
+function setUISymbol(byte sym)
+{
+	UISymbol = sym;
+	SetTimer(3.5,false,'DisableUISymbol');
+}
 
-function DisableBlinkingName()
+/**function DisableBlinkingName()
 {
 	bBlinkingName = false;	
+}*/
+
+function DisableUISymbol()
+{
+	UISymbol = 0; 
 }
 
 function KillRecipient(Pawn Recipient)
@@ -3268,15 +4607,26 @@ simulated function bool CanThrowWeapon()
 
 simulated function OnRemoveCredits(Rx_SeqAct_RemoveCredits InAction)
 {
-	if (InAction.Credits > 0)
+	local Rx_PRI RXPRI;
+
+	RXPRI = Rx_PRI(PlayerReplicationInfo);
+
+	if(RXPRI != None)
 	{
-		RemoveCreditsAction(InAction.Credits);
+		RXPRI.RemoveCredits(InAction.Credits);
 	}
 }
 
-reliable server function RemoveCreditsAction(int Credits) 
+simulated function OnAddCredits(Rx_SeqAct_AddCredits InAction)
 {
-	Rx_PRI(PlayerReplicationInfo).RemoveCredits(Credits);
+	local Rx_PRI RXPRI;
+
+	RXPRI = Rx_PRI(PlayerReplicationInfo);
+
+	if(RXPRI != None)
+	{
+		RXPRI.AddCredits(InAction.Credits);
+	}
 }
 
 function setArmorType(byte AType)
@@ -3299,10 +4649,11 @@ simulated function TakeFallingDamage()
 				EffectiveSpeed = Velocity.Z;
 				if (TouchingWaterVolume())
 				{
-					EffectiveSpeed += 100;
+					/*Leaving it at 100 still left enough momentum to slap people into the ground if they sorta glitched/jittered at the water's edge*/
+					EffectiveSpeed += 800 ;//100; 
 				}
 				if (EffectiveSpeed < -1 * MaxFallSpeed)
-				{
+				{ 
 					TakeDamage(-100 * (EffectiveSpeed + MaxFallSpeed)/MaxFallSpeed, None, Location, vect(0,0,0), class'Rx_DmgType_Fell');
 				}
 				}
@@ -3319,8 +4670,1204 @@ function TakeDrowningDamage()
 	TakeDamage(10, None, Location + GetCollisionHeight() * vect(0,0,0.5)+ 0.7 * GetCollisionRadius() * vector(Controller.Rotation), vect(0,0,0), class'Rx_DmgType_Drowned');
 }
 
+simulated function ClientSetAsTarget(int Spot_Mode, coerce string TeamString, int Num)
+{
+	//`log("Set as target PAWN CLIENT"); 
+	if(Health <= 0 || self.IsInState('Dead') ) return;
+	ServerSetAsTarget(Spot_Mode, TeamString, Num);
+}
+
+reliable server function ServerSetAsTarget(int Spot_Mode, coerce string TeamString, int Num)
+{
+local Rx_Controller RXPC;
+local Rx_ORI ORI;
+RXPC=Rx_Controller(Controller);
+ORI=RXPC.myORI; 
+
+//`log("------ServerSetAsTarget PAWN------"); 
+ORI.Update_Markers (
+TeamString, //String of what team we're updating these for. The object keeps track of GDI/Nod targets, but only displays the targets that correspond with the 
+Spot_Mode, //Type of call getting passed down. 0:Attack 1: Defend 2: Repair 3: Waypoint
+0, //Whether to update Commander/CoCommander or Support Targets [assume 1 commander for now]
+false, // If we're looking to update a waypoint. If this is true, and CT is equal to 1, we'll update the defensive waypoint.
+false, //If this is a building being targeted
+self	//Actor we'll be marking
+);
+}
+simulated function SetAsTarget(byte TType)
+{
+
+if(Rx_PRI(PlayerReplicationInfo) != none) Rx_PRI(PlayerReplicationInfo).SetAsTarget(TType);
+	
+}
+
+
+simulated function SetTargetAlarm (int Time)
+{
+	SetTimer(Time,false,'TargetAlarm');
+}
+
+simulated function TargetAlarm()
+{
+	local Rx_ORI ORI;
+	local Rx_Controller PC;
+	
+	PC = Rx_Controller(GetALocalPlayerController()) ;
+	ORI=Rx_GRI(WorldInfo.GRI).ObjectiveManager; 
+	
+	ORI.NotifyTargetDecayed(self); //Decay
+	
+	PC.HudVisuals.NotifyTargetDecayed(self); //Decay
+	
+}
+
+reliable client function ClientNotifyTarget(int TeamNum, int Target_Type, int TargetNum) //Just notify that you are indeed a target
+{
+	local Rx_Controller PC;
+	
+	PC = Rx_Controller(Controller) ;
+	PC.HudVisuals.UpdateTargets(self, TeamNum, Target_Type, TargetNum);
+}
+
+reliable client function ClientNotifyTargetKilled() 
+{
+	
+local Rx_ORI ORI;
+	local Rx_Controller PC;
+	
+	PC = Rx_Controller(GetALocalPlayerController()) ;
+	ORI=Rx_GRI(WorldInfo.GRI).ObjectiveManager; 
+	
+	ORI.NotifyTargetKilled(self); //Decay
+	
+	PC.HudVisuals.NotifyTargetKilled(self); //Decay	
+}
+
+/**exec simulated function CapeMe()
+{
+	local name HeadShotSocketName;
+	//local SkeletalMeshSocket SMS; 
+	HeadShotSocketName = GetFamilyInfo().default.HeadShotGoreSocketName;
+	//SMS = Mesh.GetSocketByName( HeadShotSocketName );
+	
+	Mesh.AttachComponentToSocket(CapeMesh, HeadShotSocketName);
+}*/
+
+exec simulated function AttachVoiceBox()
+{	
+	local name HeadShotSocketName;
+	HeadShotSocketName = GetFamilyInfo().default.HeadShotGoreSocketName;
+	//`log("Attach Voice");
+	Mesh.AttachComponentToSocket(VoiceComponent, HeadShotSocketName);
+}
+
+
+function PromoteUnit(byte rank) //Promotion depends mostly on the unit. All units gain health however
+{	
+	local class<Rx_FamilyInfo> FamInfo; 
+	local float ArmourPCT; 
+
+	if(rank < 0) 
+		rank = 0;
+	else if(rank > 3)
+		rank = 3; 
+
+	ArmourPCT=float(Armor)/float(ArmorMax); 
+
+	VRank=rank; 
+	FamInfo=GetRxFamilyInfo();
+	ArmorMax=(FamInfo.default.MaxArmor+FamInfo.default.Vet_HealthMod[rank]); 
+	Armor=ArmorMax*ArmourPCT; ;
+
+	//Armor=FamInfo.default.MaxArmor+FamInfo.default.Vet_HealthMod[rank]; 
+
+
+
+	if(rank >= 2) 
+	{
+		SetTimer(0.5f, true, 'regenerateHealthTimer'); //Start Regenerating if Elite/Heroic
+		if(rank==3) 
+			RegenerationRate = HeroicRegenerationRate; 
+		else
+			RegenerationRate=default.RegenerationRate;	
+	}
+	else
+		if(IsTimerActive('regenerateHealthTimer')) 
+			ClearTimer('regenerateHealthTimer') ;
+
+	UpdateRunSpeedNode();
+	//Rx_Weapon(Weapon).PromoteWeapon(rank); Just use the inventory manager 
+
+	Rx_InventoryManager(InvManager).PromoteAllWeapons(rank); 
+
+}
+
+/*Check if the Pawn is in base. This is expensive... don't ever spam this*/
+function string GetPawnLocation (Pawn P)
+{
+	local string LocationInfo;
+	local Rx_GRI WGRI; 
+	local RxIfc_SpotMarker SpotMarker;
+	local Actor TempActor;
+	local float NearestSpotDist;
+	local RxIfc_SpotMarker NearestSpotMarker;
+	local float DistToSpot;	
+	
+	if(P == none)
+	{
+		return "";
+	}
+	
+	if (WorldInfo.NetMode != NM_Client)
+		if(Rx_Pawn(P) != none)
+			return Rx_Pawn(P).SpotLocation; //Don't waste server resources on this. Just pull the given location 
+		else if(Rx_vehicle(P) != none)
+			return Rx_vehicle(P).SpotLocation; //Don't waste server resources on this. Just pull the given location 
+	
+	WGRI = Rx_GRI(WorldInfo.GRI);
+	
+	if(WGRI == none) 
+		return "";
+		
+	foreach WGRI.SpottingArray(TempActor) {
+		SpotMarker = RxIfc_SpotMarker(TempActor);
+		DistToSpot = VSize(TempActor.location - P.location);
+		if(NearestSpotDist == 0.0 || DistToSpot < NearestSpotDist) {
+			NearestSpotDist = DistToSpot;	
+			NearestSpotMarker = SpotMarker;
+		}
+	}
+	
+	LocationInfo = NearestSpotMarker.GetSpotName();	
+	return LocationInfo; 
+}
+
+simulated function bool PawnInFriendlyBase(coerce string LocationInfo, Pawn P)
+{
+	local int TEAMI;
+	local Volume V; 
+	local Rx_Mutator Rx_Mut;
+	
+	Rx_Mut = Rx_Game(WorldInfo.Game).GetBaseRXMutator();
+	
+	if (Rx_Mut != None)
+	{
+		if(Rx_Mut.OverridesPawnInFriendlyBase())
+			return Rx_Mut.PawnInFriendlyBase(LocationInfo, P);
+	}  	   
+	
+	if(P==none) return false;
+	TEAMI=P.GetTeamNum(); 
+	//`log(P @ LocationInfo @ TEAMI);
+		switch(TEAMI)
+	{
+	case 0:
+	foreach P.TouchingActors(class'Volume', V)
+	{
+		if(Rx_Volume_TeamBase_GDI(V) != none) return true; 
+		else
+		continue; 
+	}
+	
+	//if(Caps(LocationInfo)=="GDI REFINERY" || Caps(LocationInfo)=="GDI POWERPLANT" || Caps(LocationInfo)=="WEAPONS FACTORY" || Caps(LocationInfo) == "BARRACKS" || CAPS(LocationInfo) == "ADV. GUARD TOWER") return true;
+	break;
+	
+	case 1: 
+	//if(Caps(LocationInfo)=="NOD REFINERY" || Caps(LocationInfo)=="NOD POWERPLANT" || Caps(LocationInfo)=="AIRSTRIP" || Caps(LocationInfo) == "HAND OF NOD" || Caps(LocationInfo) == "OBELISK OF LIGHT") return true;
+	foreach P.TouchingActors(class'Volume', V)
+	{
+		if(Rx_Volume_TeamBase_Nod(V) != none) return true; 
+		else
+		continue; 
+	}
+	
+	break;
+	
+	default:
+	return false;
+	break;
+	}
+	return false; 	
+	
+}
+
+simulated function bool PawnInEnemyBase(coerce string LocationInfo, Pawn P)
+{
+	local int TEAMI;
+	local Volume V; 
+	
+	if(P==none) return false;
+	TEAMI=P.GetTeamNum();
+	
+		switch(TEAMI)
+	{
+	case 0: 
+	//if(Caps(LocationInfo)=="NOD REFINERY" || Caps(LocationInfo)=="NOD POWERPLANT" || Caps(LocationInfo)=="AIRSTRIP" || Caps(LocationInfo) == "HAND OF NOD" || Caps(LocationInfo) == "OBELISK OF LIGHT") return true;
+	foreach P.TouchingActors(class'Volume', V)
+	{
+		if(Rx_Volume_TeamBase_Nod(V) != none) return true; 
+		else
+		continue; 
+	}
+	break;
+	
+	case 1: 
+	foreach P.TouchingActors(class'Volume', V)
+	{
+		if(Rx_Volume_TeamBase_GDI(V) != none) return true; 
+		else
+		continue; 
+	}
+	//if(Caps(LocationInfo)=="GDI REFINERY" || Caps(LocationInfo)=="GDI POWERPLANT" || Caps(LocationInfo)=="WEAPONS FACTORY" || Caps(LocationInfo) == "BARRACKS" || CAPS(LocationInfo) == "ADV. GUARD TOWER")	
+	break;
+	default: 
+	return false; 
+	break;
+	}
+	
+	return false; 	
+	
+}
+
+function regenerateHealth(int HealAmount)
+{
+	
+	if(bTakingDamage) return; 
+    
+	if(Health  < HealthMax) {    
+		Health += HealAmount;
+		if(Health > HealthMax)
+		{
+			Health=HealthMax; //If we went over, knock it back to the max	
+			DamageRate=0;
+		}
+		
+		LegitamateDamage=fMax(0,LegitamateDamage-HealAmount);
+		DamageRate = fMax(0,DamageRate-(HealAmount*10));
+		return;
+    }
+	
+	if(Armor  < ArmorMax) {    
+		Armor += HealAmount;
+		if(Armor > ArmorMax) 
+		{
+			Armor=ArmorMax; //If we went over, knock it back to the max	
+			DamageRate=0;
+		}
+		LegitamateDamage=fMax(0,LegitamateDamage-(HealAmount*10));
+		DamageRate = fMax(0,DamageRate-HealAmount);
+		return;
+    }
+}
+
+function regenerateHealthTimer()
+{
+	
+	if(bTakingDamage) return; 
+	
+    //if(Health  < HealthMax/2) {
+    
+	if(Health  < HealthMax) {    
+		Health += RegenerationRate;
+		if(Health > HealthMax)
+		{
+			Health=HealthMax; //If we went over, knock it back to the max	
+			DamageRate=0;
+		}
+		
+		LegitamateDamage=fMax(0,LegitamateDamage-RegenerationRate);
+		DamageRate = fMax(0,DamageRate-(RegenerationRate*10));
+		return;
+    }
+	
+	if(Armor  < ArmorMax) {    
+		Armor += RegenerationRate;
+		if(Armor > ArmorMax) 
+		{
+			Armor=ArmorMax; //If we went over, knock it back to the max	
+			DamageRate=0;
+		}
+		LegitamateDamage=fMax(0,LegitamateDamage-(RegenerationRate*10));
+		DamageRate = fMax(0,DamageRate-RegenerationRate);
+		return;
+    }
+}
+
+function setMaxHealth(int NewMaxHealth)
+{
+		if(self.HealthMax <NewMaxHealth)
+			self.HealthMax = NewMaxHealth;
+		//self.Health = self.HealthMax;
+		if (self.HealthMax>NewMaxHealth)
+			self.HealthMax = NewMaxHealth;
+		if (self.Health > self.HealthMax)
+			self.Health = self.HealthMax;
+	
+}
+
+function CheckVRank()
+{
+	local byte CheckRank; 
+	CheckRank=Rx_PRI(PlayerReplicationInfo).Vrank;
+	
+	if( VRank != CheckRank ) PromoteUnit(CheckRank); 
+}
+
+function Suicide() //edit so suicides can no longer be used to totally negate a player's bonuses
+{
+	//KilledBy(LastHitBy.Pawn);
+	
+	if(LastHitBy != none) 
+	{
+		TakeDamage(Armor+Health+99, LastHitBy, location, vect(0,0,0), class'DmgType_Suicided'); 
+	}
+	else
+	KilledBy(self);
+}
+
+function ResetLastHit()
+{
+	LastHitBy=none; 
+}
+
+simulated function SetSpotted(float SpottedTime)
+{		
+	if(ROLE < ROLE_Authority) ServerSetSpotted(SpottedTime); 
+	else
+	{
+		bSpotted = true;
+		SetTimer(SpottedTime,false,'ResetSpotted');
+	}
+
+}
+
+reliable server function ServerSetSpotted(float SpottedTime)
+{
+	//if(GetTimerRate('ResetSpotted') - GetTimerCount('ResetSpotted') >= SpottedTime) return; //Already spotted for longer by something else	
+	bSpotted = true;
+	SetTimer(SpottedTime,false,'ResetSpotted');
+}
+
+function ResetSpotted()
+{
+	bSpotted = false;
+}
+
+simulated function SetFocused()
+{
+if(ROLE < ROLE_Authority) ServerSetFocused();
+else
+	{
+	bFocused = true;
+	SetTimer(10.0,false,'ResetFocused'); 
+	}
+
+}
+
+reliable server function ServerSetFocused() //Draw a focus-fire symbol for enemy targets on this unit
+{
+	bFocused = true;
+	SetTimer(10.0,false,'ResetFocused'); 
+}
+
+function ResetFocused()
+{
+	bFocused = false; 
+}
+
+
+simulated function bool IsHealer()
+{
+	local class<Rx_FamilyInfo> Fam; 
+	
+	Fam = GetRxFamilyInfo();
+	
+	return (Fam == class'Rx_FamilyInfo_GDI_Hotwire' || Fam == class'Rx_FamilyInfo_GDI_Engineer' || Fam == class'Rx_FamilyInfo_Nod_Technician' || Fam == class'Rx_FamilyInfo_Nod_Engineer');
+}
+
+simulated function class<Rx_Pawn_VoiceClass> GetVoiceClass()
+{
+	if(Rx_vehicle(DrivenVehicle) != none && Rx_Vehicle(DrivenVehicle).VehicleVoiceClass != none )
+		return Rx_Vehicle(DrivenVehicle).VehicleVoiceClass; 
+	else
+		return GetRxFamilyInfo().default.PawnVoiceClass;
+}
+
+simulated function PlayVoiceSound(name VoiceOverType, bool bOverrideSound, optional byte VoiceLineNum = 0) //Voice sounds all start on the server
+{
+	local SoundNodeWave SoundToPlay;
+	local float SoundDuration;
+	//local PlayerController PC;
+	local class<Rx_FamilyInfo> FamInfo; 
+	
+	if(Role == Role_Authority && VoiceOverType != 'Taunt') 
+	{		
+		if(isTimerActive('ClearReplicatedVoice')) 
+			ClearTimer('ClearReplicatedVoice');
+		
+		if(IsInState('Stealthed'))
+			return; 
+		
+		VoiceLineNum = PickRandomVoiceIndex(VoiceOverType); //If we're the server or a standalone, choose the line to say
+	}
+	
+	if(WorldInfo.NetMode == NM_DedicatedServer) //Just replicate to clients
+	{
+		//`log("Played Sound on server" @ VoiceLineNum @ VoiceOverType); 
+		ReplicatedVoice.VoiceIndex = VoiceLineNum;
+		ReplicatedVoice.SoundType = VoiceOverType;
+		ReplicatedVoice.bCanOverride = bOverrideSound;
+		SetTimer(0.5,false,'ClearReplicatedVoice');
+		if(bCanHitReact && VoiceOverType == 'Damage') 
+		{
+			bCanHitReact=false;
+			SetTimer(4.0,false,'ResetHitReaction');
+		}
+		
+		if(bPlayAssistSound && VoiceOverType == 'Assist')
+		{
+			bPlayAssistSound=false;
+			SetTimer(20.0,false,'ResetAssistVoice');
+		}
+	
+		bNetDirty = true; 
+		return;
+	}
+	
+	if( (VoiceComponent.isPlaying() && !bOverrideSound ) || (VoiceOverType=='Damage' && !bCanHitReact) || (self.IsInState('Dead') && VoiceOverType != 'Death'))  
+	{
+		return;
+	}
+	
+	VoiceComponent.Stop(); 
+	
+	//if(IsTimerActive('ClearVoiceComponent')) ClearTimer('ClearVoiceComponent');
+	
+	FamInfo = GetRxFamilyInfo();
+	//`log(VoiceLineNum @ VoiceOverType);  
+	
+	switch (VoiceOverType)
+	{
+		case 'Taunt' :
+		SoundToPlay = GetVoiceClass().static.GetTauntSound(VoiceLineNum);
+		
+		break;
+		
+		case 'Death' :
+			SoundToPlay = FamInfo.default.PawnVoiceClass.static.GetDeathSound(VoiceLineNum);
+			break;
+		
+		case 'Damage' :
+		SoundToPlay = FamInfo.default.PawnVoiceClass.static.GetTakeDamageSound(VoiceLineNum);
+		if(WorldInfo.NetMode != NM_Client)
+		{
+			bCanHitReact=false ;
+			SetTimer(4.0,false,'ResetHitReaction');
+		}
+		break;
+		
+		case 'Kill' :
+		SoundToPlay = FamInfo.default.PawnVoiceClass.static.GetKillConfirmSound(VoiceLineNum);
+		break;
+		
+		case 'DestroyVehicle' :
+		SoundToPlay = FamInfo.default.PawnVoiceClass.static.GetDestroyVehicleSound(VoiceLineNum);
+		break;
+		
+		case 'Assist' :
+		SoundToPlay = FamInfo.default.PawnVoiceClass.static.GetAssistSound(VoiceLineNum);
+		break;
+		
+		case 'DestroyBuilding' :
+		SoundToPlay = FamInfo.default.PawnVoiceClass.static.GetBuildingDestroyedSound(VoiceLineNum);
+		break;
+	}
+	
+	if(SoundToPlay == none) return;
+	//SoundToPlay = SoundNodeWave'RX_CharSnd_Generic.gdi_male.S_Soldier_GDI_AreaSecured_02';
+	if(SoundToPlay.Duration > 2.5) SoundDuration=SoundToPlay.Duration; 
+	else
+	SoundDuration=2.5; 
+	
+	if((WorldInfo.Netmode == NM_Client || WorldInfo.NetMode == NM_Standalone) && Rx_Controller(Controller) !=none) //Your own voice may need to be slightly lower
+	{
+		if(DrivenVehicle == none) VoiceComponent.VolumeMultiplier= FamInfo.default.PawnVoiceClass.default.PersonalVolumeModifier; 
+		else
+		VoiceComponent.VolumeMultiplier= FamInfo.default.PawnVoiceClass.default.PersonalVolumeModifier+0.30; 
+	}
+
+		
+	VoiceComponent.SetWaveParameter('Voice', SoundToPlay);
+	VoiceComponent.SoundCue.Duration=SoundDuration;
+	VoiceComponent.Play(); 
+	
+	
+	
+}
+
+simulated function ClearVoiceComponent()
+{
+	VoiceComponent.SetWaveParameter('Voice', none);
+	VoiceComponent.SoundCue.Duration=0.0;	
+}
+
+
+function PlayDyingSound(); //Can do our own 
+
+simulated function ResetHitReaction()
+{
+	bCanHitReact = true;
+}
+
+function PlayKillConfirmTimer()
+{
+	PlayVoiceSound('Kill', false);
+}
+
+function PlayVehicleKillConfirmTimer()
+{
+	PlayVoiceSound('DestroyVehicle', false);
+}
+
+function PlayBuildingKillTimer()
+{
+	PlayVoiceSound('DestroyBuilding', false);
+}
+
+function int PickRandomVoiceIndex(name VoiceType) //Pick a voice index, but try to prevent playing the same sound twice in a row
+{
+	local int Output, PosNeg, Integer;
+	//local byte LastInteger; //Uncomment for debugging only
+
+	//Integer to use
+
+	if(VoiceType == 'Kill')  Integer=(GetRxFamilyInfo().default.PawnVoiceClass.default.KillConfirmSounds.Length);
+	else
+	if(VoiceType == 'Damage') Integer=(GetRxFamilyInfo().default.PawnVoiceClass.default.TakeDamageSounds.Length);
+	else
+	if(VoiceType == 'DestroyVehicle') Integer=(GetRxFamilyInfo().default.PawnVoiceClass.default.DestroyVehicleSounds.Length);
+	else
+	if(VoiceType == 'Taunt') Integer=(GetRxFamilyInfo().default.PawnVoiceClass.default.TauntSounds.Length);
+	else
+	if(VoiceType == 'Assist') Integer=(GetRxFamilyInfo().default.PawnVoiceClass.default.AssistSounds.Length);
+	else
+	if(VoiceType == 'DestroyBuilding') Integer=(GetRxFamilyInfo().default.PawnVoiceClass.default.BuildingDestroyedSounds.Length);
+	else
+	//Death sounds are more rare and don't need to be super randomized
+	if(VoiceType == 'Death') 
+	{
+	return DeathSound ; //rand(GetRxFamilyInfo().default.PawnVoiceClass.default.DeathSounds.Length);	
+	}
+
+	if(Integer == 2)
+	{
+		switch(VoiceType)
+		{
+			case 'Kill':
+				LastPicked_KillConfirm= LastPicked_KillConfirm == 0 ? 1 : 0 ;
+				return LastPicked_KillConfirm;  
+				break;
+				
+			case 'Damage':
+				LastPicked_Hit= LastPicked_Hit == 0 ? 1 : 0 ;
+				return LastPicked_Hit;  
+			break;
+			
+			case 'DestroyVehicle':
+				LastPicked_VKillConfirm = LastPicked_VKillConfirm == 0 ? 1 : 0 ;
+				return LastPicked_VKillConfirm;  
+				//`log("Integer/Output/Last" @ Integer @ OutPut @ LastInteger); 
+			break;		
+			case 'DestroyBuilding':
+				LastPicked_BKill = LastPicked_BKill == 0 ? 1 : 0 ;
+				return LastPicked_BKill;  
+				//`log("Integer/Output/Last" @ Integer @ OutPut @ LastInteger); 
+			break;
+			
+			case 'Assist':
+				LastPicked_Assist = LastPicked_Assist == 0 ? 1 : 0 ;
+				return LastPicked_Assist;  
+				//`log("Integer/Output/Last" @ Integer @ OutPut @ LastInteger); 
+			break;
+			
+			default:
+			break;
+		}
+		
+		
+	}
+	else
+	if(Integer==1) return 0; 
+
+	PosNeg=rand(100);
+
+	Output=rand(Integer);
+
+
+
+	switch(VoiceType)
+	{
+		case 'Kill':
+			Output = PosNeg <= 20 ? LastPicked_KillConfirm+1+rand(2) : LastPicked_KillConfirm-1-rand(2);
+			
+			if(Output > Integer-1) Output = 0; 
+			else
+			if(Output < 0) OutPut = Integer-1;
+			//LastInteger=LastPicked_KillConfirm;
+			LastPicked_KillConfirm=Output;
+			//`log("Integer/Output/Last" @ Integer @ OutPut @ LastInteger); 
+			break;
+		case 'Damage':
+			Output = PosNeg <= 20 ? LastPicked_Hit+1+rand(2) : LastPicked_Hit-1-rand(2);
+			
+			if(Output > Integer-1) Output = 0; 
+			else
+			if(Output < 0) OutPut = Integer-1; 
+		
+			//LastInteger=LastPicked_Hit;
+			LastPicked_Hit=Output;
+			//`log("Integer/Output/Last" @ Integer @ OutPut @ LastInteger); 
+		break;
+		
+		case 'DestroyVehicle':
+			
+			Output = PosNeg <= 20 ? LastPicked_VKillConfirm+1+rand(2) : LastPicked_VKillConfirm-1-rand(2);
+			
+			if(Output > Integer-1) Output = 0; 
+			else
+			if(Output < 0) OutPut = Integer-1;
+			
+			//LastInteger=LastPicked_VKillConfirm;
+			LastPicked_VKillConfirm = Output; 
+			//`log("Integer/Output/Last" @ Integer @ OutPut @ LastInteger); 
+		break;
+		
+		case 'DestroyBuilding':
+			
+			Output = PosNeg <= 20 ? LastPicked_BKill+1+rand(2) : LastPicked_BKill-1-rand(2);
+			
+			if(Output > Integer-1) Output = 0; 
+			else
+			if(Output < 0) OutPut = Integer-1;
+			
+			LastPicked_BKill = Output; 
+		break;
+		
+		case 'Assist':
+			
+			OutPut = LastPicked_Assist+1; 
+			
+			if(Output > Integer-1) Output = 0; 
+			else
+			if(Output < 0) OutPut = Integer-1;
+
+			LastPicked_Assist = Output; 
+		break;
+		
+		
+		default:
+		break;
+	}
+
+		
+	//`log("Integer/Output/Last" @ Integer @ OutPut @ LastInteger); 
+
+	return Output; 
+}
+
+simulated function PlayTaunt(byte Option = 0)
+{
+	if(Role < Role_Authority) 
+		ServerPlayTaunt(Option); 
+	else if(!VoiceComponent.isPlaying())
+		{
+			PlayVoiceSound('Taunt',false, Option);
+		}
+	 
+}
+
+unreliable server function ServerPlayTaunt(byte Option = 0)
+{
+	
+	PlayVoiceSound('Taunt',false, Option); 
+	
+}
+
+function ResetAssistVoice()
+{
+	bPlayAssistSound = true;
+}
+
+function ReseedVoiceOvers()
+{
+	if(GetRxFamilyInfo() == none ) return; 
+	LastPicked_KillConfirm=rand(GetRxFamilyInfo().default.PawnVoiceClass.default.KillConfirmSounds.Length);
+	LastPicked_Hit=rand(GetRxFamilyInfo().default.PawnVoiceClass.default.TakeDamageSounds.Length);
+	LastPicked_VKillConfirm=rand(GetRxFamilyInfo().default.PawnVoiceClass.default.DestroyVehicleSounds.Length);
+	LastPicked_BKill=rand(GetRxFamilyInfo().default.PawnVoiceClass.default.BuildingDestroyedSounds.Length);
+	LastPicked_Assist=rand(GetRxFamilyInfo().default.PawnVoiceClass.default.AssistSounds.Length);
+	DeathSound=rand(GetRxFamilyInfo().default.PawnVoiceClass.default.DeathSounds.Length);;
+	
+}
+
+function ClearReplicatedVoice()
+{
+	ReplicatedVoice.SoundType='NULL'; 
+}
+
+simulated function WeaponAttachmentChanged()
+{
+	super.WeaponAttachmentChanged();
+	if(Vrank == 3 && Rx_WeaponAttachment_Varying(CurrentWeaponAttachment) != none ) Rx_WeaponAttachment_Varying(CurrentWeaponAttachment).SetHeroic(true); 
+}
+
+
+//------------ TheAgent's Vaulting system ------------//
+// *********** Vault STATE********************************************
+// Contains stop functions and special case vaults.
+// handles animations and movement
+
+/*
+Exec function DoVault () 
+{ 
+	local Actor TraceHit; 
+	Local Vector StartLoc, EndLoc, VaultStartLoc, VaultEndLoc; 
+	
+	Local Vector MyPosition, MyRotation; 
+	
+	Local Vector HitNormal, HitLocation; 
+	
+	Local Int Magnitude;
+
+	// Trace from socket locations 
+	If (bVaulted == false && Physics == Phys_Walking)
+	{
+		VaultStartLoc = Location;
+		VaultStartLoc.Z -= 40.0;
+		StartLoc = VaultStartLoc;
+	
+		Magnitude = 40;
+		MyPosition = Location;
+		MyRotation = Vector(Rotation);
+	
+		MyRotation.X *= Magnitude;
+		MyRotation.Y *= Magnitude;
+	
+		MyPosition.X += MyRotation.X;
+		MyPosition.Y += MyRotation.Y;
+		MyPosition.Z -= 40.0;
+
+		VaultEndLoc = MyPosition;
+		EndLoc = VaultEndLoc;
+
+		TraceHit = Trace (HitLocation, HitNormal, StartLoc, EndLoc, true ,,, 
+		TRACEFLAG_Bullet | TRACEFLAG_PhysicsVolumes | 
+		TRACEFLAG_SkipMovers | TRACEFLAG_Blocking); 
+
+		//DrawDebugLine (StartLoc, EndLoc, 255, 250, 100, true); 
+
+		If (TraceHit.IsA ('VaultActor')) 
+		{ 
+			GotoState ('Vaulting'); 
+		}
+	}
+} 
+*/
+
+
+state Vaulting
+{
+
+	function Check()
+	{
+		local VaultActor VA;
+		local Actor TraceHit;
+		local Vector StartLoc, EndLoc, VaultStartLoc, VaultEndLoc;
+
+		local Vector HitNormal, HitLocation;
+
+		Local Vector MyPosition, MyRotation; 
+		Local Int Magnitude;
+		
+
+		if (Controller != None && PlayerController(Controller) != None)
+		{
+			PlayerController(Controller).IgnoreMoveInput(true);
+			PlayerController(Controller).IgnoreLookInput(true);
+			StopFiring();
+			CameraLag = 3.0;
+			
+			WasInFirstPersonBeforeDodge = false;
+			if(Rx_Controller(Controller) != None && !Rx_Controller(Controller).bBehindView && WorldInfo.NetMode != NM_DedicatedServer) 
+			{
+				Rx_Controller(Controller).SetBehindView(true);
+				WasInFirstPersonBeforeDodge = true;
+			}
+			SetHandIKEnabled(false);
+		}
+
+		foreach VisibleCollidingActors (class'VaultActor', VA,90,Location)
+		{
+
+			VaultStartLoc = Location;
+			VaultStartLoc.Z -= 40.0;
+			StartLoc = VaultStartLoc;
+	
+			Magnitude = 40;
+			MyPosition = Location;
+			MyRotation = Vector(Rotation);
+	
+			MyRotation.X *= Magnitude;
+			MyRotation.Y *= Magnitude;
+	
+			MyPosition.X += MyRotation.X;
+			MyPosition.Y += MyRotation.Y;
+			MyPosition.Z -= 40.0;
+	
+			VaultEndLoc = MyPosition;
+			EndLoc = VaultEndLoc;
+
+			TraceHit = Trace(HitLocation, HitNormal, StartLoc, EndLoc, true,,,
+			TRACEFLAG_Bullet | TRACEFLAG_PhysicsVolumes |
+			TRACEFLAG_SkipMovers | TRACEFLAG_Blocking);
+
+
+			if(TraceHit.IsA('VaultActor'))
+			{
+
+				if(VA.Type == Tall)
+				{
+					bVaulted = true;
+					DoJump(true);
+					SetHandIKEnabled(false);
+					Velocity.Z = VA.Height;
+					FullBodyAnimSlot.PlayCustomAnim('H_M_Vault_Tall', 1.0, 0.2, 0.2, FALSE, TRUE);
+					SetTimer(0.55, false, 'VaultPushForward');
+				}
+            
+				else if(VA.Type == Medium )
+				{
+					bVaulted = true;
+					DoJump(True);
+					SetHandIKEnabled(false);
+					Velocity.Z = VA.Height;
+					FullBodyAnimSlot.PlayCustomAnim('H_M_Vault_Medium', 1.0, 0.2, 0.2, FALSE, TRUE);
+					SetTimer(0.35, false, 'VaultPushForward');
+				}
+
+				else if(VA.Type == Small)
+				{
+					bVaulted = true;
+					DoJump(True);
+					SetHandIKEnabled(false);
+					Velocity.Z = VA.Height;
+					FullBodyAnimSlot.PlayCustomAnim('H_M_Vault_Small', 1.0, 0.2, 0.2, FALSE, TRUE);
+					SetTimer(0.1, false, 'VaultPushForward');
+				}
+				
+				SetHandIKEnabled(false);
+
+			}
+			else
+			{
+				PushState('PlayerWalking');
+				SetHandIKEnabled(true);
+			}
+
+		}
+
+	}
+	
+	function SetbVaultedFalse()
+	{
+		bVaulted=false;
+	}
+
+	function VaultPushForward()
+	{
+		local VaultActor VA;
+		Local Vector MyRotation; 
+		Local Int ForwardPush;
+	
+		foreach VisibleCollidingActors (class'VaultActor', VA, 90, Location)
+		{
+			ForwardPush = VA.PushDistance;
+			MyRotation = Vector(Rotation);
+			MyRotation.X *= ForwardPush;
+			MyRotation.Y *= ForwardPush;
+			Velocity.X += MyRotation.X;
+			Velocity.Y += MyRotation.Y;
+			PushState('PlayerWalking');
+		}
+		
+		if (Controller != None && PlayerController(Controller) != None)
+		{
+			PlayerController(Controller).IgnoreMoveInput(false);
+			PlayerController(Controller).IgnoreLookInput(false);
+			CameraLag = 0.05;
+			
+			if(WasInFirstPersonBeforeDodge) 
+			{
+				SetTimer( 0.5, false, 'WasInFirstPersonBeforeVault' );
+			}
+			SetTimer( 0.2, false, 'ReEnableHandIKAfterDodge' );
+		}
+		SetTimer( 0.4, false, 'SetbVaultedFalse' );
+		//bVaulted = false;
+	}
+	
+	function WasInFirstPersonBeforeVault()
+	{
+		if(Controller != None && PlayerController(Controller) != None && WorldInfo.NetMode != NM_DedicatedServer) 
+		{
+			Rx_Controller(Controller).SetBehindView(false);
+		}
+	}
+
+  Begin:
+  
+  Check();
+
+}
+
+function TestVisAct()
+{
+	local Actor CA; 
+	
+	foreach VisibleCollidingActors(class'Actor', CA, 300, location, false)
+			{
+				//`log("-----Actor------: " @ CA); 
+				if(CA == Self || RxIfc_Airlift(CA) == none) 
+				{
+				//`log("Skipping :" @ CA);
+				continue; 	
+				}
+				
+				//`log("-----Actor Found------: " @ CA); 
+				
+			}
+}
+
+/****Do not stack supply crate healing*****/
+function SetLastSupportHealTime()
+{
+	if(Rx_Controller(Controller) != none) 
+		Rx_Controller(Controller).SetLastSupportHealTime();  
+	else
+	if(Rx_Bot(Controller) != none) 
+		Rx_Bot(Controller).SetLastSupportHealTime(); 
+}
+
+function bool bCanAcceptSupportHealing()
+{
+	local int iWorldSeconds; 
+	
+	iWorldSeconds = int(WorldInfo.TimeSeconds);
+	
+	if(Rx_Controller(Controller) != none) 
+	{
+		//`log(Rx_Controller(Controller).LastSupportHealTime @ iWorldSeconds); 
+		return Rx_Controller(Controller).LastSupportHealTime < iWorldSeconds ;	
+	} 
+	else
+	if(Rx_Bot(Controller) != none) 
+		return Rx_Bot(Controller).LastSupportHealTime < iWorldSeconds; 
+	else
+	return false; 
+}
+
+/**Stat Modifier Calls**/ 
+simulated function float GetSpeedModifier()
+{
+	return (SpeedUpgradeMultiplier+GetRxFamilyInfo().default.Vet_SprintSpeedMod[VRank])+GetInventoryWeight();
+}
+
+simulated function float GetResistanceModifier()
+{
+	if(Rx_Controller(Controller) != none) 
+		return Rx_Controller(Controller).Misc_DamageResistanceMod;  
+	else
+	if(Rx_Bot(Controller) != none) 
+		return Rx_Bot(Controller).Misc_DamageResistanceMod; 
+	else
+	return 1.0; 
+}
+
+/**
+function UpdateStats()
+{
+	ArmourPCT=float(Armor)/float(ArmorMax); 
+	FamInfo=GetRxFamilyInfo();
+	ArmorMax=(FamInfo.default.MaxArmor+FamInfo.default.Vet_HealthMod[rank])*GetResistanceodifier(); 
+	Armor=ArmorMax*ArmourPCT; ;	
+}
+*/
+
+function SetSpeedUpgradeMod(float UpgradeNum)  //Used to modify from outside sources 
+{
+	SpeedUpgradeMultiplier = GetRxFamilyInfo().default.SpeedMultiplier + UpgradeNum;
+}
+
+simulated function string GetTargetedDescription(PlayerController PlayerPerspective)
+{
+	//Above all else 
+	if(Rx_PRI(PlayerReplicationInfo) != none && Rx_PRI(PlayerReplicationInfo).bGetIsCommander()) 
+		return "[COMMANDER]";
+	else
+	return ""; 
+}
+
+simulated function SetAlwaysRelevant(bool Relevant)
+{
+	bAlwaysRelevant = Relevant; 
+}
+
+/******************
+*RxIfc_RadarMarker*
+*******************/
+
+//0:Infantry 1: Vehicle 2:Miscellaneous  
+simulated function int GetRadarIconType()
+{
+	return 0; //Infantry
+} 
+
+simulated function bool ForceVisible()
+{
+	return PlayerReplicationInfo == none || Rx_PRI(PlayerReplicationInfo).isSpotted();  
+}
+
+simulated function vector GetRadarActorLocation() 
+{
+	return DrivenVehicle == none ? location : DrivenVehicle.location; 
+} 
+simulated function rotator GetRadarActorRotation()
+{
+	return DrivenVehicle == none ? rotation : DrivenVehicle.rotation;  
+}
+
+simulated function byte GetRadarVisibility()
+{
+	return RadarVisibility; 
+} 
+
+simulated function Texture GetMinimapIconTexture()
+{
+	return none; 
+}
+/* Ion Storm should disable minimap & overview map and activate a noise overlay on them
+simulated function DisableMinimap()
+{
+	SetRadarVisibility(0);
+}
+*/
+
+/******************
+*END RadarMarker***
+*******************/
+
+/*Modifying Relevancy Temporarily*/
+
+function SetTemporaryRelevance(float Amount)
+{
+	if(Rx_Game(WorldInfo.Game).bInfantryAlwaysRelevant)
+		return;
+	
+	SetRelevant(true);
+	SetTimer(Amount,false,'ResetAlwaysRelevantTimer'); 
+}
+
+function SetRelevant(bool Rel)
+{
+	bAlwaysRelevant = Rel ; 
+}
+
+function ResetAlwaysRelevantTimer()
+{
+	bAlwaysRelevant = Rx_Game(WorldInfo.Game).bInfantryAlwaysRelevant;
+}
+
+simulated function NotifyTeamChanged() {
+	Super.NotifyTeamChanged();
+	if (Rx_Controller(Controller) != None && `RxGameObject != None) {
+		Rx_Controller(Controller).UpdateDiscordPresence(`RxGameObject.MaxPlayers);
+	}
+}
+
+function float GetInventoryWeight(){
+	if(Rx_InventoryManager(InvManager) == none)
+		return 0.0; 
+	else
+		return Rx_InventoryManager(InvManager).GetInventoryWeight();
+	
+}
+
+simulated function GivePassiveAbility(byte AbilityNum, class<Rx_PassiveAbility> PassiveAbility)
+{
+	if(PassiveAbility == none)
+	{
+		return; 
+	}
+	
+	PassiveAbilities[AbilityNum] = Spawn(PassiveAbility, self);
+	
+	PassiveAbilities[AbilityNum].Init(self); 
+}
+
+simulated function ClearPassiveAbilities()
+{
+	local int i; 
+	
+	for(i=0;i<3;i++){
+			PassiveAbilities[i] = none; 
+		}
+}
+
+simulated function bool ActivateJumpAbility(bool bToggle) {
+	
+	if(bToggle) //Toggle it on
+	{
+		if(PassiveAbilities[0] != none) 
+		{
+			PassiveAbilities[0].ActivateAbility();
+			return true; 			
+		}
+		
+		return false; 
+	}
+	else //Toggle it off 
+	{
+		if(PassiveAbilities[0] != none) 
+		{
+			PassiveAbilities[0].DeactivateAbility(); 
+			return true; 	
+		}
+		
+		return false; 
+	}
+	
+	return false; //I don't know how you'd get here... but just in case
+}
+
+simulated function bool ActivateAbility0(bool Toggle); 
+
+simulated function bool ActivateAbility1(bool Toggle); 
+
 DefaultProperties
 {
+	//nBab
+	/*Begin Object Name=MyLightEnvironment
+		bSynthesizeSHLight=TRUE
+		bIsCharacterLightEnvironment=TRUE
+		bUseBooleanEnvironmentShadowing=FALSE
+		InvisibleUpdateTime=1
+		MinTimeBetweenFullUpdates=.2
+		//setting shadow frustum scale (nBab)
+		LightingBoundsScale=0.2
+	End Object
+	Components.Add(MyLightEnvironment)
+	LightEnvironment=MyLightEnvironment*/
+
 	Begin Object Class=SkeletalMeshComponent Name=ParachuteMeshComponent
 		SkeletalMesh = SkeletalMesh'RX_CH_Parachute.Mesh.SK_RamAir'
 		AnimTreeTemplate = AnimTree'RX_CH_Parachute.Mesh.SK_RamAir_AnimTree'
@@ -3342,7 +5889,7 @@ DefaultProperties
 	ParachuteManouverAnimSpeed = 4
 	ParachuteDeployAnimSpeed = 2
 	ParachuteUnDeployAnimSpeed = 2
-
+	
 	ParachuteMesh = ParachuteMeshComponent
 	Components.Add(ParachuteMeshComponent)
 	ParachuteDeployVelocity = -750.0
@@ -3353,6 +5900,19 @@ DefaultProperties
 	//ParachuteCamDistMod = 200.0
 	CurrentParachuteCamDistMod = 0
 
+	RadarVisibility = 1 
+	
+	//CAPE//
+	/**
+	Begin Object Class=SkeletalMeshComponent Name=CapeMeshComponent
+		SkeletalMesh = SkeletalMesh'RX_CH_Capes.Mesh.SK_Cape'
+		bEnableClothSimulation 	 	= false
+		bClothAwakeOnStartup   	 	= false
+	End Object
+	CapeMesh=CapeMeshComponent
+	Components.Add(CapeMeshComponent)
+	*/
+	
 	CanEnterVehicles = true;
 
 	CurrentHopStamina = 1.0
@@ -3360,7 +5920,7 @@ DefaultProperties
 	HopCost = 0.30
 	HopRegenRate = 0.30
 	MaxJumpZ = 325.0
-	bAlwaysRelevant = true
+	bAlwaysRelevant = false
 	
 	CurrentCameraScale=1.0
 	CameraScale=1.0
@@ -3381,7 +5941,8 @@ DefaultProperties
 	CamHighOffsetMax=30
 
 	BaseTranslationOffset=0.0 // 6.0
-	Begin Object Name=OverlayMeshComponent0
+	
+	/**Begin Object Name=OverlayMeshComponent0
 		Scale=1.0
 		bAcceptsDynamicDecals=FALSE
 		CastShadow=false
@@ -3392,7 +5953,7 @@ DefaultProperties
 		bAllowAmbientOcclusion=false
 	End Object
 	OverlayMesh=OverlayMeshComponent0
-
+	*/
 	Begin Object Name=WPawnSkeletalMeshComponent
 		AnimTreeTemplate=AnimTree'RX_CH_Animations.Anims.AT_Character_Modular'
 		AnimSets(0)=AnimSet'RX_CH_Animations.Anims.AS_WeapProfile_Unarmed'
@@ -3466,10 +6027,10 @@ DefaultProperties
 	SwimmingZOffset=0.0
 	SwimmingZOffsetSpeed=100.0
 	OutofWaterZ=0
-	DodgeSpeed=650	// 550.0
+	DodgeSpeed=420
 	DodgeSpeedZ=300.0
 	DodgeDuration=0.75	// 1.0
-	bDodgeCapable=false;
+	bDodgeCapable=false //true;  Not this patch yet... till we figure something out. Yosh
 	AccelRate=1400
 	MaxLeanRoll=2500
 	JumpZ=325.0
@@ -3497,6 +6058,17 @@ DefaultProperties
 	BioBurnAwayTime=3.5f
 	BioEffectName=BioRifleDeathBurnTime
 	
+	Begin Object Class=Rx_AudioComponent Name=InitVoice
+		bUseOwnerLocation = true
+		bStopWhenOwnerDestroyed = true
+		SoundCue = SoundCue'RX_CharSnd_Generic.gdi_male.Pawn_Voice'
+		//InstanceParameters(0).name='Voice'
+		//InstanceParameters(0).WaveParam=SoundNodeWave'RX_CharSnd_Generic.gdi_male.S_Soldier_GDI_AreaSecured_02'
+	End Object
+	
+	VoiceComponent=InitVoice
+	Components.Add(InitVoice); 
+	
 	DeathHipLinSpring=10000.0
 	DeathHipLinDamp=500.0
 	DeathHipAngSpring=10000.0
@@ -3520,6 +6092,8 @@ DefaultProperties
 	// SpawnSound=none
 	// TeleportSound=none
 
+	
+	
 	SoundGroupClass=class'RenX_Game.Rx_PawnSoundGroup'
 
 	TransInEffects(0)=none
@@ -3584,5 +6158,25 @@ DefaultProperties
 	BackWeaponSocketNames[2] = Weapon_Pistol
 	BackWeaponSocketNames[3] = Weapon_C4
 	BackWeaponSocketNames[4] = Weapon_Item
-
+	
+	RegenerationRate = 1
+	HeroicRegenerationRate = 3 
+	MaxDR = 0.1 //Maximumum of 90% damage resistance
+	
+	SpotLocation = "NULL"
+	SpotUpdateTime = 1.0 //Seconds
+	UISymbol = 0
+	
+	bCanHitReact = true
+	bPlayAssistSound = true
+	
+	//--------------Vaulting Options
+	ClimbHeight = 0
+	bVaulted = false
+	
+	CurrentStoredWeaponOverlayByte = 255
+	
+	PassiveAbilities(0) = none 
+	PassiveAbilities(1) = none 
+	PassiveAbilities(2) = none 
 }

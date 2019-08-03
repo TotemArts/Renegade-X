@@ -1,11 +1,29 @@
-class Rx_CapturableMCT extends Rx_Building_Techbuilding
+class Rx_CapturableMCT extends Rx_Building_Techbuilding implements (Rx_ObjectTooltipInterface)
    placeable;
 
 var() StaticMeshComponent Mesh;
+var() string ReadableName;
+var() string ToolTip;
 
 simulated function String GetHumanReadableName()
 {
-	return "MCT";
+	return ReadableName;
+}
+
+simulated function bool IsTouchingOnly()
+{
+	return false;
+}
+
+simulated function bool IsBasicOnly()
+{
+	return true;
+}
+
+simulated function string GetTooltip(Rx_Controller PC)
+{
+	if (class'Rx_Utils'.static.OrientationToB(self, PC.Pawn) > 0.1)
+	return ToolTip;
 }
 
 defaultproperties
@@ -38,4 +56,6 @@ defaultproperties
 	Components.Add(SiloScreens)
 	
 	Mesh = SiloScreens
+	ReadableName = "MCT"
+	ToolTip="Use the <font color='#ff0000' size='20'>Repair Gun</font> to capture."
 }

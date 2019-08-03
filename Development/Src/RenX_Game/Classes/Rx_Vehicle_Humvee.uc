@@ -109,6 +109,33 @@ DefaultProperties
 	
 	CustomGravityScaling=0.95
 
+/************************/
+/*Veterancy Multipliers*/
+/***********************/
+
+//VP Given on death (by VRank)
+	VPReward(0) = 5 
+	VPReward(1) = 7 
+	VPReward(2) = 9 
+	VPReward(3) = 12 
+
+	VPCost(0) = 15
+	VPCost(1) = 30
+	VPCost(2) = 70
+	
+Vet_HealthMod(0)=1 //300
+Vet_HealthMod(1)=1.166667 //350
+Vet_HealthMod(2)=1.333334 //400
+Vet_HealthMod(3)=1.666667 //500
+	
+Vet_SprintSpeedMod(0)=1.0f
+Vet_SprintSpeedMod(1)=1.0f
+Vet_SprintSpeedMod(2)=1.05f
+Vet_SprintSpeedMod(3)=1.10f
+
+
+/**********************/
+	
     HeavySuspensionShiftPercent=0.75f;
     bLookSteerOnNormalControls=true
     bLookSteerOnSimpleControls=true
@@ -120,7 +147,7 @@ DefaultProperties
     Begin Object Class=UDKVehicleSimCar Name=SimObject
         WheelSuspensionStiffness=65.0
         WheelSuspensionDamping=4.0
-        WheelSuspensionBias=0.1
+        WheelSuspensionBias=0.15
         ChassisTorqueScale=2.0
         MaxBrakeTorque=4.0
         StopThreshold=100
@@ -235,6 +262,9 @@ DefaultProperties
                 TurretControls=(TurretPitch,TurretRotate),
                 GunPivotPoints=(MainTurretYaw,MainTurretPitch),
                 CameraTag=CamView3P,
+				bSeatVisible=false,
+				SeatBone=Base,
+				SeatSocket=VH_Death,
                 CameraBaseOffset=(Z=-20),
                 CameraOffset=-350,
                 SeatIconPos=(X=0.5,Y=0.33),
@@ -264,7 +294,7 @@ DefaultProperties
     VehicleEffects(3)=(EffectStartTag=EngineStart,EffectEndTag=EngineStop,bRestartRunning=false,EffectTemplate=ParticleSystem'RX_VH_Humvee.Effects.GenericExhaust',EffectSocket=ExhaustLeft)
     VehicleEffects(4)=(EffectStartTag=EngineStart,EffectEndTag=EngineStop,bRestartRunning=false,EffectTemplate=ParticleSystem'RX_VH_Humvee.Effects.GenericExhaust',EffectSocket=ExhaustRight)
 
-    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Vehicle')
+    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_VH_Humvee.Effects.P_Explosion_Vehicle')
     BigExplosionSocket=VH_Death
 
     DamageMorphTargets(0)=(InfluenceBone=MT_Chassis_Front,MorphNodeName=MorphNodeW_Ch_F,LinkedMorphNodeName=none,Health=40,DamagePropNames=(Damage1))

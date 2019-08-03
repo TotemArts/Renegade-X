@@ -1,4 +1,4 @@
-class Rx_Building_HandOfNod extends Rx_Building
+class Rx_Building_HandOfNod extends Rx_Building_Nod_InfantryFactory
    placeable;
 
 simulated function String GetHumanReadableName()

@@ -68,7 +68,7 @@ DefaultProperties
 //========================================================\\
 
 
-    Health=200
+    Health=250
     bLightArmor=True
     MaxDesireability=0.8
     MomentumMult=0.7
@@ -77,14 +77,16 @@ DefaultProperties
     CameraLag=0.15
 	LookForwardDist=200
     bHasHandbrake=true
-    GroundSpeed=1200
-    AirSpeed=1200
-    MaxSpeed=1200
+    GroundSpeed=1100
+    AirSpeed=1100
+    MaxSpeed=2000 //1600 compensate for Veterancy increase 
     HornIndex=1
-    COMOffset=(x=20.0,y=0.0,z=-85.0)
+    COMOffset=(x=0.0,y=0.0,z=-55.0)
     bUsesBullets = false
     bOkAgainstBuildings=true
     bSecondaryFireTogglesFirstPerson=false
+	
+	MaxSprintSpeedMultiplier=2.0
 	
 	CustomGravityScaling=1.0
 
@@ -96,11 +98,12 @@ DefaultProperties
     ConsoleSteerScale=1.1
     DeflectionReverseThresh=-0.3
 
+
     Begin Object Class=UDKVehicleSimCar Name=SimObject
-        WheelSuspensionStiffness=40.0
+        WheelSuspensionStiffness=80.0
         WheelSuspensionDamping=3.0
-        WheelSuspensionBias=0.15
-        ChassisTorqueScale=10.0
+        WheelSuspensionBias=0.0
+        ChassisTorqueScale=2.0
         MaxBrakeTorque=4.0
         StopThreshold=100
 
@@ -109,15 +112,15 @@ DefaultProperties
 
         LSDFactor=0.4
 
-		TorqueVSpeedCurve=(Points=((InVal=-700.0,OutVal=0.0),(InVal=0.0,OutVal=200.0),(InVal=1400.0,OutVal=10.0)))
+		TorqueVSpeedCurve=(Points=((InVal=-1000.0,OutVal=0.0),(InVal=0.0,OutVal=200.0),(InVal=2000.0,OutVal=10.0)))
 
 		EngineRPMCurve=(Points=((InVal=-500.0,OutVal=3500.0),(InVal=0.0,OutVal=1500.0),(InVal=1000.0,OutVal=4500.0), (InVal=1400.0,OutVal=6000.0)))
 
         EngineBrakeFactor=0.01
         ThrottleSpeed=1.2
         WheelInertia=0.2
-        NumWheelsForFullSteering=6
-        SteeringReductionFactor=0.0
+        NumWheelsForFullSteering=8
+        SteeringReductionFactor=0.15 //0.0
         SteeringReductionMinSpeed=1100.0
         SteeringReductionSpeed=1400.0
         bAutoHandbrake=true
@@ -204,13 +207,13 @@ DefaultProperties
 //========================================================\\
 
     Begin Object Class=AudioComponent Name=ScorpionEngineSound
-        SoundCue=SoundCue'RX_VH_Buggy.Sounds.SC_Buggy_Engine'
+        SoundCue=SoundCue'TS_VH_ReconBike.Sounds.SC_Engine_Idle'
     End Object
     EngineSound=ScorpionEngineSound
     Components.Add(ScorpionEngineSound);
 
-    EnterVehicleSound=SoundCue'RX_VH_Buggy.Sounds.SC_Buggy_Start'
-    ExitVehicleSound=SoundCue'RX_VH_Buggy.Sounds.SC_Buggy_Stop'
+    EnterVehicleSound=SoundCue'TS_VH_ReconBike.Sounds.SC_Engine_Start'
+    ExitVehicleSound=SoundCue'TS_VH_ReconBike.Sounds.SC_Engine_Stop'
 	
 	ExplosionSound=SoundCue'RX_SoundEffects.Vehicle.SC_Vehicle_Explode_Small'
 
@@ -247,26 +250,27 @@ DefaultProperties
 //******** Vehicle Wheels & Suspension Properties ********\\
 //========================================================\\
 
-    Begin Object class=TS_Vehicle_ReconBike_Wheel Name=Wheel_F
-		BoneName="b_Wheel_Dummy_F"
+	Begin Object class=TS_Vehicle_ReconBike_Wheel Name=Wheel_F
+		BoneName="b_Wheel_F"
 		SkelControlName="Wheel_F_Cont"
+		WheelRadius=30
 		SteerFactor=1.0
 	End Object
 	Wheels(0)=Wheel_F
 
 	Begin Object class=TS_Vehicle_ReconBike_Wheel Name=Wheel_B
-		BoneName="b_Wheel_Dummy_B"
+		BoneName="b_Wheel_B"
 		SkelControlName="Wheel_B_Cont"
-		HandbrakeLongSlipFactor=0.35
-		HandbrakeLatSlipFactor=0.1
+		WheelRadius=35
 	End Object
 	Wheels(1)=Wheel_B
-   
+	
 	Begin Object class=TS_Vehicle_ReconBike_Wheel Name=Wheel_L
-		BoneName="b_Chassis_Roll"
-		BoneOffset=(X=0.0,Y=50.0,Z=20.0)
+		BoneName="b_Wheel_L"
+		BoneOffset=(X=0.0,Y=0.0,Z=15.0)
 		WheelRadius=10
-		SuspensionTravel=60
+		Side=SIDE_Left
+		SuspensionTravel=55
 		bPoweredWheel=false
 		bHoverWheel=false
 		bCollidesVehicles=False
@@ -279,10 +283,11 @@ DefaultProperties
 	Wheels(2)=Wheel_L
 
 	Begin Object class=TS_Vehicle_ReconBike_Wheel Name=Wheel_R
-		BoneName="b_Chassis_Roll"
-		BoneOffset=(X=0.0,Y=-50.0,Z=20.0)
+		BoneName="b_Wheel_R"
+		BoneOffset=(X=0.0,Y=0.0,Z=15.0)
 		WheelRadius=10
-		SuspensionTravel=60
+		Side=SIDE_Right
+		SuspensionTravel=55
 		bPoweredWheel=false
 		bHoverWheel=false
 		bCollidesVehicles=False
@@ -294,15 +299,26 @@ DefaultProperties
 	End Object
 	Wheels(3)=Wheel_R
 	
-	Begin Object class=TS_Vehicle_ReconBike_Wheel Name=Wheel_Steer
-		BoneName="b_Root"
-		SkelControlName="Wheel_Steer_Cont"
-		bPoweredWheel=false
-		bHoverWheel=false
-		bCollidesVehicles=False
-		bCollidesPawns=False
-		WheelRadius=1
-		SteerFactor=-1.0
-	End Object
-	Wheels(4)=Wheel_Steer
+	/************************/
+	/*Veterancy Multipliers*/
+	/***********************/
+
+	//VP Given on death (by VRank)
+	VPReward(0) = 8 
+	VPReward(1) = 10 
+	VPReward(2) = 12 
+	VPReward(3) = 16 
+
+	Vet_HealthMod(0)=1 //250
+	Vet_HealthMod(1)=1.2 //300
+	Vet_HealthMod(2)=1.4 //350
+	Vet_HealthMod(3)=1.6 //400
+		
+	Vet_SprintSpeedMod(0)=1
+	Vet_SprintSpeedMod(1)=1.10
+	Vet_SprintSpeedMod(2)=1.20
+	Vet_SprintSpeedMod(3)=1.30
+
+/**********************/
+
 }

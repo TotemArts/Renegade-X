@@ -2,7 +2,7 @@ class TS_Vehicle_Buggy_Wheel extends UDKVehicleWheel;
 
 defaultproperties
 {
-    WheelRadius=26
+    WheelRadius=32
     SuspensionTravel=100
     SuspensionSpeed=50
     bPoweredWheel=true

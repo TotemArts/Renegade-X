@@ -1,6 +1,7 @@
 class Rx_EMPField extends Rx_ParticleField;
 
 var float InitialDamage; //initial damage done to proximity mines
+var byte VRank; 
 
 event Touch( Actor Other, PrimitiveComponent OtherComp, vector HitLocation, vector HitNormal )
 {

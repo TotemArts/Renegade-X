@@ -7,11 +7,11 @@ function string trigger(string parameters)
 		return "Error: Too few parameters." @ getSyntax();
 	else
 	{
-		for (M = WorldInfo.Game.BaseMutator; M != None; M = M.NextMutator)
+		for (M = `WorldInfoObject.Game.BaseMutator; M != None; M = M.NextMutator)
 			if (string(M.Class) ~= parameters)
 			{
-				WorldInfo.Game.RemoveMutator(M);
-				return "Mutator unloaded; please see the log files for any errors.";
+				`WorldInfoObject.Game.RemoveMutator(M);
+				return "";
 			}
 		return "Error: Mutator not found." @ getSyntax();
 	}

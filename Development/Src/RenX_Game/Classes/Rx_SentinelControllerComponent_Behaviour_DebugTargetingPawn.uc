@@ -16,7 +16,7 @@ function EndBehaviour()
 	bSeeFriendly = false;
 }
 
-function bool PossiblyTarget(Pawn PotentialTarget, optional int ExtraWeight)
+function bool PossiblyTarget(Pawn PotentialTarget, optional bool bOnlyFastTrace, optional int ExtraWeight)
 {
 	if(PotentialTarget == none || PotentialTarget.bDeleteMe || PotentialTarget.Health <= 0 || PotentialTarget.DrivenVehicle != none)
 		return false;

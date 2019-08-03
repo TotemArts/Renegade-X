@@ -1,5 +1,6 @@
 class Rx_BuildingAttachment_Glass_AirTower extends Rx_BuildingAttachment_Glass;
 
+
 DefaultProperties
 {
 	Begin Object Name=SkelGlassMesh

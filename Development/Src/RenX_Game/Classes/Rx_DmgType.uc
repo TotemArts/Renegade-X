@@ -8,12 +8,14 @@ var float MineDamageScaling;
 var float Inf_FLAKDamageScaling;
 var float Inf_KevlarDamageScaling;
 var float Inf_LazarusDamageScaling;
-
+var float Inf_NoArmourDamageScaling;
 
 /**@Shahman: Deprecated. Please use IconTexture to load the DmgIcon*/
 var string IconTextureName;
 
 var Texture2D IconTexture;
+
+var bool bUnsourcedDamage;
 
 static function float VehicleDamageScalingFor(Vehicle V)
 {
@@ -25,13 +27,20 @@ static function float VehicleDamageScalingFor(Vehicle V)
 	if ( (Rx_Vehicle(V) != None) && Rx_Vehicle(V).hasAircraftArmor() )
 	{
      
-		if(default.AircraftDamageScaling > 0) return default.AircraftDamageScaling;
+		if(default.AircraftDamageScaling > 0) 
+			return default.AircraftDamageScaling;
 		else
-		return default.lightArmorDmgScaling; 
+			return default.lightArmorDmgScaling; 
 		
 	}
 	
     return Default.VehicleDamageScaling;
+}
+
+//Never had a function to call this directly
+static function float LightVehicleDamageScalingFor()
+{
+        return default.lightArmorDmgScaling;
 }
 
 static function float BuildingDamageScalingFor()
@@ -69,6 +78,17 @@ static function float LazarusDamageScalingFor() ////Damage mod for infantry with
 {
 	return Default.Inf_LazarusDamageScaling;
 }
+
+static function float NoArmourDamageScalingFor() ////Damage mod for infantry with no armor [Just necessary for weapons that get their overall infantry damage reduced] -Yosh  
+{
+	return Default.Inf_NoArmourDamageScaling;
+}
+
+static function bool IsUnsourcedDamage() ////HANDEPSILON - Whether to flare the entire indicator or not
+{	
+	return Default.bUnsourcedDamage;
+}
+
 defaultproperties
 {
 	MCTDamageScaling=2.0 // stacks with BuildingDamageScaling
@@ -82,6 +102,7 @@ defaultproperties
 	Inf_FLAKDamageScaling = 1.0     //FLAK infantry armour (Standard rule is splash damage does  30% less, while gun damage does 30% more)
 	Inf_KevlarDamageScaling = 1.0	//Kevlar (General rule is 15% less damage from direct hits/bullets, but no penalties) - EDIT: 20%
 	Inf_LazarusDamageScaling = 1.0  // Lazarus SBH armour, standard rule is +40% to Electrical damage but likely no other damage modifiers.
+	Inf_NoArmourDamageScaling = 1.0 //Damage modifier for no armour
 	
     GibPerterbation=0.15
     AlwaysGibDamageThreshold=0

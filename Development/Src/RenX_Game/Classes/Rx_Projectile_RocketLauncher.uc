@@ -41,8 +41,8 @@ DefaultProperties
     MyDamageType=class'Rx_DmgType_RocketLauncher'
 
     bCollideComplex=true
-    Speed=5000
-    MaxSpeed=5000
+    Speed=6500
+    MaxSpeed=6500
     AccelRate=0
     LifeSpan=5.0
     Damage=60
@@ -57,4 +57,9 @@ DefaultProperties
     bSuppressExplosionFX=False // Do not spawn hit effect in mid air
 	
 	 bBlockedByInstigator=false
+	 
+	Vet_SpeedIncrease(0)=1 //Normal (should be 1)
+	Vet_SpeedIncrease(1)=1.25 //Veteran 
+	Vet_SpeedIncrease(2)=1.50 //Elite
+	Vet_SpeedIncrease(3)=2.0 //Heroic
 }

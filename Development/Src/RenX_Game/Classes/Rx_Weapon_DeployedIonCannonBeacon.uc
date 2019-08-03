@@ -208,4 +208,6 @@ defaultproperties
    bCollideActors=false
 
     LifeSpan = 60.2f
+	
+	MinimapIconTexture = Texture2D'RenxHud.T_Beacon_Ion'
 }

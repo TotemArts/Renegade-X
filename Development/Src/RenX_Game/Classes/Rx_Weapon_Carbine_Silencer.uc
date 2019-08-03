@@ -1,6 +1,6 @@
 class Rx_Weapon_Carbine_Silencer extends Rx_Weapon_Charged;
 
-function bool IsInstantHit()
+simulated function bool IsInstantHit()
 {
 	return true; 
 }
@@ -29,8 +29,12 @@ defaultproperties
 	
 	PlayerViewOffset=(X=5.0,Y=1.0,Z=-1.0)
 	
-	LeftHandIK_Offset=(X=0.723,Y=-5.72,Z=0.5)
-	RightHandIK_Offset=(X=0,Y=0,Z=0)
+	LeftHandIK_Offset=(X=-4.0,Y=-4.5,Z=-0.5)
+	LeftHandIK_Rotation=(Pitch=0,Yaw=0,Roll=0)
+	RightHandIK_Offset=(X=-1.21,Y=1.4,Z=2.44)
+	
+	bOverrideLeftHandAnim=true
+	LeftHandAnim=H_M_Hands_Closed
 
 	ArmsAnimSet = AnimSet'RX_WP_Carbine.Anims.AS_Carbine_Arms'
 	
@@ -190,4 +194,32 @@ defaultproperties
 
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_Carbine_Silenced'
+	
+	/*******************/
+	/*Veterancy*/
+	/******************/
+	
+	Vet_DamageModifier(0)=1  //Applied to instant-hits only
+	Vet_DamageModifier(1)=1.10 
+	Vet_DamageModifier(2)=1.20 
+	Vet_DamageModifier(3)=1.33 
+	
+	Vet_ROFModifier(0) = 1
+	Vet_ROFModifier(1) = 0.95 
+	Vet_ROFModifier(2) = 0.9 
+	Vet_ROFModifier(3) = 0.85 
+	
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)	
+	Vet_ClipSizeModifier(1)=5 //Veteran 
+	Vet_ClipSizeModifier(2)=10 //Elite
+	Vet_ClipSizeModifier(3)=15 //Heroic
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.9 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+	/**********************/
+	
+	bLocSync = true; 
+	LocSyncIncrement = 15; 
 }

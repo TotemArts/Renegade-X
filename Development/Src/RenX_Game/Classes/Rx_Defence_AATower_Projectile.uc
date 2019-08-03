@@ -17,7 +17,7 @@ class Rx_Defence_AATower_Projectile extends Rx_Vehicle_Projectile_SeekingRocket;
 
 DefaultProperties
 {
-    DrawScale            = 1.25f
+    DrawScale            = 1.4 //1.25f
 
 	AmbientSound=SoundCue'RX_SoundEffects.Missiles.SC_Missile_FlyBy'
 	ProjFlightTemplate=ParticleSystem'RX_FX_Munitions.Missile.P_Missile_RocketLauncher'
@@ -57,16 +57,16 @@ DefaultProperties
 	ExplosionLightClass=Class'Rx_Light_Tank_Explosion'
 	MaxExplosionLightDistance=7000.000000
 	Speed=3000
-	MaxSpeed=3000
-	AccelRate=1000
-	LifeSpan=2.0
-	Damage=50
-	DamageRadius=300
-	MomentumTransfer=100000.000000
+	MaxSpeed=4500 //3000
+	AccelRate=500
+	LifeSpan=2.5
+	Damage=150 //75//50
+	DamageRadius=750 //300
+	MomentumTransfer=1000000.000000
    
 	LockWarningInterval= 1.5
-	BaseTrackingStrength=5.0 //0.7
-	HomingTrackingStrength=5.0 //0.7
+	BaseTrackingStrength=10.0//5.0 //0.7
+	HomingTrackingStrength=10.0//5.0 //0.7
 
 	MyDamageType=Class'Rx_DmgType_AATower'
 

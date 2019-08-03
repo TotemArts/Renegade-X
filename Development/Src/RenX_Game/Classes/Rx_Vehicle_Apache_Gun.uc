@@ -4,7 +4,7 @@ simulated function SetExplosionEffectParameters(ParticleSystemComponent ProjExpl
 {
     Super.SetExplosionEffectParameters(ProjExplosion);
 
-    ProjExplosion.SetScale(1.6f); //(0.5f);
+    ProjExplosion.SetScale(2.0f); //(0.5f);
 }
 
 DefaultProperties
@@ -49,10 +49,17 @@ DefaultProperties
     AccelRate=0
     LifeSpan=0.5 //0.5
     Damage=30
-    DamageRadius=150
+    DamageRadius=85
+    HeadShotDamageMult=1.5
     MomentumTransfer=5000
     bWaitForEffects=true
     bAttachExplosionToVehicles=false
     bCheckProjectileLight=false
     bSuppressExplosionFX=True // Do not spawn hit effect in mid air
+	
+	Vet_LifespanModifier(0)=1 //Normal (should be 1)
+	Vet_LifespanModifier(1)=1.05 //Veteran 
+	Vet_LifespanModifier(2)=1.10 //Elite
+	Vet_LifespanModifier(3)=1.15 //Heroic
+	
 }

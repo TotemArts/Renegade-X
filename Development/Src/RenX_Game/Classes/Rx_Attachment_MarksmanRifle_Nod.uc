@@ -11,4 +11,5 @@ DefaultProperties
 	WeaponClass = class'Rx_Weapon_MarksmanRifle_Nod'
 	
 	BeamTemplate=ParticleSystem'RX_FX_Munitions.Beams.P_InstantHit_Tracer_Nod'
+	BeamTemplate_Heroic=ParticleSystem'RX_FX_Munitions.Beams.P_InstantHit_Tracer_Nod_Large_Heroic'
 }

@@ -7,13 +7,13 @@ defaultproperties
     SuicideStatsName=SUICIDES_MISSILELAUNCHER
 
     DamageWeaponFireMode=2
-    VehicleDamageScaling=0.65
+    VehicleDamageScaling=0.80 //0.65
 	NodeDamageScaling=0.5
     VehicleMomentumScaling=0.5
 	MineDamageScaling=2.0
 
     CustomTauntIndex=10
-    lightArmorDmgScaling=0.75
+    lightArmorDmgScaling=0.90 //0.75
     AircraftDamageScaling=0.90 //This is only used by a damage type if the value is greater than 0, otherwise it treats an aircraft like Light armour.
     BuildingDamageScaling=1.5
 	

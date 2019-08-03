@@ -11,18 +11,18 @@ function string trigger(string parameters)
 	pos = InStr(parameters," ",,true);
 	if (pos != -1)
 	{
-		player = Rx_Controller(WorldInfo.Game.AccessControl.GetControllerFromString(Left(parameters,pos)));
+		player = Rx_Controller(`WorldInfoObject.Game.AccessControl.GetControllerFromString(Left(parameters,pos)));
 		if (player == None)
 			return "Error: Player not found.";
 		parameters = Mid(parameters, pos+1);
-		WorldInfo.Game.AccessControl.ForceKickPlayer(player, parameters);
+		`WorldInfoObject.Game.AccessControl.ForceKickPlayer(player, parameters);
 	}
 	else
 	{
-		player = Rx_Controller(WorldInfo.Game.AccessControl.GetControllerFromString(parameters));
+		player = Rx_Controller(`WorldInfoObject.Game.AccessControl.GetControllerFromString(parameters));
 		if (player == None)
 			return "Error: Player not found.";
-		WorldInfo.Game.AccessControl.ForceKickPlayer(player, WorldInfo.Game.AccessControl.DefaultKickReason);
+		`WorldInfoObject.Game.AccessControl.ForceKickPlayer(player, `WorldInfoObject.Game.AccessControl.DefaultKickReason);
 	}
 
 	return "";

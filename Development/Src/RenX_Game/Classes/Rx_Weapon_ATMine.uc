@@ -141,6 +141,7 @@ DefaultProperties
 	bRemoveWhenDepleted=false   // We must retain the weapon in our inventory during the super deploy call, so that the deploy in this class can update the AT mine counters.
 	SecondsNeedLoad=1
 	bBlockDeployCloseToOwnBase=false
+	bAffectedByNoDeployVolume=false
 	
 	bDisplayCrosshair=false
 	

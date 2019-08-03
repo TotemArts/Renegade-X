@@ -10,12 +10,12 @@ function string trigger(string parameters)
 	if (maps.Length == 0)
 		return "";
 
-	map_rotation = maps[0] `s class'Rx_Game'.static.GuidToHex(GetPackageGuid(name(maps[0])));
+	map_rotation = maps[0] `s class'Rx_Game'.static.GuidToHex(`WorldInfoObject.GetPackageGuid(name(maps[0])));
 
 	index = 1;
 	while (index != maps.Length)
 	{
-		map_rotation $= "\n" $ maps[index] `s class'Rx_Game'.static.GuidToHex(GetPackageGuid(name(maps[index])));
+		map_rotation $= "\n" $ maps[index] `s class'Rx_Game'.static.GuidToHex(`WorldInfoObject.GetPackageGuid(name(maps[index])));
 		++index;
 	}
 	return map_rotation;

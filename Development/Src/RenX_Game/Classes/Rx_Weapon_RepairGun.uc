@@ -14,11 +14,14 @@ var UTEmitter BeamEndpointEffect;
 /** saved heal ammount (in case of high frame rate */
 var float SavedHealAmmount;
 var bool bHealing;
-var bool bKeepFiring;
+//var bool bKeepFiring;
 var float MineDamageModifier; //Modifier for disarming mines, if any
+var float EMPHealMultiplier;
 
 /** cached cast of attachment class for calling coloring functions */
 var class<Rx_Attachment_RepairGun> RepGunAttachmentClass;
+
+var float TestNum; 
 
 var Actor MyHitActor; 
 
@@ -27,6 +30,17 @@ simulated function PostBeginPlay()
 	super.PostBeginPlay();
 	WeaponFireSnd[0].VolumeMultiplier = 0.3;    
 	RepGunAttachmentClass = class<Rx_Attachment_RepairGun>(AttachmentClass);
+}
+
+simulated state Active
+{
+	simulated function BeginState(name PreviousStateName)
+	{	
+	super.BeginState(PreviousStateName);	
+	
+	KillBeamEmitter();
+	
+	}
 }
 
 simulated function bool IsEnemy(actor actor)
@@ -46,7 +60,9 @@ simulated function RepairVehicle(Rx_Vehicle vehicle, float DeltaTime)
 		vehicle.Health > 0 &&
 		vehicle.Health < vehicle.HealthMax)
 	{
-		Repair(vehicle,DeltaTime);
+		if(!vehicle.bEMPd) Repair(vehicle,DeltaTime);
+		else
+		Repair(vehicle,DeltaTime,,EMPHealMultiplier);	
 	}
 	else
 	{
@@ -58,6 +74,7 @@ simulated function RepairPawn(Rx_Pawn pawn, float DeltaTime)
 {
 	if (!IsEnemy(pawn) && pawn.Health > 0 && (pawn.Health < pawn.HealthMax || pawn.Armor < pawn.ArmorMax) )
 	{
+		
 		Repair(pawn,DeltaTime);
 	}
 	else
@@ -72,7 +89,7 @@ simulated function RepairBuilding(Rx_Building building, float DeltaTime)
 	local int maxRepairableHealth;
 	
 	
-	if (Rx_Building_Techbuilding(building) == None && Rx_CapturableMCT(building) == None)
+	if (Rx_Building_Techbuilding(building) == None && !building.isA('Rx_CapturableMCT'))
 	{
 		repairableHealth = building.GetArmor();
 		maxRepairableHealth = building.GetMaxHealth() * Rx_GRI(WorldInfo.GRI).buildingArmorPercentage/100;
@@ -92,8 +109,8 @@ simulated function RepairBuilding(Rx_Building building, float DeltaTime)
 	}
 	else
 	{
-		if(Rx_CapturableMCT(building) != None
-				&& !(Rx_CapturableMCT(building).ScriptGetTeamNum() == Instigator.GetTeamNum() && building.GetHealth() >= building.GetMaxHealth()) )
+		if(building.isA('Rx_CapturableMCT')
+				&& !(building.ScriptGetTeamNum() == Instigator.GetTeamNum() && building.GetHealth() >= building.GetMaxHealth()) )
 			Repair(building,DeltaTime);
 		else
 			bHealing = false;
@@ -105,7 +122,7 @@ simulated function RepairBuildingAttachment(Rx_BuildingAttachment buildingAttach
 	local int repairableHealth;
 	local int maxRepairableHealth;	
 	
-	if(Rx_Building_Techbuilding(buildingAttachment.OwnerBuilding.BuildingVisuals) == None && Rx_CapturableMCT(buildingAttachment.OwnerBuilding.BuildingVisuals) == None)
+	if(Rx_Building_Techbuilding(buildingAttachment.OwnerBuilding.BuildingVisuals) == None && !buildingAttachment.OwnerBuilding.BuildingVisuals.isA('Rx_CapturableMCT'))
 	{
 		repairableHealth = buildingAttachment.OwnerBuilding.BuildingVisuals.GetArmor();
 		maxRepairableHealth = buildingAttachment.OwnerBuilding.BuildingVisuals.GetMaxHealth() * Rx_GRI(WorldInfo.GRI).buildingArmorPercentage/100;
@@ -138,7 +155,7 @@ simulated function RepairDeployedActor(Rx_Weapon_DeployedActor deployedActor, fl
 	
 	if (!deployedActor.bCanNotBeDisarmedAnymore 
 			&& (IsEnemy(deployedActor) || (Rx_Weapon_DeployedProxyC4(deployedActor) != None 
-												&& CurrentFireMode == 0
+												&& CurrentFireMode == 1
 												&& (Rx_Weapon_DeployedProxyC4(deployedActor).OwnerPRI == Instigator.PlayerReplicationInfo || Rx_PRI(Rx_Weapon_DeployedProxyC4(deployedActor).OwnerPRI).GetMineStatus() == false )
 												&& deployedActor.HP > 0
 												&& deployedActor.HP <= deployedActor.MaxHP)))
@@ -156,24 +173,22 @@ simulated function RepairDeployedActor(Rx_Weapon_DeployedActor deployedActor, fl
 	}
 }
 
-simulated function Repair(Actor actor, float DeltaTime, optional bool Disarm = false)
+simulated function Repair(Actor actor, float DeltaTime, optional bool Disarm = false, optional float RateModifier = 1.0)
 {
 	local int ActualHealAmmount;
-	local float DamageMod;
-
-	DamageMod=1;
 	
 	if(Rx_Weapon_DeployedProxyC4(actor) != none  ) //For Proximity mines only 
 		{
-			if(actor.GetTeamNum() == Owner.GetTeamNum() ) DamageMod=MineDamageModifier*5; //disarming mines should be quick. 
+			if(actor.GetTeamNum() == Owner.GetTeamNum() ) 
+				RateModifier=MineDamageModifier*5; //disarming mines should be quick. 
 			else
-			DamageMod=MineDamageModifier;
+				RateModifier=MineDamageModifier;
 		}
 	
-	
 	bHealing = true;
-
-	SavedHealAmmount += HealAmount * DamageMod * DeltaTime;
+	
+	SavedHealAmmount += HealAmount * GetDamageModifier() * RateModifier * DeltaTime;
+	
 	ActualHealAmmount = int(SavedHealAmmount);
 	
 	if(ActualHealAmmount < MinHealAmount) 
@@ -240,6 +255,14 @@ simulated function ProcessBeamHit(vector StartTrace, vector AimDir, out ImpactIn
 	else if (Rx_Weapon_DeployedActor(Impact.HitActor) != none)
 	{
 		RepairDeployedActor(Rx_Weapon_DeployedActor(Impact.HitActor),DeltaTime);
+	}
+	else if (Rx_DestroyableObstaclePlus(Impact.HitActor) != none)
+	{
+		Repair(Rx_DestroyableObstaclePlus(Impact.HitActor),DeltaTime);
+	}
+	else if (Rx_BasicPawn(Impact.HitActor) != none)
+	{
+		Repair(Rx_BasicPawn(Impact.HitActor),DeltaTime);
 	}
 	else// We haven't hit anything we can repair.
 	{
@@ -325,7 +348,7 @@ simulated state WeaponBeamFiring
 			BeamLight = spawn(class'UTLinkBeamLight');
 		}
 		
-		if(CurrentFireMode == 1)
+		/**if(CurrentFireMode == 1)
 		{
 			bKeepFiring = true;
 			SetTimer(20,false,'ResetKeepFiring');
@@ -334,7 +357,7 @@ simulated state WeaponBeamFiring
 		{
 			bKeepFiring = false;
 			//ClearPendingFire(1);		
-		}
+		}*/
 
 		WeaponPlaySound(StartAltFireSound);
 	}
@@ -372,6 +395,9 @@ simulated state WeaponBeamFiring
 		}
 
 		// Otherwise we're done firing, so go back to active state.
+		ClearPendingFire(0);
+		ClearPendingFire(1);
+		KillBeamEmitter();
 		GotoState('Active');
 
 		// if out of ammo, then call weapon empty notification
@@ -383,36 +409,33 @@ simulated state WeaponBeamFiring
 
 }
 
-simulated function ResetKeepFiring()
+/**simulated function ResetKeepFiring()
 {
 	bKeepFiring = false;
 	ClearPendingFire(1);
-}
+}*/
 
 simulated function bool ShouldRefire()
 {
-	if(bKeepFiring)
-		return true;
-	return super.ShouldRefire();
+	/**if(bKeepFiring)
+		return true;*/
+	return super(Weapon).ShouldRefire();
 }	
 
 simulated function BeginFire(Byte FireModeNum)
 {
 	//ClearPendingFire(1); 
-	if(FireModeNum == 1 && bKeepFiring && PendingFire(1))
+	/**if(FireModeNum == 1 && bKeepFiring && PendingFire(1))
 	{
 		bKeepFiring = false;
 		return;
-	}
-	bKeepFiring = false;			
+	}*/
+	//bKeepFiring = false;			
 	super.BeginFire(FireModeNum);
 }
 
 simulated function StopFire(byte FireModeNum)
 {
-	if(FireModeNum == 1 && bKeepFiring)
-		return;
-	bKeepFiring = false;
 	//ClearPendingFire(1);	
 	super.StopFire(FireModeNum);
 }
@@ -440,6 +463,7 @@ simulated function SetBeamEmitterHidden(bool bHide)
 
 simulated function KillBeamEmitter()
 {
+	//`log("Killed Emitter");
 	Super.KillBeamEmitter();
 
 	KillEndpointEffect();
@@ -461,7 +485,13 @@ function bool CanHeal(Actor Other)
 
 function bool CanAttack(Actor Other)
 {
-	if(Other.GetTeamNum() != 255 && (Other.GetTeamNum() != Owner.GetTeamNum())) {
+	if(VSize(Instigator.GetWeaponStartTraceLocation() - Other.Location) <= WeaponRange - 100)
+
+	if(Rx_Weapon_DeployedActor(Other) != None)
+		return super.CanAttack(Other);
+
+	if(Other.GetTeamNum() != 255 && Other.GetTeamNum() != Owner.GetTeamNum()) 
+	{
 		return false;
 	}
 	return super.CanAttack(Other);
@@ -471,7 +501,7 @@ simulated function bool UsesClientSideProjectiles(byte FireMode)
 {
 	return false;
 }
-
+/**
 simulated function DrawCrosshair( Hud HUD )
 {
 	local vector2d CrosshairSize;
@@ -479,7 +509,44 @@ simulated function DrawCrosshair( Hud HUD )
 	local UTHUDBase H;
 	local Pawn MyPawnOwner;
 	local actor TargetActor;
-	local int targetTeam, rectColor;	
+	local int targetTeam;
+	local LinearColor LC; //nBab
+
+	//set initial color based on settings (nBab)
+	LC.A = 1.f;
+	switch (Rx_HUD(Rx_Controller(Instigator.Controller).myHUD).SystemSettingsHandler.GetCrosshairColor())
+	{
+		//white
+		case 0:
+			LC.R = 1.f;
+			LC.G = 1.f;
+			LC.B = 1.f;
+			break;
+		//orange
+		case 1:
+			LC.R = 2.f;
+			LC.G = 0.5f;
+			LC.B = 0.f;
+			break;
+		//violet
+		case 2:
+			LC.R = 2.f;
+			LC.G = 0.f;
+			LC.B = 2.f;
+			break;
+		//blue
+		case 3:
+			LC.R = 0.f;
+			LC.G = 0.f;
+			LC.B = 2.f;
+			break;
+		//cyan
+		case 4:
+			LC.R = 0.f;
+			LC.G = 2.f;
+			LC.B = 2.f;
+			break;	
+	}	
 	
 	H = UTHUDBase(HUD);
 	if ( H == None )
@@ -508,18 +575,37 @@ simulated function DrawCrosshair( Hud HUD )
 				if (targetTeam != MyPawnOwner.GetTeamNum())
 				{
 					if (!TargetActor.IsInState('Stealthed') && !TargetActor.IsInState('BeenShot'))
-						rectColor = 1; //enemy, go red, except if stealthed (else would be cheating ;] )
+					{
+						//enemy, go red, except if stealthed (else would be cheating ;] )
+						//nBab
+						LC.R = 10.f;
+						LC.G = 0.f;
+						LC.B = 0.f;
+					}
 				}
 				else
-					rectColor = 2; //Friendly
+				{
+					//Friendly
+					//nBab
+					LC.R = 0.f;
+					LC.G = 10.f;
+					LC.B = 0.f;
+				}
 			}
 		}
 	}
 	
 	if (!HasAnyAmmo()) //no ammo, go yellow
-		rectColor = 3;
+	{
+		//nBab
+		LC.R = 10.f;
+		LC.G = 8.f;
+		LC.B = 0.f;
+	}
 
-	CrosshairMIC2.SetScalarParameterValue('ReticleColourSwitcher', rectColor);
+	//nBab
+	CrosshairMIC2.SetVectorParameterValue('Reticle_Colour', LC);
+	
 	if ( CrosshairMIC2 != none )
 	{
 		//H.Canvas.SetPos( X+1, Y+1 );
@@ -533,7 +619,63 @@ simulated function DrawCrosshair( Hud HUD )
 	}
 	
 }
+*/
+//Edit to not use a zero point trace so hitting infantry is easier with the repair gun 
+simulated function UpdateBeam(float DeltaTime)
+{
+	local Vector		StartTrace, EndTrace, AimDir;
+	local ImpactInfo	RealImpact;
+	local UTPlayerController PC;
 
+	// define range to use for CalcWeaponFire()
+	PC = UTPlayerController(Pawn(Owner).Controller);
+	
+	if(PC == None || !PC.bBehindView) 
+	{
+		StartTrace	= Instigator.GetWeaponStartTraceLocation();
+	} 
+	else 
+	{
+		StartTrace	= InstantFireStartTrace();
+	}
+	AimDir = Vector(GetAdjustedAim( StartTrace ));
+	EndTrace	= StartTrace + AimDir * GetTraceRange();
+	
+	//DrawDebugLine(StartTrace,EndTrace,0,0,255,true);
+	// Trace a shot
+	RealImpact = CalcWeaponFire( StartTrace, EndTrace,,vect(2,2,2) );
+	bUsingAimingHelp = false;
+	
+	if( Rx_Weapon_DeployedC4(RealImpact.HitActor) == None 
+		&& Rx_Weapon_DeployedC4(PrevHitActor) != None)
+	{
+		//loginternal(VSize(RealImpact.HitLocation - PrevHitActor.Location));
+		if(VSize(RealImpact.HitLocation - PrevHitActor.Location) < 20)
+		{
+			RealImpact.HitActor = PrevHitActor;	
+		}
+	}	
+
+	if(RealImpact.HitActor != None)
+	{
+		CurrHitLocation = RealImpact.HitLocation;
+		// Allow children to process the hit
+		ProcessBeamHit(StartTrace, AimDir, RealImpact, DeltaTime);
+		UpdateBeamEmitter(RealImpact.HitLocation, RealImpact.HitNormal, RealImpact.HitActor);
+		PrevHitActor = RealImpact.HitActor;
+	}
+	else 
+	{
+		CurrHitLocation = EndTrace;
+		SetFlashLocation(EndTrace);
+		UpdateBeamEmitter(EndTrace, vect(0,0,0), None);
+	}
+}
+
+function PromoteWeapon(byte rank) /*Covers most of what needs to be done(Damage,ROF,ClipSize,etc.) Special things obviously need to be added for special weapons*/
+{
+VRank = rank; 
+}
 
 DefaultProperties
 {
@@ -560,8 +702,17 @@ DefaultProperties
 
 	AttachmentClass = class'Rx_Attachment_RepairGun'
 	
-	LeftHandIK_Offset=(X=0,Y=-10,Z=0)
+	LeftHandIK_Offset=(X=0,Y=0,Z=0)
+	LeftHandIK_Rotation = (Pitch=3458,Yaw=-546,Roll=9466)
 	RightHandIK_Offset=(X=0,Y=0,Z=0)
+	
+	LeftHandIK_Relaxed_Offset = (X=0.85,Y=1.75,Z=1.37)
+	RightHandIK_Relaxed_Offset = (X=-4.0,Y=0.0,Z=0.0)
+	RightHandIK_Relaxed_Rotation = (Pitch=-910,Yaw=3640,Roll=0)
+
+	
+	bOverrideLeftHandAnim=true
+	LeftHandAnim=H_M_Hands_Closed
 
 	ShotCost(0)=0
 	ShotCost(1)=0
@@ -578,8 +729,8 @@ DefaultProperties
 	LockerRotation=(pitch=0,yaw=0,roll=-16384)
 
 	WeaponFireTypes(0)=EWFT_InstantHit
-	//WeaponFireTypes(1)=EWFT_InstantHit
-	WeaponFireTypes(1)=EWFT_None
+	WeaponFireTypes(1)=EWFT_InstantHit
+	//WeaponFireTypes(1)=EWFT_None
 
 	InstantHitDamage(0)=0
 	InstantHitDamage(1)=0
@@ -592,7 +743,8 @@ DefaultProperties
 
 	HealAmount = 20
 	MinHealAmount = 1
-	MineDamageModifier  = 2//3
+	MineDamageModifier  = 2 //3
+	EMPHealMultiplier = 0.15 //0.25
 	
 	ClipSize = 999
 	InitalNumClips = 1
@@ -624,9 +776,9 @@ DefaultProperties
 	WeaponIconTexture=Texture2D'RX_WP_RepairGun.UI.T_WeaponIcon_RepairGun'
 	
 	// AI Hints:
-	MaxDesireability=0.7
-	AIRating=+0.7
-	CurrentRating=+0.3    
+	MaxDesireability=0.05
+	AIRating=+0.05
+	CurrentRating=+0.05    
 	bFastRepeater=true
 	bInstantHit=true
 	
@@ -645,5 +797,23 @@ DefaultProperties
 
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_RepairGun'
+	
+	/*******************/
+	/*Veterancy*/
+	/******************/
+	
+	Vet_DamageModifier(0)=1  //Applied to instant-hits only
+	Vet_DamageModifier(1)=1.10 //22
+	Vet_DamageModifier(2)=1.20 //24
+	Vet_DamageModifier(3)=1.30 //26
+	
+	Vet_RangeModifier(0) = 1.0 //Also applied to instant hits only
+	Vet_RangeModifier(1) = 1.1  
+	Vet_RangeModifier(2) = 1.25  
+	Vet_RangeModifier(3) = 1.50  
+	
+	/**********************/
+	
+	TestNum = 5
 
 }

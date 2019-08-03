@@ -2,7 +2,7 @@
  * RconProtocol.uci - Includes for strings used in the Rcon Protocol.
  */
 
-`define ProtocolVersion	"003"
+`define ProtocolVersion	"004"
  
  // Packet Commands
 `define AUTH		"a"		// c->s Auth Request, s->c Auth Confirmed
@@ -23,11 +23,10 @@
 `define Err_TooManyAttempts		"Too many Password Attempts - Banned"
 `define Err_TooManySubs			"At Subscriber Limit"
 `define Err_UnknownOperation	"Unknown RCON operation"
-`define Err_RconLocked			"Rcon Locked - Disconnecting"
 `define Err_NonSeamless         "NonSeamless Travel - Disconnecting"
 
 
 
 // Helper Macros
-`define PacketContent(Payload) Mid(`Payload,1)
+`define PacketContent(Payload) class'Rx_RconConnection'.static.ProcessEscapeSequences(Mid(`Payload,1))
 `define PacketType(Payload) Left(`Payload,1)

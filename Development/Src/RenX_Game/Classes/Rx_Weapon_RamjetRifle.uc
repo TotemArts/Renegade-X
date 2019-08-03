@@ -8,7 +8,7 @@ simulated function FireAmmunition()
 	WeaponPlaySound( WeaponDistantFireSnd );
 }
 
-function bool IsInstantHit()
+simulated function bool IsInstantHit()
 {
 	return true; 
 }
@@ -36,7 +36,13 @@ defaultproperties
 
     AttachmentClass=class'Rx_Attachment_RamjetRifle'
 	
-	LeftHandIK_Offset=(X=0.75,Y=-3,Z=1.25)
+	LeftHandIK_Offset=(X=0.0,Y=0.0,Z=0.0)
+	RightHandIK_Offset=(X=2.0,Y=2.0,Z=-1.0)
+	
+	LeftHandIK_Relaxed_Offset = (X=0.000000,Y=-0.500000,Z=0.000000)
+	LeftHandIK_Relaxed_Rotation = (Pitch=-3640,Yaw=0,Roll=0)
+	RightHandIK_Relaxed_Offset = (X=0.000000,Y=2.000000,Z=-4.000000)
+	RightHandIK_Relaxed_Rotation = (Pitch=-2730,Yaw=2730,Roll=5461)
 
     ArmsAnimSet=AnimSet'RX_WP_Ramjet.Anims.AS_RamjetRifle_Arms'
 	
@@ -71,13 +77,13 @@ defaultproperties
 
     ShotCost(0)=1
     ShotCost(1)=0
-    FireInterval(0)=+2.0
-    FireInterval(1)=+0.0
+    FireInterval(0)=+1.0
+    FireInterval(1)=+1.0
     
     EquipTime=1.0
 //	PutDownTime=0.75
     
-    Spread(0)=0.0
+    Spread(0)=0.15 //0.08 //0.0
 	IronSightAndScopedSpread(0)= 0.0
  
 	WeaponFireTypes(0)=EWFT_InstantHit
@@ -139,10 +145,10 @@ defaultproperties
 	CrosshairWidth = 256
 	CrosshairHeight = 256
 	
-	CrosshairMIC = MaterialInstanceConstant'RenX_AssetBase.UI.MI_Reticle_Simple'
-//	CrosshairMIC = MaterialInstanceConstant'RenXHud.MI_Reticle_SniperRifle'
+	//CrosshairMIC = MaterialInstanceConstant'RenX_AssetBase.UI.MI_Reticle_Simple'
+	CrosshairMIC = MaterialInstanceConstant'RenXHud.MI_Reticle_SniperRifle'
 //  CrosshairMIC = MaterialInstanceConstant'RenX_AssetBase.UI.MI_Reticle_None'
-//	CrosshairDotMIC = MaterialInstanceConstant'RenX_AssetBase.UI.MI_Reticle_None'
+	CrosshairDotMIC = MaterialInstanceConstant'RenX_AssetBase.UI.MI_Reticle_None'
 
     CrossHairCoordinates=(U=256,V=64,UL=64,VL=64)
     IconCoordinates=(U=726,V=532,UL=165,VL=51)
@@ -152,4 +158,51 @@ defaultproperties
 
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_RamjetRifle'
+	
+	/*******************/
+	/*Veterancy*/
+	/******************/
+	
+	Vet_DamageModifier(0)=1  //Applied to instant-hits only
+	Vet_DamageModifier(1)=1.10 
+	Vet_DamageModifier(2)=1.25 
+	Vet_DamageModifier(3)=1.50 
+	
+	Vet_ROFModifier(0) = 1
+	Vet_ROFModifier(1) = 1 
+	Vet_ROFModifier(2) = 1  
+	Vet_ROFModifier(3) = 1  
+	
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)	
+	Vet_ClipSizeModifier(1)=0 //Veteran 
+	Vet_ClipSizeModifier(2)=1 //Elite
+	Vet_ClipSizeModifier(3)=1 //Heroic
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.9 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+	/**********************/
+	
+	bLocSync = true; 
+	ROFTurnover = 2;
+	
+	//Bolt Stuff
+	BoltActionReload=true
+	BoltReloadTime(0) = 1.75 //2.0f (Factor in RefireBoltReloadInterrupt) 
+	BoltReloadTime(1) = 1.75 //2.0f
+
+	BoltReloadAnimName(0) = "WeaponBolt"
+	BoltReloadAnimName(1) = "WeaponBolt"
+	BoltReloadArmAnimName(0) = "WeaponBolt"
+	BoltReloadArmAnimName(1) = "WeaponBolt"
+	
+	BoltReloadSound(0)=SoundCue'RX_WP_Ramjet.Sounds.SC_Ramjet_Reload_Stop'
+	BoltReloadSound(1)=SoundCue'RX_WP_Ramjet.Sounds.SC_Ramjet_Reload_Stop'
+	
+	//For instant hit weapons 
+	bPierceInfantry = true
+	bPierceVehicles = false
+	MaximumPiercingAbility  = 32
+	CurrentPiercingPower	= 32
 }

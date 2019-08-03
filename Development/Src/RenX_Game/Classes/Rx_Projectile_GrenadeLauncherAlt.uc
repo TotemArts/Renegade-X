@@ -13,7 +13,18 @@ simulated function PostBeginPlay()
  */
 simulated function Timer()
 {
-    Explode(Location, vect(0,0,1));
+	local vector ZOffsetLocation;
+	
+	 //Explode(Location, vect(0,0,1));
+
+	//ReplicatePositionAfterLanded();
+	ZOffsetLocation=location;
+	
+	ZOffsetLocation.z+=40; 
+
+		
+    Explode(ZOffsetLocation,vect(0,0,10)) ;// vect(0,0,1));
+
 }
 
 /**
@@ -43,14 +54,24 @@ simulated event HitWall(vector HitNormal, Actor Wall, PrimitiveComponent WallCom
 
         if ( Speed < 20 || Pawn(Wall) != none )
         {
-            ImpactedActor = Wall;
+		Explode(location, HitNormal);
+
+		  /* ImpactedActor = Wall;
             SetPhysics(PHYS_None);
-        }
+        */
+		}
     }
     else if ( Wall != Instigator )     // Hit a different pawn, just explode
     {
         Explode(Location, HitNormal);
     }
+}
+
+simulated function SetExplosionEffectParameters(ParticleSystemComponent ProjExplosion)
+{
+    Super.SetExplosionEffectParameters(ProjExplosion);
+
+    ProjExplosion.SetScale(1.1);
 }
 
 
@@ -60,4 +81,7 @@ DefaultProperties
 //	Speed=1100
 //	MaxSpeed=2000
 //	LifeSpan=8.0
+
+Damage = 40
+DamageRadius = 400
 }

@@ -34,6 +34,23 @@ function Tick( FLOAT DeltaSeconds )
 
 function bool Died(Controller Killer, class<DamageType> DamageType, vector HitLocation)
 {
+	local string DeathVPString; 
+	local Rx_Controller RxC;
+	
+	DeathVPString = BuildDeathVPString(Killer, DamageType);
+	
+	if(Rx_Controller(Killer) != None && GetTeamNum() != Killer.GetTeamNum()) //Rx_Controller(Killer).DisseminateVPString(DeathVPString); 
+	{
+		foreach WorldInfo.AllControllers(class'Rx_Controller', RxC)
+		{
+		if(RxC.GetTeamNum() == Killer.GetTeamNum()) RxC.DisseminateVPString(DeathVPString);
+		else
+		continue;
+		}
+	}
+	
+	
+	
 	return super(UTVehicle).Died(Killer,DamageType,HitLocation);
 }
 
@@ -155,9 +172,29 @@ simulated function bool IsEffectedByEMP()
 }
 
 // EMPs are not to affect automated defences
-function bool EMPHit(Controller InstigatedByController, Actor EMPCausingActor)
+simulated function bool EMPHit(Controller InstigatedByController, Actor EMPCausingActor, optional int TimeModifier = 0)
 {
 	return false;
+}
+
+function string BuildDeathVPString(Controller Killer, class<DamageType> DamageType)
+{
+	if(Killer == none || LastTeamToUse == Killer.GetTeamNum() ) return ""; //Meh, you get nothing
+		
+		return "[Emplacement Destroyed]&+" $ default.VPReward[VRank] $ "&" ;
+	
+}
+
+//A much lighter variant of the VPString builder, used to calculate assists (Which only add in negative modifiers for in-base and higher VRank)
+function int BuildAssistVPString(Controller Killer) 
+{
+	//No Modifiers for the Harvester
+	return 0; 	
+}
+
+simulated function bool ForceVisible()
+{
+	return Rx_DefencePRI(PlayerReplicationInfo) != none && Rx_DefencePRI(PlayerReplicationInfo).bSpotted;  
 }
 
 DefaultProperties
@@ -169,5 +206,28 @@ DefaultProperties
     MaxSpeed=0
     bReplicateMovement=false
     bAlwaysRelevant=true
+	RadarVisibility = 1
+	
+	VPCost(0) = 0
+	VPCost(1) = 0
+	VPCost(2) = 0
+	
+	VPReward(0) = 10
+	VPReward(1) = 15
+	VPReward(2) = 15
+	VPReward(3) = 20
+	
+	//VP Given on death (by VRank)
+	
+	Vet_HealthMod(0)=1
+	Vet_HealthMod(1)=1.10
+	Vet_HealthMod(2)=1.25
+	Vet_HealthMod(3)=1.50
+	
+	RegenerationRate = 4
+	/**************************/
+	
+	
+	
 	
 }

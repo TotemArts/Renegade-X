@@ -89,4 +89,45 @@ DefaultProperties
      // AI
     bRecommendSplashDamage = True
     bTargetLockingActive = true
+    bOkAgainstLightVehicles = True
+    bOkAgainstArmoredVehicles = True
+    bOkAgainstBuildings = True	
+/***********************/
+/*Veterancy*/
+/**********************/
+Vet_ClipSizeModifier(0)=0 //Normal +X
+Vet_ClipSizeModifier(1)=2 //Veteran 
+Vet_ClipSizeModifier(2)=4 //Elite
+Vet_ClipSizeModifier(3)=6 //Heroic
+
+
+Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
+Vet_ReloadSpeedModifier(1)=1 //Veteran 
+Vet_ReloadSpeedModifier(2)=1 //Elite
+Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+
+Vet_SecondaryClipSizeModifier(0)=0 //Normal +X
+Vet_SecondaryClipSizeModifier(1)=0 //Veteran 
+Vet_SecondaryClipSizeModifier(2)=0 //Elite
+Vet_SecondaryClipSizeModifier(3)=0//Heroic
+
+
+Vet_SecondaryReloadSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
+Vet_SecondaryReloadSpeedModifier(1)=0.95 //Veteran 
+Vet_SecondaryReloadSpeedModifier(2)=0.90 //Elite
+Vet_SecondaryReloadSpeedModifier(3)=0.80 //Heroic 
+
+//SWARM
+Vet_ROFSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
+Vet_ROFSpeedModifier(1)=1 //Veteran 
+Vet_ROFSpeedModifier(2)=1 //Elite
+Vet_ROFSpeedModifier(3)=0.9 //Heroic
+
+//Missile
+Vet_SecondaryROFSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
+Vet_SecondaryROFSpeedModifier(1)=1 //Veteran 
+Vet_SecondaryROFSpeedModifier(2)=1 //Elite
+Vet_SecondaryROFSpeedModifier(3)=1 //Heroic
+
+/***********************************/
 }

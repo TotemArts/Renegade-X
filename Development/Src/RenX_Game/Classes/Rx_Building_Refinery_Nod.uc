@@ -1,4 +1,4 @@
-class Rx_Building_Refinery_Nod extends Rx_Building_Refinery
+class Rx_Building_Refinery_Nod extends Rx_Building_Nod_MoneyFactory
     placeable;
 
 simulated function String GetHumanReadableName()

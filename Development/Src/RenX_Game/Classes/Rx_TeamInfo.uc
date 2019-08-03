@@ -6,6 +6,7 @@ var int             vehicleCount;
 var int             VehicleLimit;
 var int             mineCount;
 var int             mineLimit;
+var int 			PlayerSize;
 var color           TeamColors[3];
 var string          TeamNames[3];
 var byte            ReplicatedSize;    
@@ -15,11 +16,14 @@ var protected float RenScore;
 var protected int   ReplicatedRenScore;
 var protected int   Kills;  // total kills for the team
 var protected int   Deaths; // total deaths for the team
+var protected float	Command_Points, Maximum_CP; //The maximum CP you can have at any given time. Rises with the number of dead buildings you have
+var bool			bHarvesterStopped; 
 
 replication
 {
+	
 	if( bNetDirty && (Role==ROLE_Authority) )
-		ReplicatedSize, vehicleCount, mineCount, ReplicatedRenScore, Kills, Deaths, LastAirstrikeTime, VehicleLimit, mineLimit;
+		ReplicatedSize, vehicleCount, mineCount, ReplicatedRenScore, Kills, Deaths, LastAirstrikeTime, VehicleLimit, mineLimit, Command_Points, Maximum_CP;
 }
 
 simulated event ReplicatedEvent(name VarName)
@@ -83,24 +87,30 @@ function bool AddToTeam( Controller Other )
    local bool bRet;
    
    bRet = super.AddToTeam(Other);
-   if (bRet && Other.bIsPlayer && Rx_PRI(Other.PlayerReplicationInfo) != None) {
+   if (Rx_Bot_Scripted(Other) == None && bRet && Other.bIsPlayer && Rx_PRI(Other.PlayerReplicationInfo) != None) {
       	ReplicatedSize++; // here we go.. replicated team size for everyone
     	Rx_PRI(Other.PlayerReplicationInfo).SetCredits( Rx_Game(WorldInfo.Game).InitialCredits );   
 	    if(Rx_Game(WorldInfo.Game).TeamCredits[TeamIndex].PlayerRI.Find(Rx_PRI(Other.PlayerReplicationInfo)) < 0)
 	    	Rx_Game(WorldInfo.Game).TeamCredits[TeamIndex].PlayerRI.AddItem(Rx_PRI(Other.PlayerReplicationInfo));
    }
    Size = ReplicatedSize;
+
+   if(PlayerController(Other) != None)
+  	 PlayerSize++;
    return bRet;
 }
 
 function RemoveFromTeam(Controller Other)
 {
-	if (Other.bIsPlayer)
+	if (Rx_Bot_Scripted(Other) == None && Other.bIsPlayer)
 	   ReplicatedSize--;
    
 	Rx_Game(WorldInfo.Game).TeamCredits[TeamIndex].PlayerRI.RemoveItem(Rx_PRI(Other.PlayerReplicationInfo));
 	super.RemoveFromTeam(Other);
 	Size = ReplicatedSize;
+
+   if(PlayerController(Other) != None)
+  	 PlayerSize--;
 }
 
 function DecreaseVehicleCount() 
@@ -194,6 +204,44 @@ function bool BotNameTaken(string BotName)
 	return false;
 }
 
+/*Command Points*/
+simulated function float GetCommandPoints()
+{
+	return Command_Points; 
+}
+
+simulated function AddCommandPoints(float CP, optional string AddMessage = "")
+{
+	local Rx_PRI CommandersPRI; 
+	Command_Points=fmin(Command_Points+CP, Maximum_CP);  
+	
+	if(ROLE == ROLE_Authority && AddMessage != "") 
+	{
+		CommandersPRI = Rx_Game(WorldInfo.Game).Commander_PRI[GetTeamNum()];
+		if(CommandersPRI != none) Rx_Controller(CommandersPRI.Owner).ClientSendFeelGoodMessage(AddMessage,"CP") ;
+	}
+}
+
+function InitCommandPoints(float MaxNum, float Num)
+{
+	Maximum_CP = MaxNum; 
+	Command_Points = Num;
+}
+
+simulated function float GetMaxCommandPoints()
+{
+	return Maximum_CP; 
+} 
+
+function ToggleHarvStopped()
+{
+	bHarvesterStopped = bHarvesterStopped ? false : true; 
+}
+
+function bool bGetHarvStopped(){
+	return bHarvesterStopped; 
+}
+
 defaultproperties
 {
 	TeamNames(0)="GDI"
@@ -206,4 +254,5 @@ defaultproperties
 	Name="Renegade_TeamInfo"
 	bAlwaysRelevant=true
 	LastAirstrikeTime=0
+	
 }

@@ -7,6 +7,7 @@ var config bool bAllowGuestToMsgAdmin;
 
 var config array<string> ChatFilter;
 var array<string> HardcodedFilter;  // For censoring cheat-related stuff.
+var SoundCue PMSound; 
 
 /** Copy of BroadcastHandler::Broadcast(...) with RxLog added. */
 function Broadcast( Actor Sender, coerce string Msg, optional name Type )
@@ -58,7 +59,9 @@ function BroadcastTeam( Controller Sender, coerce string Msg, optional name Type
 	if (Type == 'TeamSay')
 		`LogRx("CHAT"`s "TeamSay;"`s `PlayerLog(Sender.PlayerReplicationInfo)`s "said:"`s Msg);
 	// EDIT END.
-
+	
+	if(Type == 'TeamSay' && Rx_Game(WorldInfo.Game).Commander_PRI[Sender.GetTeamNum()] == Rx_PRI(Sender.PlayerReplicationInfo) ) Type = 'Commander';
+	
 	foreach WorldInfo.AllControllers(class'PlayerController', P)
 	{
 		if (P.PlayerReplicationInfo.Team == Sender.PlayerReplicationInfo.Team)
@@ -126,6 +129,7 @@ function BroadcastPM( PlayerController Sender, PlayerController Recipent, coerce
 	if (Sender != None)
 	{
 		BroadcastText(Sender.PlayerReplicationInfo, Recipent, Msg, 'PM');
+		Recipent.ClientPlaySound(PMSound);
 		// Also send back to Sender, to confirm that it went thru (given that it was an unreliable call)
 		BroadcastText(Recipent.PlayerReplicationInfo, Sender, Msg, 'PM_Loopback');
 	}
@@ -146,7 +150,7 @@ function string ApplyChatFilter(string Msg)
 function static string CleanMessage(string Msg)
 {
 	Msg = Repl(Msg, "\n", " ");
-	Msg = Repl(Msg, `nbsp, " ");
+	Msg = Repl(Msg, `rcon_delim, " ");
 	Msg = Repl(Msg, Chr(9), " ");
 	return Msg;
 }
@@ -154,4 +158,5 @@ function static string CleanMessage(string Msg)
 DefaultProperties
 {
 	HardcodedFilter(0)="redarmy.pw"
+	PMSound=SoundCue'rx_interfacesound.Wave.SC_PM_Yo'
 }

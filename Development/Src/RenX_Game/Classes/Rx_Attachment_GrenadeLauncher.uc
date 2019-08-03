@@ -18,6 +18,6 @@ DefaultProperties
 	MuzzleFlashLightClass=class'RenX_Game.Rx_Light_AutoRifle_MuzzleFlash'
 	MuzzleFlashDuration=2.5
 	
-	AimProfileName = Shotgun
-	WeaponAnimSet = AnimSet'RX_CH_Animations.Anims.AS_WeapProfile_Shotgun'
+	AimProfileName = AutoRifle
+	WeaponAnimSet = AnimSet'RX_CH_Animations.Anims.AS_WeapProfile_AutoRifle'
 }

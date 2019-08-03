@@ -13,15 +13,15 @@ defaultproperties
 
 	
 	////Infantry Armour Types//////
-	Inf_FLAKDamageScaling = 0.9   //FLAK infantry armour (Standard rule is explosive weapons does  30% less, while gun damage does 30% more)
-	Inf_KevlarDamageScaling = 0.9	//Kevlar (General rule is 15% less damage from direct hits/bullets, but no penalties)
-	Inf_LazarusDamageScaling = 0.9  // Lazarus SBH armour, standard rule is +40% to Electrical damage but likely no other damage modifiers.
+	Inf_FLAKDamageScaling = 1.0   //FLAK infantry armour (Standard rule is explosive weapons does  30% less, while gun damage does 30% more)
+	Inf_KevlarDamageScaling = 1.0	//Kevlar (General rule is 15% less damage from direct hits/bullets, but no penalties)
+	Inf_LazarusDamageScaling = 1.0  // Lazarus SBH armour, standard rule is +40% to Electrical damage but likely no other damage modifiers.
 	
 	
     CustomTauntIndex=10
     lightArmorDmgScaling=0.3		// 2.64 hp per shot
-    BuildingDamageScaling=0.4 //0.2	// 2.00 hp per shot
-	MCTDamageScaling=3.0
+    BuildingDamageScaling=0.32 //0.4 //0.2	// 2.00 hp per shot
+	MCTDamageScaling=2.4 //3.0
 	MineDamageScaling=2.0
 	
 	DamageBodyMatColor=(R=50,G=50)
@@ -42,4 +42,5 @@ defaultproperties
 
 	IconTextureName="T_WeaponIcon_FlameThrower"
 	IconTexture=Texture2D'RX_WP_FlameThrower.UI.T_WeaponIcon_FlameThrower'
+	bUnsourcedDamage=false
 }

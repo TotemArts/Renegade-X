@@ -22,7 +22,7 @@ var int missleBayToggle;
 /** Firing sounds */
 var() AudioComponent FiringAmbient;
 var() SoundCue FiringStopSound;
-
+var() SoundCue Snd_FiringAmbient_Heroic;
 
 /** Extra Vehicle Sound stuff **/
 var name TailRotorTriggerTag; 			// Is the same as "EngineStart"
@@ -36,7 +36,7 @@ var name GunCameraTag;
 
 
 simulated event PostBeginPlay()
-{
+{	
     Super.PostBeginPlay();
 
 	if (Mesh != none && TailRotorAmbient != none)
@@ -45,6 +45,10 @@ simulated event PostBeginPlay()
 		Mesh.AttachComponentToSocket(TailRotorStart, 'RotorSocket_Tail');
 		Mesh.AttachComponentToSocket(TailRotorStop, 'RotorSocket_Tail');
 	}
+	
+	// Override Camo texture
+	if (Rx_MapInfo(WorldInfo.GetMapInfo()).Theater == THEATER_NORMAL)
+		MaterialInstanceConstant(Mesh.GetMaterial(0)).SetTextureParameterValue('Camo', Texture2D'RenX_AssetBase.Vehicle.T_Camo_Nod_Urban');
 }
 
 function ToggleCam()
@@ -122,6 +126,9 @@ simulated function VehicleWeaponFired( bool bViaReplication, vector HitLocation,
     if(SeatIndex == 0) {
         super.VehicleWeaponFired(bViaReplication,HitLocation,SeatIndex);
     }
+	
+	// toggle missle bays
+	missleBayToggle = missleBayToggle == 1 ? 2 : 1;
 }
 
 simulated function VehicleWeaponStoppedFiring( bool bViaReplication, int SeatIndex )
@@ -160,12 +167,6 @@ simulated function vector GetEffectLocation(int SeatIndex)
 
     if ( Seats[SeatIndex].GunSocket.Length <= 0 )
         return Location;
-		
-	//toggle missle bays
-	if(missleBayToggle == 2)
-		missleBayToggle = 1;
-	else
-		missleBayToggle = 2;	
 
     FireTriggerTag = Seats[SeatIndex].GunSocket[GetBarrelIndex(SeatIndex)];
 
@@ -181,11 +182,22 @@ simulated function int GetBarrelIndex(int SeatIndex)
     return (SeatFiringMode(0,,true) == 0 ? 0 : missleBayToggle);
 }
 
+/*
 reliable server function ServerChangeSeat(int RequestedSeat)
 {
 	if ( RequestedSeat == 1 && Driver != None)
 		return;
 	super.ServerChangeSeat(RequestedSeat);
+}
+*/
+
+simulated function SetHeroicMuzzleFlash(bool SetTrue)
+ {
+	
+	if(SetTrue) FiringAmbient.SoundCue=Snd_FiringAmbient_Heroic;
+	else
+	FiringAmbient.SoundCue=FiringAmbient.default.SoundCue; 
+	super.SetHeroicMuzzleFlash(SetTrue);
 }
 
 defaultproperties
@@ -231,11 +243,44 @@ defaultproperties
     SimObj=SimObject
     Components.Add(SimObject)
 
+	DestroyedRotatorAddend = (Pitch=0,Roll=0,Yaw=16364)
+	DestroyedImpulseOffset = 600 
+	bStayUprightOnDeath = true
+	
     Health=400
     bLightArmor=false
 	bisAirCraft=true
     bFollowLookDir=false
 
+	/************************/
+	/*Veterancy Multipliers*/
+	/***********************/
+	
+	Snd_FiringAmbient_Heroic = SoundCue'RX_VH_Apache.Sounds.SC_Apache_Gun_Loop_Heroic'
+	
+	//VP Given on death (by VRank)
+	VPReward(0) = 8 
+	VPReward(1) = 10 
+	VPReward(2) = 12 
+	VPReward(3) = 16 
+	
+	VPCost(0) = 30
+	VPCost(1) = 70
+	VPCost(2) = 150
+	
+	Vet_HealthMod(0)=1 //400
+	Vet_HealthMod(1)=1.125 //450
+	Vet_HealthMod(2)=1.25 //500
+	Vet_HealthMod(3)=1.5 //600 
+	
+	Vet_SprintSpeedMod(0)=1.0
+	Vet_SprintSpeedMod(1)=1.05
+	Vet_SprintSpeedMod(2)=1.1
+	Vet_SprintSpeedMod(3)=1.15
+	
+	/**********************/
+	
+	
     COMOffset=(X=40,Z=0.0)
 
     BaseEyeheight=30
@@ -245,9 +290,14 @@ defaultproperties
     LookForwardDist=290.0
     bLimitCameraZLookingUp=true
 
-    AirSpeed=775.0
+    AirSpeed=700.0
     MaxSpeed=1000.0 
     GroundSpeed=1100.0
+
+    MinSprintSpeedMultiplier=1.0
+    MaxSprintSpeedMultiplier=1.14
+    SprintTimeInterval=1.0
+    SprintSpeedIncrement=1.0
 
     UprightLiftStrength=30.0
     UprightTorqueStrength=30.0
@@ -319,8 +369,8 @@ defaultproperties
                 // GunSocket=("HellFireMissile_Left","HellFireMissile_Right"),
                 // TurretControls=(HellFireMissilePitch),
 				CameraTag=CamView3P_Passenger, //CamView3P 1P
-                CameraBaseOffset=(Z=25),
-                CameraOffset=-400,
+                CameraBaseOffset=(Z=-50),
+                CameraOffset=-600,
                 bSeatVisible=true,
                 SeatBone=b_GunnerLocation,
                 SeatSocket=GunnerSocket,
@@ -372,8 +422,9 @@ defaultproperties
 
 //    ReferenceMovementMesh=StaticMesh'RX_VH_Chinook.Mesh.S_Air_Wind_Ball'
 
-    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Vehicle_Air')
-    BigExplosionSocket=VH_Death
+	BigExplosionTemplates[0]=(Template=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Vehicle_Air')
+	BigExplosionSocket=VH_Death
+	SecondaryExplosion=ParticleSystem'RX_VH_Apache.Effects.P_Explosion_Vehicle'
 	
 	DamageMorphTargets(0)=(InfluenceBone=MT_F,MorphNodeName=MorphNodeW_Front,LinkedMorphNodeName=none,Health=80,DamagePropNames=(Damage1))
     DamageMorphTargets(1)=(InfluenceBone=MT_FL,MorphNodeName=MorphNodeW_Left,LinkedMorphNodeName=none,Health=80,DamagePropNames=(Damage2))

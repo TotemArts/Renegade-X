@@ -26,7 +26,7 @@ class Rx_UIDataProvider_MapInfo extends UTUIDataProvider_MapInfo
  *  BaseDefences
  * */
 
-
+var config int MinNumPlayers;
 var config int MineLimit;
 var config int VehicleLimit;
 

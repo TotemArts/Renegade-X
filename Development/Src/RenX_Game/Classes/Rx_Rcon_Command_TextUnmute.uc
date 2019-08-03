@@ -7,14 +7,14 @@ function string trigger(string parameters)
 	if (parameters == "")
 		return "Error: Too few parameters." @ getSyntax();
 
-	TargetPlayerPC = UTPlayerController(WorldInfo.Game.AccessControl.GetControllerFromString(parameters));
+	TargetPlayerPC = UTPlayerController(`WorldInfoObject.Game.AccessControl.GetControllerFromString(parameters));
 	if ( TargetPlayerPC != none )
 	{
 		TargetPlayerPC.bServerMutedText = false;
-		return "Unmuted "$TargetPlayerPC.PlayerReplicationInfo.PlayerName;
+		return "";
 	}
 
-	return "Player not found";
+	return "Error: Player not found";
 }
 
 function string getHelp(string parameters)

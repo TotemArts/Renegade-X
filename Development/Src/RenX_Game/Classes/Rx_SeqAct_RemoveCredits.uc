@@ -1,12 +1,6 @@
-/**
- *
- * Copyright 1998-2014 Epic Games, Inc. All Rights Reserved.
- */
-
-
 class Rx_SeqAct_RemoveCredits extends SequenceAction;
 
-var() int Credits;
+var() float Credits;
 
 defaultproperties
 {
@@ -14,4 +8,3 @@ defaultproperties
 	ObjCategory="Ren X"
 	HandlerName="OnRemoveCredits"
 }
-

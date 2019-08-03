@@ -12,13 +12,19 @@ var string BackString;
 
 var Rx_Controller PlayerOwner;
 
+var SoundCue Snd_ChangeMenu, Snd_Open;
+
+var byte	 NumPages; 
+
 // called when vote menu is shown
 function Enabled(Rx_Controller p)
 {
 	PlayerOwner = p;
+	PlayerOwner.ClientPlaySound(Snd_Open);
 }
 
-// called when alt is pressed
+
+// called when alt/E is pressed
 function bool Disabled()
 {
 	if (VoteChoice != none)
@@ -26,97 +32,99 @@ function bool Disabled()
 		if (VoteChoice.GoBack())
 		{
 			VoteChoice = none;
+			PlayerOwner.ClientPlaySound(Snd_ChangeMenu);
 		}
 
 		return false; // do not kill vote menu yet
 	}
-	else return true; // return true to kill vote menu
+	else 
+	{
+		PlayerOwner.ClientPlaySound(Snd_Open);
+		return true; // return true to kill vote menu
+	}
 }
 
 // called from submenu to close handler
 function Terminate()
 {
+	Rx_HUD(PlayerOwner.myHud).HUDMovie.DeathLogMC.SetVisible(true);
 	VoteChoice = none;
 	PlayerOwner.DisableVoteMenu();
 }
 
-function Display(Canvas c, float HUDCanvasScale, float ConsoleMessagePosX, float ConsoleMessagePosY, Color ConsoleColor)
+function Display(Rx_HUD H)
 {
 	local int i;
 	local array<string> choices;
-
+	local byte TempNumPages; 
+	local string SelectionNum;
+	
 	if (VoteChoice != none)
 	{
 		choices = VoteChoice.GetDisplayStrings();
-		choices.AddItem("ALT/CTRL: " $ BackString);
+		//choices.AddItem("ALT/CTRL: " $ BackString);
+		TempNumPages = Fceil(choices.Length*1.0*0.1) ;
 	}
 	else
 	{
+		TempNumPages = 0;
+		
 		for (i = 0; i < VoteChoiceClasses.Length; i++)
-			choices.AddItem(string(i + 1) $ ": " $ VoteChoiceClasses[i].default.MenuDisplayString);
-
-		choices.AddItem("ALT/CTRL: " $ ExitString);
+		{
+			SelectionNum = string(i+1); 
+			
+			if(VoteChoiceClasses[i].static.bIsAvailable(PlayerOwner))
+			{
+				choices.AddItem(SelectionNum $ "|" $ VoteChoiceClasses[i].default.MenuDisplayString);
+			}
+			else
+				choices.AddItem("-X-" $ SelectionNum $ "|" $ VoteChoiceClasses[i].default.MenuDisplayString); //Grey it out
+		}
+		//choices.AddItem("ALT/CTRL: " $ ExitString);
 	}
 
-	
+	if(NumPages != TempNumPages) NumPages = TempNumPages; 
 
-	DisplayChoices(c, HUDCanvasScale, ConsoleMessagePosX, ConsoleMessagePosY, ConsoleColor, choices);
+	if(choices.length < 1)
+		return;
+	//DisplayChoices(H, choices, NumPages);
+	Rx_HUD(PlayerOwner.myHUD).CreateVoteMenuArray(choices);
+	return;
 }
 
 function KeyPress(byte T)
 {
-	local color MyColor;
-	
-	MyColor = MakeColor(255,200,120, 255);
-	
 	if (VoteChoice == none)
 	{
 		// select vote submenu first
 		
-		if (T - 1 >= VoteChoiceClasses.Length) return; // wrong key
+		if (T - 1 >= VoteChoiceClasses.Length || VoteChoiceClasses[T-1].static.bIsAvailable(PlayerOwner) == false) return; // wrong key
 		
 		if(T-1 >= 0 && T-1 < 3) 
 		{
 			if(!PlayerOwner.CanVoteMapChange() )  
 			{
-			PlayerOwner.CTextMessage("GDI",90, "You have entered a ChangeMap/Surrender Vote too recently",MyColor,255,255, false,1,0.6);
-			return;
+				PlayerOwner.CTextMessage("You have entered a ChangeMap/Surrender Vote too recently",'Orange',80);
+				return;
+			}
+		} else if (T-1 >= 0 && T-1 == 3)
+		{
+			if(!PlayerOwner.CanVoteBots())
+			{
+				PlayerOwner.CTextMessage("Bot votes are currently disabled",'Orange',80);
+				return;
 			}
 		}
+		PlayerOwner.ClientPlaySound(Snd_ChangeMenu);
 		VoteChoice = new (self) VoteChoiceClasses[T - 1];
 		VoteChoice.Handler = self;
 		VoteChoice.Init();
 	}
-	else VoteChoice.KeyPress(T); // forward to submenu
-}
-
-function DisplayChoices(Canvas c, 
-	float HUDCanvasScale, 
-	float ConsoleMessagePosX, 
-	float ConsoleMessagePosY,
-	Color ConsoleColor, 
-	array<string> choices)
-{
-	local int Idx, XPos, YPos;
-	local float XL, YL;
-
-	XPos = (ConsoleMessagePosX * HudCanvasScale * c.SizeX) + (((1.0 - HudCanvasScale) / 2.0) * c.SizeX);
-    YPos = (ConsoleMessagePosY * HudCanvasScale * c.SizeY) + 20* (((1.0 - HudCanvasScale) / 2.0) * c.SizeY);
-    
-    c.Font = Font'RenXHud.Font.RadioCommand_Medium';
-    c.DrawColor = ConsoleColor;
-
-    c.TextSize("A", XL, YL);
-    YPos -= YL * choices.Length;
-    YPos -= YL;
-
-    for (Idx = 0; Idx < choices.Length; Idx++)
-    {
-    	c.StrLen(choices[Idx], XL, YL);
-		c.SetPos(XPos, YPos);
-		c.DrawText(choices[Idx], false);
-		YPos += YL;
-    }
+	else 
+	{
+		PlayerOwner.ClientPlaySound(Snd_ChangeMenu);
+		VoteChoice.KeyPress(T); // forward to submenu
+	}
 }
 
 static function DisplayOngoingVote(Rx_Controller p, Canvas c, float HUDCanvasScale, Color ConsoleColor)
@@ -153,7 +161,11 @@ DefaultProperties
 	VoteChoiceClasses(5) = class'Rx_VoteMenuChoice_Kick'
 	VoteChoiceClasses(6) = class'Rx_VoteMenuChoice_Survey'
 	VoteChoiceClasses(7) = class'Rx_VoteMenuChoice_MineBan'
+	VoteChoiceClasses(8) = class'Rx_VoteMenuChoice_Commander'
 	
 	ExitString = "Exit"
 	BackString = "Back"
+	
+	Snd_ChangeMenu = SoundCue'rx_interfacesound.Wave.SC_Click4' // SoundCue'RenXPurchaseMenu.Sounds.RenXPTSoundTest2_Cue'
+	Snd_Open = SoundCue'RenXPurchaseMenu.Sounds.RenXPTSoundTest4_Cue' //Open/Close are identical
 }

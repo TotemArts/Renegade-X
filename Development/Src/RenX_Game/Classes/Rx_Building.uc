@@ -11,11 +11,26 @@ enum TEAM
 	TEAM_NOD,
 	TEAM_UNOWNED
 };
+// A list of all the different types of buildings
+enum BuildingType
+{
+	BT_None,
+	BT_Power,
+	BT_Money,
+	BT_Veh,
+	BT_Inf,
+	BT_Def,
+	BT_Air,
+	BT_Tech,
+	BT_Rep,
+	BT_Neutral
+};
 
 var TEAM                                        TeamID;                 // building belongs to team with this TeamID (normally 0 -> GDI, 1-> Nod)
 var(RenX_Buildings) int                         Health;                 // Starting Health for the building
 var(RenX_Buildings) int                         HealthMax;                // Max Health for the building
 var(RenX_Buildings) bool                        bBuildingDebug;         // Set to true to enable Debug Logging
+var(RenX_Buildings) const BuildingType myBuildingType;
 
 var class<Rx_Building_Internals>          BuildingInternalsClass; // Class of the internals that needs spawned
 var repnotify Rx_Building_Internals             BuildingInternals;      // Instance of the internals that handles the logic like TakeDamage and the like
@@ -24,6 +39,12 @@ var(BuildingLights) array<PointLightComponent>  PointLightComponents;   // Point
 var(BuildingLights) array<SpotLightComponent>   SpotLightComponents;    // Spot lights for the PT's and MCT's for pre setup lighting
 var array<StaticMeshComponent>                  StaticMeshPieces;
 var Rx_BuildingObjective						myObjective;
+var Rx_BuildingAttachment MCT;
+
+var() StaticMeshComponent StaticExterior;
+var() StaticMeshComponent StaticInterior;
+var() StaticMeshComponent StaticInteriorComplex;
+var() StaticMeshComponent PTScreens;
 
 replication
 {
@@ -46,18 +67,51 @@ simulated function BuildingInternalsReplicated()
 {
 
 }
+
+simulated function Rx_BuildingAttachment GetMCT()
+{
+
+	local int i;
+	local Rx_BuildingAttachment Attachment;
 	
+	if(MCT != None)
+		return MCT;
+	else if(BuildingInternals != None)
+	{
+		for (i = 0; i < BuildingInternals.BuildingAttachments.length; i++)
+		{
+			Attachment=BuildingInternals.BuildingAttachments[i];
+			
+			if(Attachment.IsA('Rx_BuildingAttachment_MCT'))
+			{
+				MCT = Attachment;
+				return Attachment;	//found it, abandon everything else
+			}
+		}
+	}
+
+	return none;
+	
+}	
+
+function byte GetBuildingType()
+{
+	return myBuildingType;
+}
 
 function PostBeginPlay()
 {
 
+
+
 	BuildingInternals = spawn(BuildingInternalsClass,self,BuildingInternalsClass.Name,Location,Rotation);
 
 	
-	if ( BuildingInternals != none && (WorldInfo.NetMode == NM_StandAlone || WorldInfo.NetMode == NM_DedicatedServer))
+	if ( BuildingInternals != none && (WorldInfo.NetMode == NM_StandAlone || WorldInfo.NetMode == NM_DedicatedServer || WorldInfo.NetMode == NM_ListenServer))
 	{
 		BuildingInternals.Init(self,bBuildingDebug);
 	} 
+
 	
 	/**
 	else
@@ -123,7 +177,7 @@ simulated function bool IsEffectedByEMP()
 	return true;
 }
 
-function bool EMPHit(Controller InstigatedByController, Actor EMPCausingActor)
+function bool EMPHit(Controller InstigatedByController, Actor EMPCausingActor, optional int TimeModifier = 0)
 {
 	if (Rx_Building_Team_Internals(BuildingInternals) != None && GetTeamNum() != InstigatedByController.GetTeamNum() && BuildingInternals.GetHealth() > 0)
 	{
@@ -220,6 +274,19 @@ simulated function vector GetTargetLocation(optional actor RequestedBy, optional
 	return super.GetTargetLocation(RequestedBy,bRequestAlternateLoc) + 200 * vect(0,0,1);
 }
 
+function RemoveMyMines(Rx_Controller Control)
+{
+	local Rx_Weapon_DeployedProxyC4 Proxies; 
+	local byte TeamByte;
+	
+	TeamByte = Control.GetTeamNum();
+	
+	foreach AllActors(class'Rx_Weapon_DeployedProxyC4', Proxies)
+	{
+		if(Proxies.Base == self && Proxies.GetTeamNum() == TeamByte ) Proxies.TakeDamage(500, Control, vect(0,0,0), vect(0,0,0), class'Rx_DmgType_EMP') ; 
+	}
+}
+
 defaultproperties
 {
 	/***************************************************/
@@ -272,6 +339,7 @@ defaultproperties
 	End Object
 	StaticMeshPieces.Add( Static_Interior )
 	Components.Add( Static_Interior )
+	StaticInterior=Static_Interior
 
 	Begin Object Class=StaticMeshComponent Name=Static_Interior_Complex
 		//HiddenGame=true
@@ -297,6 +365,7 @@ defaultproperties
 	End Object
 	StaticMeshPieces.Add( Static_Interior_Complex )
 	Components.Add( Static_Interior_Complex )
+	StaticInteriorComplex=Static_Interior_Complex
 
 	Begin Object Class=StaticMeshComponent Name=Static_Exterior
 		//HiddenGame=true
@@ -322,6 +391,7 @@ defaultproperties
 	End Object
 	StaticMeshPieces.Add( Static_Exterior )
 	Components.Add( Static_Exterior )
+	StaticExterior=Static_Exterior
 
 	Begin Object Class=StaticMeshComponent Name=PT_Screens
 		CastShadow                      = True
@@ -346,6 +416,7 @@ defaultproperties
 	End Object
 	StaticMeshPieces.Add( PT_Screens )
 	Components.Add( PT_Screens )
+	PTScreens=PT_Screens
 
 
 	/***************************************************/

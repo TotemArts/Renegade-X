@@ -113,11 +113,9 @@ function UpdateActorMarkers()
 			continue;
 		}
 
-		if (Rx_Pawn_SBH(p) != none) {
-			if (p.GetStateName() == 'Stealthed' || p.GetStateName() == 'BeenShot' || Rx_Pawn_SBH(p).bStealthRecoveringFromBeeingShotOrSprinting) {
+		if (RxIfc_Stealth(p) != none && RxIfc_Stealth(p).GetIsinTargetableState() == false ) {
 				continue;
 			}
-		}
 
 		//TODO: remove calculation of vehicle if we ourselves
 

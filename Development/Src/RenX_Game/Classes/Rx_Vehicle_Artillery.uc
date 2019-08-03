@@ -90,6 +90,47 @@ DefaultProperties
 	SpeedAtWhichToApplyReducedTurningThrottle=220
 	
 	SprintTrackTorqueFactorDivident=0.975
+	
+/************************/
+/*Veterancy Multipliers*/
+/***********************/
+
+//VP Given on death (by VRank)
+	VPReward(0) = 5 
+	VPReward(1) = 7 
+	VPReward(2) = 9 
+	VPReward(3) = 12 
+	
+	VPCost(0) = 20
+	VPCost(1) = 50
+	VPCost(2) = 110
+
+Vet_HealthMod(0)=1.0 //400
+Vet_HealthMod(1)=1.125 //450 
+Vet_HealthMod(2)=1.25 //500
+Vet_HealthMod(3)=1.375 //550 
+	
+Vet_SprintSpeedMod(0)=1
+Vet_SprintSpeedMod(1)=1
+Vet_SprintSpeedMod(2)=1.05
+Vet_SprintSpeedMod(3)=1.10
+	
+// +X as opposed to *X
+Vet_SprintTTFD(0)=0
+Vet_SprintTTFD(1)=0
+Vet_SprintTTFD(2)=0.05
+Vet_SprintTTFD(3)=0.1
+
+	BarrelLength(0)=450
+	BarrelLength(1)=400
+	BarrelLength(2)=100
+	BarrelLength(3)=100
+	BarrelLength(4)=100
+	BarrelLength(5)=100
+
+/**********************/
+
+Heroic_MuzzleFlash=ParticleSystem'RX_VH_MediumTank.Effects.MuzzleFlash_Heroic'
 
     Begin Object Class=SVehicleSimTank Name=SimObject
 
@@ -164,6 +205,8 @@ DefaultProperties
                 TurretControls=(TurretPitch,TurretRotate),
                 GunPivotPoints=(MainTurretYaw,MainTurretPitch),
                 CameraTag=CamView3P,
+				SeatBone=Base,
+				SeatSocket=VH_Death,
                 CameraBaseOffset=(Z=-10),
                 CameraOffset=-600,
                 SeatIconPos=(X=0.5,Y=0.33),
@@ -215,7 +258,7 @@ DefaultProperties
 	WheelParticleEffects[9]=(MaterialType=YellowSand,ParticleTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_YellowSand_Small')
 	DefaultWheelPSCTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_Dirt_Small'	
 	
-    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Vehicle_Huge')
+    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_VH_Artillery.Effects.P_Explosion_Vehicle')
     BigExplosionSocket=VH_Death
 	
 	DamageMorphTargets(0)=(InfluenceBone=MT_Ch_F,MorphNodeName=MorphNodeW_Ch_F,LinkedMorphNodeName=none,Health=80,DamagePropNames=(Damage1))

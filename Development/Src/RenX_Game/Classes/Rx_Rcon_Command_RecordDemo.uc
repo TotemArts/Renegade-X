@@ -2,7 +2,7 @@ class Rx_Rcon_Command_RecordDemo extends Rx_Rcon_Command;
 
 function string trigger(string parameters)
 {
-	Rx_Game(WorldInfo.Game).AdminRecord(None);
+	Rx_Game(`WorldInfoObject.Game).AdminRecord(None);
 	return "";
 }
 

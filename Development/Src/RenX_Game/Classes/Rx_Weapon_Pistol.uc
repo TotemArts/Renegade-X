@@ -1,6 +1,6 @@
 class Rx_Weapon_Pistol extends Rx_Weapon_Reloadable;
 
-function bool IsInstantHit()
+simulated function bool IsInstantHit()
 {
 	return true; 
 }
@@ -33,7 +33,8 @@ DefaultProperties
 	
 	PlayerViewOffset=(X=-2.5,Y=-2.0,Z=0.5)		// (X=5.0,Y=2.0,Z=1.0)
 	
-	LeftHandIK_Offset=(X=0,Y=-2,Z=-2)
+	LeftHandIK_Offset=(X=0,Y=0,Z=0)
+	bUseHandIKWhenRelax=false
 	
 	//-------------- Recoil
 	RecoilDelay = 0.02
@@ -145,4 +146,29 @@ DefaultProperties
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_Pistol'
 
 	//WeaponIconTexture
+	
+	/*******************/
+	/*Veterancy*/
+	/******************/
+	
+	Vet_DamageModifier(0)=1  //Applied to instant-hits only
+	Vet_DamageModifier(1)=1.10 
+	Vet_DamageModifier(2)=1.25 
+	Vet_DamageModifier(3)=1.50 
+	
+	Vet_ROFModifier(0) = 1
+	Vet_ROFModifier(1) = 1 
+	Vet_ROFModifier(2) = 1  
+	Vet_ROFModifier(3) = 1  
+	
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)	
+	Vet_ClipSizeModifier(1)=0 //Veteran 
+	Vet_ClipSizeModifier(2)=2 //Elite
+	Vet_ClipSizeModifier(3)=4 //Heroic
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.9 //Elite
+	Vet_ReloadSpeedModifier(3)=0.8 //Heroic
+	/**********************/
 }

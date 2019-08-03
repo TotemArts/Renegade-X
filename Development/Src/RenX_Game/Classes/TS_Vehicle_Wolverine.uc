@@ -21,6 +21,38 @@ var() AudioComponent FiringAmbient;
 var() SoundCue FiringStopSound;
 	
 var GameSkelCtrl_Recoil    Recoil_Barrel, Recoil_Cannon;
+
+var SkeletalMeshComponent AntennaMesh;
+
+/** The Cantilever Beam that is the Antenna itself*/
+var UTSkelControl_CantileverBeam AntennaBeamControl;
+
+
+/** This bit here will attach all of the seperate antennas and towing rings that jiggle about when the vehicle moves **/
+simulated function PostBeginPlay()
+{
+	Super.PostBeginPlay();
+
+	Mesh.AttachComponentToSocket(AntennaMesh,'AntennaSocket');
+
+	AntennaBeamControl = UTSkelControl_CantileverBeam(AntennaMesh.FindSkelControl('Beam'));
+
+
+	if(AntennaBeamControl != none)
+	{
+		AntennaBeamControl.EntireBeamVelocity = GetVelocity;
+	}
+}
+
+/** For Antenna delegate purposes (let's turret motion be more dramatic)*/
+function vector GetVelocity()
+{
+	return Velocity;
+}
+
+
+
+
 	
 /** added recoil */
 simulated event PostInitAnimTree(SkeletalMeshComponent SkelComp)
@@ -170,19 +202,27 @@ DefaultProperties
 
 
     Begin Object name=SVehicleMesh
-        SkeletalMesh=SkeletalMesh'TS_VH_Wolverine.Mesh.SK_VH_Wolverine'
-        AnimTreeTemplate=AnimTree'TS_VH_Wolverine.Anims.AT_VH_Wolverine'
-		AnimSets.Add(AnimSet'TS_VH_Wolverine.Anims.AS_VH_Wolverine')
-        PhysicsAsset=PhysicsAsset'TS_VH_Wolverine.Mesh.SK_VH_Wolverine_Physics'
-		MorphSets[0]=MorphTargetSet'TS_VH_Wolverine.Mesh.MT_VH_Wolverine'
+        SkeletalMesh=SkeletalMesh'TS_VH_Wolverine.Mesh.SK_VH_Wolverine_Reborn'
+        AnimTreeTemplate=AnimTree'TS_VH_Wolverine.Anims.AT_VH_Wolverine_Reborn'
+		AnimSets.Add(AnimSet'TS_VH_Wolverine.Anims.AS_VH_Wolverine_Reborn')
+        PhysicsAsset=PhysicsAsset'TS_VH_Wolverine.Mesh.SK_VH_Wolverine_Reborn_Physics'
+		MorphSets[0]=MorphTargetSet'TS_VH_Wolverine.Mesh.MT_VH_Wolverine_Reborn'
     End Object
 
     DrawScale=1.0
 	
-	SkeletalMeshForPT=SkeletalMesh'TS_VH_Wolverine.Mesh.SK_VH_Wolverine'
+	SkeletalMeshForPT=SkeletalMesh'TS_VH_Wolverine.Mesh.SK_VH_Wolverine_Reborn'
 	
 	VehicleIconTexture=Texture2D'TS_VH_Wolverine.Materials.T_VehicleIcon_Wolverine'
 	MinimapIconTexture=Texture2D'TS_VH_Wolverine.Materials.T_RadarBlip_Wolverine'
+	
+	Begin Object Class=SkeletalMeshComponent Name=SAntennaMesh
+		SkeletalMesh=SkeletalMesh'RX_VH_MRLS.Mesh.SK_Antenna'
+		AnimTreeTemplate=AnimTree'RX_VH_MRLS.Anims.AT_Antenna'
+		LightEnvironment = MyLightEnvironment
+		Scale=0.6
+	End Object
+	AntennaMesh=SAntennaMesh
 
 //========================================================\\
 //*********** Vehicle Seats & Weapon Properties **********\\
@@ -193,10 +233,10 @@ DefaultProperties
                 GunSocket=("Fire_L", "Fire_R"),
                 TurretControls=(TurretPitch,TurretRotate),
 				TurretVarPrefix="",
-                GunPivotPoints=(b_Turret_Pitch,b_Turret_Base),
+                GunPivotPoints=(b_Turret_Pitch,b_Turret_Yaw),
                 CameraTag=CamView3P,
-                CameraBaseOffset=(X=150,Z=-0),
-                CameraOffset=-650,
+                CameraBaseOffset=(X=0,Z=-0),
+                CameraOffset=-450,
                 SeatIconPos=(X=0.5,Y=0.33),
                 MuzzleFlashLightClass=class'RenX_Game.Rx_Light_AutoRifle_MuzzleFlash'
                 )}
@@ -259,14 +299,24 @@ DefaultProperties
     EngineSound=ScorpionEngineSound
     Components.Add(ScorpionEngineSound);
    
-    EnterVehicleSound=SoundCue'RX_VH_MediumTank.Sounds.Med_startCue'
-    ExitVehicleSound=SoundCue'RX_VH_MediumTank.Sounds.Med_stopCue'
+    EnterVehicleSound=SoundCue'TS_VH_Titan.Sounds.SC_Start'
+    ExitVehicleSound=SoundCue'TS_VH_Titan.Sounds.SC_Stop'
+	
+	TireSoundList(0)=(MaterialType=Dirt,Sound=None)
+	TireSoundList(1)=(MaterialType=Foliage,Sound=None)
+	TireSoundList(2)=(MaterialType=Grass,Sound=None)
+	TireSoundList(3)=(MaterialType=Metal,Sound=None)
+	TireSoundList(4)=(MaterialType=Mud,Sound=None)
+	TireSoundList(5)=(MaterialType=Snow,Sound=None)
+	TireSoundList(6)=(MaterialType=Stone,Sound=None)
+	TireSoundList(7)=(MaterialType=Water,Sound=None)
+	TireSoundList(8)=(MaterialType=Wood,Sound=None)
 	
 	Begin Object Name=ScorpionTireSound
 		SoundCue=none
 	End Object
 	TireAudioComp=ScorpionTireSound
-	
+		
 	Begin Object Class=AudioComponent name=FiringmbientSoundComponent
         bShouldRemainActiveIfDropped=true
         bStopWhenOwnerDestroyed=true
@@ -284,39 +334,66 @@ DefaultProperties
 
 	Begin Object Class=Rx_Vehicle_MediumTank_Wheel Name=RFThruster
 		BoneName="b_Root"
-		BoneOffset=(X=70.0,Y=70.0,Z=-180.0)
+		BoneOffset=(X=70.0,Y=70.0,Z=-210.0)
 		WheelRadius=40
-		SuspensionTravel=150
+		SuspensionTravel=140
 		Side=SIDE_Right
 	End Object
 	Wheels(0)=RFThruster
 
 	Begin Object Class=Rx_Vehicle_MediumTank_Wheel Name=LFThruster
 		BoneName="b_Root"
-		BoneOffset=(X=70.0,Y=-70.0,Z=-180.0)
+		BoneOffset=(X=70.0,Y=-70.0,Z=-210.0)
 		WheelRadius=40
-		SuspensionTravel=150
+		SuspensionTravel=140
 		Side=SIDE_Left
 	End Object
 	Wheels(1)=LFThruster
 	
 	Begin Object Class=Rx_Vehicle_MediumTank_Wheel Name=RRThruster
 		BoneName="b_Root"
-		BoneOffset=(X=-70.0,Y=70.0,Z=-180.0)
+		BoneOffset=(X=-70.0,Y=70.0,Z=-210.0)
 		WheelRadius=40
-		SuspensionTravel=150
+		SuspensionTravel=140
 		Side=SIDE_Right
 	End Object
 	Wheels(2)=RRThruster
 	
 	Begin Object Class=Rx_Vehicle_MediumTank_Wheel Name=LRThruster
 		BoneName="b_Root"
-		BoneOffset=(X=-70.0,Y=-70.0,Z=-180.0)
+		BoneOffset=(X=-70.0,Y=-70.0,Z=-210.0)
 		WheelRadius=40
-		SuspensionTravel=150
+		SuspensionTravel=140
 		Side=SIDE_Left
 	End Object
 	Wheels(3)=LRThruster
 
+	/************************/
+	/*Veterancy Multipliers*/
+	/***********************/
+
+	//VP Given on death (by VRank)
+	VPReward(0) = 8 
+	VPReward(1) = 10 
+	VPReward(2) = 12 
+	VPReward(3) = 16 
+
+	Vet_HealthMod(0)=1.0 //350
+	Vet_HealthMod(1)=1.142858 //400 
+	Vet_HealthMod(2)=1.285715 //450
+	Vet_HealthMod(3)=1.4285715 //500
+		
+	Vet_SprintSpeedMod(0)=1
+	Vet_SprintSpeedMod(1)=1.05
+	Vet_SprintSpeedMod(2)=1.10
+	Vet_SprintSpeedMod(3)=1.15
+		
+	// +X as opposed to *X
+	Vet_SprintTTFD(0)=0
+	Vet_SprintTTFD(1)=0.05
+	Vet_SprintTTFD(2)=0.10
+	Vet_SprintTTFD(3)=0.15
+
+/**********************/
 
 }

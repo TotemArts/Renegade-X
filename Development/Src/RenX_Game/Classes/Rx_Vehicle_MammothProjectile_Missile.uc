@@ -57,12 +57,12 @@ DefaultProperties
 	AccelRate=500
 	LifeSpan=2.5
 	Damage=35
-	DamageRadius=500
+	DamageRadius=650 //500
 	MomentumTransfer=100000.000000
    
 	LockWarningInterval        = 1.5
 	BaseTrackingStrength       =5.0
-	HeadShotDamageMult=10.0 // 5.0
+	HeadShotDamageMult=2.0 // 5.0
 
 	MyDamageType=Class'Rx_DmgType_MammothTank_Missile'
 
@@ -71,5 +71,10 @@ DefaultProperties
 	bCheckProjectileLight=true
 	ProjectileLightClass=class'RenX_Game.Rx_Light_Rocket'
 	bWaitForEffectsAtEndOfLifetime = true
-
+	/**
+	Vet_SpeedIncrease(0)=1 //Normal (should be 1)
+	Vet_SpeedIncrease(1)=1.10 //Veteran 
+	Vet_SpeedIncrease(2)=1.25 //Elite
+	Vet_SpeedIncrease(3)=1.50 //Heroic
+*/
 }

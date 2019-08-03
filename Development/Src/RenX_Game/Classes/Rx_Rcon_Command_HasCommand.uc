@@ -8,8 +8,8 @@ function string trigger(string parameters)
 
 	pos = InStr(parameters," ");
 	if (pos < 0)
-		return string(GetCommand(parameters) != None);
-	return string(GetCommand(Left(parameters, pos)) != None);
+		return string(`RxEngineObject.HasRconCommand(parameters));
+	return string(`RxEngineObject.HasRconCommand(Left(parameters, pos)));
 }
 
 function string getHelp(string parameters)

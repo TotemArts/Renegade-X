@@ -27,4 +27,5 @@ defaultproperties
 
 	IconTextureName="T_DeathIcon_FlameTank"
 	IconTexture=Texture2D'RX_VH_FlameTank.UI.T_DeathIcon_FlameTank'
+	bUnsourcedDamage=false
 }

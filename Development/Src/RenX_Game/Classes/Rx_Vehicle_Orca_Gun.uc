@@ -1,5 +1,11 @@
 class Rx_Vehicle_Orca_Gun extends Rx_Vehicle_Projectile;; //UTProjectile; //RxVehicle_Projectile;
 
+simulated function SetExplosionEffectParameters(ParticleSystemComponent ProjExplosion)
+{
+    Super.SetExplosionEffectParameters(ProjExplosion);
+
+    ProjExplosion.SetScale(1.6f); //(0.5f);
+}
 
 DefaultProperties
 {
@@ -41,10 +47,15 @@ DefaultProperties
     MaxSpeed=18000
     LifeSpan=0.25
     Damage=12
-    DamageRadius=100
-	HeadShotDamageMult=2.5
+    DamageRadius=85
+	HeadShotDamageMult=1.5
     MomentumTransfer=30000
     bWaitForEffects=true
     bCheckProjectileLight=false
     bSuppressExplosionFX=True // Do not spawn hit effect in mid air
+	
+	Vet_SpeedIncrease(0)=1 //Normal (should be 1)
+	Vet_SpeedIncrease(1)=1.10 //Veteran 
+	Vet_SpeedIncrease(2)=1.25 //Elite
+	Vet_SpeedIncrease(3)=1.50 //Heroic
 }

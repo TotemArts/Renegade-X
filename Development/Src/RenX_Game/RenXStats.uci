@@ -1,0 +1,86 @@
+/**
+ * Copyright 1998-2015 Epic Games, Inc. All Rights Reserved.
+ */
+ `define StatsClass class'Rx_GameplayEventsWriter'
+
+// Global gameplay stat defines
+
+`if(`isdefined(GAMEINFO))
+	`define StatsContext		GameplayEventsWriter
+	`define ValidStatsContext	GameplayEventsWriter != None && GameplayEventsWriter.IsSessionInProgress()
+`else
+	`define StatsContext		Rx_Game(WorldInfo.Game).GameplayEventsWriter
+	`define ValidStatsContext	WorldInfo.Game != None && Rx_Game(WorldInfo.Game).GameplayEventsWriter != None && Rx_Game(WorldInfo.Game).GameplayEventsWriter.IsSessionInProgress()
+`endif
+
+`if(`isdefined(INCLUDE_RENX_GAME_STATS))
+
+	/** Used so that gamespecific ones can start here */
+	//const GAMEEVENT_GAME_SPECIFIC =				1000; //from GameplayEvents
+
+	/** Kill specific information */
+	const GAMEEVENT_KILL_SPECIFIC =					1100;
+
+	/** Gameplay specific information */
+	const GAMEEVENT_GAMEPLAY_SPECIFIC =				1200;
+	const GAMEEVENT_PLAYER_ENTERED_VEHICLE =		1201;
+	const GAMEEVENT_PLAYER_EXITED_VEHICLE =			1202;
+	const GAMEEVENT_WEAPON_PICKUP =					1203;
+
+	/** Gametype specific */
+	const GAMEEVENT_GAMETYPE_SPECIFIC =				1400;
+	const GAMEEVENT_PLAYER_SCORE_UPDATE	=			1401;
+
+	/** Summary */
+	const GAMEEVENT_GAME_SUMMARY =					1500;
+
+
+	/*************************************
+			Location EVENTS
+	*************************************/
+
+	const GAMEEVENT_VEHICLE_LOCATION_POLL = 1601;
+	const GAMEEVENT_VEHICLE_WITH_HARV_LOCATION_POLL = 1602;
+	const GAMEEVENT_VEHICLE_LOCATION_POLL_GDI = 1603;
+	const GAMEEVENT_VEHICLE_LOCATION_POLL_NOD = 1604;
+
+
+	/*************************************
+			Building EVENTS
+	*************************************/
+
+	const GAMEEVENT_BUILDING_DAMAGE_ATTACKER_LOCATION = 1701;
+	const GAMEEVENT_BUILDING_DAMAGE_AMOUNT = 1702;
+	const GAMEEVENT_BUILDING_DAMAGE_LOCATION = 1703;
+	const GAMEEVENT_TEAM_BUILDING_DESTROYED = 1704;
+
+
+	/*************************************
+			Crate EVENTS
+	*************************************/
+
+	const GAMEEVENT_PICKUP_CRATE = 1801;
+
+	/*************************************
+			Weapon EVENTS
+	*************************************/
+
+
+	const GAMEEVENT_WEAPON_BEACON_DEPLOYED = 1901;
+	const GAMEEVENT_WEAPON_BEACON_DISARMED = 1902;
+	const GAMEEVENT_WEAPON_BEACON_EXPLODED = 1903;
+	const GAMEEVENT_WEAPON_MINE_DEPLOYED = 1904;
+	const GAMEEVENT_WEAPON_MINE_EXPLODED = 1905;
+
+	/*************************************
+			other EVENTS
+	*************************************/
+
+	const GAMEEVENT_DAMAGE = 2001;
+	const GAMEEVENT_DAMAGE_TIBERIUM  = 2002;
+
+
+
+`endif
+
+`include(Engine\Classes\GameStats.uci);

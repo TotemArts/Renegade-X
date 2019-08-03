@@ -5,12 +5,13 @@ function string trigger(string parameters)
 	local string mutatorList;
 	local Mutator M;
 	
-	if (Rx_Game(WorldInfo.Game).BaseMutator == None)
+	if (Rx_Game(`WorldInfoObject.Game).BaseMutator == None)
 		return "No mutators are loaded.";
 
 	mutatorList = "The following mutators are loaded:";
-	for (M = WorldInfo.Game.BaseMutator; M != None; M = M.NextMutator)
-		mutatorList $= `nbsp $ M.Class;
+	for (M = `WorldInfoObject.Game.BaseMutator; M != None; M = M.NextMutator)
+		mutatorList $= `rcon_delim $ M.Class;
+
 	return mutatorList;
 }
 

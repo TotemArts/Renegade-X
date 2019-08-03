@@ -15,41 +15,101 @@
 class Rx_Vehicle_MRLS extends Rx_Vehicle_Treaded
     placeable;
 
-
-	
 var SkeletalMeshComponent AntennaMeshL;
 var SkeletalMeshComponent AntennaMeshR;
 
 /** The Cantilever Beam that is the Antenna itself*/
 var UTSkelControl_CantileverBeam AntennaBeamControl;
 
+/** Used to control the turret modes **/
+var UTSkelControl_TurretConstrained Skel_TurretRotate;
+var repnotify bool bLockTurret;
+
+replication
+{
+    if(bNetDirty)
+        bLockTurret;
+}
+
+simulated event ReplicatedEvent(name VarName)
+{
+    if(VarName == 'bLockTurret')
+        ChangeFireMode(bLockTurret);
+    else
+       super.ReplicatedEvent(VarName);
+}
 
 /** This bit here will attach all of the seperate antennas and towing rings that jiggle about when the vehicle moves **/
 simulated function PostBeginPlay()
 {
-	Super.PostBeginPlay();
+    Super.PostBeginPlay();
 
-	Mesh.AttachComponentToSocket(AntennaMeshL,'AntennaSocket_L');
-	Mesh.AttachComponentToSocket(AntennaMeshR,'AntennaSocket_R');
+    Mesh.AttachComponentToSocket(AntennaMeshL,'AntennaSocket_L');
+    Mesh.AttachComponentToSocket(AntennaMeshR,'AntennaSocket_R');
 
-	AntennaBeamControl = UTSkelControl_CantileverBeam(AntennaMeshL.FindSkelControl('Beam'));
-	AntennaBeamControl = UTSkelControl_CantileverBeam(AntennaMeshR.FindSkelControl('Beam'));
+    AntennaBeamControl = UTSkelControl_CantileverBeam(AntennaMeshL.FindSkelControl('Beam'));
+    AntennaBeamControl = UTSkelControl_CantileverBeam(AntennaMeshR.FindSkelControl('Beam'));
 
 
-	if(AntennaBeamControl != none)
-	{
-		AntennaBeamControl.EntireBeamVelocity = GetVelocity;
-	}
+    if (AntennaBeamControl != none)
+    {
+        AntennaBeamControl.EntireBeamVelocity = GetVelocity;
+    }
+}
+
+simulated event PostInitAnimTree(SkeletalMeshComponent SkelComp)
+{
+    Super.PostInitAnimTree(SkelComp);
+
+    if (SkelComp == Mesh)
+        Skel_TurretRotate = UTSkelControl_TurretConstrained(SkelComp.FindSkelControl('TurretRotate'));
+
+    else return;
 }
 
 /** For Antenna delegate purposes (let's turret motion be more dramatic)*/
 function vector GetVelocity()
 {
-	return Velocity;
+    return Velocity;
 }
 
-	
-	
+function bool DoJump(bool bUpdating)
+{
+    if (Role == ROLE_Authority)
+    {
+        switch (bLockTurret)
+        {
+            case true: 
+            ChangeFireMode(false);
+            if(Rx_Controller(Controller) != none)
+                Rx_Controller(Controller).CTextMessage("Turret Unlocked", 'LightGreen', 30.0);
+            break;
+            
+            case false:
+            ChangeFireMode(true);
+            if(Rx_Controller(Controller) != none)
+                Rx_Controller(Controller).CTextMessage("Turret Locked", 'LightGreen', 30.0);
+            break;
+        }
+        
+    }
+    return true;
+}
+
+simulated function ChangeFireMode(bool FM)
+{
+    bLockTurret = FM; 
+    
+    Skel_TurretRotate.bConstrainYaw = FM;
+}
+
+
+simulated event Destroyed()
+{
+    Super.Destroyed();
+    Skel_TurretRotate = None;
+}
+
 DefaultProperties
 {
 
@@ -67,24 +127,58 @@ DefaultProperties
     bTurnInPlace=True
     bSeparateTurretFocus=True
     CameraLag=0.2 //0.4
-	LookForwardDist=500
+    LookForwardDist=100
     GroundSpeed=300
     MaxSpeed=1000
     LeftStickDirDeadZone=0.1
     TurnTime=18
-     ViewPitchMin=-13000
+    ViewPitchMin=-13000
     HornIndex=1
     COMOffset=(x=-5.0,y=0.0,z=-50.0)
-	
-	SprintTrackTorqueFactorDivident=1.05
+    
+    SprintTrackTorqueFactorDivident=1.05
+    bLockTurret=false 
 
+/************************/
+/*Veterancy Multipliers*/
+/***********************/
+
+//VP Given on death (by VRank)
+    VPReward(0) = 5 
+    VPReward(1) = 7 
+    VPReward(2) = 9 
+    VPReward(3) = 12 
+    
+    VPCost(0) = 20
+    VPCost(1) = 50
+    VPCost(2) = 110
+
+    Vet_HealthMod(0)=1.0 //400
+    Vet_HealthMod(1)=1.125 //450 
+    Vet_HealthMod(2)=1.25 //500
+    Vet_HealthMod(3)=1.375 //550 
+        
+    Vet_SprintSpeedMod(0)=1
+    Vet_SprintSpeedMod(1)=1
+    Vet_SprintSpeedMod(2)=1.05
+    Vet_SprintSpeedMod(3)=1.10
+        
+    // +X as opposed to *X
+    Vet_SprintTTFD(0)=0
+    Vet_SprintTTFD(1)=0
+    Vet_SprintTTFD(2)=0.05
+    Vet_SprintTTFD(3)=0.1
+
+/**********************/
+
+    
     Begin Object Class=SVehicleSimTank Name=SimObject
 
         bClampedFrictionModel=true
 
         WheelSuspensionStiffness=70
         WheelSuspensionDamping=5
-        WheelSuspensionBias=0.2
+        WheelSuspensionBias=0.1
 
 //        WheelLongExtremumSlip=0
 //        WheelLongExtremumValue=20
@@ -128,25 +222,25 @@ DefaultProperties
     End Object
 
     DrawScale=1.0
-	
-	SkeletalMeshForPT=SkeletalMesh'RX_VH_MRLS.Mesh.SK_PTVH_MRLS'
-	
-	Begin Object Class=SkeletalMeshComponent Name=SAntennaMeshL
-		SkeletalMesh=SkeletalMesh'RX_VH_MRLS.Mesh.SK_Antenna'
-		AnimTreeTemplate=AnimTree'RX_VH_MRLS.Anims.AT_Antenna'
-		LightEnvironment = MyLightEnvironment
-	End Object
-	AntennaMeshL=SAntennaMeshL
-	
-	Begin Object Class=SkeletalMeshComponent Name=SAntennaMeshR
-		SkeletalMesh=SkeletalMesh'RX_VH_MRLS.Mesh.SK_Antenna'
-		AnimTreeTemplate=AnimTree'RX_VH_MRLS.Anims.AT_Antenna'
-		LightEnvironment = MyLightEnvironment
-	End Object
-	AntennaMeshR=SAntennaMeshR
+    
+    SkeletalMeshForPT=SkeletalMesh'RX_VH_MRLS.Mesh.SK_PTVH_MRLS'
+    
+    Begin Object Class=SkeletalMeshComponent Name=SAntennaMeshL
+        SkeletalMesh=SkeletalMesh'RX_VH_MRLS.Mesh.SK_Antenna'
+        AnimTreeTemplate=AnimTree'RX_VH_MRLS.Anims.AT_Antenna'
+        LightEnvironment = MyLightEnvironment
+    End Object
+    AntennaMeshL=SAntennaMeshL
+    
+    Begin Object Class=SkeletalMeshComponent Name=SAntennaMeshR
+        SkeletalMesh=SkeletalMesh'RX_VH_MRLS.Mesh.SK_Antenna'
+        AnimTreeTemplate=AnimTree'RX_VH_MRLS.Anims.AT_Antenna'
+        LightEnvironment = MyLightEnvironment
+    End Object
+    AntennaMeshR=SAntennaMeshR
 
-	VehicleIconTexture=Texture2D'RX_VH_MRLS.UI.T_VehicleIcon_MRLS'
-	MinimapIconTexture=Texture2D'RX_VH_MRLS.UI.T_MinimapIcon_MRLS'
+    VehicleIconTexture=Texture2D'RX_VH_MRLS.UI.T_VehicleIcon_MRLS'
+    MinimapIconTexture=Texture2D'RX_VH_MRLS.UI.T_MinimapIcon_MRLS'
 
 //========================================================\\
 //*********** Vehicle Seats & Weapon Properties **********\\
@@ -158,14 +252,16 @@ DefaultProperties
                 TurretControls=(TurretPitch,TurretRotate),
                 GunPivotPoints=(MainTurretYaw,MainTurretPitch),
                 CameraTag=CamView3P,
+                SeatBone=Base,
+                SeatSocket=VH_Death,
                 CameraBaseOffset=(Z=40),
                 CameraOffset=-550,
                 SeatIconPos=(X=0.5,Y=0.33),
                 MuzzleFlashLightClass=class'Rx_Light_Tank_MuzzleFlash'
                 )}
                 
-    Seats(1)={(	CameraTag=CamView3P,
-				TurretVarPrefix="Passenger",
+    Seats(1)={( CameraTag=CamView3P,
+                TurretVarPrefix="Passenger",
                 CameraBaseOffset=(Z=40),
                 CameraOffset=-550,
                 )}
@@ -197,19 +293,19 @@ DefaultProperties
     VehicleEffects(11)=(EffectStartTag=TurretFire12,EffectTemplate=ParticleSystem'RX_VH_MRLS.Effects.Muzzle_Flash',EffectSocket=Fire12)
     VehicleEffects(12)=(EffectStartTag=DamageSmoke,EffectEndTag=NoDamageSmoke,bRestartRunning=false,EffectTemplate=ParticleSystem'RX_FX_Vehicle.Damage.P_EngineFire',EffectSocket=DamageSmoke01)
 
-	WheelParticleEffects[0]=(MaterialType=Generic,ParticleTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_Generic')
+    WheelParticleEffects[0]=(MaterialType=Generic,ParticleTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_Generic')
     WheelParticleEffects[1]=(MaterialType=Dirt,ParticleTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_Dirt_Small')
-	WheelParticleEffects[2]=(MaterialType=Grass,ParticleTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_Dirt_Small')
+    WheelParticleEffects[2]=(MaterialType=Grass,ParticleTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_Dirt_Small')
     WheelParticleEffects[3]=(MaterialType=Water,ParticleTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_Water')
     WheelParticleEffects[4]=(MaterialType=Snow,ParticleTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_Snow_Small')
-	WheelParticleEffects[5]=(MaterialType=Concrete,ParticleTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_Generic')
-	WheelParticleEffects[6]=(MaterialType=Metal,ParticleTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_Generic')
-	WheelParticleEffects[7]=(MaterialType=Stone,ParticleTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_Stone')
-	WheelParticleEffects[8]=(MaterialType=WhiteSand,ParticleTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_WhiteSand_Small')
-	WheelParticleEffects[9]=(MaterialType=YellowSand,ParticleTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_YellowSand_Small')
-	DefaultWheelPSCTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_Dirt_Small'
-	
-    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Vehicle_Huge')
+    WheelParticleEffects[5]=(MaterialType=Concrete,ParticleTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_Generic')
+    WheelParticleEffects[6]=(MaterialType=Metal,ParticleTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_Generic')
+    WheelParticleEffects[7]=(MaterialType=Stone,ParticleTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_Stone')
+    WheelParticleEffects[8]=(MaterialType=WhiteSand,ParticleTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_WhiteSand_Small')
+    WheelParticleEffects[9]=(MaterialType=YellowSand,ParticleTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_YellowSand_Small')
+    DefaultWheelPSCTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_Dirt_Small'
+    
+    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_VH_MRLS.Effects.P_Explosion_Vehicle')
     BigExplosionSocket=VH_Death
 
     DamageMorphTargets(0)=(InfluenceBone=MT_Chassis_Front,MorphNodeName=MorphNodeW_Ch_F,LinkedMorphNodeName=none,Health=40,DamagePropNames=(Damage1))
@@ -239,8 +335,8 @@ DefaultProperties
     
     EnterVehicleSound=SoundCue'RX_VH_MRLS.Sounds.MRLS_startCue'
     ExitVehicleSound=SoundCue'RX_VH_MRLS.Sounds.MRLS_stopCue'
-	
-	ExplosionSound=SoundCue'RX_SoundEffects.Vehicle.SC_Vehicle_Explode_Large'
+    
+    ExplosionSound=SoundCue'RX_SoundEffects.Vehicle.SC_Vehicle_Explode_Large'
     
     MaxCuePitch= 0.9f
     MinCuePitch= 0.8f

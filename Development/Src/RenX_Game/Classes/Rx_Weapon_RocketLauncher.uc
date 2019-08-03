@@ -43,6 +43,16 @@ DefaultProperties
 	
 	PlayerViewOffset=(X=10.0,Y=-6.0,Z=-4.0)
 	
+	LeftHandIK_Offset=(X=-3.801600,Y=-3.320000,Z=1.830000)
+	LeftHandIK_Rotation = (Pitch=-1638,Yaw=-9466,Roll=4004)
+	RightHandIK_Offset=(X=0,Y=0,Z=0) //(X=-3,Y=-4,Z=-2)
+	
+	LeftHandIK_Relaxed_Offset = (X=-2.314000,Y=-4.319300,Z=3.443500)
+	LeftHandIK_Relaxed_Rotation = (Pitch=5643,Yaw=-1092,Roll=-1456)
+	
+	bOverrideLeftHandAnim=true
+	LeftHandAnim=H_M_Hands_Closed
+	
 	//-------------- Recoil
 	RecoilDelay = 0.07
 	RecoilSpreadDecreaseDelay = 0.5
@@ -74,6 +84,7 @@ DefaultProperties
 	WeaponFireTypes(1)=EWFT_None
 	
 	WeaponProjectiles(0)=class'Rx_Projectile_RocketLauncher'
+	WeaponProjectiles_Heroic(0)=class'Rx_Projectile_RocketLauncher_Heroic'
 
 	Spread(0)=0.001
 	Spread(1)=0.0
@@ -154,4 +165,31 @@ DefaultProperties
 
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_RocketLauncher'
+	
+	/*******************/
+	/*Veterancy*/
+	/******************/
+	
+	Vet_DamageModifier(0)=1  //Applied to instant-hits only
+	Vet_DamageModifier(1)=1.10 
+	Vet_DamageModifier(2)=1.25 
+	Vet_DamageModifier(3)=1.50 
+	
+	Vet_ROFModifier(0) = 1
+	Vet_ROFModifier(1) = 0.95  
+	Vet_ROFModifier(2) = 0.90  
+	Vet_ROFModifier(3) = 0.8  
+	
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)	
+	Vet_ClipSizeModifier(1)=0 //Veteran 
+	Vet_ClipSizeModifier(2)=0 //Elite
+	Vet_ClipSizeModifier(3)=0 //Heroic
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.9 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+	/**********************/
+	
+	Elite_Building_DamageMod = 1.25 //15//1.33
 }

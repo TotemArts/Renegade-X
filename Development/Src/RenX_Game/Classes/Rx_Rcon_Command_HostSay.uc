@@ -6,7 +6,7 @@ function string trigger(string parameters)
 		return "Error: Too few parameters." @ getSyntax();
 
 	parameters = Left(parameters, 128);
-	WorldInfo.Game.BroadcastHandler.Broadcast(None, parameters, 'Say');
+	`WorldInfoObject.Game.BroadcastHandler.Broadcast(None, parameters, 'Say');
 
 	return "";
 }

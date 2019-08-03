@@ -12,10 +12,10 @@ function string trigger(string parameters)
 			if (pos == -1)
 			{
 				// last word
-				ret $= Rx_Game(WorldInfo.Game).GetGameProperty(parameters);
+				ret $= Rx_Game(`WorldInfoObject.Game).GetGameProperty(parameters);
 				break;
 			}
-			ret $= Rx_Game(WorldInfo.Game).GetGameProperty(Left(parameters, pos)) $ `nbsp;
+			ret $= Rx_Game(`WorldInfoObject.Game).GetGameProperty(Left(parameters, pos)) $ `rcon_delim;
 			parameters = Mid(parameters, pos + 1);
 		}
 		return ret;
@@ -23,7 +23,7 @@ function string trigger(string parameters)
 
 	// Game Version intentionally excluded from default (passed on connect).
 	// Port, Name, Level, Players, Bots
-	return "Port" `s Rx_Game(WorldInfo.Game).Port `s "Name" `s WorldInfo.GRI.ServerName `s "Level" `s string(WorldInfo.GetPackageName()) `s "Players" `s WorldInfo.Game.NumPlayers `s "Bots" `s WorldInfo.Game.NumBots `s "LevelGUID" `s class'Rx_Game'.static.GuidToHex(GetPackageGuid(GetPackageName()));
+	return "Port" `s Rx_Game(`WorldInfoObject.Game).Port `s "Name" `s `WorldInfoObject.GRI.ServerName `s "Level" `s string(`WorldInfoObject.GetPackageName()) `s "Players" `s `WorldInfoObject.Game.NumPlayers `s "Bots" `s `WorldInfoObject.Game.NumBots `s "LevelGUID" `s class'Rx_Game'.static.GuidToHex(`WorldInfoObject.GetPackageGuid(GetPackageName()));
 }
 
 function string getHelp(string parameters)

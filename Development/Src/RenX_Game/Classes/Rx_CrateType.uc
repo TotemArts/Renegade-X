@@ -23,7 +23,7 @@ function BroadcastMessage(Rx_PRI RecipientPRI, Rx_CratePickup CratePickup)
 
 function SendLocalMessage(Rx_Controller Recipient)
 {
-	Recipient.clientmessage(GetPickupMessage());
+	Recipient.CTextMessage(GetPickupMessage(),'LightGreen',90);
 }
 
 function string GetPickupMessage()

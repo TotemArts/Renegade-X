@@ -1,4 +1,5 @@
-class Rx_Projectile_ChemicalThrower extends Rx_Projectile;
+class Rx_Projectile_ChemicalThrower extends Rx_Projectile_Spray;
+
 
 DefaultProperties
 {
@@ -38,18 +39,25 @@ DefaultProperties
 	TossZ=30
 */
     bCollideComplex=true
-    Speed=2000
-    MaxSpeed=2000
+    Speed=1750 //2000
+    MaxSpeed=1750 //2000
     AccelRate=0
     LifeSpan=0.80
-    Damage=12.0
-    DamageRadius=100
-	HeadShotDamageMult=1.3
+    Damage=13.2
+    DamageRadius=0 //50 //150 //Needs no damage radius. Use SprayRadii vector to make he spray more shapes
+	HeadShotDamageMult=1.10//1.2//1.0 //1.3
     MomentumTransfer=1
-	Begin Object Name=CollisionCylinder
-		CollisionRadius=20
-		CollisionHeight=20
-	End Object
+	
+	SprayRadii = (X=15,Y=15,Z=15)
+	
+	//Use something less taxing every tick 
+	/**Begin Object Name=CollisionCylinder
+		CollisionRadius=10 //20
+		CollisionHeight=10 //20
+		//Don't waste server resources on tracing for a client side projectile 
+		CollideActors = false
+		AlwaysLoadOnServer=false
+	End Object*/ 
     
     bWaitForEffects=true
     bWaitForEffectsAtEndOfLifetime=true
@@ -59,4 +67,20 @@ DefaultProperties
     
     ProjectileLightClass=none
     ExplosionLightClass=none
+	
+	/*************************/
+	/*VETERANCY*/
+	/************************/
+	
+	Vet_DamageIncrease(0)=1 //Normal (should be 1)
+	Vet_DamageIncrease(1)=1.10 //Veteran 
+	Vet_DamageIncrease(2)=1.25 //Elite
+	Vet_DamageIncrease(3)=1.50 //Heroic
+
+	Vet_SpeedIncrease(0)=1 //Normal (should be 1)
+	Vet_SpeedIncrease(1)=1.05 //Veteran 
+	Vet_SpeedIncrease(2)=1.10 //Elite
+	Vet_SpeedIncrease(3)=1.15 //Heroic 
+	
+	/***********************/
 }

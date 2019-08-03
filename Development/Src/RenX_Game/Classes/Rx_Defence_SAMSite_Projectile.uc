@@ -57,19 +57,24 @@ DefaultProperties
 	ExplosionLightClass=Class'Rx_Light_Tank_Explosion'
 	MaxExplosionLightDistance=7000.000000
 	Speed=3000
-	MaxSpeed=3000
-	AccelRate=1000
-	LifeSpan=2.0
-	Damage=50
-	DamageRadius=300
+	MaxSpeed=5000//3000
+	AccelRate=500
+	LifeSpan=2.5
+	Damage=75//50
+	DamageRadius=750//300
 	MomentumTransfer=100000.000000
    
 	LockWarningInterval= 1.5
-	BaseTrackingStrength=5.0 //0.7
-	HomingTrackingStrength=5.0 //0.7
+	BaseTrackingStrength=10.0 //5.0 //0.7
+	HomingTrackingStrength=10.0 //4.0//3.0//5.0 //0.7
 
 	MyDamageType=Class'Rx_DmgType_SAMSite'
 
 	bCheckProjectileLight=true
 	ProjectileLightClass=class'UDKExplosionLight' // TODO
+	
+	Vet_DamageIncrease(0)=1 //Normal (should be 1)
+	Vet_DamageIncrease(1)=1.10 //Veteran 
+	Vet_DamageIncrease(2)=1.20 //Elite
+	Vet_DamageIncrease(3)=1.33 //Heroic
 }

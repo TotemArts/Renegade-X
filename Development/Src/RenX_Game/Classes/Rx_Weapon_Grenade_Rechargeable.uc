@@ -36,6 +36,9 @@ DefaultProperties
 	
 	FireOffset=(X=0,Y=10,Z=0)
 	
+	bUseHandIKWhenRelax=false
+	bByPassHandIK=true
+	
 	//-------------- Recoil
 	RecoilDelay = 0.0
 	MinRecoil = 0.0

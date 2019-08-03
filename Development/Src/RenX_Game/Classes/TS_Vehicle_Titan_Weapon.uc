@@ -38,8 +38,8 @@ DefaultProperties
     ReloadTime(0) = 0.75
     ReloadTime(1) = 0.75
 
-    ReloadSound(0)=SoundCue'RX_VH_MediumTank.Sounds.SC_MediumTank_Reload'
-    ReloadSound(1)=SoundCue'RX_VH_MediumTank.Sounds.SC_MediumTank_Reload'
+    ReloadSound(0)=SoundCue'TS_VH_Titan.Sounds.SC_Reload'
+    ReloadSound(1)=SoundCue'TS_VH_Titan.Sounds.SC_Reload'
 
     // gun config
     FireTriggerTags(0)="MainGun"
@@ -72,4 +72,19 @@ DefaultProperties
 
     // AI
     bRecommendSplashDamage=True
+	
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)
+	Vet_ClipSizeModifier(1)=0 //Veteran 
+	Vet_ClipSizeModifier(2)=0 //Elite
+	Vet_ClipSizeModifier(3)=0 //Heroic
+
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.90 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+	
+    bOkAgainstLightVehicles = True
+    bOkAgainstArmoredVehicles = True
+    bOkAgainstBuildings = True
 }

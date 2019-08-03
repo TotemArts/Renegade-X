@@ -88,8 +88,29 @@ DefaultProperties
     ConsoleSteerScale=1.1
     DeflectionReverseThresh=-0.3
 
+	/*Veterancy */
+	VRank=0
+	
+	//VP Given on death (by VRank)
+	VPReward(0) = 8 
+	VPReward(1) = 10 
+	VPReward(2) = 12 
+	VPReward(3) = 16
+	
+	Vet_HealthMod(0)=1.0
+	Vet_HealthMod(1)=1.2
+	Vet_HealthMod(2)=1.4
+	Vet_HealthMod(3)=1.6
+	
+	Vet_SprintSpeedMod(0)=1.0
+	Vet_SprintSpeedMod(1)=1.10
+	Vet_SprintSpeedMod(2)=1.175
+	Vet_SprintSpeedMod(3)=1.25
+	/**************************/
+	
+	
     Begin Object Class=UDKVehicleSimCar Name=SimObject
-        WheelSuspensionStiffness=50
+        WheelSuspensionStiffness=60
         WheelSuspensionDamping=1.0
         WheelSuspensionBias=0.0
         ChassisTorqueScale=1.0
@@ -173,6 +194,11 @@ DefaultProperties
                 CameraTag=CamView3P,
                 CameraBaseOffset=(Z=-20),
                 CameraOffset=-400,
+				bSeatVisible=true,
+                SeatBone=b_Driver,
+                SeatSocket=DriverSocket,
+                SeatOffset=(X=0,Y=0,Z=0),
+                SeatRotation=(Pitch=0,Yaw=0),
                 SeatIconPos=(X=0.5,Y=0.33),
                 MuzzleFlashLightClass=class'RenX_Game.Rx_Light_AutoRifle_MuzzleFlash'
                 )}
@@ -218,7 +244,7 @@ DefaultProperties
 //========================================================\\
 
     Begin Object Class=AudioComponent Name=ScorpionEngineSound
-        SoundCue=SoundCue'RX_VH_Buggy.Sounds.SC_Buggy_Engine'
+        SoundCue=SoundCue'TS_VH_Buggy.Sounds.SC_Buggy_Engine'
     End Object
     EngineSound=ScorpionEngineSound
     Components.Add(ScorpionEngineSound);
@@ -233,8 +259,8 @@ DefaultProperties
     
     FiringStopSound=SoundCue'TS_VH_Buggy.Sounds.SC_Buggy_Fire_Stop'
 
-    EnterVehicleSound=SoundCue'RX_VH_Buggy.Sounds.SC_Buggy_Start'
-    ExitVehicleSound=SoundCue'RX_VH_Buggy.Sounds.SC_Buggy_Stop'
+    EnterVehicleSound=SoundCue'TS_VH_Buggy.Sounds.SC_Buggy_Start'
+    ExitVehicleSound=SoundCue'TS_VH_Buggy.Sounds.SC_Buggy_Stop'
 	
 	ExplosionSound=SoundCue'RX_SoundEffects.Vehicle.SC_Vehicle_Explode_Small'
 

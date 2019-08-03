@@ -13,6 +13,7 @@
 *
 *********************************************************/
 class Rx_Vehicle_StealthTank extends Rx_Vehicle_Treaded
+	implements (RxIfc_Stealth)
     placeable;
 
 //================================================================
@@ -20,11 +21,14 @@ class Rx_Vehicle_StealthTank extends Rx_Vehicle_Treaded
 //================================================================
 var protected float                    TimeStealthDelay;    // seconds we need to stay without action to get stealthed
 var protected float                    TimeLastAction;      // time(stamp) when last action was performed
-var protected float                    DistMaxNoticePlayers; 
-var protected float                    DistMaxNoticeVehicles;
+var protected float                    PawnDetectionModifier; 
+var protected float                    VehicleDetectionModifier;
 var protected float                    CurrentMaxNoticeDistance;
 var() float                            LowHpMult;           // HealthMax * LowHpMult is the value for LowHP damage use
 var int                                EMPFieldCount;
+
+
+
 //================================================================
 // Mat/Mesh-related variables
 //================================================================
@@ -45,6 +49,10 @@ var private float 					   BeenshotStealthVisibilityModifier;
 var private float 				       MaxStealthVisibility;		// Max decloakvalue for when enemys get close to an SBH	
 var private int 					   LastHealthBeenShot;
 
+var bool			   bHasCachedOverlay; 
+var LinearColor		   CachedOverlayColour; //We switch a lot of materials as an SBH.. remember our modifier overlay till we don't need it
+var bool         bIsReducingTireGrip;
+
 // ERASE:
 //var float Time1, Time2;
 
@@ -54,6 +62,12 @@ var private int 					   LastHealthBeenShot;
 //================================================================
 var repnotify name                     CurrentState;
 var protected PlayerController         LocalPC;
+
+///////////////////////////////////////////////
+//Veterancy
+//////////////////////////////////////////////
+var float Vet_StealthDelayMod[4]; 
+
 
 //================================================================
 // replication
@@ -77,6 +91,80 @@ simulated function PostBeginPlay()
    super.PostBeginPlay();
 }
 
+function FrontalCollisionGripReductionTimer()
+{
+  local int i;
+  local bool bAllWheelsOnGround;
+  local bool bWheelInAirLeftSide;
+  local bool bWheelInAirRightSide;
+  
+  bAllWheelsOnGround = true;  
+  if(!bFrontalCollision)
+  { 
+      for(i=0; i<Wheels.length; i++)
+      {
+        if(UDKVehicleWheel(Wheels[i]) != None)
+        {
+          if(!Wheels[i].bWheelOnGround) 
+          {
+            bAllWheelsOnGround = false;
+            if(Wheels[i].EWheelSide.SIDE_Left == Wheels[i].Side)
+              bWheelInAirLeftSide = true;
+            else
+              bWheelInAirRightSide = true;
+          }   
+        }
+      }
+      if(bWheelInAirLeftSide && bWheelInAirRightSide)
+      {
+          //loginternal(bWheelInAirLeftSide@bWheelInAirRightSide);
+          for(i=0; i<Wheels.length; i++)
+          {
+            if(UDKVehicleWheel(Wheels[i]) != None)
+            {     
+               Wheels[i].LongSlipFactor = 0.1;
+                //loginternal("wheel"@i@"WheelOnGround"@Wheels[i].bWheelOnGround@"bIsSquealing"@Wheels[i].bIsSquealing@"SpinVel"@Wheels[i].SpinVel@"Side"@Wheels[i].Side@"ContactForce"@Wheels[i].ContactForce@"ChassisTorque"@Wheels[i].ChassisTorque@"LongImpulse"@Wheels[i].LongImpulse);
+            }
+          }
+          bIsReducingTireGrip = true;
+          bCanResetSlip = false;
+          SetTimer(4.0, false, 'canResetSlipTimer'); 
+      }
+  } 
+  else if(bFrontalCollision && !bIsReducingFrontalCollisionGrip)
+  {
+    for(i=0; i<Wheels.length; i++)
+    {
+      if(UDKVehicleWheel(Wheels[i]) != None)
+      {
+        Wheels[i].LongSlipFactor = 0.1;
+      }
+    }
+    bIsReducingFrontalCollisionGrip = true;
+    bCanResetSlip = false;
+    SetTimer(1.0, false, 'canResetSlipTimer'); 
+  }
+
+  
+  if(Throttle == 0.0 && bIsReducingFrontalCollisionGrip)
+    bCanResetSlip = true;
+  
+  if((!bFrontalCollision && bIsReducingFrontalCollisionGrip && !bIsReducingTireGrip && bCanResetSlip) ||  (bIsReducingTireGrip && (bAllWheelsOnGround || bCanResetSlip))) 
+  {
+      for(i=0; i<Wheels.length; i++)
+      {
+        if(UDKVehicleWheel(Wheels[i]) != None)
+        {
+          Wheels[i].LongSlipFactor = Wheels[i].default.LongSlipFactor;
+        }
+      }
+      //LogInternal("resetting slip");
+      bIsReducingFrontalCollisionGrip = false;
+      bIsReducingTireGrip = false;
+  }
+
+}
+
 
 //================================================================
 // General functions
@@ -85,6 +173,15 @@ simulated function ClientAdjustState() {
    GotoState(CurrentState);
 }
 function ChangeState (name newState) {
+   
+   //Inject to handle overlay caching
+   if(NewState != 'Stealthed') 
+   {
+	   if(bHasCachedOverlay) SetOverlay(CachedOverlayColour); 
+		else
+		ClearOverlay(); 
+   }
+   
    CurrentState = NewState;
    GotoState(newState);
 }
@@ -202,7 +299,7 @@ simulated state WaitForSt // also called driving
    	  	 TimeLastAction = WorldInfo.TimeSeconds;
    	  	 return;
    	  }
-      if (WorldInfo.TimeSeconds - TimeLastAction >= TimeStealthDelay) {
+      if (WorldInfo.TimeSeconds - TimeLastAction >= (TimeStealthDelay-Vet_StealthDelayMod[VRank] )) {
  	  	  ChangeState('PlayStealthAnim');
       }
    }
@@ -342,12 +439,18 @@ simulated function DeCloak() {
         Mesh.SetMaterial(0, MICNormal);
         Mesh.SetMaterial(1, MICTrack);
         Mesh.SetMaterial(2, MICTrack); 
-
+		
+		
 		LeftTreadMaterialInstance = Mesh.CreateAndSetMaterialInstanceConstant(LeftTeadIndex);
 		RightTreadMaterialInstance = Mesh.CreateAndSetMaterialInstanceConstant(RightTreadIndex);
 		
         UpdateStealthVisibilityParam(0.0f);
         UpdateNewStealthVisibilityParam(1.0f);
+		
+		if(bHasCachedOverlay) SetOverlay(CachedOverlayColour); 
+		else
+		ClearOverlay();
+	
 		ClearTimer('DeCloak');	
 		ClearTimer('SwitchToStealthedState');	
 		ClearTimer('UpdateStealthBasedOnDistanceTimer');
@@ -429,6 +532,10 @@ simulated state Stealthed
       
        if (WorldInfo.NetMode != NM_DedicatedServer && LocalPC.GetTeamNum() != self.GetTeamNum())
       	SetTimer(0.1, true, 'UpdateStealthBasedOnDistanceTimer');
+	
+		if(ROLE==ROLE_Authority) Rx_PRI(PlayerReplicationInfo).SetTargetEliminated(100); //Restealthed. Remove target status
+
+	
    }
 
    simulated function bool DriverLeave(bool bForceLeave)
@@ -481,12 +588,21 @@ simulated function UpdateStealthBasedOnDistanceTimer()
 {	
 	local float StealthValue;
 	
-	
 	if(!IsInState('Stealthed') && !IsInState('BeenShot'))
 		return;
 		
 	if(LocalPC.Pawn == None)
-		return;		
+	{
+		if(LocalPC.GetTeamNum() != GetTeamNum()) {
+			StealthValue = 0.0; 
+		}
+		else{
+			StealthValue = 1.0; 
+		}
+			
+	return;		
+	}
+			
 	
 	if(IsInState('BeenShot') && (Health != LastHealthBeenShot))
 	{
@@ -496,10 +612,17 @@ simulated function UpdateStealthBasedOnDistanceTimer()
 	}
 	
 	StealthValue = VSize(LocalPC.Pawn.location - location);
+	
 	//loginternal(StealthValue);
 	
-	// 1 = completely visible	
-	StealthValue = 1.2 - StealthValue/StealthVisibilityDistance;
+	// 1 = completely visible
+	
+	if(Rx_Pawn(LocalPC.Pawn) != none)
+		StealthValue = 1.2 - StealthValue/(StealthVisibilityDistance*PawnDetectionModifier);
+	else
+		StealthValue = 1.2 - StealthValue/(StealthVisibilityDistance*VehicleDetectionModifier);
+	
+	
 	if(StealthValue < 0.0)
 		StealthValue = 0.0;
 		
@@ -641,30 +764,114 @@ simulated function UpdateNewStealthVisibilityParam(float value) {
 	MICTrackStealthed.SetScalarParameterValue('Stealth_Visibility', value);	
 }
 
-simulated function ChangeStealthVisibilityParam(bool ForOnFoot) {
-	if(ForOnFoot) {
-		//MICStealthed.SetScalarParameterValue('PixelDepth', DistMaxNoticePlayers);
-		//MICTrackStealthed.SetScalarParameterValue('PixelDepth', DistMaxNoticePlayers);
-		CurrentMaxNoticeDistance = DistMaxNoticePlayers; 	
-	} else {
-		//MICStealthed.SetScalarParameterValue('PixelDepth', DistMaxNoticeVehicles);
-		//MICTrackStealthed.SetScalarParameterValue('PixelDepth', DistMaxNoticeVehicles);
-		CurrentMaxNoticeDistance = DistMaxNoticeVehicles;
-	}
-}
 
 function bool IsInvisible() {
 	return bIsInvisible; // todo: check why this is not sufficient enoguh for bots not seeing me
 }
+
+/**I am a Stealth tank, therefore I am special and causing Yosh headaches at every turn*/ 
+
+/** Jacked the Link gun code, as vehicles already have most of the code for overlays in that*/
+simulated function SetOverlay(LinearColor MatColour)
+{
+	local MaterialInstanceConstant MIC;
+	local int i;
+	
+	ClearOverlay();
+	
+	/*Server doesn't need to concern itself with visuals, and just replicates the colour */
+	if(WorldInfo.NetMode == NM_DedicatedServer || WorldInfo.NetMode == NM_ListenServer) 
+	{
+		VehicleOverlayColour = MatColour; 
+		return; 
+	}
+	
+	CachedOverlayColour = MatColour;
+	bHasCachedOverlay = true; 
+	
+	
+	/*Run client/standalone visual code*/
+	
+	for (i = 0; i < Mesh.Materials.Length || i < Mesh.SkeletalMesh.Materials.Length; i++)
+	{
+		if (i < Mesh.Materials.Length)
+		{
+			MIC = MaterialInstanceConstant(Mesh.Materials[i]);
+		}
+		if (MIC == None)
+		{
+			if (i >= Mesh.Materials.Length || Mesh.Materials[i] == None)
+			{
+				Mesh.SetMaterial(i, Mesh.SkeletalMesh.Materials[i]);
+			}
+			MIC = Mesh.CreateAndSetMaterialInstanceConstant(i);
+		}
+		if (MIC != None)
+		{
+			MIC.SetVectorParameterValue('Veh_OverlayColor', MatColour);
+			MIC.SetScalarParameterValue('Veh_Overlay_Distort_Amount', 0.500000); //Stop being so damn weird
+		}
+	}
+}
+
+/** Just stole the link gun code to avoid reinventing the wheel entirely*/
+simulated function ClearOverlay()
+{
+	local MaterialInstanceConstant mic;
+	local LinearColor Black;
+	local int i;
+
+	/*Server doesn't need to concern itself with visuals, and just replicates the colour */
+	if(WorldInfo.NetMode == NM_DedicatedServer || WorldInfo.NetMode == NM_ListenServer) 
+	{
+		VehicleOverlayColour = Black; 
+		return; 
+	}
+	
+	CachedOverlayColour = Black;
+	bHasCachedOverlay = false; 
+	
+	for (i = 0; i < Mesh.Materials.Length; i++)
+	{
+		MIC = MaterialInstanceConstant(Mesh.Materials[i]);
+		if (MIC != None)
+		{
+			MIC.SetVectorParameterValue('Veh_OverlayColor',Black);
+			MIC.SetScalarParameterValue('Veh_Overlay_Distort_Amount', 0.500000); //Stop being so damn weird
+
+		}
+	}
+}
      
+	 
+/*Functions shared by all stealth units for the HUD (And maybe for a sensor array or something)*/
+
+simulated function bool GetIsinTargetableState(){
+	return (GetStateName() != 'Stealthed' && GetStateName() != 'BeenShot'); 
+}
+
+simulated function bool GetIsStealthCapable(){
+	return Health > HealthMax*LowHPMult;
+} 
+
+simulated function ChangeStealthVisibilityParam(bool ForOnFoot, optional float PercentMod = 1.0) {
+	if(ForOnFoot) {
+		CurrentMaxNoticeDistance = PawnDetectionModifier*PercentMod; 	
+	} else {
+		CurrentMaxNoticeDistance = VehicleDetectionModifier*PercentMod;
+	}
+}
+
+/*End stealth code */
 
 DefaultProperties
 {
    	TimeStealthDelay = 4.0f    //  seconds we need to stay without action to get stealthed
    	LowHpMult = 0.15f           //  HealthMax * LowHpMult is the value for LowHP (damaged) use
 
-	DistMaxNoticePlayers  = 0.00085f   // remember to test this! and anjust similar to CCR
-	DistMaxNoticeVehicles = 0.00085f    // and this
+	//Higher numbers make Stanks visible sooner 
+	PawnDetectionModifier  = 1.15  //0.00085f   // remember to test this! and anjust similar to CCR
+	VehicleDetectionModifier = 1.0 //0.00085f    // and this
 	
    	MatStealthed 	  = MaterialInterface'RX_VH_StealthTank.Materials.MI_StealthTank_Cloaked'
    	MICTrack 		  = MaterialInstanceConstant'RX_VH_StealthTank.Materials.MI_VH_Tracks'
@@ -689,16 +896,54 @@ DefaultProperties
     MaxSpeed=1000
     LeftStickDirDeadZone=0.1
     TurnTime=18
-     ViewPitchMin=-13000
+    ViewPitchMin=-13000
     HornIndex=1
     COMOffset=(x=0.0,y=0.0,z=-30.0)
     
     BeenshotStealthVisibilityModifier = 1.0
-	StealthVisibilityDistance = 650
+	StealthVisibilityDistance = 750 //650
 	MaxStealthVisibility = 0.2
 	
-	SprintTrackTorqueFactorDivident=1.125
+	SprintTrackTorqueFactorDivident=1.175 //1.125
 
+/************************/
+/*Veterancy Multipliers*/
+/***********************/
+
+	//VP Given on death (by VRank)
+	VPReward(0) = 8 
+	VPReward(1) = 10 
+	VPReward(2) = 14 
+	VPReward(3) = 18 
+	
+	VPCost(0) = 30
+	VPCost(1) = 60
+	VPCost(2) = 110
+
+	Vet_HealthMod(0)=1.0 //400
+	Vet_HealthMod(1)= 1.125 //450
+	Vet_HealthMod(2)=1.25 //500
+	Vet_HealthMod(3)=1.375 //550
+		
+	Vet_SprintSpeedMod(0)=1
+	Vet_SprintSpeedMod(1)=1.05
+	Vet_SprintSpeedMod(2)=1.10
+	Vet_SprintSpeedMod(3)=1.15
+		
+	// +X as opposed to *X
+	Vet_SprintTTFD(0)=0
+	Vet_SprintTTFD(1)=0.05
+	Vet_SprintTTFD(2)=0.10
+	Vet_SprintTTFD(3)=0.15 //0.2
+
+	//-X
+	Vet_StealthDelayMod(0) = 0; 
+	Vet_StealthDelayMod(1) = 1; 
+	Vet_StealthDelayMod(2) = 2; 
+	Vet_StealthDelayMod(3) = 3; 
+
+	/**********************/
+	
     Begin Object Class=SVehicleSimTank Name=SimObject
 
         bClampedFrictionModel=true
@@ -764,6 +1009,8 @@ DefaultProperties
                 GunSocket=(TurretFireSocket01,TurretFireSocket02),
                 TurretControls=(TurretPitch,TurretRotate),
                 GunPivotPoints=(MainTurretYaw,MainTurretPitch),
+				SeatBone=Base,
+				SeatSocket=VH_Death,
                 CameraTag=CamView3P,
                 CameraBaseOffset=(Z=-10),
                 CameraOffset=-400,
@@ -801,7 +1048,7 @@ DefaultProperties
 	WheelParticleEffects[9]=(MaterialType=YellowSand,ParticleTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_YellowSand_Small')
 	DefaultWheelPSCTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_Dirt_Small'
 	
-    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Vehicle_Huge')
+    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_VH_StealthTank.Effects.P_Explosion_Vehicle')
     BigExplosionSocket=VH_Death
 	
 	DamageMorphTargets(0)=(InfluenceBone=MT_StealthTank_F,MorphNodeName=MorphNodeW_Front,LinkedMorphNodeName=none,Health=40,DamagePropNames=(Damage1))

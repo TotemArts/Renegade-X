@@ -14,8 +14,8 @@ defaultproperties
 
     CustomTauntIndex=10
     lightArmorDmgScaling=1.0
-    BuildingDamageScaling=2.0
-	MCTDamageScaling=4.0
+    BuildingDamageScaling=1.75
+	MCTDamageScaling=3.0
 	MineDamageScaling=2.0
 	
     AlwaysGibDamageThreshold=99

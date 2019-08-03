@@ -36,15 +36,15 @@ DefaultProperties
     SecondaryLockingDisabled=false
 
     // reload config
-    ClipSize = 2
+    ClipSize = 4
     InitalNumClips = 999
     MaxClips = 999
     
     ShotCost(0)=1
     ShotCost(1)=1
     
-    ReloadTime(0) = 4.0
-    ReloadTime(1) = 4.0
+    ReloadTime(0) = 5.0 // 4.0
+    ReloadTime(1) = 5.0 //4.0
     
     ReloadAnimName(0) = "weaponreload"
     ReloadAnimName(1) = "weaponreload"
@@ -91,6 +91,7 @@ DefaultProperties
     
     // AI
     bRecommendSplashDamage=True
+    bOkAgainstLightVehicles = True
 
     //==========================================
     //LOCKING PROPERTIES
@@ -104,8 +105,34 @@ DefaultProperties
     ConsoleLockAim       = 0.992000
     LockAim              = 0.997000
     LockCheckTime        = 0.1
-    LockAcquireTime      = 0.2
+    LockAcquireTime      = 0.01//0.2
     StayLocked           = 0.1
 
     bTargetLockingActive = true;
+	
+	
+	/****************************************/
+	/*Veterancy*/
+	/****************************************/
+	
+	//*X Reverse percentage (0.75 is 25% increase in speed)
+	Vet_ROFModifier(0) = 1 //Normal
+	Vet_ROFModifier(1) = 0.90  //Veteran
+	Vet_ROFModifier(2) = 0.80  //Elite
+	Vet_ROFModifier(3) = 0.70  //Heroic
+ 
+	//+X
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)
+	Vet_ClipSizeModifier(1)=1 //Veteran 
+	Vet_ClipSizeModifier(2)=2 //Elite
+	Vet_ClipSizeModifier(3)=4 //Heroic
+
+	//*X Reverse percentage (0.75 is 25% increase in speed)
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.90 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+	
+	
+	/********************************/
 }

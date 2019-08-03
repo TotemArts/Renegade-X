@@ -1,0 +1,6 @@
+class Rx_Projectile_FlakCannon_Alt_Heroic extends Rx_Projectile_FlakCannon_Alt;
+
+DefaultProperties
+{
+	ProjFlightTemplate=ParticleSystem'RX_FX_Munitions.shells.P_Flak_Shards_Heroic'
+}

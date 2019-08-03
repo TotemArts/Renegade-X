@@ -1,6 +1,6 @@
 class Rx_Chinook_Airdrop extends Actor;
 
-var private SkeletalMeshComponent Mesh;
+var SkeletalMeshComponent Mesh;
 
 
 var private repnotify float CurrentTime;
@@ -57,17 +57,17 @@ simulated function class<Rx_Vehicle> GetVehicleClass()
 {
 	if (TeamNum == TEAM_GDI)
 	{
-		if(VehicleID == 7)
-			return class'Rx_Vehicle_Harvester_GDI';
+		if (VehicleID == 7)
+			return class<Rx_Game>(WorldInfo.GetGameClass()).default.VehicleManagerClass.default.GDIHarvesterClass;
 		else
-			return class'Rx_PurchaseSystem'.default.GDIVehicleClasses[VehicleID];
-	} 
+			return class<Rx_Game>(WorldInfo.GetGameClass()).default.PurchaseSystemClass.default.GDIVehicleClasses[VehicleID].default.VehicleClass;
+	}
 	else
 	{
-		if(VehicleID == 8)
-			return class'Rx_Vehicle_Harvester_Nod'; 
-		else	
-			return class'Rx_PurchaseSystem'.default.NodVehicleClasses[VehicleID];
+		if (VehicleID == 8)
+			return class<Rx_Game>(WorldInfo.GetGameClass()).default.VehicleManagerClass.default.NodHarvesterClass;
+		else
+			return class<Rx_Game>(WorldInfo.GetGameClass()).default.PurchaseSystemClass.default.NodVehicleClasses[VehicleID].default.VehicleClass;
 	}
 }
 
@@ -99,9 +99,10 @@ simulated function DropVehicle()
 		Rx_Game(WorldInfo.Game).GetVehicleManager().InitVehicle(CarriedVehicle,TeamNum,Buyer,VehicleID,SocketLocation); 
 	}	
 	
-	if (WorldInfo.NetMode != NM_DedicatedServer)
+	/**if (WorldInfo.NetMode != NM_DedicatedServer)
 		SetTimer(4.0,false,'EngineSoundFadeOut');
-}
+	*/
+	}
 
 simulated function EngineSoundFadeOut()
 {
@@ -129,13 +130,20 @@ simulated function InitialSetup()
 	VehicleMesh.SetSkeletalMesh(GetVehicleClass().default.SkeletalMeshForPT);
 	if (WorldInfo.NetMode != NM_DedicatedServer)
 		setHidden(false);
-	SetTimer(2.0,false,'InitEngineSound');		
+	//SetTimer(2.0,false,'InitEngineSound');
+	AttachSoundComponent(); 	
+	EngineSound.Play(); 
 	VehicleMesh.SetShadowParent(Mesh);		
 	Mesh.GetSocketWorldLocationAndRotation('AirDrop_Vehicle', SocketLocation, SocketRotation);	
 	Mesh.PlayAnim('AirDrop',,false,false,CurrentTime);	
-	SetTimer(14.5,false,'DropVehicle');		
+	SetTimer(14.5,false,'DropVehicle');
 }
 
+//We're just a big animation. Attach our sound component to the root socket so it follows the animation
+simulated function AttachSoundComponent()
+{
+	Mesh.AttachComponentToSocket(EngineSound, 'VH_Death');
+}
 
 DefaultProperties
 {

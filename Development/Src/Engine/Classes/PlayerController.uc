@@ -2537,28 +2537,30 @@ function bool AllowTextMessage(string Msg)
 // Send a message to all players.
 exec function Say( string Msg )
 {
-	Msg = Left(Msg,128);
-
-	if ( AllowTextMessage(Msg) )
-		ServerSay(Msg);
+	ServerSay(Msg);
 }
 
 unreliable server function ServerSay( string Msg )
 {
 	local PlayerController PC;
+	
+	Msg = Left(Msg,128);
 
-	// center print admin messages which start with #
-	if (PlayerReplicationInfo.bAdmin && left(Msg,1) == "#" )
+	if(AllowTextMessage(Msg))
 	{
-		Msg = right(Msg,len(Msg)-1);
-		foreach WorldInfo.AllControllers(class'PlayerController', PC)
+		// center print admin messages which start with #
+		if (PlayerReplicationInfo.bAdmin && left(Msg,1) == "#" )
 		{
-			PC.ClientAdminMessage(Msg);
+			Msg = right(Msg,len(Msg)-1);
+			foreach WorldInfo.AllControllers(class'PlayerController', PC)
+			{
+				PC.ClientAdminMessage(Msg);
+			}
+			return;
 		}
-		return;
-	}
 
-	WorldInfo.Game.Broadcast(self, Msg, 'Say');
+		WorldInfo.Game.Broadcast(self, Msg, 'Say');
+	}
 }
 
 reliable client function ClientAdminMessage(string Msg)
@@ -2576,22 +2578,24 @@ reliable client function ClientAdminMessage(string Msg)
 
 exec function TeamSay( string Msg )
 {
-	Msg = Left(Msg,128);
-	if ( AllowTextMessage(Msg) )
-		ServerTeamSay(Msg);
+	ServerTeamSay(Msg);
 }
 
 unreliable server function ServerTeamSay( string Msg )
 {
-	LastActiveTime = WorldInfo.TimeSeconds;
-
-	if( !WorldInfo.GRI.GameClass.Default.bTeamGame )
+	Msg = Left(Msg,128);
+	if ( AllowTextMessage(Msg) )
 	{
-		Say( Msg );
-		return;
-	}
+		LastActiveTime = WorldInfo.TimeSeconds;
 
-    WorldInfo.Game.BroadcastTeam( self, Msg, 'TeamSay');
+		if( !WorldInfo.GRI.GameClass.Default.bTeamGame )
+		{
+			Say( Msg );
+			return;
+		}
+
+	    WorldInfo.Game.BroadcastTeam( self, Msg, 'TeamSay');
+	}
 }
 
 // ------------------------------------------------------------------------
@@ -4548,6 +4552,8 @@ exec function ChangeTeam( optional string TeamName )
 	else
 		N = 1 - PlayerReplicationInfo.Team.TeamIndex;
 
+	`log("Server Team Name" @ N);
+	
 	ServerChangeTeam(N);
 }
 

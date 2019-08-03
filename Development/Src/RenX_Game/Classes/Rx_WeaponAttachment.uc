@@ -26,6 +26,13 @@ var bool					bShellEjectPSCLoops;
 /** How long the eject particle should be there */
 var float					ShellEjectDuration;
 
+
+/** Holds the vector location of the socket to attach the forearm on the 3rd person character */
+var vector					LeftHandIKSocketLocation;
+
+/** Holds the name of the socket to attach the forearm on the 3rd person character */
+var name					LeftHandIKSocket;
+
 simulated event PostBeginPlay()
 {
 	super.PostBeginPlay();
@@ -41,8 +48,30 @@ simulated event PostBeginPlay()
 	}
 }
 
+event Tick( float DeltaTime ) 
+{
+	local vector tempVec;
+	local Rotator tempRot;
+	
+	if (Mesh.GetSocketByName(LeftHandIKSocket) != None)
+	{
+		Mesh.GetSocketWorldLocationAndRotation(LeftHandIKSocket, tempVec, tempRot, 0);
+		LeftHandIKSocketLocation = tempVec;
+	}
+	else
+	{
+		LeftHandIKSocketLocation = tempVec - tempVec;
+	}
+	
+	super.Tick(DeltaTime);
+}
+
 simulated function AttachTo(UTPawn OwnerPawn) 
 {  
+	local Rx_Pawn RxP; 
+	
+	RxP = Rx_Pawn(OwnerPawn);
+	
 	super.AttachTo(OwnerPawn);
 
 	if (ShellEjectSocket != '')
@@ -56,14 +85,14 @@ simulated function AttachTo(UTPawn OwnerPawn)
 		}
 	}
 
-	if( Rx_Pawn(OwnerPawn) != none )
+	if( RxP != none )
 	{
-		Rx_Pawn(OwnerPawn).bAlwaysRelaxed = bDontAim;
+		RxP.bAlwaysRelaxed = bDontAim;
 		if (bDontAim)
 		{
-			Rx_Pawn(OwnerPawn).ResetRelaxStance();
+			RxP.ResetRelaxStance();
 		}
-		Rx_Pawn(OwnerPawn).SetAnimSet(WeaponAnimSet, AimProfileName);
+		RxP.SetAnimSet(WeaponAnimSet, AimProfileName);
 	}
 }
 
@@ -145,14 +174,6 @@ simulated function ThirdPersonFireEffects(vector HitLocation)
 
 simulated function bool EffectIsRelevant(vector SpawnLocation, bool bForceDedicated, optional float VisibleCullDistance=5000.0, optional float HiddenCullDistance=350.0 )
 {
-	/**
-	if(WorldInfo.isPlayingDemo() && owner != None) {
-		return super.EffectIsRelevant( owner.location, bForceDedicated, VisibleCullDistance, HiddenCullDistance );
-	} else {
-		return super.EffectIsRelevant( SpawnLocation, bForceDedicated, VisibleCullDistance, HiddenCullDistance );
-	}
-	*/
-	
 	return super.EffectIsRelevant( owner.location, bForceDedicated, VisibleCullDistance, HiddenCullDistance );
 }
 
@@ -166,4 +187,6 @@ DefaultProperties
 	ShellEjectPSCTemplate=none
 	ShellEjectDuration = 0.1
 	ShellEjectSocket = ShellEjectSocket
+	
+	LeftHandIKSocket = ForeArmIK
 }

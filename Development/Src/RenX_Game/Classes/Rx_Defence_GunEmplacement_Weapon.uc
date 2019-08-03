@@ -74,7 +74,9 @@ DefaultProperties
 	WeaponDistantFireSnd(1)=SoundCue'RX_WP_TacticalRifle.Sounds.SC_TacticalRifle_DistantFire'
 	
 	
-	
+    bOkAgainstLightVehicles = True
+    bOkAgainstArmoredVehicles = True
+
 	WeaponRange=10000.0
 
 	WeaponFireTypes(0)=EWFT_InstantHit
@@ -114,5 +116,44 @@ DefaultProperties
 	ImpactEffects(17)=(MaterialType=YellowStone, ParticleTemplate=ParticleSystem'RX_FX_Munitions2.Particles.bullets.P_Bullet_Impact_YellowStone_Heavy',Sound=SoundCue'RX_SoundEffects.Bullet_Impact.SC_BulletImpact_Stone')
 	ImpactEffects(18)=(MaterialType=Snow, ParticleTemplate=ParticleSystem'RX_FX_Munitions2.Particles.bullets.P_Bullet_Impact_Snow_Heavy',Sound=SoundCue'RX_SoundEffects.Bullet_Impact.SC_BulletImpact_Snow')
 	ImpactEffects(19)=(MaterialType=SnowStone, ParticleTemplate=ParticleSystem'RX_FX_Munitions2.Particles.bullets.P_Bullet_Impact_Snow_Heavy',Sound=SoundCue'RX_SoundEffects.Bullet_Impact.SC_BulletImpact_Stone')
+	
+/***********************/
+/*Veterancy*/
+/**********************/
+Vet_ClipSizeModifier(0)=0 //Normal +X
+Vet_ClipSizeModifier(1)=10 //Veteran 
+Vet_ClipSizeModifier(2)=25 //Elite
+Vet_ClipSizeModifier(3)=50 //Heroic
+
+
+Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
+Vet_ReloadSpeedModifier(1)=1 //Veteran 
+Vet_ReloadSpeedModifier(2)=0.90 //Elite
+Vet_ReloadSpeedModifier(3)=0.80 //Heroic
+
+Vet_SecondaryClipSizeModifier(0)=0 //Normal +X
+Vet_SecondaryClipSizeModifier(1)=2 //Veteran 
+Vet_SecondaryClipSizeModifier(2)=4 //Elite
+Vet_SecondaryClipSizeModifier(3)=6 //Heroic
+
+
+Vet_SecondaryReloadSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
+Vet_SecondaryReloadSpeedModifier(1)=0.95 //Veteran 
+Vet_SecondaryReloadSpeedModifier(2)=0.90 //Elite
+Vet_SecondaryReloadSpeedModifier(3)=0.85 //Heroic 
+
+//missiles
+Vet_ROFSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
+Vet_ROFSpeedModifier(1)=1 //Veteran 
+Vet_ROFSpeedModifier(2)=1 //Elite
+Vet_ROFSpeedModifier(3)=1 //Heroic
+
+//Gun
+Vet_SecondaryROFSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
+Vet_SecondaryROFSpeedModifier(1)=1 //Veteran 
+Vet_SecondaryROFSpeedModifier(2)=1 //Elite
+Vet_SecondaryROFSpeedModifier(3)=1 //Heroic
+
+/***********************************/
 
 }

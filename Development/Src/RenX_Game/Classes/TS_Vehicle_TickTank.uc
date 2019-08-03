@@ -105,7 +105,7 @@ DefaultProperties
 
     DrawScale=1.0
 	
-	SkeletalMeshForPT=SkeletalMesh'RX_VH_LightTank.Mesh.SK_PTVH_LightTank'
+	SkeletalMeshForPT=SkeletalMesh'TS_VH_TickTank.Mesh.SK_VH_TickTank'
 
 	VehicleIconTexture=Texture2D'TS_VH_TickTank.Materials.T_VehicleIcon_TickTank'
 	MinimapIconTexture=Texture2D'TS_VH_TickTank.Materials.T_RadarBlip_TickTank'
@@ -321,4 +321,36 @@ DefaultProperties
     End Object
     Wheels(11)=L_Wheel_6
 
+	/************************/
+/*Veterancy Multipliers*/
+/***********************/
+
+//VP Given on death (by VRank)
+	VPReward(0) = 10 
+	VPReward(1) = 12 
+	VPReward(2) = 14 
+	VPReward(3) = 18 
+	
+	VPCost(0) = 30
+	VPCost(1) = 70
+	VPCost(2) = 150
+
+	Vet_HealthMod(0)=1 //700
+	Vet_HealthMod(1)=1.142858 //800 
+	Vet_HealthMod(2)=1.2857143 //900
+	Vet_HealthMod(3)=1.42857143 //1000
+		
+	Vet_SprintSpeedMod(0)=1
+	Vet_SprintSpeedMod(1)=1.05
+	Vet_SprintSpeedMod(2)=1.10
+	Vet_SprintSpeedMod(3)=1.15
+		
+	// +X as opposed to *X
+	Vet_SprintTTFD(0)=0
+	Vet_SprintTTFD(1)=0.05
+	Vet_SprintTTFD(2)=0.10
+	Vet_SprintTTFD(3)=0.15
+
+/**********************/
+	
 }

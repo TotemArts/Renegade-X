@@ -1,5 +1,6 @@
 class Rx_Pawn_SBH extends Rx_Pawn
-	implements (RxIfc_EMPable);
+	implements (RxIfc_EMPable)
+	implements (RxIfc_Stealth);
 
 var float  										IdleTimeToStealth; // needed time to stay in idle to vanish
 var private MaterialInterface  					MatStealthed;
@@ -18,8 +19,8 @@ var private float								LowHPMult;
 var private float                               TimeLastAction; 
 var private float                    			TimeStealthDelay;    // seconds we need to stay without action to get stealthed
 var private bool                     			bStealthMatInitialized;
-var private float                    			DistMaxNoticePlayers; 
-var private float                   			DistMaxNoticeVehicles;
+var private float                    			PawnDetectionModifier; 
+var private float                   			VehicleDetectionModifier;
 var private float                    			CurrentMaxNoticeDistance;
 var private bool							    bInvisible;		
 var public bool								    bStealthRecoveringFromBeeingShotOrSprinting;
@@ -29,6 +30,8 @@ var private float 								BeenshotStealthVisibilityModifier;
 var private float 								MaxStealthVisibility;		// Max decloakvalue for when enemys get close to an SBH
 var private int 								LastHealthBeenShot;
 var int                                         EMPFieldCount;
+var float										Vet_StealthDelayMod[4]; 
+var MaterialInstanceConstant					CurrentStoredOverlay; //We switch a lot of materials as an SBH.. remember our modifier overlay till we don't need it
 
 replication
 {
@@ -46,7 +49,7 @@ simulated function PostBeginPlay()
 simulated event ReplicatedEvent(name VarName)
 {
    if (VarName == 'CurrentState')
-	  ClientAdjustState(); 	  	  
+	  ClientAdjustState();
    else
       Super.ReplicatedEvent(VarName);
 }
@@ -56,7 +59,7 @@ simulated function bool IsEffectedByEMP()
 	return true;
 }
 
-function bool EMPHit(Controller InstigatedByController, Actor EMPCausingActor)
+function bool EMPHit(Controller InstigatedByController, Actor EMPCausingActor, optional int TimeModifier = 0)
 {
 	if (InstigatedByController.GetTeamNum() == GetTeamNum() )
 		return false;
@@ -112,7 +115,7 @@ auto simulated state JustSpawned
    	    MICStealthed = new(outer) class'MaterialInstanceConstant';
   		MICStealthed.SetParent(MatStealthed);
   		UpdateStealthAnimParam(0.0f);	 
-
+		
   		SetTimer(2.0, false, 'GotoStealthed');
     }
 
@@ -127,8 +130,20 @@ simulated function ClientAdjustState() {
 
 function ChangeState (name newState) {
    CurrentState = NewState;
+   if(NewState != 'Stealthed') 
+   {
+	   SetOverlayMaterial(CurrentStoredOverlay);
+	   if(CurrentStoredWeaponOverlayByte != 255) SetWeaponOverlayFlag(CurrentStoredWeaponOverlayByte);
+	   
+   }
+   else 
+   {
+	  if(GetOverlayMaterial() != none) SetOverlayMaterial(none);
+	   if(CurrentStoredWeaponOverlayByte != 255) ClearWeaponOverlayFlag(CurrentStoredWeaponOverlayByte);
+   }
    GotoState(newState);
 }
+
 
 /* =============
  * state WaitForSt - all the time checks are performed here
@@ -152,7 +167,7 @@ simulated state WaitForSt // also called driving
    	  	 TimeLastAction = WorldInfo.TimeSeconds;
    	  	 return;
    	  }
-      if (WorldInfo.TimeSeconds - TimeLastAction >= TimeStealthDelay) {
+      if (WorldInfo.TimeSeconds - TimeLastAction >= (TimeStealthDelay-Vet_StealthDelayMod[VRank] ) ) {
  	  	  ChangeState('PlayStealthAnim');
       }
    }
@@ -332,6 +347,7 @@ simulated state Stealthed
       if (WorldInfo.NetMode != NM_DedicatedServer && LocalPC.GetTeamNum() != self.GetTeamNum())
       	SetTimer(0.1, true, 'UpdateStealthBasedOnDistanceTimer');
       
+	  if(ROLE==ROLE_Authority) Rx_PRI(PlayerReplicationInfo).SetTargetEliminated(100); //Restealthed. Remove target status
       
    }
 
@@ -373,12 +389,20 @@ simulated function UpdateStealthBasedOnDistanceTimer()
 {	
 	local float StealthValue;
 	
-	
 	if(!IsInState('Stealthed') && !IsInState('BeenShot'))
 		return;
 		
 	if(LocalPC.Pawn == None)
-		return;	
+	{
+		if(LocalPC.GetTeamNum() != GetTeamNum()) {
+			StealthValue = 0.0; 
+		}
+		else{
+			StealthValue = 1.0; 
+		}
+			
+	return;		
+	}
 		
 	if(IsInState('BeenShot') && (Health+Armor != LastHealthBeenShot))
 	{
@@ -395,11 +419,17 @@ simulated function UpdateStealthBasedOnDistanceTimer()
 	
 	if(bSprintingServer)
 	{
-		StealthValue = 1.2 - StealthValue/SprintingStealthVisibilityDistance;
+		if(Rx_Pawn(LocalPC.Pawn) != none)
+			StealthValue = 1.2 - StealthValue/(SprintingStealthVisibilityDistance*PawnDetectionModifier);
+		else
+			StealthValue = 1.2 - StealthValue/(SprintingStealthVisibilityDistance*VehicleDetectionModifier);
 	}	
 	else 
 	{
-		StealthValue = 1.2 - StealthValue/StealthVisibilityDistance;
+		if(Rx_Pawn(LocalPC.Pawn) != none)
+			StealthValue = 1.2 - StealthValue/(StealthVisibilityDistance*PawnDetectionModifier);
+		else
+			StealthValue = 1.2 - StealthValue/(StealthVisibilityDistance*VehicleDetectionModifier);
 	}
 	
 	if(StealthValue < 0.0)
@@ -452,11 +482,24 @@ simulated state LowHP
    }
 
 	// Already perma visible, don't change state.
-	function bool EMPHit(Controller InstigatedByController, Actor EMPCausingActor)
+	function bool EMPHit(Controller InstigatedByController, Actor EMPCausingActor, optional int TimeModifier = 0)
 	{
 		return true;
 	}
-
+	
+	function regenerateHealthTimer()
+	{
+		super.regenerateHealthTimer();
+		if(Health >= HealthMax*LowHPMult) 
+			GotoState('WaitForSt') ;
+	}
+	
+	function regenerateHealth(int HealAmount)
+	{
+		super.regenerateHealth(HealAmount);
+		if(Health >= HealthMax*LowHPMult) 
+			GotoState('WaitForSt') ;
+	}
 }
 
 /* =============
@@ -465,7 +508,6 @@ simulated state LowHP
  */
 simulated state BeenShot
 {
-
    simulated function BeginState(name PreviousStateName)
    {
       if (WorldInfo.NetMode != NM_DedicatedServer && LocalPC.GetTeamNum() != self.GetTeamNum()) {
@@ -560,12 +602,23 @@ simulated function SetMaterialsCloaked(bool cloaked) {
 		
 		if ( (Weapon != None && Weapon.Mesh != none) && (Weapon.default.Mesh.Materials.Length > 0 || Weapon.Mesh.GetNumElements() > 0) )
 		{
-			Cnt = Weapon.default.Mesh.Materials.Length > 0 ? Weapon.default.Mesh.Materials.Length : Weapon.Mesh.GetNumElements();
-			for ( i=0; i < Cnt; i++ )
+			
+			if(Rx_Weapon_LaserRifle(Weapon) != none)
 			{
-				Weapon.Mesh.SetMaterial(i, MICStealthed);
-				Weapon.Mesh.CreateAndSetMaterialInstanceConstant(i);	
+				Weapon.Mesh.SetMaterial(0, MICStealthed);
+				
+				Weapon.Mesh.CreateAndSetMaterialInstanceConstant(0);
 			}
+			else
+			{
+				Cnt = Weapon.default.Mesh.Materials.Length > 0 ? Weapon.default.Mesh.Materials.Length : Weapon.Mesh.GetNumElements();
+				for ( i=0; i < Cnt; i++ )
+				{
+					Weapon.Mesh.SetMaterial(i, MICStealthed);
+					Weapon.Mesh.CreateAndSetMaterialInstanceConstant(i);	
+				}
+			}
+			
 		}		
 	
 		for (i = 0; i < 2; i++) {
@@ -642,16 +695,6 @@ simulated function SetMaterialsCloaked(bool cloaked) {
 
 }
 
-simulated function ChangeStealthVisibilityParam(bool ForOnFoot) {
-	if(ForOnFoot) {
-		//MICStealthed.SetScalarParameterValue('PixelDepth', DistMaxNoticePlayers);
-		CurrentMaxNoticeDistance = DistMaxNoticePlayers; 	
-	} else {
-		//MICStealthed.SetScalarParameterValue('PixelDepth', DistMaxNoticeVehicles);
-		CurrentMaxNoticeDistance = DistMaxNoticeVehicles;
-	}
-}
-
 simulated function WeaponAttachmentChanged()
 {
 	super.WeaponAttachmentChanged();
@@ -684,6 +727,15 @@ simulated function RefreshBackWeaponComponents()
 }
 
 
+function bool GiveHealth(int HealAmount, int HealMax)
+{
+	if(Health+HealAmount >= HealthMax*LowHPMult) GotoState('WaitForSt') ;
+	
+	return super.GiveHealth(HealAmount, HealMax);
+}
+
+
+
 /** todo: when sprinting decrease stealtheffect a bit
 function StopSprinting()
 {
@@ -709,6 +761,65 @@ function StartSprint()
 }
 */
 
+
+simulated function SetOverlay(class<Rx_StatModifierInfo> StatClass, bool bAffectWeapons)//SetOverlay(LinearColor MatColour, float MatOpacity, float MatInflation, bool bAffectWeapons)
+{
+	ClearOverlay(); 
+	
+	CurrentStoredOverlay = StatClass.default.PawnMIC;
+	if(bAffectWeapons) CurrentStoredWeaponOverlayByte = StatClass.default.EffectPriority;
+	
+	if(IsInState('Stealthed')) //Just store stuff and cut out
+	{
+		return; 
+	}
+	
+	SetOverlayMaterial(StatClass.default.PawnMIC); 
+	
+	if(bAffectWeapons) 
+	{
+		//CurrentStoredWeaponOverlayByte = StatClass.default.EffectPriority;
+	
+		if(Rx_GRI(WorldInfo.GRI).WeaponOverlays.Length == 0 && WorldInfo.NetMode != NM_DedicatedServer) Rx_GRI(WorldInfo.GRI).SetupWeaponOverlays(); //Tell GRI to setup weapon overlays if it hasn't already 
+		
+		SetWeaponOverlayFlag(StatClass.default.EffectPriority);
+	}
+	
+	
+}
+
+simulated function ClearOverlay()
+{
+	CurrentStoredOverlay = none;
+	if(CurrentStoredWeaponOverlayByte != 255) 
+	{
+		ClearWeaponOverlayFlag(CurrentStoredWeaponOverlayByte);
+		CurrentStoredWeaponOverlayByte = 255; 
+	}
+	if(!IsInState('Stealthed')) SetOverlayMaterial(none);
+	
+}
+
+/*Functions shared by all stealth units for the HUD (And maybe for a sensor array or something)*/
+
+simulated function bool GetIsinTargetableState(){
+	return ((GetStateName() != 'Stealthed' && GetStateName() != 'BeenShot') || bStealthRecoveringFromBeeingShotOrSprinting ); 
+}
+
+simulated function bool GetIsStealthCapable(){
+	return Health > HealthMax*LowHPMult;
+}
+	
+simulated function ChangeStealthVisibilityParam(bool ForOnFoot, optional float PercentMod = 1.0) {
+	if(ForOnFoot) {
+		CurrentMaxNoticeDistance = PawnDetectionModifier*PercentMod; 	
+	} else {
+		CurrentMaxNoticeDistance = VehicleDetectionModifier*PercentMod;
+	}
+} 
+
+/*End Stealth Interface Functions*/
+
 Defaultproperties 
 {
 
@@ -723,9 +834,10 @@ Defaultproperties
     End Object
     StealthOverlayMesh=OverlayMeshComponent1	
 	
+	//Lower numbers make you spotted shimmer from further away. 
 	MatStealthed 	  	 = MaterialInterface'RX_CH_Nod_SBH.Material.MI_SBH_Cloak_Enemy'
-	DistMaxNoticePlayers  = 0.0015f   // remember to test this! and anjust similar to CCR
-	DistMaxNoticeVehicles = 0.001f    // and this	
+	PawnDetectionModifier  = 1.10//0.0015f   // remember to test this! and anjust similar to CCR
+	VehicleDetectionModifier = 1.0 //0.001f    // and this	
 	
 	BeenshotStealthVisibilityModifier = 1.0
 	StealthVisibilityDistance = 400
@@ -736,6 +848,12 @@ Defaultproperties
 	AnimPlayTime         = 1.5f;
 	LowHPMult            = 0.50f //0.15f;	
    	TimeStealthDelay 	 = 5.0f    //  seconds we need to stay without action to get stealthed
+	
+	//-X
+	Vet_StealthDelayMod(0) = 0; 
+	Vet_StealthDelayMod(1) = 1; 
+	Vet_StealthDelayMod(2) = 2; 
+	Vet_StealthDelayMod(3) = 3; 
 
 }
 

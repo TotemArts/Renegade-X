@@ -44,10 +44,7 @@ simulated function PlayASSound()
 {
 	local PlayerController pc;
 	local Rx_Controller IPC; 
-	local color CGreen, CRed; //colours to use for air strike messages
-	
-	CGreen=MakeColor(10,255,0,255); 
-	CRed=MakeColor(255,0,10,255); 
+
 	
 	if (WorldInfo.NetMode == NM_DedicatedServer) return; // quit here if we are dedicated server
 
@@ -63,15 +60,15 @@ simulated function PlayASSound()
 				
 		if(IPC.GetTeamNum() == 0)
 		{	
-		if(ASType==class'Rx_Airstrike_A10')	IPC.CTextMessage("GDI",90, "!!!Friendly Airstrike Inbound ["@IPC.GetSpottargetLocationInfo(self)@"] !!!",CGreen,255, 255, false, 1);
+		if(ASType==class'Rx_Airstrike_A10')	IPC.CTextMessage("!!!Friendly Airstrike Inbound ["@IPC.GetSpottargetLocationInfo(self)@"] !!!",'Green',90,1.0);
 		else
-		IPC.CTextMessage("GDI",90, "!!!Enemy Airstrike Inbound!!!",CRed,255, 255, false, 0.6);
+		IPC.CTextMessage("!!!Enemy Airstrike Inbound!!!",'Red',90,1.0);
 		}
 		else	
 		{	
-		if(ASType==class'Rx_Airstrike_AC130')	IPC.CTextMessage("GDI",90, "!!!Friendly Airstrike Inbound ["@IPC.GetSpottargetLocationInfo(self)@"] !!! ",CGreen,255, 255, false, 1);
+		if(ASType==class'Rx_Airstrike_AC130')	IPC.CTextMessage("!!!Friendly Airstrike Inbound ["@IPC.GetSpottargetLocationInfo(self)@"] !!! ",'Green',90,1.0);
 		else
-		IPC.CTextMessage("GDI",90, "!!!Enemy Airstrike Inbound!!!",CRed,255, 255, false);
+		IPC.CTextMessage("!!!Enemy Airstrike Inbound!!!",'Red', 90, 1.25);
 		}
 		
 			

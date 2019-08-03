@@ -130,8 +130,6 @@ simulated function bool CanSetAirstrike()
 	local float sangle;
 	local Rx_Weapon_DeployedBeacon beacon;
 	
-	local color MyColor;
-	MyColor=MakeColor(10,255,10,255); 
 	
 	// get aiming direction
 	aimdir = Instigator.GetBaseAimRotation();
@@ -147,9 +145,9 @@ simulated function bool CanSetAirstrike()
 	}
 	
 	if(Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime > 0 
-				&& (WorldInfo.Timeseconds - Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime < default.AirstrikeCooldown)) 
+				&& (WorldInfo.Timeseconds - Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime < Rx_MapInfo(WorldInfo.GetMapInfo()).AirStrikeCoolDown)) 
 	{
-				Rx_Controller(Instigator.Controller).CTextMessage("GDI",45, "Next Airstrike available in "$int(default.AirstrikeCooldown - (WorldInfo.Timeseconds - Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime))$" seconds",MyColor,255, 255, false, 1, 0.75);
+				Rx_Controller(Instigator.Controller).CTextMessage("Next Airstrike available in "$int(Rx_MapInfo(WorldInfo.GetMapInfo()).AirStrikeCoolDown - (WorldInfo.Timeseconds - Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime))$" seconds",'Red',45);
 		//Rx_Controller(Instigator.Controller).ClientMessage("Next Airstrike available in "$int(default.AirstrikeCooldown - (WorldInfo.Timeseconds - Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime))$" seconds");
 		return false; 
 	}
@@ -368,7 +366,7 @@ simulated state Deployment
 		bShowLoadPanel = true;
 		CurrentProgress = 0;
 		SetTimer(0.025f, true, 'ChargeProgress');
-	   	if(Rx_Pawn_SBH(Instigator) != None)
+	   	if(Rx_Pawn_SBH(Instigator) != None && !Instigator.IsInState('lowHP'))
    	  		Rx_Pawn_SBH(Instigator).ChangeState('WaitForSt');
 		
 	}
@@ -386,7 +384,8 @@ simulated state Deployment
 		// if this is MP game, we need to make sure to execute following function
 		// on server side only
 		ServerDeploy(rot);
-		Rx_Pawn(GetALocalPlayerController().Pawn).StopWalking();
+		Rx_Pawn(Instigator).StopWalking();
+		Rx_Pawn(Instigator).ServerStopWalking();
 	}
 
 	simulated event EndState(name PreviousStateName)
@@ -439,20 +438,18 @@ reliable server function ServerDeploymentStarted(vector loc)
 reliable server function ServerDeploy(rotator rot)
 {
 	local Rx_Airstrike as;
-	local color MyColor;
-	
-	MyColor=MakeColor(10,255,10,255); 
+
 
 	if(Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime > 0 
-				&& (WorldInfo.Timeseconds - Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime < default.AirstrikeCooldown)) 
+				&& (WorldInfo.Timeseconds - Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime < Rx_MapInfo(WorldInfo.GetMapInfo()).AirStrikeCoolDown)) 
 	{
-		Rx_Controller(Instigator.Controller).CTextMessage("GDI",45, "Next Airstrike available in "$int(default.AirstrikeCooldown - (WorldInfo.Timeseconds - Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime))$" seconds",MyColor,255, 255, false, 1, 0.75);
+		Rx_Controller(Instigator.Controller).CTextMessage("Next Airstrike available in "$int(Rx_MapInfo(WorldInfo.GetMapInfo()).AirStrikeCoolDown - (WorldInfo.Timeseconds - Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime))$" seconds",'Red',45);
 		//Rx_Controller(Instigator.Controller).ClientMessage("Next Airstrike available in "$int(default.AirstrikeCooldown - (WorldInfo.Timeseconds - Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime))$" seconds");
 		return; 
 	}	
 
 	`log("Deploying AS at=" $ AirstrikeLocation $ " rot=" $ rot);
-	as = Spawn(class'Rx_Airstrike', Instigator, , AirstrikeLocation, rot, , false);
+	as = Spawn(class'Rx_Airstrike', Instigator.Controller, , AirstrikeLocation, rot, , false);
 	as.Init(AirstrikeType);
 
 	// remove this weapon from inventory
@@ -465,7 +462,7 @@ reliable server function ServerCancelDeployment()
 {
 	// just reset beam for other players to NOT render it
 	Rx_Pawn(Instigator).AirstrikeLocation = vect(0.f, 0.f, 0.f);
-	Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime = 0;
+	//Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime = 0;
 }
 
 /** onscreen rendering */
@@ -530,6 +527,12 @@ DefaultProperties
 	DecalWidth=1000.f
 	DecalHeight=1000.f
 	DecalThickness=600.f
+	
+	bUseClientAmmo = false
+	bRefillonPromotion = false 
+	
+	bUseHandIKWhenRelax=false
+	bByPassHandIK=true
 	
 	AirstrikeCooldown=30
 
@@ -596,7 +599,7 @@ DefaultProperties
 	ReloadArmAnimName(1) = "weaponreload"
 
 	
-	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_Airstrike'
+	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_Airstrike_GDI'
 
 	PlayerViewOffset=(X=20.0,Y=0.0,Z=-4.0)
 

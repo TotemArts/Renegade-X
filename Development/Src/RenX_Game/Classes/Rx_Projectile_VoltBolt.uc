@@ -93,7 +93,7 @@ DefaultProperties
 	HeadShotDamageMult=2.0
     MomentumTransfer=100000
 
-    BonusDamage=200
+    BonusDamage=125 //175//200
     BonusDamageRadius=100
 
 /*	

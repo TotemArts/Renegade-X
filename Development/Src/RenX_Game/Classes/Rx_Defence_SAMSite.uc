@@ -42,7 +42,7 @@ DefaultProperties
 //========================================================\\
 
 
-    Health=1000
+    Health=1250 //1000
     bLightArmor=false
     bCollideWorld = false
     Physics=PHYS_None

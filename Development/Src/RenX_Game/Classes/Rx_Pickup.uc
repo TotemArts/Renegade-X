@@ -1,6 +1,9 @@
 class Rx_Pickup extends UTItemPickupFactory
 	abstract;
 
+var int PickupsRemaining;
+var float DespawnTime;
+
 auto state Pickup
 {
    function float DetourWeight(Pawn Other,float PathWeight)
@@ -14,6 +17,31 @@ auto state Pickup
    }
 }
 
+function SetRespawn()
+{
+	if (PickupsRemaining < 0)
+		Super.SetRespawn();
+	else if (PickupsRemaining == 0) // This should never happen
+		Destroy();
+	else if (PickupsRemaining == 1) // No uses remaining
+	{
+		--PickupsRemaining;
+		GotoState('Disabled');
+		Destroy();
+	}
+	else if (PickupsRemaining > 1) // Additional uses remaining
+	{
+		--PickupsRemaining;
+		StartSleeping();
+	}
+}
+
+function Expire()
+{
+	GotoState('Disabled');
+	Destroy();
+}
+
 DefaultProperties
 {
 	RespawnSound=SoundCue'A_Pickups.Health.Cue.A_Pickups_Health_Respawn_Cue'
@@ -24,4 +52,8 @@ DefaultProperties
 	BobSpeed=4.0f
 	BobOffset=5.0f
 	RespawnTime=10
+	DespawnTime=20
+	PickupsRemaining = -1
+	bNoDelete = false;
+	TickGroup=TG_PreAsyncWork;
 }

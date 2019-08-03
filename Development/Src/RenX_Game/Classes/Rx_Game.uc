@@ -6,14 +6,24 @@ class Rx_Game extends UTTeamGame
 	config(RenegadeX);
 
 `define SupressNullDamageType(Statement) if (DamageType != class'DamageType') `Statement
+`define GAMEINFO(dummy)
+`include(RenX_Game\RenXStats.uci);
+`undefine(GAMEINFO)
 
 /** one1: Current vote in progress. */
 var Rx_VoteMenuChoice GlobalVote;
 var Rx_VoteMenuChoice GDIVote;
 var Rx_VoteMenuChoice NODVote;
 var float VotePersonalCooldown;
+var float VoteTeamCooldown_GDI, VoteTeamCoolDown_Nod, NextChangeMapTime_GDI, NextChangeMapTime_Nod; 
+var bool IgnoreGameServerVersionCheck;
 
 var config bool bFixedMapRotation;
+
+var Rx_LANBroadcast LANBroadcast;
+var OnlineGameSettings GameSettings;
+
+var string PingIpList;
 
 var globalconfig array<string> MapHistory; // In order of most recent (0 = Most Recent)
 var int MapHistoryMax; // Max number of recently played maps to hold in memory
@@ -21,6 +31,11 @@ var int MapHistoryMax; // Max number of recently played maps to hold in memory
 var config int RecentMapsToExclude;
 var config int MaxMapVoteSize;
 var config int CnCModeTimeLimit;
+var int VPMilestones[3]; //Config
+var int MaxInitialVeterancy; //Maximum veterancy you can be given at the beginning of a game
+var float CurrentBuildingVPModifier; //Modifier based on number buildings currently destroyed. 1st building kill awards the least, and gradually rises with each kill
+var int CreditTickRate; // Frequency in seconds that credit ticks occur
+var private float CreditTickTimer;
 
 /** Team Numbers in handy ENUM form */
 enum TEAM
@@ -32,14 +47,15 @@ enum TEAM
 
 struct TeamCreditStruct 
 {
-	var Rx_Building_Refinery    Refinery;
-	var array<Rx_PRI>           PlayerRI;
+	var array<Rx_Building_Refinery>    Refinery;
+	var array<Rx_PRI>           	   PlayerRI;
 };
 	
 var class<UTHudBase>					HudClass;
 var float								EndGameDelay;
 var float								RenEndTime;
 var int									MineLimit;
+var int 							    VehicleLimit;
 var	SoundCue							BoinkSound;
 
 struct MapMineAndVehLimit
@@ -60,26 +76,37 @@ var array<string>                       DisallowedNames;
 
 var config int                          InitialCredits;  // the initial credits a player gets when they spawn in
 //var config float                        CreditTickRateModifier; // How much faster or slower do we tick credits (not implemented)
-var config int 						    VehicleLimit;
 var config bool	                        SpawnCrates; // whether or not to spawn crates in this game
 var config float                        CrateRespawnAfterPickup; // interval for crate respawn (after pickup)
 var config bool                         bBotsDisabled;
+var config bool 						bBotVotesDisabled;
 var config int                          DonationsDisabledTime;
-var 	  int 							SurrenderDisabledTime; 
-var config bool                         bReserveVehiclesToBuyer;
-var config bool                         bAllowWeaponDrop;
-var config bool							bBroadcastOvermine;
 
+var config bool                         bReserveVehiclesToBuyer;
+var config bool							bAllowPowerUpDrop;
+var int									RTC_DisableTime; //Amount of time changing teams [sans admin forcing team changes] is disabled. 0 is never ADD TO CONFIG
+
+//Surrender Specific Variables
+var config int 	SurrenderDisabledTime; 
+var bool bGDIHasSurrendered, bNodHasSurrendered ; 
+var int SurrenderStartTime ; 
+var config int SurrenderLength; //How long till a surrender vote actually ends the game. 
+var bool bCountingToSurrender; //Are we counting down rapidly now?
+
+var class<Rx_PurchaseSystem>			PurchaseSystemClass, HelipadPurchaseSystemClass;
 var Rx_PurchaseSystem                   PurchaseSystem;
+var class<Rx_VehicleManager>			VehicleManagerClass, HelipadVehicleManagerClass;
 var Rx_VehicleManager                   VehicleManager;
+var class<Rx_TeamInfo>					TeamInfoClass;
 var bool							    bCanPlayEvaBuildingUnderAttackGDI;
 var bool							    bCanPlayEvaBuildingUnderAttackNOD;
 var byte						        WinnerTeamNum;
-var Rx_Building_Obelisk					Obelisk;
-var Rx_Building_AdvancedGuardTower		AGT;
+var Rx_Building_Nod_Defense				Obelisk;
+var Rx_Building_GDI_Defense				AGT;
 var int SmokeScreenCount;   // Optimisation - Used to track if there is an active SmokeScreen and allows AI to skip traces for SmokeScreens if there are none.
 
-var GeminiOnlineService ServiceBrowser;
+var Rx_ServerListQueryHandler ServiceBrowser;
+var Rx_VersionQueryHandler VQueryHandler;
 
 var const float EndgameCamDelay, EndgameSoundDelay;
 
@@ -90,7 +117,7 @@ var config bool bHostsAuthenticationService;
 var array<Rx_UIDataProvider_MapInfo> MapDataProviderList;
 
 /** Name of the class that manages maplists and map cycles */
-var globalconfig string MapListManagerClassName;
+var string MapListManagerClassName;
 var Rx_MapListManager MapListManager;
 
 // Skirmish options:
@@ -107,6 +134,7 @@ var int Port;
 var config array<string> SteamLogins;
 
 var config bool bIsCompetitive;
+var config bool bFillSpaceWithBots;
 var bool bIsClanWars;
 var Rx_MatchInfo MatchInfo;
 
@@ -117,33 +145,45 @@ var config bool bAllowPrivateMessaging;
 /** Restrict PMing to just teammates. */
 var config bool bPrivateMessageTeamOnly;
 
-/** Should the server perform an auto team shuffle on new rounds. */
-var config bool bAutoShuffleOnNewRound;
+// Determines how teams are organized between matches. 0 = static, 1 = swap, 2 = random swap, 3 = shuffle, 4 = traditional (assign as players connect)
+var config int TeamMode;
 
-var config bool bRandomTeamSwap;
 var int buildingArmorPercentage; //Always 50 if enabled 
 
-var config bool bUnlisted;
+var bool UsePurchaseSystem; //Should gamemode setup the purchase system
 
-struct Server
+var config bool bListed;
+
+var int RTC_TimeLimit;
+
+struct ServerInfo
 {
 	var string ServerName;
 	var string ServerIP;
 	var string ServerPass;
 	var string ServerPort;
-	var int Gametype;
+	var int GameType;
 	var string Mapname;
 	var string GameVersion;
 	var int NumPlayers;
 	var int MaxPlayers;
-	var int Ranked;
+	var bool Ranked;
 	var int Ping;
 	var bool bInGame;
 	var bool bPassword;
+	
+	//nBab
+	var int VehicleLimit;
+	var int MineLimit;
+	var int TimeLimit;
+	var bool SteamRequired;
+	var bool CratesEnabled;
+	var int TeamMode;
+	var bool isLAN; //Is this server a local area network server (rather than internet).
 };
 
-var array<Server> ListServers;
-var string ServerListRawData;
+var array<ServerInfo> ListServers;
+//var string ServerListRawData;
 
 /**@Shahman: Version of this build*/
 var config string GameVersion;
@@ -152,24 +192,23 @@ var config int GameVersionNumber;
 /**@MPalko: Retrieves latest version from the website*/
 var Rx_VersionCheck VersionCheck;
 
+var int GameType; // < 0 = Invalid, 0 = Rx_Game_MainMenu, 1 = Rx_Game, 2 = TS_Game, 3 = SP_Game, [3, 1000) = RenX Unused/Reserved, [1000, 2^31 - 1] Unassigned / Mod space
+
 
 var int curIndPinged;
 
-var Rx_Rcon Rcon;
-var Rx_Rcon_Commands_Container RconCommands;
-var private Rx_Rcon_Out RconOut;
 var config bool bLogRcon;
-var config bool bLogDevBot;
 
 var globalconfig bool bDisableDemoRequests;
 var bool ClientDemoInProgress;
 
-var globalconfig float MaxSeamlessTravelServerTime; // If the server has been up longer than this amount, then force a non-seamless travel.
 var bool bForceNonSeamless;
 
 var array<class<Rx_ScoreEvent> > ScoreEvents;
 var Rx_ScoreEvent UpcomingScoreEvent;
 var Rx_ScoreEvent LastScoreEvent;
+
+var array<class<Rx_PickUp> > PowerUpClasses;
 
 enum BuildingCheck
 {
@@ -179,40 +218,174 @@ enum BuildingCheck
 	BC_TeamsHaveNoBuildings
 }; 
 
+var class<Rx_CommanderController> CommanderControllerClass;
+var Rx_CommanderController CommanderController; //TODO ...... basically all of this
 
 //var Rx_SystemSettingsHandler SystemSettingsHandler;
 
+//var array<string> GDI_SpotMarkers, Nod_SpotMarkers; //Capture a list of spot markers at the beginning of the game to determine which ones are GDI/Nod-based.
+
+//Awards [0 for GDI  1 for Nod]
+var Rx_PRI Award_MVP[2], Award_Offense[2], Award_Defense[2], Award_Support[2]; 
+
+/**Team Management**/
+
+struct TC_Request
+{
+	var Rx_PRI PPRI;
+	var int TimeStamp; 	
+};
+
+var array<TC_Request> RTC_GDI, RTC_Nod; 
+
+/*****************************************
+*Remember the Commander stuff?? Okay let's finally do that (2+ years later)
+******************************************/
+
+var config bool bEnableCommanders ; //, bEnableSupportPowers, bEnableSquads, bEnableObjectives ; //Self explanatory 
+var Rx_PRI Commander_PRI[2]; //Hold the PRI of the commander(s?) 0 for Geeds 1 for Nod 
+var config int		InitialCP, Max_CP; 
+var array<PlayerReplicationInfo> TargetedPlayers_GDI, TargetedPlayers_Nod; 
+var int			CP_TickRate; 
+var int			LastDecayMsgTime[2]; 
+var int			CPReward_Emplacement, CPReward_Infantry, CPReward_Vehicle; 
+
+var config bool bUseStaticCommanders;
+
+var int			DestroyedBuildings_Nod, DestroyedBuildings_GDI; 
+
+//Control Groups [Not currently in use]
+struct ControlGroup 
+{
+	var string 			GroupTitle; //Title, has a default value set but can be changed 
+	var Rx_PRI 			LeaderPRI; // Squad leader; everyone can see what they're targeting? Or something like that 
+	var array<Rx_PRI>	Members; 
+};
+
+//Optimizations 
+var config bool bVehiclesAlwaysRelevant, bInfantryAlwaysRelevant; 
+
+var Rx_StatAPI StatAPI;
+
+
+var ControlGroup GDIControlGroups[6], NodControlGroups[6];  
+ 
+/*****************************************
+*End of significantly less complicated Commander things
+******************************************/
+
+var int Defence_IDs; //Hold and create the ID's for Rx_Defences so they can stop being stupid to work with for client > server 
+//var config int MinPlayersForNukes; 
+
+//Score System 
+var config bool		bUseLegacyScoreSystem;  
+
+delegate NotifyServerListUpdate();
+
 function PreBeginPlay()
 {
-	MaxSeamlessTravelServerTime = Clamp(MaxSeamlessTravelServerTime, 0, 172800); // 172800 seconds == 48 hours. No higher than 48hrs so TimeSeconds doesn't overflow.
+	local class<Rx_GameplayEventsWriter> GameplayEventsWriterClass;
+	local color C;
+	local Rx_Building_VehicleFactory VehFactory;
+
+	//Optionally setup the gameplay event logger
+   if (bLogGameplayEvents && GameplayEventsWriterClassName != "")
+   {
+      GameplayEventsWriterClass = class<Rx_GameplayEventsWriter>(FindObject(GameplayEventsWriterClassName, class'Class'));
+      if ( GameplayEventsWriterClass != None )
+      {
+         `log("Recording game events with"@GameplayEventsWriterClass);
+         GameplayEventsWriter = new(self) GameplayEventsWriterClass;
+         //Optionally begin logging here
+         GameplayEventsWriter.StartLogging(0.5f);
+      }
+      else
+      {
+         `log("Unable to record game events with"@GameplayEventsWriterClassName);
+      }
+   }
+   else
+   {
+      `log("Gameplay events will not be recorded.");
+   }
 
 	Super.PreBeginPlay();
+
+	`RecordGameIntStat(MATCH_STARTED,1);
+	`RecordGameStringStat(GAME_CLASS,"RenX");
+
+	GameSettings = OnlineSub.GameInterface.GetGameSettings(WorldInfo.Game.PlayerReplicationInfoClass.default.SessionName);
+
+	if(GameSettings == none)
+		`logd("GameSettings is none");
+	else
+		`logd("bIsLanMatch: "@GameSettings.bIsLanMatch);
+
+	if((WorldInfo.NetMode == NM_DedicatedServer || WorldInfo.NetMode == NM_ListenServer) && GameSettings != none && GameSettings.bIsLanMatch)
+	{
+		LANBroadcast.start(true);
+		SetTimer(1, true, 'SendLANBroadcast');
+	}		
+
 	if ( Role == ROLE_Authority )
 	{
-		PurchaseSystem = spawn(class'Rx_PurchaseSystem',self,'PurchaseSystem',Location,Rotation);
-		VehicleManager = spawn(class'Rx_VehicleManager',self,'VehicleManager',Location,Rotation);
+		ForEach `WorldInfoObject.AllActors(class'Rx_Building_VehicleFactory', VehFactory)
+		{
+			if (Rx_Building_Helipad_Nod(VehFactory) != None || Rx_Building_Helipad_GDI(VehFactory) != None)
+			{
+				VehicleManagerClass = HelipadVehicleManagerClass;
+				PurchaseSystemClass = HelipadPurchaseSystemClass;
+			}
+		}
+
+		PurchaseSystem = spawn(PurchaseSystemClass, self,'PurchaseSystem',Location,Rotation);
+		VehicleManager = spawn(VehicleManagerClass, self,'VehicleManager',Location,Rotation);
+		
 		PurchaseSystem.SetVehicleManager(VehicleManager);
 	}
-	/**
-	CreateTeam(TEAM_GDI);
-	CreateTeam(TEAM_NOD);
+
+	if(Rx_MapInfo(WorldInfo.GetMapInfo()).MapBotType == navmesh)
+	{
+		Teams[TEAM_GDI].AI.SquadType = class'RenX_Game.Rx_SquadAI_Mesh';
+		Teams[TEAM_NOD].AI.SquadType = class'RenX_Game.Rx_SquadAI_Mesh';
+		BotClass = class'RenX_Game.Rx_Bot_Mesh';
+	}
+
+	`log("Rx_Game::PreBeginPlay"@`showvar(BotClass) @ bInfantryAlwaysRelevant);
+
+
 	Teams[TEAM_GDI].AI.EnemyTeam = Teams[TEAM_NOD];
 	Teams[TEAM_NOD].AI.EnemyTeam = Teams[TEAM_GDI];
-	*/
+
+	c.R=255;
+	Teams[TEAM_NOD].TeamColor = c;
+	c.G=255;
+	Teams[TEAM_GDI].TeamColor = c;
+	
+	
+	`RecordTeamStringStat(CREATED, Teams[TEAM_GDI], "Ready");
+	`RecordTeamStringStat(CREATED, Teams[TEAM_NOD], "Ready");
+	
+	
 	VehicleManager.Initialize(self, Teams[TEAM_GDI], Teams[TEAM_NOD]);
 	
 	if(bHostsAuthenticationService) {
 		authenticationService = Spawn(class'Rx_AuthenticationService');
 	}
 	
-	if(ServiceBrowser == None && (WorldInfo.NetMode == NM_StandAlone || WorldInfo.NetMode == NM_DedicatedServer) && !bUnlisted)
+	if (ServiceBrowser == None && WorldInfo.NetMode == NM_StandAlone)
 	{
-		ServiceBrowser = Spawn(class'GeminiOnlineService');
-		ServiceBrowser.Initialize(self, none);
+		ServiceBrowser = new(self)class'Rx_ServerListQueryHandler';
 	}
-	
-	// Create our version check class.
+		// Create our version check class.
 	VersionCheck = Spawn(class'Rx_VersionCheck');
+
+	/* Spawn our Rx_VersionQueryHandler, so we can access it from external classes and use it's functions. */
+	if (VQueryHandler == None && WorldInfo.NetMode == NM_StandAlone)
+	{
+		VQueryHandler = new(self)class'Rx_VersionQueryHandler';
+		VQueryHandler.GetFromServer();
+	}
 
 // 	// Create our Graphic Adapter check class.
 // 	GraphicAdapterCheck = Spawn(class'Rx_GraphicAdapterCheck');
@@ -222,14 +395,6 @@ function PreBeginPlay()
 
 	//Create our systemsettingshandler here
 	//SystemSettingsHandler = Spawn(class'Rx_SystemSettingsHandler');
-	
-
-	// Forced settings for Clan Wars
-	if (bIsClanWars)
-	{
-		bPlayersBalanceTeams=false;
-		bAutoShuffleOnNewRound=false;
-	}
 
 	MaxMapVoteSize = Clamp(MaxMapVoteSize, 1, 9);
 	RecentMapsToExclude = Clamp(RecentMapsToExclude, 0, 8);
@@ -237,6 +402,53 @@ function PreBeginPlay()
 
 	//Get out map info here
 	SetupMapDataList();
+}
+
+function SendLANBroadcast()
+{
+	LANBroadcast.SendBroadcast();
+}
+
+function bool AddServerInfo(ServerInfo s)
+{
+	local string ourIPaddress;
+	local int i;
+	local InternetLink il;
+	local ServerInfo si;
+	local bool found;
+	local IpAddr addr;
+
+	`Entry(,'DevNet');
+
+	// get our ip
+	il = `RxGameObject.spawn(class'InternetLink');
+	il.GetLocalIP(addr);
+	ourIPaddress = il.IpAddrToString(addr);
+	//ipaddresstostring returns port aswell, need to get just ip.
+	i = InStr(ourIPaddress, ":");
+		if(i != -1)
+			ourIPaddress = Left(ourIPaddress, i);
+
+	//check if server is us.
+	if ((WorldInfo.NetMode == NM_DedicatedServer || WorldInfo.NetMode == NM_ListenServer) && s.ServerIP == ourIPaddress)
+		return false;
+
+	//check if server is already in list.
+	Foreach ListServers(si)
+	{
+		if(si.ServerName == s.ServerName && si.ServerIP == s.ServerIP)
+			found = true;
+	}
+
+	if(!found)
+	{
+		s.Ping = -1; // Make ping unset for fresh servers.
+		ListServers.AddItem(s);
+		AddServerPing(s.ServerIP, ListServers.Length - 1);
+		return true;
+	}
+	else 
+		return false;
 }
 
 function SetupMapDataList()
@@ -248,17 +460,35 @@ function SetupMapDataList()
 	class'UTUIDataStore_MenuItems'.static.GetAllResourceDataProviders(class'Rx_UIDataProvider_MapInfo', ProviderList);
 	
 	//hack until we solve the sorting issue
-	for (i = ProviderList.length; i >= 0; i--)
+	for (i = ProviderList.length; i >= 1; i--)
 	{		
-		if (Rx_UIDataProvider_MapInfo(ProviderList[i]) == none) {
-			`log("NONE - ProviderList[i]? " $ Rx_UIDataProvider_MapInfo(ProviderList[i]).MapName);
+		if (Rx_UIDataProvider_MapInfo(ProviderList[i-1]) == none) {
+			`log("NONE - ProviderList[i-1]? " $ Rx_UIDataProvider_MapInfo(ProviderList[i-1]).MapName);
 			continue;
 		}
-		MapDataProviderList.AddItem(Rx_UIDataProvider_MapInfo(ProviderList[i]));
+		//`log("------YOSH----------" @ Rx_UIDataProvider_MapInfo(ProviderList[i]) @ "---------YOSH----------"); 
+		MapDataProviderList.AddItem(Rx_UIDataProvider_MapInfo(ProviderList[i-1]));
 	} 
 	if (MapDataProviderList.Length > 0) {
 		MapDataProviderList.Sort(MapListSort);
 	}
+}
+
+function bool MapPackageExists (coerce string PackageName)
+{
+	local int i, MapNum;
+
+	MapNum=MapDataProviderList.Length; 	
+	
+	for(i=0; i < MapNum; i++)
+	{
+		if(PackageName ~= MapDataProviderList[i].MapName) 
+		{
+		return true; 	
+		}
+		else continue;
+	}
+	return false; 
 }
 
 delegate int MapListSort(Rx_UIDataProvider_MapInfo A, Rx_UIDataProvider_MapInfo B) 
@@ -268,56 +498,43 @@ delegate int MapListSort(Rx_UIDataProvider_MapInfo A, Rx_UIDataProvider_MapInfo 
 
 event exec viewmode (string VM)
 {
+	return;
+}
+
+event exec FogDensity()
+{
 	return; 
 }
 
 /** one1: added */
 function PostBeginPlay()
 {
-	local Rx_Rcon r;
 	local string CappedName;
 	local class<Rx_ScoreEvent> Event;
 	//local Rx_MatchInfo m;
 
 	super.PostBeginPlay();
 
-	if (WorldInfo.NetMode == NM_DedicatedServer)
+	if (Rx_GameEngine(class'Engine'.static.GetEngine()) != none)
+		Rx_GameEngine(class'Engine'.static.GetEngine()).Initialize();
+
+	if ((WorldInfo.NetMode == NM_DedicatedServer || WorldInfo.NetMode == NM_ListenServer) && !GameSettings.bIsLanMatch)
 	{
-		if (RconOut == None)
-		{
-			RconOut = Spawn(class'Rx_Rcon_Out');
-			RconOut.connect();
-		}
-		if (class'Rx_Rcon'.default.bEnableRcon)
-		{
-			foreach DynamicActors(class'Rx_Rcon', r)
-			{
-				Rcon = r;
-				break;
-			}
+		if (Rx_GameEngine(class'Engine'.static.GetEngine()) != none)
+			Rx_GameEngine(class'Engine'.static.GetEngine()).init_rcon();
 
-			if (Rcon == None)
-				Rcon = Spawn(class'Rx_Rcon');
-		}
-		if (RconCommands == None)
-		{
-			RconCommands = Spawn(class'Rx_Rcon_Commands_Container');
-			RconCommands.InitRconCommands();
-		}
-		/*
-		if (bIsClanWars)
-		{
-			foreach DynamicActors(class'Rx_MatchInfo', m)
-			{
-				MatchInfo = m;
-				break;
-			}
+		StatAPI = new class'Rx_StatAPI';
 
-			if (MatchInfo == None)
-				MatchInfo = Spawn(class'Rx_MatchInfo');
+		if (!StatAPI.bPostToAPI)
+			StatAPI = None;
 
-			MatchInfo.Game = self;
-		}*/
+		if (StatAPI != None) 
+		{
+			StatAPI.GameStart(WorldInfo.GRI.ServerName, string(WorldInfo.GetPackageName()), string(WorldInfo.Game.Class), string(GameVersionNumber));
+
+			if (StatAPI.APIUpdateInterval != 0)
+				SetTimer(StatAPI.APIUpdateInterval, true, 'GameUpdate');
+		}
 	}
 	else
 	{
@@ -326,20 +543,6 @@ function PostBeginPlay()
 	}
 
 	SetTimer(1.f, true, 'VoteTimer');
-	SetTimer(2.f, false, 'SendServerStats');
-
-	if (bIsClanWars)
-		MatchInfo.GameInfoPostBeginPlay();
-	else
-	{
-		if (WorldInfo.NetMode != NM_Standalone && bAutoShuffleOnNewRound)
-			ShuffleTeams();
-		else if (WorldInfo.NetMode != NM_Standalone && bRandomTeamSwap)
-		{
-			if (Rand(2) != 0)
-				SwapTeams();
-		}
-	}
 
 	/* Strip Day/Night from Field/Canyon/Mesa or whatever other map*/
 	
@@ -374,14 +577,51 @@ function PostBeginPlay()
 	}
 
 	RxLog("MAP"`s"Loaded;"`s GetPackageName() );
+
+	`RecordGameFloatStat(ROUND_STARTED,1.0);
+	
+	if (VehicleManager != None)
+		VehicleManager.CheckVehicleSpawn();
 }
 
-function ShuffleTeams()
+function GameUpdate()
+{
+	local Rx_Controller c;
+	local int GDICount, NodCount;
+
+	if (StatAPI != None)
+	{
+		ForEach class'WorldInfo'.static.GetWorldInfo().AllControllers(class'Rx_Controller', c)
+		if (c.GetTeamNum() == 0)
+			GDICount++;
+		else if (c.GetTeamNum() == 1)
+			NodCount++;
+
+		StatAPI.GameUpdate(string(Rx_TeamInfo(Teams[TEAM_GDI]).GetDisplayRenScore()), string(Rx_TeamInfo(Teams[TEAM_NOD]).GetDisplayRenScore()), string(GDICount), string(NodCount));
+	}
+}
+
+function ShuffleTeamsNextMatch()
 {
 	local Array<Rx_Controller> Team1, Team2, All;
-	local int Team1Score, Team2Score;
+	local float Team1Score, Team2Score;
 	local int GDICount, NodCount;
 	local Rx_Controller PC, Highest;
+	local Rx_Mutator Rx_Mut;
+
+	LogInternal("autobal: shuffle" );
+
+	Rx_Mut = GetBaseRXMutator();
+	if (Rx_Mut != None)
+	{
+		Rx_Mut.OnBeforeTeamShuffling();
+	}		
+
+	if (Rx_Mut != None)
+	{
+		if(Rx_Mut.ShuffleTeamsNextMatch())
+			return;
+	}		
 
 	// Gather all Human Players
 	foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
@@ -444,32 +684,66 @@ function ShuffleTeams()
 	{
 		// Team 1 go GDI, Team 2 go Nod
 		foreach Team1(PC)
-			if (PC.PlayerReplicationInfo.Team.TeamIndex != 0)
-				SetTeam(PC, Teams[0], false);
+			`RxEngineObject.AddGDIPlayer(PC.PlayerReplicationInfo);
 		foreach Team2(PC)
-			if (PC.PlayerReplicationInfo.Team.TeamIndex != 1)
-				SetTeam(PC, Teams[1], false);
+			`RxEngineObject.AddNodPlayer(PC.PlayerReplicationInfo);
 	}
 	else
 	{
 		// Team 1 go Nod, Team 2 go GDI
 		foreach Team1(PC)
-			if (PC.PlayerReplicationInfo.Team.TeamIndex != 1)
-				SetTeam(PC, Teams[1], false);
+			`RxEngineObject.AddNodPlayer(PC.PlayerReplicationInfo);
 		foreach Team2(PC)
-			if (PC.PlayerReplicationInfo.Team.TeamIndex != 0)
-				SetTeam(PC, Teams[0], false);
+			`RxEngineObject.AddGDIPlayer(PC.PlayerReplicationInfo);
 	}
+
+	Rx_Mut = GetBaseRXMutator();
+	if (Rx_Mut != None)
+	{
+		Rx_Mut.OnAfterTeamShuffling();
+	}	
 
 	// Terribly unoptimized, but done.
 
 }
 
-function SwapTeams()
+function RetainTeamsNextMatch()
 {
 	local Controller PC;
 
 	foreach WorldInfo.AllControllers(class'Controller', PC)
+	{
+		if ( (PC.PlayerReplicationInfo != None) && (PC.PlayerReplicationInfo.Team != None) )
+		{
+			if (PC.PlayerReplicationInfo.Team.TeamIndex == TEAM_GDI)
+				`RxEngineObject.AddGDIPlayer(PC.PlayerReplicationInfo);
+			else if (PC.PlayerReplicationInfo.Team.TeamIndex == TEAM_NOD)
+				`RxEngineObject.AddNodPlayer(PC.PlayerReplicationInfo);
+		}
+	}
+}
+
+function SwapTeamsNextMatch()
+{
+	local Controller PC;
+
+	foreach WorldInfo.AllControllers(class'Controller', PC)
+	{
+		if ( (PC.PlayerReplicationInfo != None) && (PC.PlayerReplicationInfo.Team != None) )
+		{
+			if (PC.PlayerReplicationInfo.Team.TeamIndex == TEAM_GDI)
+				`RxEngineObject.AddNodPlayer(PC.PlayerReplicationInfo);
+			else if (PC.PlayerReplicationInfo.Team.TeamIndex == TEAM_NOD)
+				`RxEngineObject.AddGDIPlayer(PC.PlayerReplicationInfo);
+		}
+	}
+}
+
+function SwapTeamsHelper(class<Controller> ControllerType)
+{
+	local Controller PC;
+
+	foreach WorldInfo.AllControllers(ControllerType, PC)
 	{
 		if ( (PC.PlayerReplicationInfo != None) && (PC.PlayerReplicationInfo.Team != None) )
 		{
@@ -489,6 +763,12 @@ function SwapTeams()
 	}
 }
 
+function SwapTeams()
+{
+	SwapTeamsHelper(class'PlayerController');
+	SwapTeamsHelper(class'Rx_Bot');
+}
+
 function byte PickTeam(byte num, Controller C)
 {
 	if (bIsClanWars)
@@ -498,6 +778,10 @@ function byte PickTeam(byte num, Controller C)
 
 function bool ChangeTeam(Controller Other, int num, bool bNewTeam)
 {
+	local byte AntiTeamByte; 
+	
+	if(num < 3) AntiTeamByte = num == 0 ? 1 : 0 ;
+	
 	if (super.ChangeTeam(Other, num, bNewTeam))
 	{
 		if (Rx_Controller(Other) != None)
@@ -505,8 +789,16 @@ function bool ChangeTeam(Controller Other, int num, bool bNewTeam)
 			Rx_Controller(Other).BindVehicle(None);
 			Rx_Controller(Other).VoteTopString = "";
 		}
-		if (Rx_PRI(Other.PlayerReplicationInfo) != None)
+		if (Rx_PRI(Other.PlayerReplicationInfo) != None )
 		{
+			if(Rx_PRI(Other.PlayerReplicationInfo) == Commander_PRI[AntiTeamByte]) RemoveCommander(AntiTeamByte);  
+			
+			if(Commander_PRI[AntiTeamByte] != none) Rx_PRI(Other.PlayerReplicationInfo).SetCommander(Commander_PRI[AntiTeamByte]);
+			else
+			Rx_PRI(Other.PlayerReplicationInfo).RemoveCommander(AntiTeamByte);
+			
+			if(WorldInfo.NetMode == NM_StandAlone && Rx_Controller(Other) != none) ChangeCommander(num, Rx_PRI(Other.PlayerReplicationInfo)) ;
+			
 			Rx_PRI(Other.PlayerReplicationInfo).DestroyATMines();
 			Rx_PRI(Other.PlayerReplicationInfo).DestroyRemoteC4();
 		}
@@ -524,6 +816,9 @@ function SetTeam(Controller Other, UTTeamInfo NewTeam, bool bNewTeam)
 	{
 		return;
 	}
+	
+	`RecordPlayerIntStat(TEAMCHANGE,Other,NewTeam.TeamIndex);
+
 	if (Other.PlayerReplicationInfo.Team != None || !ShouldSpawnAtStartSpot(Other))
 	{
 		// clear the StartSpot, which was a valid start for his old team
@@ -536,8 +831,24 @@ function SetTeam(Controller Other, UTTeamInfo NewTeam, bool bNewTeam)
 		OldTeam = Other.PlayerReplicationInfo.Team;
 		Other.PlayerReplicationInfo.Team.RemoveFromTeam(Other);
 		Other.PlayerReplicationInfo.Team = none;
+		
+		//Clear Binds/locks/C4s
+		if (Rx_Controller(Other) != None)
+		{
+			Rx_Controller(Other).BindVehicle(None);
+			Rx_Controller(Other).VoteTopString = "";
+		}
+		if (Rx_PRI(Other.PlayerReplicationInfo) != None)
+		{
+			Rx_PRI(Other.PlayerReplicationInfo).DestroyATMines();
+			Rx_PRI(Other.PlayerReplicationInfo).DestroyRemoteC4();
+		}
+		
 	}
-
+	
+	//Just set them to commander
+	if(WorldInfo.NetMode == NM_StandAlone && Rx_Controller(Other) != none) ChangeCommander(NewTeam.TeamIndex, Rx_PRI(Other.PlayerReplicationInfo)) ;	
+	
 	if ( NewTeam==None || (NewTeam!= none && NewTeam.AddToTeam(Other)) )
 	{
 		if ( (NewTeam!=None) && ((WorldInfo.NetMode != NM_Standalone) || (PlayerController(Other) == None) || (PlayerController(Other).Player != None)) );
@@ -553,6 +864,7 @@ function SetTeam(Controller Other, UTTeamInfo NewTeam, bool bNewTeam)
 		{
 			A.NotifyLocalPlayerTeamReceived();
 		}
+		
 	}
 }
 
@@ -587,13 +899,13 @@ function ChangeName(Controller Other, string S, bool bNameChange)
 {
     local Controller APlayer;
 	
-if(bIsCompetitive && bNameChange)
-{
+	if(bIsCompetitive && bNameChange)
+	{
 
-PlayerController(Other).ClientMessage("Can not change name during competitive play");
+		PlayerController(Other).ClientMessage("Can not change name during competitive play");
 
-return; 	
-}	
+		return; 	
+	}	
 	
 	if (bNameChange && Rx_Controller(Other) != None && WorldInfo.TimeSeconds < Rx_Controller(Other).NextNameChangeTime)
 	{
@@ -736,25 +1048,31 @@ final function RxLog(string Msg)
 {
 	if (bLogRcon)
 		`log(Msg,true,'Rx');
-	if (RconOut != None)
-		RconOut.SendLog(Msg);
-	if (Rcon != None)
-		Rcon.SendLog(Msg);
+
+	if(bLogRcon && !(worldinfo.IsPlayInEditor() || worldinfo.IsPlayInPreview()))
+		Rx_GameEngine(class'Engine'.static.GetEngine()).RconLog(Msg);
 }
 
 final function RxLogPub(string Msg)
 {
 	if (bLogRcon)
 		`log(Msg,true,'Rx');
-	if (RconOut != None)
-		RconOut.SendLog(Msg);
-	if (!bIsCompetitive && Rcon != None)
-		Rcon.SendLog(Msg);
+
+	if(bLogRcon && !(worldinfo.IsPlayInEditor() || worldinfo.IsPlayInPreview()))
+		Rx_GameEngine(class'Engine'.static.GetEngine()).RconLogPub(Msg);
 }
 
-function LogBuildingDestroyed(PlayerReplicationInfo Destroyer, Actor Building, class<DamageType> DamageType)
-{
+function LogBuildingDestroyed(PlayerReplicationInfo Destroyer, Rx_Building_Team_Internals BuildingInternals, Rx_Building Building, class<DamageType> DamageType)
+{		
+	local Rx_Mutator Rx_Mut;
+	
 	RxLog("GAME"`s "Destroyed;"`s "building"`s Building.Class `s "by"`s `PlayerLog(Destroyer)`s "with"`s DamageType);
+
+	Rx_Mut = GetBaseRXMutator();
+	if (Rx_Mut != None)
+	{
+		Rx_Mut.OnBuildingDestroyed(Destroyer, BuildingInternals, Building, DamageType);
+	}
 }
 
 function SendPM(PlayerController Sender, int RecipientID, String msg)
@@ -765,6 +1083,12 @@ function SendPM(PlayerController Sender, int RecipientID, String msg)
 	if (!bAllowPrivateMessaging && !Sender.PlayerReplicationInfo.bAdmin)
 	{
 		Sender.ClientMessage("This server does not allow Private Messaging.");
+		return;
+	}
+
+	if (UTPlayerController(Sender).bServerMutedText)
+	{
+		Sender.ClientMessage("You are muted from chat, including Private Messaging.");
 		return;
 	}
 
@@ -895,66 +1219,6 @@ function StopDemoRecording()
 	ConsoleCommand("demostop");
 }
 
-event SendServerStats()
-{
-	if(WorldInfo.NetMode == NM_DedicatedServer)
-	{
-		UpdateServerStats();
-	}	
-}
-
-function UpdateServerStats()
-{
-	
-	if(WorldInfo.NetMode == NM_DedicatedServer)
-	{		
-		if(!IsTimerActive('SendNewServerInfoTimer'))
-			SetTimer(2000,true,'SendNewServerInfoTimer');
-		
-		if(IsTimerActive('UpdateServerStatsTimer'))
-			return;
-			
-		SetTimer(3.0,false,'UpdateServerStatsTimer');
-	}
-}
-
-function UpdateServerStatsTimer() 
-{
-	local String ServerSettings;	
-	local String AdditionalServerSettingsfromMutator;	
-	local Rx_Mutator Mutator;
-	
-	/**
-	PlayerNames = "";
-	foreach WorldInfo.GRI.PRIArray(pri)
-	{
-		PlayerNames = PlayerNames$pri.PlayerName;	
-	}
-	*/
-	ServerSettings = MaxPlayers $ ";" $ VehicleLimit $ ";" $ MineLimit $ ";" $ SpawnCrates $ ";"
-						$ 0 $ ";" 
-						$ bAutoShuffleOnNewRound $ ";"
-						$ TimeLimit $ ";"
-						$ bAllowPrivateMessaging $ ";"
-						$ bPrivateMessageTeamOnly $ ";"
-						$ Rx_AccessControl(AccessControl).bRequireSteam $ ";"
-						$ GameVersion $ ";"
-						$ bBotsDisabled;
-						
-	AdditionalServerSettingsfromMutator = "";
-	
-	for (Mutator = GetBaseRxMutator(); Mutator != None; Mutator = Mutator.GetNextRxMutator())
-	{
-		if(Mutator.GetAdditionalServersettings() != "") 
-			AdditionalServerSettingsfromMutator = AdditionalServerSettingsfromMutator $ ";" $ Mutator.GetAdditionalServersettings();	
-	}
-	
-	if(AdditionalServerSettingsfromMutator != "")
-		ServerSettings = ServerSettings $ AdditionalServerSettingsfromMutator;					
-						
-	ServiceBrowser.PostToServer(Port,WorldInfo.GRI.ServerName,AccessControl.RequiresPassword(),string(WorldInfo.GetPackageName()),ServerSettings,GetNumPlayers(),MaxPlayersAllowed,0,true,NumBots);
-}
-
 /** one1: added */
 event VoteTimer()
 {
@@ -983,84 +1247,213 @@ function GenericPlayerInitialization(Controller C)
 	HUDType = HudClass;
 	super(GameInfo).GenericPlayerInitialization(C);
 }		
-	
-function SendNewServerInfoTimer()
-{
-	UpdateServerStats();		
-}
 
 event PostLogin( PlayerController NewPlayer )
 {
 	local string SteamID;
+	local int AvgVeterancy; 
+	local PlayerReplicationInfo PRI;
+	local int num; 
+	local Rx_Mutator Rx_Mut;
+
+	//if(NewPlayer.bIsPlayer)
+		//`RecordLoginChange(LOGIN, NewPlayer, NewPlayer.PlayerReplicationInfo.PlayerName, NewPlayer.PlayerReplicationInfo.UniqueId, false);
+
+	if (TeamMode != 4)
+	{
+		SetTeam(NewPlayer, UTTeamInfo(`RxEngineObject.GetInitialTeam(NewPlayer.PlayerReplicationInfo)), false);
+		//`log("Call PostLogin: " @ `RxEngineObject.IsPlayerCommander(NewPlayer.PlayerReplicationInfo));
+		if(bUseStaticCommanders && `RxEngineObject.IsPlayerCommander(NewPlayer.PlayerReplicationInfo) ) ChangeCommander(NewPlayer.GetTeamNum(), Rx_PRI(NewPlayer.PlayerReplicationInfo), true); 
+	}
 
 	SteamID = OnlineSub.UniqueNetIdToString(NewPlayer.PlayerReplicationInfo.UniqueId);
 	if (SteamID == `BlankSteamID || SteamID == "")
-		RxLog("PLAYER"`s "Enter;"`s `PlayerLog(NewPlayer.PlayerReplicationInfo)`s"from"`s NewPlayer.GetPlayerNetworkAddress()`s"nosteam");
+		RxLog("PLAYER" `s "Enter;" `s `PlayerLog(NewPlayer.PlayerReplicationInfo) `s "from" `s NewPlayer.GetPlayerNetworkAddress() `s "hwid" `s Rx_Controller(NewPlayer).PlayerUUID `s "nosteam");
 	else
-		RxLog("PLAYER"`s "Enter;"`s `PlayerLog(NewPlayer.PlayerReplicationInfo)`s"from"`s NewPlayer.GetPlayerNetworkAddress()`s"steamid"`s SteamID);
-
+		RxLog("PLAYER" `s "Enter;" `s `PlayerLog(NewPlayer.PlayerReplicationInfo) `s "from" `s NewPlayer.GetPlayerNetworkAddress() `s "hwid" `s Rx_Controller(NewPlayer).PlayerUUID `s "steamid"`s SteamID);
+	
 	AnnounceTeamJoin(NewPlayer.PlayerReplicationInfo, NewPlayer.PlayerReplicationInfo.Team, None, false);
 
 	super.PostLogin(NewPlayer);
-	if(WorldInfo.NetMode == NM_DedicatedServer)
-		UpdateServerStats();
 				
-	Rx_Pri(NewPlayer.PlayerReplicationInfo).ReplicatedNetworkAddress = NewPlayer.PlayerReplicationInfo.SavedNetworkAddress;	
+	Rx_Pri(NewPlayer.PlayerReplicationInfo).ReplicatedNetworkAddress = NewPlayer.PlayerReplicationInfo.SavedNetworkAddress;
+	Rx_Controller(NewPlayer).RequestDeviceUUID();
 	
-	
-	
-	if(ServiceBrowser != None && WorldInfo.NetMode == NM_DedicatedServer)
-		ServiceBrowser.GetServiceCheckIp(NewPlayer.PlayerReplicationInfo.SavedNetworkAddress, SteamID, false);
-		
 	if(bDelayedStart) // we want bDelayedStart, but still want players to spawn immediatly upon connect
 		RestartPlayer(newPlayer);		
 	
-/**Needed anything that happened when a player first joined. If the team is using airdrops, it'll update them correctly **/
+	/**Needed anything that happened when a player first joined. If the team is using airdrops, it'll update them correctly **/
 
-//Nods (Could probably make this cleaner looking, but at the moment I'm just making sure it works)
+	//Nods (Could probably make this cleaner looking, but at the moment I'm just making sure it works)
 	if(Rx_Pri(NewPlayer.PlayerReplicationInfo) != None && (Rx_Pri(NewPlayer.PlayerReplicationInfo).GetTeamNum() == TEAM_NOD) && VehicleManager.bNodIsUsingAirdrops)
-				{
-					if(Rx_Pri(NewPlayer.PlayerReplicationInfo).AirdropCounter == 0)
-					{
-					Rx_Pri(NewPlayer.PlayerReplicationInfo).AirdropCounter++;
-					//Rx_Pri(NewPlayer.PlayerReplicationInfo).LastAirdropTime=WorldInfo.TimeSeconds;
-					}
-				}
-				
-//GDI 
+	{
+		if(Rx_Pri(NewPlayer.PlayerReplicationInfo).AirdropCounter == 0)
+		{
+			Rx_Pri(NewPlayer.PlayerReplicationInfo).AirdropCounter++;
+			//Rx_Pri(NewPlayer.PlayerReplicationInfo).LastAirdropTime=WorldInfo.TimeSeconds;
+		}
+	}
+	//Disable veterancy accordingly for surrenders
+	if(Rx_Pri(NewPlayer.PlayerReplicationInfo) != None && Rx_Pri(NewPlayer.PlayerReplicationInfo).GetTeamNum() == TEAM_Nod && bNodHasSurrendered)
+	{
+		Rx_Pri(NewPlayer.PlayerReplicationInfo).DisableVeterancy(true); 	
+	}
+			
+	//GDI 
 	if(Rx_Pri(NewPlayer.PlayerReplicationInfo) != None && (Rx_Pri(NewPlayer.PlayerReplicationInfo).GetTeamNum() == TEAM_GDI) && VehicleManager.bGDIIsUsingAirdrops)
-				{
-					if(Rx_Pri(NewPlayer.PlayerReplicationInfo).AirdropCounter == 0)
-					{
-					Rx_Pri(NewPlayer.PlayerReplicationInfo).AirdropCounter++;
-					//Rx_Pri(NewPlayer.PlayerReplicationInfo).LastAirdropTime=WorldInfo.TimeSeconds;
-					}
-				}
+	{
+		if(Rx_Pri(NewPlayer.PlayerReplicationInfo).AirdropCounter == 0)
+		{
+			Rx_Pri(NewPlayer.PlayerReplicationInfo).AirdropCounter++;
+			//Rx_Pri(NewPlayer.PlayerReplicationInfo).LastAirdropTime=WorldInfo.TimeSeconds;
+		}
+	}
+
+	Rx_PRI(NewPlayer.PlayerReplicationInfo).bCanRequestCheatBots = CheckCheatBot();
+
+	//Disable veterancy accordingly for surrenders
+	if(Rx_Pri(NewPlayer.PlayerReplicationInfo) != None && Rx_Pri(NewPlayer.PlayerReplicationInfo).GetTeamNum() == TEAM_GDI && bGDIHasSurrendered)
+	{
+		Rx_Pri(NewPlayer.PlayerReplicationInfo).DisableVeterancy(true); 	
+	}
 	
+	
+	if( Rx_Pri(NewPlayer.PlayerReplicationInfo) != none)
+	{
+
+	//Set Commander if they exist
+	if(Rx_PRI(NewPlayer.PlayerReplicationInfo).GetTeamNum() == 0 && Commander_PRI[0] != none) Rx_PRI(NewPlayer.PlayerReplicationInfo).SetCommander(Commander_PRI[0]) ;
+	else
+	if(Rx_PRI(NewPlayer.PlayerReplicationInfo).GetTeamNum() == 1 && Commander_PRI[1] != none) Rx_PRI(NewPlayer.PlayerReplicationInfo).SetCommander(Commander_PRI[1]) ;
+
+		foreach GameReplicationInfo.PRIArray(PRI) 
+		{			
+		if(Rx_PRI(PRI) == none) continue;
+		
+				if (PRI.GetTeamNum() == Rx_Pri(NewPlayer.PlayerReplicationInfo).GetTeamNum()) 
+				{
+					AvgVeterancy+=Rx_PRI(PRI).Veterancy_Points;
+					num++; 
+				}
+			
+		}
+		if(num > 0) AvgVeterancy=min(MaxInitialVeterancy,AvgVeterancy/(num+2));
+				Rx_PRI(NewPlayer.PlayerReplicationInfo).InitVP(
+				AvgVeterancy,
+				Rx_Game(WorldInfo.Game).VPMilestones[0], 
+				Rx_Game(WorldInfo.Game).VPMilestones[1], 
+				Rx_Game(WorldInfo.Game).VPMilestones[2]);
+	}	
+	
+	Rx_Mut = GetBaseRXMutator();
+	if (Rx_Mut != None)
+	{
+		Rx_Mut.OnPlayerConnect(NewPlayer, SteamID);
+	}
+
+	UpdateDiscordPresence();
+}
+
+function UpdateDiscordPresence() {
+	local Rx_Controller P;
+	foreach WorldInfo.AllControllers(class'Rx_Controller', P) {
+		P.UpdateDiscordPresence(MaxPlayers);
+	}
 }
 
 function Logout( Controller Exiting )
 {
-	local String playerstats;
+	local UTPlayerReplicationInfo PRI;
+	local UTPlayerController ExitingPC;
+	local int i;
+	local Rx_Mutator Rx_Mut;
+	
 	if (Rx_Controller(Exiting) != None)
 	{
 		Rx_Controller(Exiting).BindVehicle(None);
 	}
-	if (Rx_PRI(Exiting.PlayerReplicationInfo) != None)
+	if (Rx_PRI(Exiting.PlayerReplicationInfo) != None && Rx_Bot_Scripted(Exiting) == None)
 	{
+		
+		for(i=0;i<2;i++)
+		{
+			if(Exiting.PlayerReplicationInfo == Commander_PRI[i]) RemoveCommander(i); 
+		}
+		
 		Rx_PRI(Exiting.PlayerReplicationInfo).DestroyATMines();
 		Rx_PRI(Exiting.PlayerReplicationInfo).DestroyRemoteC4();
 	}
-	super.Logout(Exiting);
-	RxLog("PLAYER"`s "Exit;"`s `PlayerLog(Exiting.PlayerReplicationInfo));
-	if(ServiceBrowser != None && WorldInfo.NetMode == NM_DedicatedServer) {
-		UpdateServerStats();
-		if(Rx_Controller(Exiting) != None) {
-			playerstats = getPlayerStatsStringFromPri(Rx_Pri(Exiting.PlayerReplicationInfo));
-			if(playerstats != "") {
-				ServiceBrowser.SendPlayerStats(playerstats);
+
+	PRI = UTPlayerReplicationInfo(Exiting.PlayerReplicationInfo);
+	if ( PRI.bHasFlag )
+	{
+		PRI.GetFlag().Drop();
+	}
+
+
+	// Remove from all mute lists so they can rejoin properly
+	ExitingPC = UTPlayerController( Exiting );
+	if( ExitingPC != None )
+	{
+		RemovePlayerFromMuteLists( ExitingPC );
+	}
+
+
+	Super(UDKGame).Logout(Exiting);
+	if(Rx_Bot_Scripted(Exiting) == None)
+	{
+		if (Exiting.IsA('UTBot') && !UTBot(Exiting).bSpawnedByKismet)
+		{
+			i = ActiveBots.Find('BotName', Exiting.PlayerReplicationInfo.PlayerName);
+			if (i != INDEX_NONE)
+			{
+				ActiveBots[i].bInUse = false;
 			}
+			NumBots--;
 		}
+
+		if ( NeedPlayers() )
+		{
+			AddBot();
+		}
+
+		if (MaxLives > 0)
+		{
+			CheckMaxLives(None);
+		}
+
+	}
+
+	RxLog("PLAYER"`s "Exit;"`s `PlayerLog(Exiting.PlayerReplicationInfo));
+
+	Rx_Mut = GetBaseRXMutator();
+	if (Rx_Bot_Scripted(Exiting) == None &&Rx_Mut != None)
+	{
+		Rx_Mut.OnPlayerDisconnect(Exiting);
+	}
+	
+	//if(Rx_Controller(Exiting) != none) 
+		//`RecordLoginChange(LOGOUT,Exiting,Exiting.PlayerReplicationInfo.PlayerName,Exiting.PlayerReplicationInfo.UniqueId, false)
+
+	UpdateDiscordPresence();
+}
+
+function KillBot(UTBot B)
+{
+	if(DesiredPlayerCount > 1)
+		DesiredPlayerCount--;
+	Super.KillBot(B);
+}
+
+exec function KillBots()
+{
+	local UTBot B;
+
+	bPlayersVsBots = false;
+
+	foreach WorldInfo.AllControllers(class'UTBot', B)
+	{
+		KillBot(B);
 	}
 }
 
@@ -1145,8 +1538,6 @@ function string GetGameProperty(string prop)
 	case "BALLOWPRIVATEMESSAGING":
 		return string(bAllowPrivateMessaging);
 	case "BAUTOBALANCETEAMS": // Alias
-	case "BAUTOSHUFFLEONNEWROUND":
-		return string(bAutoShuffleOnNewRound);
 	case "BSPAWNCRATES": // Alias
 	case "SPAWNCRATES":
 		return string(SpawnCrates);
@@ -1168,22 +1559,31 @@ function string GetGameProperty(string prop)
 		return string(DonationsDisabledTime);
 	case "BRESERVEVEHICLESTOBUYER":
 		return string(bReserveVehiclesToBuyer);
-	case "BALLOWWEAPONDROP":
-		return string(bAllowWeaponDrop);
 	case "BISCOMPETITIVE":
+	case "BCOMPETITIVE":
 		return string(bIsCompetitive);
 	case "BISCLANWARS":
 		return string(bIsClanwars);
-	case "BRANDOMTEAMSWAP":
-		return string(bRandomTeamSwap);
+	case "BLISTED":
+		return string(bListed);
+	case "BUNLISTED":
+		return string(!bListed);
 	case "GAMEVERSION":
 		return GameVersion;
 	case "GAMEVERSIONNUMBER":
 		return string(GameVersionNumber);
 	case "BDISABLEDEMOREQUESTS":
 		return string(bDisableDemoRequests);
-	case "MAXSEAMLESSTRAVELSERVERTIME":
-		return string(MaxSeamlessTravelServerTime);
+	case "GAMEMODE":
+	case "MODE":
+		return string(WorldInfo.Game.Class);
+	case "MATCHIISNPROGRESS":
+	case "MATCHINPROGRESS":
+	case "MIP":
+		return string(MatchIsInProgress());
+	case "MATCHSTATE":
+	case "GAMESTATE":
+		return string(GetStateName());
 
 		// Not found
 	default:
@@ -1191,38 +1591,33 @@ function string GetGameProperty(string prop)
 	}
 }
 
-event GameEnding()
-{
-	
-	//M.Palko endgame crash track log.
-	`log("------------------------------Game Ending Event Called");
-
-	if(WorldInfo.NetMode == NM_DedicatedServer)
-		ServiceBrowser.RemoveServer();
-	super.GameEnding();
-	loginternal("<<GameEnding>>");
-}
-
 event InitGame( string Options, out string ErrorMessage )
 {	
 	//local int MapIndex;
+
+	LANBroadcast = new class'Rx_LANBroadcast';
 	
 	if(Rx_MapInfo(WorldInfo.GetMapInfo()).bIsDeathmatchMap)
 	{
 		if(TimeLimit != 10)
 			CnCModeTimeLimit = TimeLimit;
 		TimeLimit = 10;
-		//bAllowWeaponDrop = true; // deactivated till weapondrop is more fleshed out
 		bSpawnInTeamArea = false;
 	} else if(CnCModeTimeLimit > 0 && CnCModeTimeLimit != TimeLimit)
 	{
 		TimeLimit = CnCModeTimeLimit;
 	}
-		
+
+	if (WorldInfo.NetMode == NM_Standalone)
+		TeamMode = 4;
+
 	super.InitGame(Options, ErrorMessage);
 	TeamFactions[TEAM_GDI] = "GDI";
 	TeamFactions[TEAM_NOD] = "Nod";
-	DesiredPlayerCount = 1;
+	if(bFillSpaceWithBots)
+		DesiredPlayerCount = Rx_MapInfo(WorldInfo.GetMapInfo()).MinNumPlayers;
+	else
+		DesiredPlayerCount = 1;
 	bCanPlayEvaBuildingUnderAttackGDI = true;
 	bCanPlayEvaBuildingUnderAttackNOD = true;
 
@@ -1230,9 +1625,10 @@ event InitGame( string Options, out string ErrorMessage )
 	{
 		FindRefineries(); // Find the refineries so we can give players credits
 	}
+
+	IgnoreGameServerVersionCheck = HasOption( Options, "IgnoreGameServerVersionCheck");
+
 	GDIBotCount = GetIntOption( Options, "GDIBotCount",0);
-	`log("----YOSH'S LOG------ GDI Bots given to RX_Game----" @ GetIntOption( Options, "GDIBotCount",0));
-	
 	NODBotCount = GetIntOption( Options, "NODBotCount",0);
 	AdjustedDifficulty = 5;
 	GDIDifficulty = GetIntOption( Options, "GDIDifficulty",4);
@@ -1240,34 +1636,18 @@ event InitGame( string Options, out string ErrorMessage )
 	GDIDifficulty += 3;
 	NODDifficulty += 3;
 	
-	
-	/**MapIndex = class'Rx_Game'.default.MapSpecificMineAndVehLimit.Find('MapName', WorldInfo.GetPackageName());
-	MineLimit = class'Rx_Game'.default.MapSpecificMineAndVehLimit[MapIndex].MineLimit;
-	VehicleLimit = class'Rx_Game'.default.MapSpecificMineAndVehLimit[MapIndex].VehicleLimit;
-	**/
-	
-	if(WorldInfo.NetMode==NM_DedicatedServer) //Static limits on-line
+	if (WorldInfo.NetMode == NM_DedicatedServer) //Static limits on-line
 	{
-	MineLimit = GetMapMineLimit( string(WorldInfo.GetPackageName()) ) ;
-	VehicleLimit= GetMapVehicleLimit( string(WorldInfo.GetPackageName()) ) ; 
+		MineLimit = Rx_MapInfo(WorldInfo.GetMapInfo()).MineLimit;
+		VehicleLimit= Rx_MapInfo(WorldInfo.GetMapInfo()).VehicleLimit;
 	}
-	else 
-	if(WorldInfo.NetMode==NM_Standalone)
+	else if(WorldInfo.NetMode == NM_Standalone)
 	{
-	MineLimit = GetIntOption( Options, "MineLimit", MineLimit);
-	`log("----YOSH'S LOG------ Credits given to RX_Game----" @ GetIntOption( Options, "MineLimit", MineLimit));
-	VehicleLimit = GetIntOption( Options, "VehicleLimit", VehicleLimit);
-	//AddInitialBots();	
+		MineLimit = GetIntOption( Options, "MineLimit", MineLimit);
+		VehicleLimit = GetIntOption( Options, "VehicleLimit", VehicleLimit);
+		bDelayedStart = false;
+		//AddInitialBots();	
 	}
-	//mapindex = -1;
-	//for (i=0; i < mapdataproviderlist.length; i++) {
-	//	if (mapdataproviderlist[i].mapname != string(worldinfo.getpackagename())) {
-	//		continue;
-	//	}
-	//	mapindex = i;
-	//}
-	//MineLimit = MapDataProviderList[MapIndex].MineLimit;
-	//VehicleLimit = MapDataProviderList[MapIndex].VehicleLimit;
 
 	InitialCredits = GetIntOption(Options, "StartingCredits", InitialCredits);
 	PlayerTeam = GetIntOption( Options, "Team",0);
@@ -1280,6 +1660,13 @@ event InitGame( string Options, out string ErrorMessage )
 
 	// Initialize the maplist manager
 	InitializeMapListManager();
+
+	//adding fort mutator (nBab)
+	if (WorldInfo.GetmapName() == "Fort")
+	{
+		AddMutator("RenX_nBabMutators.Fort");
+		BaseMutator.InitMutator(Options, ErrorMessage);
+	}
 }
 
 
@@ -1324,9 +1711,7 @@ function int InitBotDifficultyFromBaseDifficulty(int Difficulty)
 function AddInitialBots()
 {
 	
-if( bInitialBotsCreated) return; 
-
-	`log("----YOSH---- Called Add Initial Bots"); 
+	if( bInitialBotsCreated) return; 
 	
 	if(GDIBotCount > 0) {
 		AdjustedDifficulty = GDIDifficulty;
@@ -1347,11 +1732,15 @@ function CreateTeam(int TeamIndex)
 	if (TeamIndex > 2) // only 2: GDI and NOD
 	  return;
 
-	Teams[TeamIndex] = spawn(class'Rx_TeamInfo');
+	Teams[TeamIndex] = spawn(TeamInfoClass);
+	Teams[TeamIndex].Faction = TeamFactions[TeamIndex];
 	Teams[TeamIndex].Initialize(TeamIndex);
 	
 	Rx_TeamInfo(Teams[TeamIndex]).VehicleLimit = VehicleLimit;
 	Rx_TeamInfo(Teams[TeamIndex]).mineLimit = MineLimit;
+	//Setup CP
+	Rx_TeamInfo(Teams[TeamIndex]).InitCommandPoints(Max_CP, InitialCP);
+	
 	
 	Teams[TeamIndex].AI = Spawn(TeamAIType[TeamIndex]);
 	Teams[TeamIndex].AI.Team = Teams[TeamIndex];
@@ -1365,27 +1754,87 @@ function CreateTeam(int TeamIndex)
 		Rx_TeamAI(Teams[TeamIndex].AI).MinAttackersRatio[TEAM_Nod] = NodAttackingValue/100.0;
 		loginternal("Nod:"$Rx_TeamAI(Teams[TeamIndex].AI).MinAttackersRatio[TEAM_Nod]);
 	}
+
+}
+
+function bool CheckCheatBot()
+{
+	return Rx_TeamAI(Teams[0].AI).bCanGetCheatBot;
+}
+
+function bool ToggleForceBot()
+{
+	local bool bNewSetup;
+	local int BotNeeded;
+
+	bNewSetup = !bFillSpaceWithBots;
+
+	bFillSpaceWithBots = bNewSetup;
+
+	if(bFillSpaceWithBots)
+	{
+		DesiredPlayerCount = Clamp(Max(DesiredPlayerCount, Rx_MapInfo(WorldInfo.GetMapInfo()).MinNumPlayers), 1, 64);
+		BotNeeded = DesiredPlayerCount - NumPlayers - NumBots;
+
+		if(BotNeeded > 0)
+			AddBots(BotNeeded);
+	}
+	else
+	{
+		DesiredPlayerCount = NumPlayers+NumBots;
+	}
+
 	
+
+	return true;
+}
+
+function bool ToggleCheatBot()
+{
+	local PlayerReplicationInfo pri;
+
+	if(Teams[0].AI == None)
+		return false;
+
+
+	if(Rx_TeamAI(Teams[0].AI).bCanGetCheatBot)
+	{
+		Rx_TeamAI(Teams[0].AI).bCanGetCheatBot = false;
+		Rx_TeamAI(Teams[1].AI).bCanGetCheatBot = false;
+	}
+
+	else
+	{
+		Rx_TeamAI(Teams[0].AI).bCanGetCheatBot = true;
+		Rx_TeamAI(Teams[1].AI).bCanGetCheatBot = true;
+	}
+
+	foreach WorldInfo.GRI.PRIArray(pri)
+	{
+		Rx_PRI(pri).bCanRequestCheatBots = CheckCheatBot();
+	}
+
+	return true;
 }
 
 function SetPlayerDefaults(Pawn PlayerPawn)
 {
 	if(Rx_Pri(PlayerPawn.PlayerReplicationInfo) != none)
 	{ 
-		Rx_Pri(PlayerPawn.PlayerReplicationInfo).CharClassInfo = PurchaseSystem.GetStartClass(PlayerPawn.GetTeamNum());
+		Rx_Pri(PlayerPawn.PlayerReplicationInfo).CharClassInfo = PurchaseSystem.GetStartClass(PlayerPawn.GetTeamNum(), PlayerPawn.PlayerReplicationInfo);
 		`LogRxPub("GAME" `s "Spawn;" `s "player" `s `PlayerLog(PlayerPawn.PlayerReplicationInfo) `s "character" `s UTPlayerReplicationInfo(PlayerPawn.PlayerReplicationInfo).CharClassInfo);
 		PlayerPawn.NotifyTeamChanged();
 	}
 	
 	if(Rx_Bot(PlayerPawn.Controller) != None) 
 	{
-		if(PurchaseSystem.AirTower != None) {
+		if(!Rx_MapInfo(WorldInfo.GetMapInfo()).bIsDeathmatchMap) {
 			Rx_Pri(PlayerPawn.PlayerReplicationInfo).CharClassInfo = Rx_Bot(PlayerPawn.Controller).BotBuy(Rx_Bot(PlayerPawn.Controller), true);
 		} else if(PlayerPawn.PlayerReplicationInfo.GetTeamNum() == TEAM_GDI) {
-			Rx_Pri(PlayerPawn.PlayerReplicationInfo).CharClassInfo = PurchaseSystem.GDIInfantryClasses[Rand(15)];
+			Rx_Pri(PlayerPawn.PlayerReplicationInfo).CharClassInfo = PurchaseSystem.GDIInfantryClasses[Rand(PurchaseSystem.GDIInfantryClasses.Length)];
 			`LogRxPub("GAME" `s "Spawn;" `s "player" `s `PlayerLog(PlayerPawn.PlayerReplicationInfo) `s "character" `s UTPlayerReplicationInfo(PlayerPawn.PlayerReplicationInfo).CharClassInfo);
 		} else if(PlayerPawn.PlayerReplicationInfo.GetTeamNum() == TEAM_NOD) {
-			Rx_Pri(PlayerPawn.PlayerReplicationInfo).CharClassInfo = PurchaseSystem.NodInfantryClasses[Rand(15)];
+			Rx_Pri(PlayerPawn.PlayerReplicationInfo).CharClassInfo = PurchaseSystem.NodInfantryClasses[Rand(PurchaseSystem.NodInfantryClasses.Length)];
 			`LogRxPub("GAME" `s "Spawn;" `s "player" `s `PlayerLog(PlayerPawn.PlayerReplicationInfo) `s "character" `s UTPlayerReplicationInfo(PlayerPawn.PlayerReplicationInfo).CharClassInfo);
 		}
 		//Rx_Pri(PlayerPawn.PlayerReplicationInfo).CharClassInfo = class'Rx_FamilyInfo_Nod_StealthBlackHand';
@@ -1394,9 +1843,9 @@ function SetPlayerDefaults(Pawn PlayerPawn)
 	} else if(Rx_MapInfo(WorldInfo.GetMapInfo()).bIsDeathmatchMap)
 	{
 		if(PlayerPawn.PlayerReplicationInfo.GetTeamNum() == TEAM_GDI) {
-			Rx_Pri(PlayerPawn.PlayerReplicationInfo).CharClassInfo = PurchaseSystem.GDIInfantryClasses[Rand(15)];
+			Rx_Pri(PlayerPawn.PlayerReplicationInfo).CharClassInfo = PurchaseSystem.GDIInfantryClasses[Rand(PurchaseSystem.GDIInfantryClasses.Length)];
 		} else if(PlayerPawn.PlayerReplicationInfo.GetTeamNum() == TEAM_NOD) {
-			Rx_Pri(PlayerPawn.PlayerReplicationInfo).CharClassInfo = PurchaseSystem.NodInfantryClasses[Rand(15)];
+			Rx_Pri(PlayerPawn.PlayerReplicationInfo).CharClassInfo = PurchaseSystem.NodInfantryClasses[Rand(PurchaseSystem.NodInfantryClasses.Length)];
 		}
 		PlayerPawn.NotifyTeamChanged();
 	}
@@ -1452,11 +1901,44 @@ static function string GetPRILogName(PlayerReplicationInfo PRI)
 	}
 }
 
+function DropPowerUp(Rx_Pawn Killed)
+{
+	local Rx_Pickup PowerUp;
+	local int index;
+
+	if (PowerUpClasses.Length == 0)
+		return;
+
+	index = Rand(PowerUpClasses.Length + Killed.GetRxFamilyInfo().default.PowerUpClasses.Length);
+
+	if (index < PowerUpClasses.Length)
+		PowerUp = Spawn(PowerUpClasses[index], Self, , Killed.Location, Killed.Rotation, , true);
+	else
+		PowerUp = Spawn(Killed.GetRxFamilyInfo().default.PowerUpClasses[index - PowerUpClasses.Length], Self, , Killed.Location, Killed.Rotation, , true);
+
+	PowerUp.PickupsRemaining = 1;
+	PowerUp.SetTimer(PowerUp.DespawnTime, false, 'Expire');
+}
+
 // managed extra score for kills and destruction (only player and vehicles)
 function Killed( Controller Killer, Controller KilledPlayer, Pawn KilledPawn, class<DamageType> damageType )
 {
 	local Rx_PRI PlayerPRI;
 	local string KillerLogStr;
+	local bool		bEnemyKill;
+	local UTPlayerReplicationInfo KillerPRI, KilledPRI;
+	local UTVehicle V;
+	
+	local Rx_Mutator Rx_Mut;
+	local bool bValidPlayerDeath;
+
+	bValidPlayerDeath = Rx_Bot_Scripted(KilledPlayer) == None;
+	
+	Rx_Mut = GetBaseRXMutator();
+	if (Rx_Mut != None)
+	{
+		Rx_Mut.OnPlayerKill(Killer, KilledPlayer, KilledPawn, damageType);
+	}
 
 	if ( Killer != None )
 	{
@@ -1482,36 +1964,158 @@ function Killed( Controller Killer, Controller KilledPlayer, Pawn KilledPawn, cl
 				RxLog("GAME"`s "Destroyed;" `s "vehicle" `s KilledPawn.Class `s "by" `s KillerLogStr`s "with"`s damageType);
 		}
 		// score for pawns here
-		else if ( Rx_Pawn(KilledPawn) != None)
+		else if ( Rx_Pawn(KilledPawn) != None && KilledPlayer != none)
 		{
 			if (PlayerPRI != None)
 			{
 				if (KilledPlayer.GetTeamNum() != Killer.GetTeamNum() )
 				{
 					PlayerPRI.AddScoreToPlayerAndTeam(class<Rx_FamilyInfo>(Rx_Pawn(KilledPawn).CurrCharClassInfo).default.PointsForKill);
-					Rx_TeamInfo(PlayerPRI.Team).AddKill();
-					Rx_TeamInfo(KilledPlayer.PlayerReplicationInfo.Team).AddDeath();
+					if(bValidPlayerDeath)
+					{
+						Rx_TeamInfo(PlayerPRI.Team).AddKill();
+						Rx_TeamInfo(KilledPlayer.PlayerReplicationInfo.Team).AddDeath();
+					}
 				}
-				if(Killer != KilledPlayer && PlayerController(Killer) != none) 
+				if(Killer != KilledPlayer && PlayerController(Killer) != none && bValidPlayerDeath) 
 				{
-					PlayerController(Killer).ClientPlaySound(BoinkSound);
+					Rx_Controller(PlayerController(Killer)).PlayKillSound();
+					//if(Rx_Controller(PlayerController(Killer)).bSuspect) 
+					Rx_Controller(PlayerController(Killer)).SLogKill(damageType, KilledPlayer.PlayerReplicationInfo.Playername);
 				}
 			}
 
-			if (Killer != KilledPlayer)
+			if (KilledPlayer != none && Killer != KilledPlayer && bValidPlayerDeath)
 				RxLog("GAME"`s "Death;"`s "player"`s `PlayerLog(KilledPlayer.PlayerReplicationInfo)`s "by"`s KillerLogStr `s "with"`s damageType);
 			else
 				RxLog("GAME"`s "Death;"`s "player"`s KillerLogStr`s "suicide by"`s damageType);
+
+			if (bAllowPowerUpDrop)
+				DropPowerUp(Rx_Pawn(KilledPawn));
 		}
 	}
-	else if (Rx_PRI(KilledPlayer.PlayerReplicationInfo) != None)    // ignore ai being destroyed (notably harvester death due to refinery lost)
+	else if (KilledPlayer != none && Rx_PRI(KilledPlayer.PlayerReplicationInfo) != None && bValidPlayerDeath)    // ignore ai being destroyed (notably harvester death due to refinery lost)
 	{
 		`SupressNullDamageType(RxLog("GAME"`s "Death;"`s "player"`s `PlayerLog(KilledPlayer.PlayerReplicationInfo)`s "died by"`s damageType));
 	}
-	
-	super.Killed(Killer,KilledPlayer,KilledPawn,damageType);
 
-	ScoreRenKill(Killer,KilledPlayer);
+	if (bValidPlayerDeath && UTBot(KilledPlayer) != None )
+		UTBot(KilledPlayer).WasKilledBy(Killer);
+
+	if ( Killer != None )
+		KillerPRI = UTPlayerReplicationInfo(Killer.PlayerReplicationInfo);
+	if ( KilledPlayer != None )
+		KilledPRI = UTPlayerReplicationInfo(KilledPlayer.PlayerReplicationInfo);
+
+	bEnemyKill = ( ((KillerPRI != None) && (KillerPRI != KilledPRI) && (KilledPRI != None)) && (!bTeamGame || (KillerPRI.Team != KilledPRI.Team)) );
+
+	if ( (KillerPRI != None) && UTVehicle(KilledPawn) != None )
+	{
+		KillerPRI.IncrementVehicleKillStat(UTVehicle(KilledPawn).GetVehicleKillStatName());
+	}
+	if (bValidPlayerDeath && KilledPRI != None)
+	{
+		KilledPRI.LastKillerPRI = KillerPRI;
+
+		if ( class<UTDamageType>(DamageType) != None )
+		{
+			class<UTDamageType>(DamageType).static.ScoreKill(KillerPRI, KilledPRI, KilledPawn);
+		}
+		else
+		{
+			// assume it's some kind of environmental damage
+			if ( (KillerPRI == KilledPRI) || (KillerPRI == None) )
+			{
+				KilledPRI.IncrementSuicideStat('SUICIDES_ENVIRONMENT');
+			}
+			else
+			{
+				KillerPRI.IncrementKillStat('KILLS_ENVIRONMENT');
+				KilledPRI.IncrementDeathStat('DEATHS_ENVIRONMENT');
+			}
+		}
+		if ( KilledPRI.Spree > 4 )
+		{
+			EndSpree(KillerPRI, KilledPRI);
+		}
+		else
+		{
+			KilledPRI.Spree = 0;
+		}
+		if ( KillerPRI != None )
+		{
+			KillerPRI.IncrementKills(bEnemyKill);
+
+			if ( bEnemyKill )
+			{
+				V = UTVehicle(KilledPawn);
+
+				if ( !bFirstBlood )
+				{
+					bFirstBlood = True;
+					BroadcastLocalizedMessage( class'UTFirstBloodMessage', 0, KillerPRI );
+					KillerPRI.IncrementEventStat('EVENT_FIRSTBLOOD');
+				}
+			}
+		}
+	}
+    
+    if( KilledPlayer != None && bValidPlayerDeath && KilledPlayer.bIsPlayer )
+	{
+		KilledPlayer.PlayerReplicationInfo.IncrementDeaths();
+		KilledPlayer.PlayerReplicationInfo.SetNetUpdateTime(FMin(KilledPlayer.PlayerReplicationInfo.NetUpdateTime, WorldInfo.TimeSeconds + 0.3 * FRand()));
+		BroadcastDeathMessage(Killer, KilledPlayer, damageType);
+	}
+
+    if( KilledPlayer != None  && bValidPlayerDeath)
+	{
+		ScoreKill(Killer, KilledPlayer);
+	}
+
+	DiscardInventory(KilledPawn, Killer);
+    NotifyKilled(Killer, KilledPlayer, KilledPawn, damageType);
+
+    if ( (WorldInfo.NetMode == NM_Standalone) && (PlayerController(KilledPlayer) != None) )
+    {
+		// clear telling bots not to get into nearby vehicles
+		for ( V=VehicleList; V!=None; V=V.NextVehicle )
+			if ( WorldInfo.GRI.OnSameTeam(KilledPlayer,V) )
+				V.PlayerStartTime = 0;
+	}
+
+	if(Rx_Bot_Scripted(KilledPlayer) == None)
+		ScoreRenKill(Killer,KilledPlayer);
+
+	if(Killer != none && KilledPlayer != none)
+	{
+		`RecordDeathEvent(NORMAL, Killer, damageType, KilledPlayer);
+	}
+	else if(KilledPlayer != none)
+	{
+		`RecordDeathEvent(NORMAL, none, damageType, KilledPlayer);
+	}
+}
+
+function GameEventsPoll()
+{
+	local Rx_Vehicle V;
+
+	ForEach `WorldInfoObject.AllPawns(class'Rx_Vehicle', V)
+	{
+		if(Rx_Vehicle_Harvester(V) == none)
+		{
+			`RecordGamePositionStat(VEHICLE_LOCATION_POLL,V.Location, 1);		
+			if(v.Team == TEAM_GDI)
+			{
+				`RecordGamePositionStat(VEHICLE_LOCATION_POLL_GDI,V.Location, 1);		
+			}
+			else if(v.Team == TEAM_NOD)
+				`RecordGamePositionStat(VEHICLE_LOCATION_POLL_NOD,V.Location, 1);		
+		}
+
+		`RecordGamePositionStat(VEHICLE_WITH_HARV_LOCATION_POLL,V.Location, 1);	
+	}
+
 }
 
 function ScoreRenKill(Controller Killer, Controller Other)
@@ -1519,7 +2123,7 @@ function ScoreRenKill(Controller Killer, Controller Other)
 	if ( Killer != None && killer.PlayerReplicationInfo != None && Rx_PRI(killer.PlayerReplicationInfo) != None &&
 		 Other != None && Other.PlayerReplicationInfo != None && Rx_PRI(Other.PlayerReplicationInfo) != None && Killer != Other)
 	{
-		Rx_PRI(Killer.PlayerReplicationInfo).AddRenKill(,!Other.bIsPlayer);
+		Rx_PRI(Killer.PlayerReplicationInfo).AddRenKill(,!Other.bIsPlayer || Rx_Bot_Scripted(Other) != None);
 	}
 
 }
@@ -1548,8 +2152,44 @@ function bool CheckScore(PlayerReplicationInfo Scorer)
 function UTBot OnAddBot(UTBot bot)
 {
 	if (bot != None)
+	{
 		`LogRxPub("GAME" `s "Spawn;" `s "bot" `s `PlayerLog(bot.PlayerReplicationInfo));
+		//`RecordLoginChange(LOGIN,bot,bot.PlayerReplicationInfo.PlayerName,bot.PlayerReplicationInfo.UniqueId, false)
+	}
 	return bot;
+}
+
+function InitializeBot(UTBot NewBot, UTTeamInfo BotTeam, const out CharacterInfo BotInfo)
+{
+	Rx_Bot(NewBot).RxInitialize(AdjustedDifficulty, BotInfo, BotTeam);
+	
+	if(Rx_Bot_Scripted(NewBot) == None)
+		{
+			BotTeam.AddToTeam(NewBot);
+			ChangeName(NewBot, BotInfo.CharName, false);
+			BotTeam.SetBotOrders(NewBot);
+		}
+}
+
+exec function AddBots(int Num)
+{
+	local int AddCount;
+
+	DesiredPlayerCount = Clamp(Max(DesiredPlayerCount, NumPlayers+NumBots)+Num, 1, 64);
+
+	// add up to 8 immediately, then the rest automatically via game timer.
+	while ( (NumPlayers + NumBots < DesiredPlayerCount) && (AddBot() != none) && (AddCount < 8) )
+	{
+		`log("added bot");
+		AddCount++;
+	}
+}
+
+exec function UTBot AddNamedBot(string BotName, optional bool bUseTeamIndex, optional int TeamIndex)
+{
+
+	DesiredPlayerCount = Clamp(Max(DesiredPlayerCount, NumPlayers + NumBots) + 1, 1, 64);
+	return AddBot(BotName, bUseTeamIndex, TeamIndex);
 }
 
 function UTBot AddBot(optional string BotName, optional bool bUseTeamIndex, optional int TeamIndex)
@@ -1595,6 +2235,18 @@ function UTBot AddBot(optional string BotName, optional bool bUseTeamIndex, opti
 
 function bool TooManyBots(Controller botToRemove)
 {
+	if(NumPlayers+NumBots > 64) // if exceeding player limit, there's *way* too many
+		return true;
+
+	if(!bFillSpaceWithBots)
+		return false;
+
+	if ((Rx_Bot(botToRemove).GetTeamNum() == TEAM_GDI && Teams[TEAM_GDI].Size > Teams[TEAM_NOD].Size)
+			|| (Rx_Bot(botToRemove).GetTeamNum() == TEAM_NOD && Teams[TEAM_NOD].Size > Teams[TEAM_GDI].Size))
+	{
+			return Super.TooManyBots(botToRemove);
+	}
+
 	return false;
 }
 
@@ -1603,10 +2255,11 @@ function CheckBuildingsDestroyed(Actor destroyedBuilding)
 	local BuildingCheck Check;
 	local PlayerReplicationInfo pri;
 	
-	if( Role == ROLE_Authority )
+	if (Role == ROLE_Authority)
 	{
+		CurrentBuildingVPModifier +=0.5;
 		Check = CheckBuildings();
-		if ( Check == BC_GDIDestroyed || Check == BC_NodDestroyed || Check == BC_TeamsHaveNoBuildings )
+		if (Check == BC_GDIDestroyed || Check == BC_NodDestroyed || Check == BC_TeamsHaveNoBuildings)
 		{
 			if(Check == BC_GDIDestroyed)
 				EndRxGame("Buildings",TEAM_NOD);
@@ -1616,34 +2269,47 @@ function CheckBuildingsDestroyed(Actor destroyedBuilding)
 				EndRxGame("Buildings",255);
 		}
 		
-		if(Rx_Building_AirTower_Internals(destroyedBuilding) != None)
+		if (Rx_Building_Nod_VehicleFactory(destroyedBuilding) != None || Rx_Building_AirTower(destroyedBuilding) != none && Rx_Building_Helipad_Nod(destroyedBuilding) == None)
 		{
-			foreach WorldInfo.GRI.PRIArray(pri)
+			if(PurchaseSystem.AreTeamFactoriesDestroyed(TEAM_NOD))
 			{
-				if(Rx_Pri(pri) != None && (Rx_Pri(pri).GetTeamNum() == TEAM_NOD) && Rx_Pri(pri).AirdropCounter == 0)
+				foreach WorldInfo.GRI.PRIArray(pri)
 				{
-					Rx_Pri(pri).AirdropCounter++;
-					Rx_Pri(pri).LastAirdropTime=WorldInfo.TimeSeconds;
+					if(Rx_Pri(pri) != None && (Rx_Pri(pri).GetTeamNum() == TEAM_NOD) && Rx_Pri(pri).AirdropCounter == 0)
+					{
+						Rx_Pri(pri).AirdropCounter++;
+						Rx_Pri(pri).LastAirdropTime=WorldInfo.TimeSeconds;
+					}
 				}
+				VehicleManager.bNodIsUsingAirdrops = true;
+				VehicleManager.NodAdditionalAirdropProductionDelay = 20.0;
 			}
-			VehicleManager.bNodIsUsingAirdrops = true;
-			VehicleManager.NodAdditionalAirdropProductionDelay = 20.0;
 		}
-		else if(Rx_Building_WeaponsFactory_Internals(destroyedBuilding) != None)
+		else if (Rx_Building_GDI_VehicleFactory(destroyedBuilding) != None && Rx_Building_Helipad_GDI(destroyedBuilding) == None)
 		{
-			foreach WorldInfo.GRI.PRIArray(pri)
+			if(PurchaseSystem.AreTeamFactoriesDestroyed(TEAM_GDI))
 			{
-				if(Rx_Pri(pri) != None && (Rx_Pri(pri).GetTeamNum() == TEAM_GDI) && Rx_Pri(pri).AirdropCounter == 0)
-				{	
-					Rx_Pri(pri).AirdropCounter++;
-					Rx_Pri(pri).LastAirdropTime=WorldInfo.TimeSeconds;
+				foreach WorldInfo.GRI.PRIArray(pri)
+				{
+					if(Rx_Pri(pri) != None && (Rx_Pri(pri).GetTeamNum() == TEAM_GDI) && Rx_Pri(pri).AirdropCounter == 0)
+					{	
+						Rx_Pri(pri).AirdropCounter++;
+						Rx_Pri(pri).LastAirdropTime=WorldInfo.TimeSeconds;
+					}
 				}
+				VehicleManager.bGDIIsUsingAirdrops = true;
+				VehicleManager.GDIAdditionalAirdropProductionDelay = 20.0;
 			}
-			VehicleManager.bGDIIsUsingAirdrops = true;
-			VehicleManager.GDIAdditionalAirdropProductionDelay = 20.0;
 		}
-		
+	
+	if(Rx_Building(destroyedBuilding).GetTeamNum() == 0) 
+			DestroyedBuildings_GDI++; 
+		else
+			DestroyedBuildings_Nod++; 
+	
 	}
+	
+	
 }
 
 
@@ -1660,7 +2326,7 @@ function BuildingCheck CheckBuildings ()
 {
 	local Rx_Building B;
 	local bool BuildGDI, BuildNod;
-
+	
 
 	foreach AllActors(class'Rx_Building', B)
 	{
@@ -1697,6 +2363,8 @@ State MatchOver
 
 	function BeginState( name PreviousState )
 	{
+		local Rx_Mutator Rx_Mut;
+		
 		//`log("################################ -( MatchOver:BeginState() )-");
 		RenEndTime = WorldInfo.RealTimeSeconds + EndGameDelay;
 		`log("RenEndTime: " $ RenEndTime);
@@ -1706,13 +2374,21 @@ State MatchOver
 		//M.Palko endgame crash track log.
 		`log("------------------------------Game rep info bMatchIsOver set to true");
 		super.BeginState(PreviousState);
+		
+		Rx_Mut = GetBaseRXMutator();
+		if (Rx_Mut != None)
+		{
+			Rx_Mut.OnMatchEnd();
+		}
 	}
 
 
 	function RestartGame()
 	{
+		LANBroadcast.close();
 		if( RenEndTime < WorldInfo.RealTimeSeconds )
 		{			
+			EndLogging("Game Ended");
 			super(GameInfo).RestartGame();
 		}
 	}
@@ -1720,6 +2396,7 @@ State MatchOver
 
 function RestartGame()
 {
+	LANBroadcast.close();
 	Super.RestartGame();
 }
 
@@ -1732,9 +2409,6 @@ function bool IsWinningTeam( TeamInfo T )
 		return true;	
 	else return false;
 }
-
-
-
 
 State MatchInProgress
 {
@@ -1763,11 +2437,11 @@ function FindRefineries()
 	{
 		if (ref.GetTeamNum() == TEAM_GDI ) // GDI
 		{
-			TeamCredits[TEAM_GDI].Refinery = ref;
+			TeamCredits[TEAM_GDI].Refinery.AddItem(ref);
 		}
 		else if (ref.GetTeamNum() == TEAM_NOD ) // Nod
 		{
-			TeamCredits[TEAM_NOD].Refinery = ref;
+			TeamCredits[TEAM_NOD].Refinery.AddItem(ref);
 		}
 	}
 }
@@ -1775,18 +2449,30 @@ function FindRefineries()
 function StartMatch()
 {
 	local Controller PC;
+	local Rx_Mutator Rx_Mut;
 	
-	if(!WorldInfo.IsPlayInEditor() && InStr(string(WorldInfo.GetPackageName()), "CNC-") < 0)
-		return;
+	Rx_Mut = GetBaseRXMutator();
+	if (Rx_Mut != None)
+	{
+		Rx_Mut.OnMatchStart();
+	}
 	
 	RxLog("MAP" `s "Start;" `s GetPackageName());
 
 	super.StartMatch();
+
+	`RxEngineObject.ClearTeams();
+
+	if (TeamMode != 4)
+	{
+		AdjustTeamBalance();
+		AdjustTeamSize();
+	}
 	
-	if(TeamCredits[TEAM_GDI].PlayerRI.Length > 0) {
+	if (TeamCredits[TEAM_GDI].PlayerRI.Length > 0) {
 		TeamCredits[TEAM_GDI].PlayerRI.Remove(0, TeamCredits[TEAM_GDI].PlayerRI.Length-1);
 	}
-	if(TeamCredits[TEAM_NOD].PlayerRI.Length > 0) {
+	if (TeamCredits[TEAM_NOD].PlayerRI.Length > 0) {
 		TeamCredits[TEAM_NOD].PlayerRI.Remove(0, TeamCredits[TEAM_NOD].PlayerRI.Length-1);
 	}
 	
@@ -1797,13 +2483,209 @@ function StartMatch()
 			if(TeamCredits[PC.GetTeamNum()].PlayerRI.Find(Rx_PRI(PC.PlayerReplicationInfo)) < 0) {
 				TeamCredits[PC.GetTeamNum()].PlayerRI.AddItem(Rx_PRI(PC.PlayerReplicationInfo));
 				Rx_PRI(PC.PlayerReplicationInfo).SetCredits( Rx_Game(WorldInfo.Game).InitialCredits ); 
+				
 			}
+		}
+
+		if (Rx_Controller(PC) != None) {
+			Rx_Controller(PC).UpdateDiscordPresence(MaxPlayers);
 		}
 	}
 	
 	if(!Rx_MapInfo(WorldInfo.GetMapInfo()).bIsDeathmatchMap)
 		VehicleManager.SpawnInitialHarvesters();
 	
+}
+
+// Teams are balanced and sorted into lists at the end of a map. But incase someone leaves at the start of the new map, some players might need to be switched to bring back balance to the force.
+// Balances based on player rankings from last map.
+function AdjustTeamBalance()
+{
+	local float team1ranking;
+	local float team2ranking;
+	local Rx_Controller highestRankedPlayer;
+	local PlayerReplicationInfo pri;
+	local Rx_Mutator Rx_Mut;
+
+	Rx_Mut = GetBaseRXMutator();
+	if (Rx_Mut != None)
+	{
+		if(Rx_Mut.adjustTeamBalance())
+			return;
+	}	
+
+	foreach WorldInfo.GRI.PRIArray(pri)
+		if(Rx_Pri(pri) != None)
+			if(pri.Team.TeamIndex == TEAM_GDI)
+				team1ranking += Rx_PRI(pri).OldRenScore;
+			else
+				team2ranking += Rx_PRI(pri).OldRenScore;
+
+	if(team1ranking == 0.0 && team2ranking == 0.0)
+		return;
+
+	if(team1ranking > team2ranking)
+		highestRankedPlayer = getHighestRankedPlayer(TEAM_GDI);
+	else
+		highestRankedPlayer = getHighestRankedPlayer(TEAM_NOD);
+
+	while(highestRankedPlayer != None && Abs(team1ranking - team2ranking) > Rx_Pri(highestRankedPlayer.PlayerReplicationInfo).OldRenScore)
+	{
+		if(highestRankedPlayer.GetTeamNum() == TEAM_GDI)
+		{
+			SetTeam(highestRankedPlayer, Teams[TEAM_NOD], true);
+			if (highestRankedPlayer.Pawn != None)
+				highestRankedPlayer.Pawn.PlayerChangedTeam();
+			team1ranking -= Rx_Pri(highestRankedPlayer.PlayerReplicationInfo).OldRenScore;
+			team2ranking += Rx_Pri(highestRankedPlayer.PlayerReplicationInfo).OldRenScore;
+		} else 
+		{
+			SetTeam(highestRankedPlayer, Teams[TEAM_GDI], true);
+			if (highestRankedPlayer.Pawn != None)
+				highestRankedPlayer.Pawn.PlayerChangedTeam();			
+			team2ranking -= Rx_Pri(highestRankedPlayer.PlayerReplicationInfo).OldRenScore;
+			team1ranking += Rx_Pri(highestRankedPlayer.PlayerReplicationInfo).OldRenScore;
+		}
+        if(team1ranking > team2ranking) {
+            highestRankedPlayer = getHighestRankedPlayer(TEAM_GDI);
+        } else {
+            highestRankedPlayer = getHighestRankedPlayer(TEAM_NOD);
+        }
+	}
+}
+
+function AdjustTeamSize()
+{
+	local int difference;
+	local Controller PC;
+	local Rx_Mutator Rx_Mut;
+
+	Rx_Mut = GetBaseRXMutator();
+	if (Rx_Mut != None)
+	{
+		if(Rx_Mut.adjustTeamSize())
+			return;
+	}
+
+	// Make sure teams are even
+	difference = Teams[TEAM_GDI].Size - Teams[TEAM_NOD].Size;
+
+	if (difference > 1) // too many on GDI
+	{
+		while (difference > 1)
+		{	
+			PC = getLowestRankedPlayer(TEAM_GDI); // switch lowest ranked player to have minimal influence on balance
+			SetTeam(PC, Teams[TEAM_NOD], true);
+			if (PC.Pawn != None)
+				PC.Pawn.PlayerChangedTeam();
+			difference -= 2;
+		}
+	}
+	else if (difference < -1) // too many on Nod
+	{
+		while (difference < -1)
+		{
+			PC = getLowestRankedPlayer(TEAM_NOD);
+			SetTeam(PC, Teams[TEAM_GDI], true);
+			if (PC.Pawn != None)
+				PC.Pawn.PlayerChangedTeam();
+			difference += 2;
+		}
+	}
+	// else // teams are close enough
+}
+
+function Rx_Controller getLowestRankedPlayer(int teamNum)
+{
+	local Rx_Controller PC, lowestRankedPlayer;
+
+	lowestRankedPlayer = None;
+
+	foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
+		if (PC.PlayerReplicationInfo.GetTeamNum() == teamNum)
+		{
+			if(lowestRankedPlayer == None 
+				|| Rx_Pri(PC.PlayerReplicationInfo).OldRenScore < Rx_Pri(lowestRankedPlayer.PlayerReplicationInfo).OldRenScore)
+			{
+				lowestRankedPlayer = PC;
+			}
+		}
+
+	return lowestRankedPlayer;	
+}
+
+function Rx_Controller getHighestRankedPlayer(int teamNum)
+{
+	local Rx_Controller PC, highestRankedPlayer;
+
+	highestRankedPlayer = None;
+
+	foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
+		if (PC.PlayerReplicationInfo.GetTeamNum() == teamNum)
+		{
+			if(highestRankedPlayer == None 
+				|| Rx_Pri(PC.PlayerReplicationInfo).OldRenScore > Rx_Pri(highestRankedPlayer.PlayerReplicationInfo).OldRenScore)
+			{
+				highestRankedPlayer = PC;
+			}
+		}
+
+	return highestRankedPlayer;	
+}
+
+exec function QuickStart()
+{
+	StartMatch();
+}
+
+/**
+ * Pops up a scaleform dialog. Note: Grabs scaleform instance from frontmenu kismit.
+ * @param form The form to use inside the dialog
+ * @param diagType the type of dialog to popup
+ */
+exec function PopUpDialog(string form, string diagType)
+{
+	local array<SequenceObject> a;
+
+	class'WorldInfo'.static.GetWorldInfo().GetGameSequence().FindSeqObjectsByClass(class'GFxAction_OpenMovie', false, a);
+	if(a.Length == 1);
+		Rx_GFXFrontEnd(GFxAction_OpenMovie(a[0]).MoviePlayer).OpenDialog(form,diagType, -1, -1, true);
+}
+
+/**
+ * Pops up the scaleform VersionOutOfDateDialog. Note: Grabs scaleform instance from frontmenu kismit.
+ */
+exec function PopUpOutOfDateDialog()
+{
+	local array<SequenceObject> a;
+
+	class'WorldInfo'.static.GetWorldInfo().GetGameSequence().FindSeqObjectsByClass(class'GFxAction_OpenMovie', false, a);
+	if(a.Length == 1);
+		Rx_GFXFrontEnd(GFxAction_OpenMovie(a[0]).MoviePlayer).OpenVersionOutOfDateDialog();
+}
+
+/**
+ * Pops up the scaleform ShowDownloadProgressDialog. Note: Grabs scaleform instance from frontmenu kismit.
+ */
+exec function PopUpShowDownloadProgressDialog(string title, string size)
+{
+	local array<SequenceObject> a;
+
+	class'WorldInfo'.static.GetWorldInfo().GetGameSequence().FindSeqObjectsByClass(class'GFxAction_OpenMovie', false, a);
+	if(a.Length == 1);
+		Rx_GFXFrontEnd(GFxAction_OpenMovie(a[0]).MoviePlayer).OpenShowDownloadProgressDialog(title, size);
+}
+
+/**
+ * Updates the scaleform UpdateDownloadProgressDialog. Note: Grabs scaleform instance from frontmenu kismit.
+ */
+exec function UpdateDownloadProgressDialog(float loaded, float size)
+{
+	local array<SequenceObject> a;
+
+	class'WorldInfo'.static.GetWorldInfo().GetGameSequence().FindSeqObjectsByClass(class'GFxAction_OpenMovie', false, a);
+	if(a.Length == 1);
+		Rx_GFXFrontEnd(GFxAction_OpenMovie(a[0]).MoviePlayer).UpdateDownloadProgressDialog(loaded, size);
 }
 
 function Rx_PurchaseSystem GetPurchaseSystem()
@@ -1813,6 +2695,8 @@ function Rx_PurchaseSystem GetPurchaseSystem()
 
 function EndGame(PlayerReplicationInfo Winner, string Reason )
 {
+	`logd("Rx_Game::EndGame");
+
 	if(Reason ~= "TimeLimit" || Reason ~= "triggered")
 	{
 		if(Rx_TeamInfo(Teams[TEAM_GDI]).GetRenScore() >= Rx_TeamInfo(Teams[TEAM_NOD]).GetRenScore())
@@ -1825,6 +2709,10 @@ function EndGame(PlayerReplicationInfo Winner, string Reason )
 
 function EndRxGame(string Reason, byte WinningTeamNum )
 {
+	local PlayerReplicationInfo PRI;
+	local Rx_Controller c;
+	local int GDICount, NodCount;
+
 	// MPalko: This no longer calles Super(). Was extremely messy, so everything is done right here now.
 
 	//M.Palko endgame crash track log.
@@ -1838,7 +2726,6 @@ function EndRxGame(string Reason, byte WinningTeamNum )
 		bGameEnded = true;
 		//EndTime = WorldInfo.RealTimeSeconds + EndTimeDelay;
 		EndTime = 0;//WorldInfo.RealTimeSeconds + EndTimeDelay;
-		EndLogging(Reason);
 
 		// Allow replication to happen before reporting scores, stats, etc.
 		// @Shahman: Ensure that the timer is longer than camera end game delay, otherwise the transition would not be as smooth.
@@ -1847,6 +2734,9 @@ function EndRxGame(string Reason, byte WinningTeamNum )
 		// Set winning team and endgame reason.
 		WinnerTeamNum = WinningTeamNum;
 		Rx_GRI(WorldInfo.GRI).WinnerTeamNum = WinnerTeamNum;
+		
+		//Stop this timer from counting down in the background... whoops >_> 
+		if(isTimerActive('PlaySurrenderClockGameOverAnnouncment')) ClearTimer('PlaySurrenderClockGameOverAnnouncment');
 
 		if (WinnerTeamNum == 0 || WinnerTeamNum == 1)
 			GameReplicationInfo.Winner = Teams[WinnerTeamNum];
@@ -1854,14 +2744,17 @@ function EndRxGame(string Reason, byte WinningTeamNum )
 			GameReplicationInfo.Winner = none;
 
 		if(Reason ~= "TimeLimit") {
+			Rx_GRI(WorldInfo.GRI).WinBySurrender=false;
 			Rx_GRI(WorldInfo.GRI).WinnerReason = "By Points";
 		} else if(Reason ~= "Buildings") {
+			Rx_GRI(WorldInfo.GRI).WinBySurrender=false;
 			Rx_GRI(WorldInfo.GRI).WinnerReason = "By Base Destruction";
 		} else if (Reason ~= "Surrender") {
 			Rx_GRI(WorldInfo.GRI).WinnerReason = "By Surrender";
 			Rx_GRI(WorldInfo.GRI).WinBySurrender=true;
-			if(GameSpeed != 1) SetTimer(0.75f,false, 'ResetGameSpeed'); //IF it was by surrender, it may have very well changed the game speed. 
+			if(GameSpeed != 1.0) SetTimer(0.75f,false, 'ResetGameSpeed'); //IF it was by surrender, it may have very well changed the game speed. 
 		} else {
+			Rx_GRI(WorldInfo.GRI).WinBySurrender=false;
 			Rx_GRI(WorldInfo.GRI).WinnerReason = "triggered";
 		}
 			
@@ -1875,9 +2768,29 @@ function EndRxGame(string Reason, byte WinningTeamNum )
 		else
 			RxLog("GAME"`s "MatchEnd;"`s "tie"`s Reason `s"GDI="$Rx_TeamInfo(Teams[TEAM_GDI]).GetDisplayRenScore()`s"Nod="$Rx_TeamInfo(Teams[TEAM_NOD]).GetDisplayRenScore());
 
-		// More than one player, and game was not ended prematurely, then send stats.
-		if(NumPlayers > 0 && !(Reason ~= "triggered"))
-			SendRxStats();
+		CalculateEndGameAwards(0); 
+		CalculateEndGameAwards(1); 
+		AssignAwards(0);
+		AssignAwards(1); 
+
+		if (StatAPI != None)
+		{
+			ForEach class'WorldInfo'.static.GetWorldInfo().AllControllers(class'Rx_Controller', c)
+			if (c.GetTeamNum() == 0)
+				GDICount++;
+			else if (c.GetTeamNum() == 1)
+				NodCount++;
+
+			StatAPI.GameEnd(string(Rx_TeamInfo(Teams[TEAM_GDI]).GetDisplayRenScore()), string(Rx_TeamInfo(Teams[TEAM_NOD]).GetDisplayRenScore()), string(GDICount), string(NodCount), int(WinningTeamNum), Reason);
+			ClearTimer('GameUpdate');
+		}
+		
+		// Store score
+		foreach WorldInfo.GRI.PRIArray(pri)
+			if (Rx_PRI(pri) != None)
+			{
+				Rx_PRI(pri).OldRenScore = CalcPlayerScoreThisMatch(Rx_PRI(pri));
+			}
 
 		//M.Palko endgame crash track log.
 		`log("------------------------------Triggering game ended kismet events");
@@ -1889,9 +2802,27 @@ function EndRxGame(string Reason, byte WinningTeamNum )
 	}
 }
 
+function float CalcPlayerScoreThisMatch(Rx_Pri pri)
+{
+	local float ret;
+
+	ret = pri.GetRenScore();
+	if(ret < 1.0)
+		ret = 0.0;
+	else	
+		ret = loge(pri.GetRenScore());
+
+	if(pri.GetRenKills() - pri.Deaths > 0)
+		ret += loge((pri.GetRenKills() - pri.Deaths) / 2.0);
+		
+	return ret;
+}
+
 function PerformEndGameHandling()
 {
-	//`log("################################ -( PerformEndGameHandling() )-");
+	`log("################################ -( PerformEndGameHandling() )-");
+	`RecordGameIntStat(ROUND_ENDED,1);
+	`RecordGameIntStat(MATCH_ENDED,1);
 	super.PerformEndGameHandling();
 }
 
@@ -1914,16 +2845,17 @@ function Actor FindEndgameFocus()
 
 function SetRxEndGameFocus(Actor Focus)
 {
-	local Rx_Controller P;
+	local Controller P;
 	//`log("################################ -( SetRxEndGameFocus() )-");
 	EndGameFocus = Focus;
 
 	if ( EndGameFocus != None )
 		EndGameFocus.bAlwaysRelevant = true;
 	
-	foreach WorldInfo.AllControllers(class'Rx_Controller', P)
+	foreach WorldInfo.AllControllers(class'Controller', P)
 	{
-		P.GameHasEnded( EndGameFocus, (P.PlayerReplicationInfo != None) && (P.PlayerReplicationInfo.Team == GameReplicationInfo.Winner) );
+		if(Rx_Controller(P) != None || Rx_Bot(P) != None)			// So that any players and player-like bots will go into roundended state
+			P.GameHasEnded( EndGameFocus, (P.PlayerReplicationInfo != None) && (P.PlayerReplicationInfo.Team == GameReplicationInfo.Winner) );
 	}
 	
 	//M.Palko endgame crash track log.
@@ -1945,9 +2877,16 @@ then wait a second or two before ending the game
 function BeginSurrender(int TeamI)
 {
 	local Rx_Controller P;
-	local color MyColor; 
 	local string HR_Team;
-	MyColor = MakeColor(255,255,255, 255); 
+	local Rx_Mutator Rx_Mut;
+	
+	if(bGDIHasSurrendered || bNodHasSurrendered) return; //Catch any surrenders that get through after a team's already happened.
+	
+	Rx_Mut = GetBaseRxMutator();
+	if (Rx_Mut != None)
+	{
+		Rx_Mut.OnTeamSurrender(TeamI);
+	}
 	
 	switch (TeamI) 
 	{
@@ -1966,13 +2905,21 @@ function BeginSurrender(int TeamI)
 	
 	foreach WorldInfo.AllControllers(class'Rx_Controller', P)
 	{
-		P.CTextMessage("GDI",120, HR_Team @ "TEAM SURRENDERED!",MyColor,255,255, false,1,1) ;
+		P.CTextMessage(HR_Team @ "TEAM SURRENDERED!",,120, 1.0) ;
 	}
 	SetGameSpeed(0.5);//fancy... but we'll see how it holds up online
 	/*Both of these play the appropriate surrender Announcement AND start the small countdown to end the game. The delay for sounds make it a bit more obvious a team surrendered. */
-	if(TeamI==1) SetTimer(0.75, false, 'PlayGDISurrender');
+	if(TeamI==1) 
+	{
+		bGDIHasSurrendered = true;
+		SetTimer(1.0, false, 'PlayGDISurrender');
+	}
 	else
-	SetTimer(0.75, false, 'PlayNodSurrender'); //Account for time increase (1 second)
+	{
+	bNodHasSurrendered = true; 
+	SetTimer(1.0, false, 'PlayNodSurrender'); //Account for time increase (1 second)	
+	}
+	
 }
 
 function PlayGDISurrender() 
@@ -1981,9 +2928,16 @@ local Rx_Controller PC;
 
 	foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
 	{
-PC.ClientPlayAnnouncement(VictoryMessageClass, 5);
+	PC.ClientPlayAnnouncement(VictoryMessageClass, 5);
 	}
-SetTimer(0.75, false, 'FinishGDISurrender') ;
+	
+	SurrenderStartTime = WorldInfo.TimeSeconds ; 
+	
+	ResetGameSpeed();
+	
+	InitSurrender(0) ; 
+	
+	//SetTimer(0.75, false, 'FinishGDISurrender') ;
 	
 }
 
@@ -1993,10 +2947,86 @@ local Rx_Controller PC;
 
 	foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
 	{
-PC.ClientPlayAnnouncement(VictoryMessageClass, 4);
+		PC.ClientPlayAnnouncement(VictoryMessageClass, 4);
 	}
-SetTimer(0.75, false, 'FinishNodSurrender') ;
 	
+	SurrenderStartTime = WorldInfo.TimeSeconds ; 
+
+	
+	ResetGameSpeed();
+	
+	InitSurrender(1) ; 
+	//SetTimer(0.75, false, 'FinishNodSurrender') ;
+	
+}
+
+function PlaySurrenderClockGameOverAnnouncment()
+{
+	local int TotalTime, TimeMinutes, TimeInSeconds; 
+	
+	TotalTime = (SurrenderStartTime + SurrenderLength ) - WorldInfo.TimeSeconds ; 
+	
+	if(TotalTime <= 0) 
+		
+		{
+		
+			ClearTimer('PlaySurrenderClockGameOverAnnouncment');
+			if(bGDIHasSurrendered) FinishGDISurrender();
+			else
+			if(bNodHasSurrendered) FinishNodSurrender();
+			else
+			return;	
+		}
+	
+	TimeMinutes = (TotalTime / 60);
+		
+	TimeInSeconds = (TotalTime % 60) ;
+
+		if(TotalTime > 60) CTextBroadcast(255, "-Game Ending in:" @ TimeMinutes+1 $ "m-", 'White',,1.0) ;
+		else
+		CTextBroadcast(255, "-Game Ending in:" @ TimeInSeconds $ "s-" , 'White',,1.0) ; 
+	
+	if(!bCountingToSurrender && TotalTime <= 60) //Setup to countdown 
+	{
+	bCountingToSurrender = true; 
+	ClearTimer('PlaySurrenderClockGameOverAnnouncment');
+	SetTimer(50.0,true,'PlaySurrenderClockGameOverAnnouncment');	
+	}
+	else
+	if(bCountingToSurrender && TotalTime >=9) 
+	{
+	ClearTimer('PlaySurrenderClockGameOverAnnouncment');
+	SetTimer(1.0,true,'PlaySurrenderClockGameOverAnnouncment');
+	}
+	
+	
+	
+}
+
+function InitSurrender (byte SurrenderingTeam)
+{
+	local Rx_PRI RxPRI; 
+	local PlayerReplicationInfo PRI ; 
+	
+	foreach GameReplicationInfo.PRIArray(PRI)
+	{
+	
+	if(Rx_PRI(PRI) != none && PRI.GetTeamNum() == SurrenderingTeam) 
+		{
+			RxPRI=Rx_PRI(PRI); 
+			RxPRI.DisableVeterancy(true);
+		}
+		else
+		if(Rx_PRI(PRI) != none && PRI.GetTeamNum() != SurrenderingTeam)
+		{
+			RxPRI=Rx_PRI(PRI); 
+			RxPRI.TickVPToFull();
+			//RxPRI.Vrank=3;
+		}
+	}
+	
+	PlaySurrenderClockGameOverAnnouncment();
+	SetTimer(60.0, true, 'PlaySurrenderClockGameOverAnnouncment'); 
 }
 
 
@@ -2004,7 +3034,6 @@ function FinishGDISurrender()
 {
 	if(Rx_GRI(WorldInfo.GRI).WinnerReason ~= "By Surrender")
 	{
-	`log("Ended game with GDI Surrender");
 	EndRxGame("Surrender", 1);
 	}
 	
@@ -2014,7 +3043,6 @@ function FinishNodSurrender()
 {
 	if(Rx_GRI(WorldInfo.GRI).WinnerReason ~= "By Surrender")
 	{
-	`log("Ended game with Nod Surrender");
 	EndRxGame("Surrender", 0);
 	}
 	
@@ -2031,40 +3059,6 @@ SetGameSpeed(1);
 private function SetMatchOverState()
 {
 	GotoState('MatchOver');
-}
-
-private function SendRxStats()
-{
-	local PlayerReplicationInfo pri;
-	local string playerStats;
-
-	if ( WorldInfo.NetMode != NM_DedicatedServer)
-		return;
-
-	/**
-	ServiceBrowser.PostToService("perform0,op1,num1");
-	if(WinnerTeamNum == TEAM_GDI)
-		ServiceBrowser.PostToService("perform1,op1,num1");
-	else
-		ServiceBrowser.PostToService("perform2,op1,num1");
-	*/	
-
-	//M.Palko endgame crash track log.
-	`log("------------------------------Posted to service");
-				 	
-	foreach WorldInfo.GRI.PRIArray(pri)
-	{
-		if(!pri.bIsInactive && !pri.bBot && getPlayerStatsStringFromPri(Rx_Pri(pri)) != "") 
-		{
-			playerStats = playerStats $ getPlayerStatsStringFromPri(Rx_Pri(pri));	
-		}
-		if (Rx_PRI(pri) != None)
-			Rx_PRI(pri).OldRenScore = Rx_PRI(pri).GetRenScore();
-	}
- 	ServiceBrowser.SendPlayerStats(playerStats);
-
-	//M.Palko endgame crash track log.
-	`log("------------------------------Player stats sent");
 }
 
 private function TriggerKismetGameEnded()
@@ -2259,163 +3253,158 @@ function TriggerRemoteKismetEvent(name EventName)
 	}
 }
 
-function HandleServiceData(string Text)
+function string Unescape(string Text)
 {
-	local int i,len;
-	local array<string> Messages;
-
-	ParseStringIntoArray(Text, Messages, "<@>", true);
-	len = Messages.length;
-	Messages[len - 1] = Left(Messages[len - 1],InStr(Messages[len - 1],"<form"));
-	for(i = 1; i < len; i++)
-		`Log("[GeminiLinkClient] Message " $ i $ ": " $ Messages[i]);
+	return class'Rx_RconConnection'.static.ProcessEscapeSequences(Text);
 }
 
-function HandleBannedIP(string BannedIP)
+
+function bool ProcessNewServerInfo(JsonObject ServerData, bool isServerLan)
 {
-	local int len;
-	local array<string> Messages;
-	local PlayerReplicationInfo PRI;
+	local JsonObject ServerMoreData;
+	local ServerInfo si;
 
-
-	ParseStringIntoArray(BannedIP, Messages, "<@>", true);
-	if(Messages.length < 2)
-		return;
-	
-	len = Messages.length;
-	Messages[len - 1] = Left(Messages[len - 1],InStr(Messages[len - 1],"<form"));
-	
-	BannedIP = Messages[1];
-	
-	if(BannedIP == "")
-		return;
+	si.GameVersion = Unescape(ServerData.GetStringValue("Game Version"));
+	if (IgnoreGameServerVersionCheck || si.GameVersion == GameVersion) {
 		
-	if(InStr(BannedIP, "Dev") >= 0 || InStr(BannedIP, "::") >= 0)
+			
+		si.ServerName = Unescape(ServerData.GetStringValue("Name"));
+	
+		`logd(`Location@`showvar(si.ServerName),,'DevNet');
+
+		si.ServerIp = ServerData.GetStringValue("IP");
+		si.ServerPort = string(ServerData.GetIntValue("Port"));
+		si.MapName = Unescape(ServerData.GetStringValue("Current Map"));
+		si.NumPlayers = ServerData.GetIntValue("Players");
+		
+		ServerMoreData = ServerData.GetObject("Variables");
+
+		si.VehicleLimit = ServerMoreData.GetIntValue("Vehicle Limit");
+		si.MineLimit = ServerMoreData.GetIntValue("Mine Limit");
+		si.MaxPlayers = ServerMoreData.GetIntValue("Player Limit");
+		si.TimeLimit = ServerMoreData.GetIntValue("Time Limit");
+		si.TeamMode = ServerMoreData.GetIntValue("Team Mode");
+		si.GameType = ServerMoreData.GetIntValue("Game Type");
+		si.SteamRequired = ServerMoreData.GetBoolValue("bSteamRequired");
+		si.bPassword = ServerMoreData.GetBoolValue("bPassworded");
+		si.CratesEnabled = ServerMoreData.GetBoolValue("bSpawnCrates");
+		si.Ranked = ServerMoreData.GetBoolValue("bRanked");
+			
+		si.isLAN = isServerLan;
+
+		`logd(`Location@`ShowVar(isServerLan)@`ShowVar(si.isLAN),,'DevNet');
+
+		return AddServerInfo(si);
+	}
+	return false;
+}
+
+function AddServerPing(string ServerIp, int Index)
+{
+	local string PingIpItem;
+
+	`Entry(`ShowVar(ServerIp)@`ShowVar(Index),'DevNet');
+
+	PingIpItem = ServerIp $ "-" $ Index;
+
+	if(PingIpList != "")
+		PingIpList $= "," $ PingIpItem;
+	else
+		PingIpList $= PingIpItem;
+}
+
+function HandleServerData(JsonObject MasterServerData)
+{
+	local JsonObject ServerData;
+	local bool bIsNewServer;
+
+	bIsNewServer = false;
+
+	foreach MasterServerData.ObjectArray(ServerData)
 	{
-		Rx_BroadcastHandler(BroadcastHandler).Broadcast(None, BannedIP);
-		return;
+		`logd("HandleServerData: Server:"@ServerData,,'DevNet');
+		if(ProcessNewServerInfo(ServerData, false))
+			bIsNewServer = true;
 	}
-		
-	loginternal("Kick-Banned cause player is on global ban list: "$BannedIP);	
-	Rx_AccessControl(AccessControl).BanIP(BannedIP);
-	foreach GameReplicationInfo.PRIArray(PRI)
-		if (PRI.SavedNetworkAddress == BannedIP)
-		{
-			AccessControl.KickPlayer(PlayerController(PRI.Owner), PRI.GetHumanReadableName() $" was kickbanned for cheating. Boink!");
-			return;	
-		}
-}
 
-function HandleServerData(string Text)
-{
-	local int i, leng, actualAdd;
-	local array<string> Messages;
-	local array<string> ServerParts;
-	local array<string> DetailInfo;
-	local string ServersIpString;
-
-	actualAdd = 0;
-	ServersIpString = "";
-	ListServers.length = 0;
-	ServerListRawData = ServerListRawData $ Text;
-	
-	//parse the data when the fetching is complete.
-	if (Right(ServerListRawData, 7) == "</html>") {
-		ParseStringIntoArray(ServerListRawData, Messages, "<@>", true);
-		leng = Messages.length;
-		Messages[leng - 1] = Left(Messages[leng - 1],InStr(Messages[leng - 1],"<form"));
-
-		for(i = 1; i < (leng-1); i++)
-		{
-			//`Log("[GeminiLinkClient] Server " $ i $ ": " $ Messages[i]);
-			ParseStringIntoArray(Messages[i], ServerParts, "~", false);
-			ParseStringIntoArray(ServerParts[5], DetailInfo, ";", true);
-
-			// only add if same version, else ignore
-			//if (isSameVersion(DetailInfo[10], GameVersion))
-			//if (DetailInfo.Find(GameVersion))
-			//{
-				actualAdd++;
-				ServersIpString $= ServerParts[1]$"-"$(actualAdd-1)$",";
-				ListServers.Add(1);
-				ListServers[actualAdd-1].ServerName=ServerParts[0];
-				ListServers[actualAdd-1].ServerIP=ServerParts[1];
-				ListServers[actualAdd-1].ServerPort=ServerParts[2];
-				ListServers[actualAdd-1].bPassword=bool(ServerParts[3]);
-				//ListServers[i-1].Gametype=int(ServerParts[4]);
-				ListServers[actualAdd-1].Mapname = ServerParts[4];
-				ListServers[actualAdd-1].GameVersion = DetailInfo[10];
-				ListServers[actualAdd-1].NumPlayers=int(ServerParts[6]);
-				ListServers[actualAdd-1].MaxPlayers=int(ServerParts[7]);
-				ListServers[actualAdd-1].Ranked=int(ServerParts[8]);
-				ListServers[actualAdd-1].bInGame=bool(Left(ServerParts[9], 4));
-			//
-		}
-		
-		if (ListServers.Length > 0)
-		{
-			// start pinging async
-			leng = Len(ServersIpString) - 1;
-			ServersIpString = Left(ServersIpString, leng);
-			VersionCheck.StartPingAll(ServersIpString);
-
-			// start polling process for pings
-			curIndPinged = 0;
-			SetTimer(0.5f, false, 'PingServers');
-		}
+	if(bIsNewServer)
+	{
+		NotifyServerListUpdate();
 	}
 }
 
-function bool isSameVersion(string V1, string V2)
+function StartPings()
 {
-	return V1 ~= V2;
+	`Entry(,'DevNet');
+
+	if(ListServers.Length > 0)
+	{
+		VersionCheck.StartPingAll(PingIpList);
+
+		CurIndPinged = 0;
+		if(!IsTimerActive('PingServers'))
+			SetTimer(0.5f, true, 'PingServers');
+	}
+}
+
+/* Using Rx_VersionQueryHandler, we will fetch the data from the release JSON and parse the information here. The info is stored in the class VQueryHandler */
+function HandleVersionData(JsonObject VersionData)
+{
+	VQueryHandler.QueryedVersionNumber = VersionData.GetObject("game").GetIntValue("version_number");
+	VQueryHandler.QueryedVersionName = VersionData.GetObject("game").GetStringValue("version_name");
 }
 
 function PingServers()
 {
 	local string currentPingedIds;
 	local array<string> finishedIds;
-	local int i, leng;
+	local int i, leng, PingedCount;
 	local int PingedId;
 
-	if(curIndPinged >= ListServers.Length - 1)
-	{
-		ClearTimer('PingServers');
-		curIndPinged = 0;
-		return;
-	}
+	`Entry("", 'DevNet');
 
+	
 	currentPingedIds = VersionCheck.GetPingedIDs();
 	ParseStringIntoArray(currentPingedIds, finishedIds, ",", true);
 	leng = finishedIds.Length;
 
-	for(i = 0; i < leng; i++)
+	if(ListServers.Length != 0) //This is a workaround. When swapping between internet and local browser modes, the listserver gets cleared. The ping/version check dll lists gets cleared aswell(with an empty start ping call), but any ongoing pings still get reported back, and end up here.
 	{
-		PingedId = Int(finishedIds[i]);
-		ListServers[PingedId].Ping = VersionCheck.GetPingFor(ListServers[PingedId].ServerIP);
-	}
-
-	curIndPinged = VersionCheck.GetPingStatus() - 1;
-
-	if (curIndPinged >= ListServers.Length - 1)
-	{
-		for(i = 0; i < ListServers.Length; i++)
+		for(i = 0; i < leng; i++)
 		{
-			if (ListServers[i].Ping <= 0)
-				ListServers[i].Ping = VersionCheck.GetPingFor(ListServers[i].ServerIP);
+			PingedId = Int(finishedIds[i]);
+			ListServers[PingedId].Ping = VersionCheck.GetPingFor(ListServers[PingedId].ServerIP);
+		
+			`logd(`Location@`ShowVar(PingedId)@`ShowVar(ListServers[PingedId].Ping)@`ShowVar(ListServers[PingedId].ServerIP),,'DevNetTraffic');
 		}
-		NotifyPingFinished(curIndPinged);
+	}
+	
+	PingedCount = VersionCheck.GetPingStatus();
+
+	/*
+
+	for(i = 0; i < ListServers.Length; i++)
+	{
+		if (ListServers[i].Ping <= 0)
+		{
+			ListServers[i].Ping = VersionCheck.GetPingFor(ListServers[i].ServerIP);
+			`Logd(`Location@`ShowVar(ListServers[i].Ping),,'DevNet');
+		}
+	}*/
+
+	`Logd(`Location@`ShowVar(PingedCount)@`ShowVar(ListServers.Length),,'DevNetTraffic');
+
+	if(PingedCount >= ListServers.Length)
+	{
+		ClearTimer(nameof(PingServers));
+		//curIndPinged = 0;
+		`Logd(`Location@"Ping Timer Cleared",,'DevNet');
 	}
 
-	SetTimer(0.1f, false, 'PingServers');
+	NotifyPingFinished(PingedId);
 }
 
 delegate NotifyPingFinished(int SrvIndex);
-
-function RegisterPingFinished(delegate<NotifyPingFinished> MyNotifyDelegate)
-{
-	NotifyPingFinished = MyNotifyDelegate;
-}
 
 function bool FindInactivePRI(PlayerController PC)
 {
@@ -2434,18 +3423,8 @@ function bool FindInactivePRI(PlayerController PC)
 
 event GetSeamlessTravelActorList(bool bToEntry, out array<Actor> ActorList)
 {
-	local Actor a;
-
 	super.GetSeamlessTravelActorList(bToEntry, ActorList);
 
-	if (Rcon != None)
-	{
-		ActorList.AddItem(Rcon);
-		foreach Rcon.Children(a)
-			ActorList.AddItem(a);
-	}
-	if (RconCommands != None)
-		ActorList.AddItem(RconCommands);
 	if (MatchInfo != None)
 		ActorList.AddItem(MatchInfo);
 }
@@ -2483,14 +3462,14 @@ function NotifyNavigationChanged(NavigationPoint N)
 
 function SetObelisk()
 {
-	ForEach AllActors(class'Rx_Building_Obelisk', Obelisk) {
+	ForEach AllActors(class'Rx_Building_Nod_Defense', Obelisk) {
 		break;
 	}
 }
 
 function SetAGT()
 {
-	ForEach AllActors(class'Rx_Building_AdvancedGuardTower', AGT) {
+	ForEach AllActors(class'Rx_Building_GDI_Defense', AGT) {
 		break;
 	}
 }
@@ -2508,6 +3487,7 @@ function RestartPlayer(Controller NewPlayer)
 {
 	local Rx_Hud RxHUD;
 	super.RestartPlayer(NewPlayer);
+
 	if(Rx_Bot(NewPlayer) != None) {
 	
 		if(Rx_Bot(NewPlayer).bAttackingEnemyBase) {
@@ -2540,6 +3520,11 @@ function RestartPlayer(Controller NewPlayer)
 		TeamCredits[NewPlayer.GetTeamNum()].PlayerRI.AddItem(Rx_PRI(NewPlayer.PlayerReplicationInfo));
 		Rx_PRI(NewPlayer.PlayerReplicationInfo).SetCredits( Rx_Game(WorldInfo.Game).InitialCredits ); 
 	}	
+
+	if(GetALocalPlayerController() != none && GetALocalPlayerController().Player != none)
+		LocalPlayer(GetALocalPlayerController().Player).ClearPostProcessSettingsOverride();
+
+	//`RecordPlayerSpawn(NewPlayer, NewPlayer.Pawn.Class, NewPlayer.GetTeamNum());
 }
 
 /** Calling this advances the cycle and thus should not be called just to get the name of the next map, use GetNextMapInRotationName() */
@@ -2554,8 +3539,7 @@ function string GetNextMap()
 		return MapListManager.GetNextMap();
 	}
 	*/
-	
-	
+
 	if (bFixedMapRotation)
 	{
 		GameIndex = class'UTGame'.default.GameSpecificMapCycles.Find('GameClassName', Class.Name);
@@ -2570,10 +3554,7 @@ function string GetNextMap()
 		}
 	}
 	else
-	{
-		`log("NExt Map IS: " @ Rx_Gri(GameReplicationInfo).GetMapVoteName()  );
-			
-			
+	{	
 		return Rx_Gri(GameReplicationInfo).GetMapVoteName();
 	}
 
@@ -2637,19 +3618,21 @@ function array<string> BuildMapVoteList()
 /*Functions added to add/remove maps from the rotation while in-game*/
 
 exec function bool AddMapToRotation(string MapName) /*Return if the given map name was a valid map, then add a map to the map rotation*/
-{
+{	
 	local array<string> MapPool;
 	
-MapPool = class'UTGame'.default.GameSpecificMapCycles[class'UTGame'.default.GameSpecificMapCycles.Find('GameClassName', class'Rx_Game'.Name)].Maps;	
-
-	if(MapPool.Find(MapName) == -1 )
+	MapPool = class'UTGame'.default.GameSpecificMapCycles[class'UTGame'.default.GameSpecificMapCycles.Find('GameClassName', class'Rx_Game'.Name)].Maps;	
+	
+	if(bDoesMapExist(MapName))
 	{
-	`log("Did not find map, adding to rotation");
-	//insert code to verify is legitimate map 
-	MapPool.AddItem(MapName); 
-	EditMapArray(MapPool);
-	saveconfig();
-	return true; 
+		//`log("Did not find map, adding to rotation");
+		
+		if( !MapPackageExists(MapName) ) return false; 
+		
+		MapPool.AddItem(MapName); 
+		EditMapArray(MapPool);
+		saveconfig();
+		return true; 
 	}
 	return false; 
 }
@@ -2659,68 +3642,66 @@ exec function bool RemoveMapFromRotation(string MapName) /*Return if the given m
 	local array<string> MapPool;
 	
 	MapPool = class'UTGame'.default.GameSpecificMapCycles[class'UTGame'.default.GameSpecificMapCycles.Find('GameClassName', class'Rx_Game'.Name)].Maps;	
-
-	if(MapPool.Find(MapName) != -1 )
+	
+	if(bDoesMapExist(MapName))
 	{
-	`log("Found Map: removing");
-	//insert code to verify is legitimate map 
-	MapPool.RemoveItem(MapName);
-	EditMapArray(MapPool);
-	saveconfig(); 
-	return true; 
+		`log("Found map"@MapName$", removing from rotation.");
+		//insert code to verify is legitimate map 
+		MapPool.RemoveItem(MapName);
+		EditMapArray(MapPool);
+		saveconfig(); 
+		return true; 
 	}
+	return false; 
+}
+
+function bool bDoesMapExist(string MapName)
+{
+	local array<string> MapPool;
+	
+	MapPool = class'UTGame'.default.GameSpecificMapCycles[class'UTGame'.default.GameSpecificMapCycles.Find('GameClassName', class'Rx_Game'.Name)].Maps;	
+
+	if (MapPool.Find(MapName) != -1)
+	{
+		`log(MapName@"does exist.");
+		return true; 
+	}
+
 	return false; 
 }
 
 function EditMapArray(array<string> NewMapList)
 {
-local int I; 
+	local int i; 
 	
 	GameSpecificMapCycles[GameSpecificMapCycles.Find('GameClassName', class'Rx_Game'.Name)].Maps.Length=0; //Delete the old map list
 	
-	for(I=0; I<NewMapList.Length; I++)
-		{
-		`log("Adding Item" @ NewMapList[I]) ;
-		GameSpecificMapCycles[GameSpecificMapCycles.Find('GameClassName', class'Rx_Game'.Name)].Maps.AddItem(NewMapList[I]) ; //create the new map list
-		}
+	for(i = 0; i < NewMapList.Length; i++)
+	{
+		`log("Adding item" @ NewMapList[i]) ;
+		GameSpecificMapCycles[GameSpecificMapCycles.Find('GameClassName', class'Rx_Game'.Name)].Maps.AddItem(NewMapList[i]) ; //create the new map list
+	}
 }
 
 exec function GetMapRotation() //Obviously get the map-rotation
 {
-
-local array<string> MapPool;
-local int I;
+	local array<string> MapPool;
+	local int i;
+		
+	MapPool = default.GameSpecificMapCycles[default.GameSpecificMapCycles.Find('GameClassName', class'Rx_Game'.Name)].Maps;	
 	
-MapPool = default.GameSpecificMapCycles[default.GameSpecificMapCycles.Find('GameClassName', class'Rx_Game'.Name)].Maps;	
-
-	RxLog("Generating Map List");
-	for(I=0; I<MapPool.Length; I++)
-	{
-		RxLog("Map"`s I `s ":" `s MapPool[I]); 
-	}
-
+		RxLog("Generating Map List");
+		for(i = 0; i < MapPool.Length; i++)
+		{
+			RxLog("Map"`s i `s ":" `s MapPool[i]); 
+		}
 }
 
-function VersionCheckComplete(bool OutOfDate)
+exec function ExitGameAndOpenLauncher()	// For the time being, just exit the game. Will open launcher/reopen launcher to prompt for download at a later date.
 {
-	if (OutOfDate)
-	{
-		`warn("Game is out of date, visit www.Renegade-X.com to update.");
-		// Do something here if our game is out of date.
-		VersionCheck.NotifyDelegate();
-
-	}
-}
-
-exec function CheckVersion ()
-{
-	VersionCheck.BroadcastVersion();
-	VersionCheck.LogVersion();
-}
-
-exec function OpenDownloadLink ()
-{
-	VersionCheck.CloseGameAndOpenDownloadURL();
+	//ConsoleCommand("Exit");
+	`log("Attempting to close game and open launcher now"@Rx_GameEngine(class'Engine'.static.GetEngine()).DllCore.UpdateGame());
+	Rx_GameEngine(class'Engine'.static.GetEngine()).DllCore.UpdateGame();
 }
 
 /** Modifeid version of UTGame::ProcessServerTravel and supercall to GameInfo. Adds map change Rxlog and Seamless travel control. */
@@ -2748,10 +3729,7 @@ function ProcessServerTravel(string URL, optional bool bAbsolute)
 	bLevelChange = true;
 	EndLogging("mapchange");
 
-	if (bForceNonSeamless)
-		bSeamless = false;
-	else
-		bSeamless = (bUseSeamlessTravel && WorldInfo.TimeSeconds < MaxSeamlessTravelServerTime);
+	bSeamless = false;
 
 	if (InStr(Caps(URL), "?RESTART") != INDEX_NONE)
 	{
@@ -2772,15 +3750,35 @@ function ProcessServerTravel(string URL, optional bool bAbsolute)
 	NextMapGuid = GetPackageGuid(name(NextMap));
 
 	if (bSeamless)
-	{
 		RxLog("MAP"`s"Changing;"`s NextMap `s "seamless");
-	}
 	else
-	{
 		RxLog("MAP"`s"Changing;"`s NextMap `s "nonseamless");
-		if (Rcon != None)
-			Rcon.NotifyNonSeamless();
+
+	// Set the teams for the next round
+	switch (TeamMode)
+	{
+	case 0: // Static
+		RetainTeamsNextMatch();
+		break;
+	case 1: // Swap
+		SwapTeamsNextMatch();
+		break;
+	case 2: // Random swap
+		if (Rand(2) != 0)
+			SwapTeamsNextMatch();
+		break;
+	case 3: // Shuffle
+		ShuffleTeamsNextMatch();
+		break;
+	case 4: // Default (do nothing)
+		break;
+	default: // Invalid value; do nothing
+		break;
 	}
+
+	// Remove bots
+	DesiredPlayerCount = NumPlayers;
+	KillBots();
 
 	// Notify clients we're switching level and give them time to receive.
 	LocalPlayer = ProcessClientTravel(URL, NextMapGuid, bSeamless, bAbsolute);
@@ -2838,264 +3836,95 @@ function Rx_Mutator GetBaseRxMutator()
 	return None;
 }
 
-/* RCON COMMANDS */
-
-function string RconCommand(string CommandLine)
+simulated function GiveTeamCredits(float Credits, byte TeamNum) 
 {
-	local string command, parameters;
-	local Rx_Rcon_Command cmd;
-	//local string feedback;
-	//local Rx_Mutator mut;
-
-	if (InStr(CommandLine," ") >= 0)
-	{
-		command = Left(CommandLine,InStr(CommandLine," "));
-		parameters = Split(CommandLine," ",true);
-	}
-	else
-	{
-		command = CommandLine;
-		parameters = "";
-	}
-	command = Locs(command);
+	local PlayerReplicationInfo pri;
+	local int index;
 	
-	// Check dynamic command list
-	cmd = RconCommands.GetCommand(command);
-	if (cmd != None)
-		return cmd.trigger(parameters);
+	for (index = 0; index < WorldInfo.GRI.PRIArray.Length; ++index)
+	{
+		pri = WorldInfo.GRI.PRIArray[index];
+		if (Rx_PRI(pri) != None && pri.GetTeamNum() == TeamNum)
+			Rx_PRI(pri).addCredits(Credits);
+	}
+}
 
-	// existing UDK/UT commands to block:
-	if (RconCommands.IsBlockedCommand(command))
-		return "Blocked ConsoleCommand";
+function bool AreTeamRefineriesDestroyed(byte teamNum)
+{
+	local int i;
 
-	// Not a Rcon implemented command, try as ConsoleCommand.
-	ConsoleCommand(CommandLine);
-	return "Non-existent RconCommand - executed as ConsoleCommand";
+	if(TeamCredits[teamNum].Refinery.length <= 0)
+		return true;
+
+	for(i=0; i<TeamCredits[teamNum].Refinery.length; i++)
+	{
+		if(!TeamCredits[teamNum].Refinery[i].IsDestroyed())
+			return false;
+	}
+
+	return true;
+}
+
+function float GetTeamRefineryCreditsSum(byte teamNum)
+{
+	local int i;
+	local float Credits;
+
+	if(TeamCredits[teamNum].Refinery.length <= 0)
+		return 0;
+
+	for(i=0; i<TeamCredits[teamNum].Refinery.length; i++)
+	{
+		if(!TeamCredits[teamNum].Refinery[i].IsDestroyed())
+			Credits += TeamCredits[teamNum].Refinery[i].CreditsPerTick;
+
+	}
+	return Credits;
+}
+
+function TickCredits(byte TeamNum)
+{
+	local float CreditTickAmount;
+	
+	CreditTickAmount = Rx_MapInfo(WorldInfo.GetMapInfo()).BaseCreditsPerTick;
+
+	CreditTickAmount += GetTeamRefineryCreditsSum(TeamNum);
+	
+	GiveTeamCredits(CreditTickAmount, TeamNum);
+	
+	//Sync Credit and CP ticks 
+	Rx_TeamInfo(Teams[0]).AddCommandPoints(default.CP_TickRate+(DestroyedBuildings_GDI*0.5)) ;
+	Rx_TeamInfo(Teams[1]).AddCommandPoints(default.CP_TickRate+(DestroyedBuildings_Nod*0.5)) ;
+}
+
+function Tick(float DeltaTime)
+{
+	if(!(worldinfo.IsPlayInEditor() || worldinfo.IsPlayInPreview()))
+		Rx_GameEngine(class'Engine'.static.GetEngine()).RxTick(DeltaTime);
+	
+	// Credit ticking
+	CreditTickTimer -= DeltaTime;
+
+	LANBroadcast.Tick(DeltaTime);
+
+	if (CreditTickTimer <= 0 && WorldInfo.GRI.bMatchHasBegun)
+	{
+		TickCredits(TEAM_GDI);
+		TickCredits(TEAM_NOD);
+		
+		// Reset timer
+		CreditTickTimer = CreditTickRate;
+	}
+}
+
+function LANRecievedLineSubscriber(string Line)
+{
+	`log("Rx_Game: LANRecievedLineSubscriber:" @ Line);
 }
 
 function bool MapPackageHasDayNight (string ThePackage)
 {
-	//`log("Package: " @ caps(ThePackage));
-	return 
-	caps(ThePackage) == "CNC-MESA_II" ||
-	caps(ThePackage) == "CNC-FIELD"   ||
-	caps(ThePackage) == "CNC-CANYON" ;
-	//ThePackage == "CnC-Canyon"	||
-	
-}
-
-//Establish static minelimits per map. Default will be 50 for any map not recognized.
-//Sure it's ugly, but I like switch statements.  
-function int GetMapMineLimit (string MapName)
-
-{
-local string CappedName; 
-
-CappedName=Caps(MapName);
-
-//If it's a Day or Night map, named correctly, then strip the day or Night suffix
-if(right(CappedName, 6) ~= "_NIGHT") CappedName = Left(CappedName, Len(CappedName)-6);   
-
-if(right(CappedName, 4) ~= "_DAY") CappedName = Left(CappedName, Len(CappedName)-4);  
-	
-switch (CappedName)
-	{
-	case "CNC-CANYON" :
-	return  20 ; //40;
-	break;
-	
-	case "CNC-COMPLEX" :
-	return 20 ; //40;
-	break;
-	
-	case "CNC-DECK":
-	return 6 ;//10;
-	break;
-	
-	case "CNC-EYES":
-	return 30 ;//55;
-	break;
-	
-	case "CNC-FIELD":
-	return 20 ;//35;
-	break;
-	
-	case "CNC-GOLDRUSH":
-	return 28 ;//50;
-	break;
-	
-	case "CNC-ISLANDS":
-	return 20; //40
-	break;
-	
-	case "CNC-LAKESIDE":
-	return 24 ;//50;
-	break;
-	
-	case "CNC-MESA_II":
-	return 25; //50
-	break;
-	
-	case "CNC-TRAININGYARD":
-	return 25; //45
-	break;
-	
-	case "CNC-UNDERREDUX":
-	return 24; //35
-	break;
-	
-	case "CNC-VALLEY":
-	return 12; //20
-	break;
-	
-	case "CNC-VOLCANO":
-	return 22; // 50
-	break;
-	
-	case "CNC-WALLS_FLYING":
-	return 30; //55;
-	break;
-	
-	case "CNC-WHITEOUT":
-	return 30; //60;
-	break;
-	
-	case "CNC-XMOUNTAIN":
-	return 28; //50;
-	break;
-	
-	case "CNC-SNOW":
-	return 12; //50;
-	break;
-	
-	case "CNC-TombRedux":
-	return 25;
-	break;
-	
-	case "CNC-BeachHead":
-	return 24;
-	break;
-	
-	case "CNC-GrassyKnoll":
-	return 20;
-	break;
-	
-	case "CNC-Crash_Site":
-	return 30;
-	break;
-	
-	default: 
-	`log("Map not recognized: setting mine limit to default 30");
-	return 30; 
-	break; 
-	}
-	
-}
-
-function int GetMapVehicleLimit (string MapName)
-
-{
-local string CappedName; 
-
-CappedName=Caps(MapName);
-
-//If it's a Day or Night map, named correctly, then strip the day or Night suffix
-if(right(CappedName, 6) ~= "_NIGHT") CappedName = Left(CappedName, Len(CappedName)-6);   
-
-if(right(CappedName, 4) ~= "_DAY") CappedName = Left(CappedName, Len(CappedName)-4);  
-	
-switch (CappedName)
-	{
-	case "CNC-CANYON" :
-	return 10;
-	break;
-	
-	case "CNC-COMPLEX" :
-	return 10;
-	break;
-	
-	case "CNC-DECK":
-	return 93;
-	break;
-	
-	case "CNC-EYES":
-	return 10;
-	break;
-	
-	case "CNC-FIELD":
-	return 8;
-	break;
-	
-	case "CNC-GOLDRUSH":
-	return 10;
-	break;
-	
-	case "CNC-ISLANDS":
-	return 10;
-	break;
-	
-	case "CNC-LAKESIDE":
-	return 11;
-	break;
-	
-	case "CNC-MESA_II":
-	return 9;
-	break;
-	
-	case "CNC-TRAININGYARD":
-	return 8;
-	break;
-	
-	case "CNC-UNDERREDUX":
-	return 10;
-	break;
-	
-	case "CNC-VALLEY":
-	return 31;
-	break;
-	
-	case "CNC-VOLCANO":
-	return 8;
-	break;
-	
-	case "CNC-WALLS_FLYING":
-	return 9;
-	break;
-	
-	case "CNC-WHITEOUT":
-	return 9;
-	break;
-	
-	case "CNC-XMOUNTAIN":
-	return 10;
-	break;
-	
-	case "CNC-Snow":
-	return 8;
-	break;
-	
-	case "CNC-TombRedux":
-	return 8;
-	break;
-	
-	case "CNC-BeachHead":
-	return 10;
-	break;
-	
-	case "CNC-GrassyKnoll":
-	return 8;
-	break;
-	
-	case "CNC-Crash_Site":
-	return 8;
-	break;
-	
-	default: 
-	`log("Map not recognized: setting Vehicle limit to 8");
-	return 8; 
-	break; 
-	}
-	
+	return false;
 }
 
 function bool PickupQuery(Pawn Other, class<Inventory> ItemClass, Actor Pickup)
@@ -3117,19 +3946,741 @@ function bool PickupQuery(Pawn Other, class<Inventory> ItemClass, Actor Pickup)
 	return ret;
 }
 
-function ReconnectDevBot(Rx_Controller PC)
+function RxConsFail(PlayerController Con)
 {
-	if (PC.bIsDev || InStr(OnlineSub.UniqueNetIdToString(PC.PlayerReplicationInfo.UniqueId), "0x0110000104AE0666") >= 0)
+	if(Con != none) 
 	{
-		RconOut.Close();
-		RconOut.connect();
+		Rx_Controller(Con).ResetRxConsole(); 
+		RxLog("Player" `s `PlayerLog(Con.PlayerReplicationInfo) `s"Kicked for CONSOLE MISMATCH;");
+		AccessControl.KickPlayer(Con, "CONSOLE MISMATCH");
 	}
+}
+
+exec function QueueDownload(string PackageName)
+{
+	`RxEngineObject.PackageDownloader.QueueDownload(PackageName);
+}
+
+function CalculateEndGameAwards(byte ForTeam)
+{
+local PlayerReplicationInfo PRI;
+local Rx_PRI RxPRI, Offensive_PRI, Defensive_PRI, Support_PRI, MVP_PRI;
+local float HighestOffensiveScore, HighestDefensiveScore, HighestSupportScore, HighestTotalScore;
+
+	foreach GameReplicationInfo.PRIArray(PRI)
+		{
+		
+		if(Rx_PRI(PRI) != none && PRI.GetTeamNum() == ForTeam) 
+			{
+				RxPRI=Rx_PRI(PRI); 
+
+				RxPRI.UpdateAllScores(); //Refresh all scores
+				
+				//Is its offensive score higher than the current? If so, set it to the highest
+				if(RxPRI.Score_Offense > HighestOffensiveScore) 
+				{
+					HighestOffensiveScore = RxPRI.Score_Offense; 	
+					Offensive_PRI = RxPRI; 
+				}
+				//Same For Defense
+				if(RxPRI.Score_Defense > HighestDefensiveScore) 
+				{
+					HighestDefensiveScore = RxPRI.Score_Defense; 	
+					Defensive_PRI = RxPRI; 
+				}
+				//Same For Defense
+				if(RxPRI.Score_Support > HighestSupportScore) 
+				{
+					HighestSupportScore = RxPRI.Score_Support; 	
+					Support_PRI = RxPRI; 
+				}
+				//Lastly, for the grand total to find MVP 
+				if(RxPRI.GetTotalScore() > HighestTotalScore) 
+				{
+					HighestTotalScore = RxPRI.GetTotalScore(); 	
+					MVP_PRI = RxPRI; 
+				}
+			}
+		}
+		
+	if(MVP_PRI != none)
+		{
+			Award_MVP[ForTeam] = MVP_PRI;	
+			//`log("MVP Score:" @ Award_MVP[ForTeam].GetTotalScore() @ Award_MVP[ForTeam].PlayerName  );
+		}
+	if(Offensive_PRI != none)
+		{
+			Award_Offense[ForTeam] = Offensive_PRI;
+			//`log("Offense Score: " @ Award_Offense[ForTeam].Score_Offense );	
+		}
+	if(Defensive_PRI != none)
+		{
+			Award_Defense[ForTeam] = Defensive_PRI;
+			//`log("Defense Score: " @ Award_Defense[ForTeam].Score_Defense);
+		}
+	if(Support_PRI != none)
+		{
+			Award_Support[ForTeam] = Support_PRI; 
+			//`log("Support Score: " @ Award_Support[ForTeam].Score_Support);
+		}
+
+
+
+	
+}
+
+function AssignAwards(byte ForTeam)
+{
+	local string RMVP, RBO,RBD,RBS;
+	if(ForTeam > 1) return;
+	
+	if(Award_MVP[ForTeam] != none) RMVP = Award_MVP[ForTeam].PlayerName;
+	if(Award_Offense[ForTeam] != none) RBO = Award_Offense[ForTeam].PlayerName;
+	if(Award_Defense[ForTeam] != none) RBD = Award_Defense[ForTeam].PlayerName;
+	if(Award_Support[ForTeam] != none) RBS = Award_Support[ForTeam].PlayerName;
+	
+	Rx_GRI(GameReplicationInfo).SetAwards(ForTeam,RMVP,RBO,RBD,RBS); 
+}
+
+/*****************************************************
+*********************Team Management******************
+******************************************************/
+
+function bool RTCDisabled()
+{
+	return WorldInfo.TimeSeconds < RTC_DisableTime; 
+}
+
+function string GetRTCDisabledTimeString()
+{
+	return max(0,RTC_DisableTime - WorldInfo.TimeSeconds)/60 $ ":" $ int((RTC_DisableTime - WorldInfo.TimeSeconds) % 60) ; 
+	
+}
+
+function AddTeamChangeRequest(Rx_PRI PRI)
+{
+	local TC_Request RTC_Ticket;
+	local bool bCanSwitch;
+	local Rx_Controller RxC; 
+	local string TeamString;
+	
+	bCanSwitch = true; 
+	
+	RTC_Ticket.PPRI = PRI; 
+	RTC_Ticket.TimeStamp = WorldInfo.TimeSeconds;
+	
+	if(RTC_GDI.Find('PPRI', PRI) != -1) bCanSwitch = false; 
+	else
+	if(RTC_Nod.Find('PPRI', PRI) != -1) bCanSwitch = false; 
+	
+	if(!bCanSwitch) 
+	{
+		Rx_Controller(PRI.Owner).CTextMessage("You already have a change request"); 
+		return; 
+	}
+	
+	if(PRI.GetTeamNum() == 0) 
+	{
+		RTC_GDI.AddItem(RTC_Ticket); 
+		TeamString = "To Nod"; 
+	}
+	else
+	{
+		RTC_Nod.AddItem(RTC_Ticket); 
+		TeamString = "To GDI"; 
+	}
+	
+	
+	foreach WorldInfo.AllControllers(class'Rx_Controller', RxC)
+	{
+		RxC.CTextMessage(PRI.PlayerName @ "Wants to swap" @ TeamString, 'Orange', 80); 
+	}
+	
+	CleanupRTC(); 
+	if(TeamsAreEven()) ProcessRTC(); 
+	
+}
+
+function bool TeamsAreEven()
+{
+	local int T1_Players, T2_Players; 
+	local PlayerReplicationInfo PRI;
+	
+	if(WorldInfo.NetMode == NM_StandAlone) return false; 
+	else
+	{
+		CleanupRTC();
+		
+		foreach WorldInfo.GRI.PRIArray(PRI)
+		{
+			if(PRI.bBot) continue; 
+			else
+			if(PRI.GetTeamNum() == 0) T1_Players++; 
+			else
+			if(PRI.GetTeamNum() == 1) T2_Players++;
+		}
+	
+	}
+	//`log(T1_Players @ "/" @ T2_Players);
+	
+	if(T1_Players == T2_Players) return true; 
+}
+
+function CleanupRTC()
+{
+	local TC_Request RT; 
+
+	//Clean out GDI RTCs
+	foreach RTC_GDI(RT)
+		{
+			if(WorldInfo.TimeSeconds - RT.TimeStamp >= RTC_TimeLimit) 
+			{
+				Rx_Controller(RT.PPRI.Owner).CTextMessage("-Team change request expired-") ;
+				RTC_GDI.RemoveItem(RT);
+			}
+		}
+		//Clean out Nod RTCs
+		foreach RTC_Nod(RT)
+		{
+			if(WorldInfo.TimeSeconds - RT.TimeStamp >= RTC_TimeLimit) 
+			{
+				Rx_Controller(RT.PPRI.Owner).CTextMessage("-Team change request expired-") ;
+				RTC_Nod.RemoveItem(RT);	
+			}
+		}
+}
+
+function ProcessRTC()
+{
+	local int i; 
+	local int CredAmount;
+	for(i=0;i<RTC_GDI.Length;i++)
+	{
+	if(RTC_GDI[i].PPRI != none && RTC_Nod[i].PPRI !=none) 
+		{
+			/*Process GDI Player*/ 
+			
+			//Remove commander status from either of them 
+			if(RTC_GDI[i].PPRI == Commander_PRI[0]) RemoveCommander(0);
+			if(RTC_Nod[i].PPRI == Commander_PRI[1]) RemoveCommander(1);
+			
+			CredAmount = RTC_GDI[i].PPRI.GetCredits();
+			SetTeam(Controller(RTC_GDI[i].PPRI.Owner),Teams[TEAM_Nod], true);
+			
+			if (Controller(RTC_GDI[i].PPRI.Owner).Pawn != None)
+				Controller(RTC_GDI[i].PPRI.Owner).Pawn.Destroy();
+		
+			RTC_GDI[i].PPRI.SetCredits(CredAmount);
+			
+			/*Process Nod Player*/ 
+			
+			
+			CredAmount = RTC_Nod[i].PPRI.GetCredits();
+			SetTeam(Controller(RTC_Nod[i].PPRI.Owner),Teams[TEAM_GDI], true);
+			
+			if (Controller(RTC_Nod[i].PPRI.Owner).Pawn != None)
+				Controller(RTC_Nod[i].PPRI.Owner).Pawn.Destroy();
+			
+			RTC_Nod[i].PPRI.SetCredits(CredAmount);
+			
+			//SetTeam(Controller(RTC_Nod[i].PPRI.Owner) ,Teams[TEAM_GDI], true);
+			CTextBroadcast(255, Caps("SWAPPED:" @ RTC_GDI[i].PPRI.PlayerName @ "and" @ RTC_Nod[i].PPRI.PlayerName)); 
+			RTC_GDI.Remove(i,1);
+			RTC_Nod.Remove(i,1);
+		}		
+	}
+
+}
+
+function CTextBroadcast(byte TeamByte,string TEXT, optional name Colour = 'LightBlue', optional float TIME = 60.0, optional float Size = 1.0, optional bool bWarning)
+{
+	local Rx_Controller P; 
+	
+	if(TeamByte == 0 || TeamByte == 1)
+	{
+		foreach WorldInfo.AllControllers(class'Rx_Controller', P)
+		{
+			if(P.GetTeamNum() == TeamByte) 
+				P.CTextMessage(TEXT,Colour,TIME, Size,,bWarning) ; 
+			else
+				continue;
+		}
+	}
+	else
+	{
+	foreach WorldInfo.AllControllers(class'Rx_Controller', P)
+		{
+			P.CTextMessage(TEXT,Colour,TIME, Size) ;
+		}
+	}
+}
+
+function CTextSquadBroadcast(byte TeamByte, byte SquadNumber,string TEXT, optional name Colour = 'LightBlue', optional float TIME = 60.0, optional float Size = 1.0)
+{
+	local Rx_Controller P; 
+	
+	if(TeamByte == 0 || TeamByte == 1)
+	{
+		foreach WorldInfo.AllControllers(class'Rx_Controller', P)
+		{
+			if(P.GetTeamNum() == TeamByte && Rx_PRI(P.PlayerReplicationInfo).CurrentControlGroup == SquadNumber)  P.CTextMessage(TEXT,Colour,TIME, Size) ;
+			else
+			continue;
+		}
+	}
+	else
+	return; 
+}
+
+function bool TeamHasSurrendered()
+{
+	return bGDIHasSurrendered || bNodHasSurrendered ; 
+}
+
+/****************************
+*Commander Functions 
+****************************/
+
+function ChangeCommander(byte ToTeam, Rx_PRI RxPRI, optional bool bIsInitialSetting = false)
+{
+	local Rx_PRI PRIi;
+	
+	if(!bEnableCommanders) return; 
+	
+	RemoveCommander(ToTeam);
+	
+	Commander_PRI[ToTeam] = RxPRI; 
+	
+	if(bUseStaticCommanders && !bIsInitialSetting) `RxEngineObject.SetStaticCommanderID(ToTeam, RxPRI);
+	
+	foreach AllActors(class'Rx_PRI', PRIi)
+	{
+	if(PRIi.GetTeamNum() == ToTeam )	
+		{
+			PRIi.SetCommander(RxPRI); 	
+		}
+	}
+}
+
+function RemoveCommander(byte ToTeam)
+{
+	local Rx_PRI PRIi;
+	
+	Commander_PRI[ToTeam] = none; 
+	
+	//if(bUseStaticCommanders) `RxEngineObject.ClearStaticCommanderID(ToTeam);
+	
+	foreach AllActors(class'Rx_PRI', PRIi)
+	{
+	if(PRIi.GetTeamNum() == ToTeam )	
+		{
+			PRIi.RemoveCommander(ToTeam); 	
+		}
+	}
+}
+
+function int GetFreeTarget(byte TeamByte, byte TargetType, PlayerReplicationInfo RxPRI)
+{
+	
+	//local byte AntiTeamByte; 
+	//local Rx_PRI PRIi; 
+	local int i; 
+	
+	//NOTE: For now, only attack targets are numbered
+	
+	//AntiTeamByte = TeamByte == 0 ? 1 : 0 ;
+	//Geeds
+	if(TeamByte == 1 && TargetType == 1)
+	{
+		/**if(TargetedPlayers_Nod.Length == 0 || TargetedPlayers_Nod[0] == none) 
+		{
+			TargetedPlayers_Nod.InsertItem(0, RxPRI); 
+			return 1; 	
+		}
+		else*/ //Find a number that isn't being used, or add one.
+		//{
+			if(TargetedPlayers_Nod.Find(RxPRI) != -1) 
+			{
+				return -1 ; //Found, tell PRI to just refresh its timer 	
+			}
+			else
+			{
+				/**TargetedPlayers_Nod.RemoveItem(none); //Get rid of null items 
+				TargetedPlayers_Nod.AddItem(RxPRI); 
+				*/
+				for (i=0;i<=TargetedPlayers_Nod.Length;i++)
+				{
+					if(i==TargetedPlayers_Nod.Length) 
+					{
+						//`log("Adding new target" $ i);
+						TargetedPlayers_Nod.AddItem(RxPRI);
+						return i+1; //TargetedPlayers_Nod.Length; 
+					}
+					else
+					if(TargetedPlayers_Nod[i] == none)
+					{
+						//`log("Found occurrence NONE - I is " $ i);
+						TargetedPlayers_Nod[i] = RxPRI; 
+						return i+1; 
+					}
+				}
+				
+				
+			}
+		//}	
+	}
+	else
+	//Nod's Attack target logic 
+	if(TeamByte == 0 && TargetType == 1)
+	{
+		/**if(TargetedPlayers_Nod.Length == 0 || TargetedPlayers_Nod[0] == none) 
+		{
+			TargetedPlayers_Nod.InsertItem(0, RxPRI); 
+			return 1; 	
+		}
+		else*/ //Find a number that isn't being used, or add one.
+		//{
+			if(TargetedPlayers_GDI.Find(RxPRI) != -1) 
+			{
+				return -1 ; //Found, tell PRI to just refresh its timer 	
+			}
+			else
+			{
+				/**TargetedPlayers_GDI.RemoveItem(none); //Get rid of null items 
+				TargetedPlayers_GDI.AddItem(RxPRI); 
+				*/
+				for (i=0;i<=TargetedPlayers_GDI.Length;i++)
+				{
+					if(i==TargetedPlayers_GDI.Length) 
+					{
+						//`log("Adding new target" $ i);
+						TargetedPlayers_GDI.AddItem(RxPRI);
+						return i+1; //TargetedPlayers_GDI.Length; 
+					}
+					else
+					if(TargetedPlayers_GDI[i] == none)
+					{
+						//`log("Found occurrence NONE - I is " $ i);
+						TargetedPlayers_GDI[i] = RxPRI; 
+						return i+1; 
+					}
+				}
+				
+				
+			}
+		//}	
+	}
+	
+	return 9999; 
+}
+
+function RemoveTarget(byte TeamByte, PlayerReplicationInfo RxPRI, optional byte Special) //Special (USed for a target being destroyed or what not)
+{
+
+	local int i;
+	local bool bPlayDecayMsg; //Don't spam decay messages. We get it, Yosh! We done fucked up! 
+
+	bPlayDecayMsg = (WorldInfo.TimeSeconds - LastDecayMsgTime[TeamByte]) >= 3.0 ; 
+	 
+	if(TeamByte == 0 ) 
+	{ 
+		i = TargetedPlayers_GDI.Find(RxPRI);
+
+		if (i != -1) TargetedPlayers_GDI[i] = none ; //.Remove(i,1) ;
+
+		switch (Special)
+		{
+			//0-9 Infantry
+			case 0:
+			if(bPlayDecayMsg)
+			{
+				CTextBroadcast(1,"--Infantry Target Decayed--",'White');
+				LastDecayMsgTime[TeamByte] = WorldInfo.TimeSeconds; 
+			}  
+			break; 
+			case 1: 
+				CTextBroadcast(1,"--Infantry Target Eliminated--",'Green'); 
+				Rx_TeamInfo(Teams[1]).AddCommandPoints(CPReward_Infantry, "Command Target Elimination&" $ CPReward_Infantry $ "&") ; 
+				break;
+			
+			//10's Ground vehicles 
+			
+				case 10:			
+				if(bPlayDecayMsg) 
+				{
+					CTextBroadcast(1,"--Vehicle Target Decayed--",'White'); 
+					LastDecayMsgTime[TeamByte] = WorldInfo.TimeSeconds; 
+				}
+				break;
+			
+			case 11:			
+				CTextBroadcast(1,"--Vehicle Target Eliminated--",'Green');
+				Rx_TeamInfo(Teams[1]).AddCommandPoints(CPReward_Vehicle, "Command Target Elimination&" $ CPReward_Vehicle $ "&") ;
+				break;
+			
+			//30's Emplacement messages
+			
+			case 30 :
+				if(bPlayDecayMsg)
+				{
+					CTextBroadcast(1,"--Emplacement Target Decayed--",'White'); 
+					LastDecayMsgTime[TeamByte] = WorldInfo.TimeSeconds; 
+				}				
+				break;
+			
+			case 31 :
+				CTextBroadcast(1,"--Emplacement Target Destroyed--",'Green');
+				Rx_TeamInfo(Teams[1]).AddCommandPoints(CPReward_Emplacement, "Command Target Elimination&" $ CPReward_Emplacement $ "&") ;
+				break;
+			
+			//40's = Aircraft messages
+			case 40 :
+				if(bPlayDecayMsg) 
+				{
+					CTextBroadcast(1,"--Aircraft Target Decayed--",'White');
+					LastDecayMsgTime[TeamByte] = WorldInfo.TimeSeconds; 
+				}
+			
+				break;
+			
+			case 41 :
+				CTextBroadcast(1,"--Aircraft Target Destroyed--",'Green');
+				Rx_TeamInfo(Teams[1]).AddCommandPoints(CPReward_Vehicle, "Command Target Elimination&" $ CPReward_Vehicle $ "&") ;			
+				break;
+				
+				//100+ for special messages 
+			case 100: 
+				if(bPlayDecayMsg) 
+				{
+					CTextBroadcast(1,"--Stealth Target Lost--",'LightBlue'); 
+					LastDecayMsgTime[TeamByte] = WorldInfo.TimeSeconds; 
+				}
+			
+			break;
+			
+			default: 
+			break; 
+		}
+	}
+	else
+	if(TeamByte == 1 ) 
+	{ 
+		i = TargetedPlayers_Nod.Find(RxPRI);
+
+		if (i != -1) TargetedPlayers_Nod[i] = none ; //.Remove(i,1) ;
+
+		switch (Special)
+		{
+			//0-9 Infantry
+			case 0:
+				if(bPlayDecayMsg)
+				{
+					CTextBroadcast(0,"--Infantry Target Decayed--",'White');
+					LastDecayMsgTime[TeamByte] = WorldInfo.TimeSeconds; 
+				}
+			
+			break; 
+			
+			case 1:
+				CTextBroadcast(0,"--Infantry Target Eliminated--",'Green'); 
+				Rx_TeamInfo(Teams[0]).AddCommandPoints(CPReward_Infantry, "Command Target Elimination&" $ CPReward_Infantry $ "&") ;
+				break;
+				
+				//10's Ground vehicles 
+			
+			case 10:
+				if(bPlayDecayMsg)
+				{
+					CTextBroadcast(0,"--Vehicle Target Decayed--",'White'); 
+					LastDecayMsgTime[TeamByte] = WorldInfo.TimeSeconds; 
+				}
+				break;
+			
+			case 11:			
+				CTextBroadcast(0,"--Vehicle Target Eliminated--",'Green');
+				Rx_TeamInfo(Teams[0]).AddCommandPoints(CPReward_Vehicle, "Command Target Elimination&" $ CPReward_Vehicle $ "&") ;
+				break;
+			
+			//30's Emplacement messages
+			
+			case 30 :
+				if(bPlayDecayMsg)
+				{
+					CTextBroadcast(0,"--Emplacement Target Decayed--",'White'); 
+					LastDecayMsgTime[TeamByte] = WorldInfo.TimeSeconds; 
+				}
+				break;
+			
+			case 31 :
+				CTextBroadcast(0,"--Emplacement Target Destroyed--",'Green');
+				Rx_TeamInfo(Teams[0]).AddCommandPoints(CPReward_Emplacement, "Command Target Elimination&" $ CPReward_Emplacement $ "&") ;
+				break;
+				
+				//40's = Aircraft messages
+			case 40 :
+				if(bPlayDecayMsg)
+				{
+					CTextBroadcast(0,"--Aircraft Target Decayed--",'White'); 
+					LastDecayMsgTime[TeamByte] = WorldInfo.TimeSeconds; 
+				}
+				break;
+			
+			case 41 :
+				CTextBroadcast(0,"--Aircraft Target Destroyed--",'Green');
+				Rx_TeamInfo(Teams[0]).AddCommandPoints(CPReward_Vehicle, "Command Target Elimination&" $ CPReward_Vehicle $ "&") ;
+				break;
+				
+				//100+ for special messages 
+			case 100: 
+				CTextBroadcast(0,"--Stealth Target Lost--",'LightBlue'); 
+				break;
+			
+			default: 
+				break; 
+		}
+	}
+	else
+	`log("-------RECIEVED INAPPROPRIATE TEAM BYTE-------" @ TeamByte);
+
+}
+
+
+function int GetDefenceID() //Are there ever going to be over like ... 10billion defences on a map? Unlikely.Assign as they come 
+{
+	Defence_IDs++;
+	return Defence_IDs; 
+	
+}
+
+/*Squad Stuff*/
+
+function bool AddPlayerToSquad(Rx_PRI RxPRI, byte TeamByte, byte SquadNumber)
+{
+	
+	//Geeds
+	if(TeamByte == 0)
+	{
+		if(GDIControlGroups[SquadNumber].Members.Length == 0) 
+		{
+			GDIControlGroups[SquadNumber].Members.AddItem(RxPRI); 
+			return true; //Added successfully 	
+		}
+		else //Find a number that isn't being used, or add one.
+		{
+			if(GDIControlGroups[SquadNumber].Members.Find(RxPRI) != -1) 
+			{
+				return false ; //User Already In This Squad
+			}
+			else
+			{
+				GDIControlGroups[SquadNumber].Members.AddItem(RxPRI);
+				RxPRI.SetControlGroup(SquadNumber);
+				CTextSquadBroadcast(TeamByte, SquadNumber, RxPRI.PlayerName @ "joined group" @ GDIControlGroups[SquadNumber].GroupTitle, 'LightBlue'); 			
+				return true; 
+			}
+		}
+	}
+	
+	else
+	//NAHD!
+	if(TeamByte == 1)
+	{
+		if(NodControlGroups[SquadNumber].Members.Length == 0) 
+		{
+			NodControlGroups[SquadNumber].Members.AddItem(RxPRI); 
+			return true; //Added successfully 	
+		}
+		else //Find a number that isn't being used, or add one.
+		{
+			if(NodControlGroups[SquadNumber].Members.Find(RxPRI) != -1) 
+			{
+				return false ; //User Already In This Squad
+			}
+			else
+			{
+				NodControlGroups[SquadNumber].Members.AddItem(RxPRI); 
+				RxPRI.SetControlGroup(SquadNumber);
+				CTextSquadBroadcast(TeamByte, SquadNumber, RxPRI.PlayerName @ "joined group" @ NodControlGroups[SquadNumber].GroupTitle, 'LightBlue'); 
+				return true; 
+			}
+		}
+	}
+	
+	return false; 
+	
+}
+
+function bool RemovePlayerFromSquad(Rx_PRI RxPRI, byte TeamByte, byte SquadNumber)
+{
+
+local int PRIPosition; 
+	
+	//Geeds
+	if(TeamByte == 0)
+	{
+		if(GDIControlGroups[SquadNumber].Members.Length == 0) return false; 
+		else
+		{
+			PRIPosition=GDIControlGroups[SquadNumber].Members.Find(RxPRI); 
+			
+			if(PRIPosition == -1) return false; 
+			else
+			{
+				GDIControlGroups[SquadNumber].Members.Remove(PRIPosition, 1);
+				RxPRI.SetControlGroup(255);
+				CTextSquadBroadcast(TeamByte, SquadNumber, RxPRI.PlayerName @ "left group" @ GDIControlGroups[SquadNumber].GroupTitle, 'LightBlue' ); 
+				return true; 
+			}
+			
+		}
+		
+	}
+	else
+	//NAHD!
+	if(TeamByte == 1)
+	{
+		if(NodControlGroups[SquadNumber].Members.Length == 0) return false; 
+		else
+		{
+			PRIPosition=NodControlGroups[SquadNumber].Members.Find(RxPRI); 
+			
+			if(PRIPosition == -1) return false; 
+			else
+			{
+				NodControlGroups[SquadNumber].Members.Remove(PRIPosition, 1);
+				RxPRI.SetControlGroup(255);
+				CTextSquadBroadcast(TeamByte, SquadNumber, RxPRI.PlayerName @ "left group" @ NodControlGroups[SquadNumber].GroupTitle, 'LightBlue' ); 
+				return true; 
+			}
+			
+		}
+		
+	}
+	
+	return false; 
+	
+}
+
+
+function bool CanSpectate( PlayerController Viewer, PlayerReplicationInfo ViewTarget )
+{
+	if(Rx_PRI(ViewTarget) == None)
+	{
+		return false;
+	}
+	
+	return true;
 }
 
 DefaultProperties
 {	
+
+	MapListManagerClassName="RenX_game.Rx_MapListManager";
+
 	EndgameCamDelay = 1.0f
 	EndgameSoundDelay = 1.0f
+
+	UsePurchaseSystem = true;
 
 	buildingArmorPercentage = 50 
 	
@@ -3163,22 +4714,29 @@ DefaultProperties
 	PlayerReplicationInfoClass = class'Rx_PRI'
 	BroadcastHandlerClass      = class'Rx_BroadcastHandler'
 	AccessControlClass         = class'Rx_AccessControl'
+	TeamInfoClass			   = class'Rx_TeamInfo'
 	
 	GameReplicationInfoClass   = class'Rx_GRI'
-
+	PurchaseSystemClass        = class'Rx_PurchaseSystem'
+	HelipadPurchaseSystemClass = class'Rx_HelipadPurchaseSystem'
+	VehicleManagerClass        = class'Rx_VehicleManager'
+	HelipadVehicleManagerClass = class'Rx_HelipadVehicleManager'
+	CommanderControllerClass   = class'Rx_CommanderController'
+	
 	BoinkSound				   = SoundCue'RX_SoundEffects.SFX.SC_Boink'
 	
+	MapPrefixes.Empty
+	MapPrefixes.Add("CNC")
+	Acronym						= "RxGame"
 
-	MapPrefixes[0]                = "CNC"
-	Acronym                       = "RxGame"
-
-	NumBots						  = 0 
-	NumPlayers					  = 0
-	bPlayersVsBots				  = false	
-	MineLimit					  = 30	
+	NumBots						= 0 
+	NumPlayers					= 0
+	bPlayersVsBots				= false	
+	MineLimit					= 30
+	VehicleLimit				= 8
 	
 	/** class setup props */
-	BotClass                      = class'RenX_Game.Rx_Bot'
+	BotClass                      = class'RenX_Game.Rx_Bot_Waypoints'
 
 	TeamAIType(0)                 = class'Rx_TeamAI'
 	TeamAIType(1)                 = class'Rx_TeamAI'
@@ -3189,18 +4747,46 @@ DefaultProperties
 	bDelayedStart=true 
 	bSkipPlaySound=true
 	
-	MaxPlayersAllowed			  = 40
+	MaxPlayersAllowed			  = 64
 
 	MapHistoryMax                 = 10       
 	VotePersonalCooldown          = 60
+	VoteTeamCoolDown_GDI		  = 180
+	VoteTeamCoolDown_Nod		  = 180
+	
+	//SurrenderDisabledTime		= 600
+	RTC_DisableTime				= 0
+	RTC_TimeLimit				= 20
+	
+	VPMilestones(0) = 100 //VP needed for Veteran 
+	VPMilestones(1) = 300 //VP Needed for Elite
+	VPMilestones(2) = 650 //VP Needed for Heroic
 
-	SurrenderDisabledTime		= 900
-	/**
-	GameVersion = "Open Beta 1 RC" -> its in the config now
-	*/
+	GameType = 1 // 1 = Rx_Game
 
-		/** Score Events */
-					//								ScoreEvents.Add(class'Rx_
-						//ScoreEvent_IncomeBoos
-																				//t');
+	PowerUpClasses.Add(class'Rx_Pickup_Ammo');
+	MaxInitialVeterancy = 400
+	CurrentBuildingVPModifier = 1.0
+	CreditTickRate = 1.0
+	CP_TickRate	   = 1.0
+	
+	CPReward_Emplacement= 50 
+	CPReward_Infantry	= 10
+	CPReward_Vehicle	= 10
+	
+	/*Squad Default Naming Conventions*/
+	
+	GDIControlGroups(0) = (GroupTitle = "Offense-1") 
+	GDIControlGroups(1) = (GroupTitle = "Offense-2") 
+	GDIControlGroups(2) = (GroupTitle = "Offense-3") 
+	GDIControlGroups(3) = (GroupTitle = "Support-1") 
+	GDIControlGroups(4) = (GroupTitle = "Support-2") 
+	GDIControlGroups(5) = (GroupTitle = "Defense-1")
+	
+	NodControlGroups(0) = (GroupTitle = "Offense-1") 
+	NodControlGroups(1) = (GroupTitle = "Offense-2") 
+	NodControlGroups(2) = (GroupTitle = "Offense-3") 
+	NodControlGroups(3) = (GroupTitle = "Support-1") 
+	NodControlGroups(4) = (GroupTitle = "Support-2") 
+	NodControlGroups(5) = (GroupTitle = "Defense-1") 
 }

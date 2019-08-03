@@ -1,4 +1,4 @@
-class Rx_FamilyInfo_Nod_Shotgunner extends Rx_FamilyInfo;
+class Rx_FamilyInfo_Nod_Shotgunner extends Rx_FamilyInfo_Nod;
 
 DefaultProperties
 {
@@ -18,11 +18,39 @@ DefaultProperties
 	ArmSkinPackageName="RX_CH_Arms"
 
 	CharacterMesh=SkeletalMesh'RX_CH_Nod_Soldier.Mesh.SK_CH_Nod_Soldier_Black'
-	
-	//StartWeapons[0] = class'Rx_Weapon_Shotgun'
-	//StartWeapons[1] = class'Rx_Weapon_Pistol'
-	//StartWeapons[2] = class'Rx_Weapon_TimedC4'
-	//StartWeapons[3] = class'Rx_Weapon_Grenade'
 
 	InvManagerClass = class'Rx_InventoryManager_Nod_Shotgunner' 
+	
+	/*PT Block Info*/
+	/*------------*/
+	bHighTier			= false
+	BasePurchaseCost	= 0 
+	PT_Damage			= 5
+	PT_Range			= 2
+	PT_RateOfFire		= 2
+	PT_MagazineCapacity = 2
+	PT_Icon				= Texture2D'RenXPurchaseMenu.T_Icon_Weapon_Shotgun'
+	/*---------------*/
+	
+	/***********/
+	/*Veterancy*/
+	/***********/
+	
+	//+X
+	Vet_HealthMod(0)=0
+	Vet_HealthMod(1)=25
+	Vet_HealthMod(2)=50
+	Vet_HealthMod(3)=75
+	
+	//+X
+	Vet_SprintSpeedMod(0)=0
+	Vet_SprintSpeedMod(1)=0.05
+	Vet_SprintSpeedMod(2)=0.075
+	Vet_SprintSpeedMod(3)=0.1
+	
+	/******************/
+
+	PowerUpClasses.Add(class'Rx_Pickup_HealthSmall');
+	PowerUpClasses.Add(class'Rx_Pickup_ArmourLight');
+	PTString="Buy Char - Shotgun"
 }

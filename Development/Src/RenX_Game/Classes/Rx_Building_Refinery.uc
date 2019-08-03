@@ -2,9 +2,10 @@ class Rx_Building_Refinery extends Rx_Building
    abstract;
 
 var private repnotify bool bDocking;
-var private Rx_Vehicle_HarvesterController DockedHarvester;
+var repnotify bool bHarvEMPd;
+var Rx_Vehicle_HarvesterController DockedHarvester;
 var private float CreditsToDump;
-var private float CreditTickTimer;
+var private AudioComponent CredAC;
 
 var SoundCue 				CreditFlowSound;
 
@@ -15,13 +16,25 @@ var AnimNode                      AnNodeDockStation, AnNodeDoor;
 var(RenX_Refinery) float HarvesterUnloadTime;
 var(RenX_Refinery) float HarvesterHarvestTime;
 var(RenX_Refinery) float HarvesterCreditDump;
-var(RenX_Refinery) float CreditTickRate;
 var(RenX_Refinery) float CreditsPerTick;
 
 replication
 {
 	if ( bNetDirty && Role == ROLE_Authority )
-		bDocking, DockedHarvester;
+		DockedHarvester;
+
+	if( bNetDirty)
+		bHarvEMPd, bDocking;
+}
+
+simulated function PostBeginPlay()
+{
+	Super.PostBeginPlay();
+
+	if(worldinfo.NetMode != NM_DedicatedServer)
+		CredAC = CreateAudioComponent(CreditFlowSound, false, true, false);
+
+	HarvesterHarvestTime *= Rx_MapInfo(WorldInfo.GetMapInfo()).HarvesterHarvestTimeMultiplier;
 }
 
 simulated event ReplicatedEvent( name VarName )
@@ -32,6 +45,13 @@ simulated event ReplicatedEvent( name VarName )
 			StartHarvesterUnloading();
 		else 
 			HarvesterFinishedUnloading();
+	}
+	if( VarName == 'bHarvEMPd')
+	{
+		if(bHarvEMPd && CredAC.IsPlaying() && GetALocalPlayerController().GetTeamNum() == GetTeamNum())
+			CredAC.Stop();
+		else if(!bHarvEMPd && bDocking && GetALocalPlayerController().GetTeamNum() == GetTeamNum())
+			CredAC.play();
 	}
 	else
 		super.ReplicatedEvent(VarName);
@@ -46,41 +66,31 @@ simulated function String GetHumanReadableName()
 simulated function TickBuilding(float DeltaTime)
 {
 	local float TickCreditsDump;
-
+	
+	
 	super.TickBuilding(DeltaTime);
 
-
 	// Credit dumping
-	if (CreditsToDump > 0 && bDocking == true )
-	{
-		TickCreditsDump = fmin( (HarvesterCreditDump / HarvesterUnloadTime) * DeltaTime  , CreditsToDump);
-		CreditsToDump -= TickCreditsDump;
-		GiveTeamCredits(TickCreditsDump);
+	if(CreditsToDump > 0 && bDocking == true)
+	{		
+		
+		if(DockedHarvester != none && (Rx_Vehicle(DockedHarvester.Pawn) == None || !Rx_Vehicle(DockedHarvester.Pawn).bEMPd))
+		{
+			TickCreditsDump = fmin( (HarvesterCreditDump / HarvesterUnloadTime) * DeltaTime  , CreditsToDump);
+			CreditsToDump -= TickCreditsDump;
+			if (ROLE == ROLE_Authority) `RxGameObject.GiveTeamCredits(TickCreditsDump, GetTeamNum());
+		}
+		else if(!bHarvEMPd) 
+			SimulateHarvDump(DeltaTime); 
+		
 	}
 	else if (CreditsToDump <= 0 && bDocking == true)
 	{
 		HarvesterFinishedUnloading();
 	}
-
-	// Credit ticking
-	CreditTickTimer -= DeltaTime;
-
-	if (CreditTickTimer <= 0)
-	{
-		if (IsDestroyed())
-		GiveTeamCredits(CreditsPerTick/4);
-		else
-		GiveTeamCredits(CreditsPerTick);	
-		CreditTickTimer = CreditTickRate;
-	}
 	
-	if (IsDestroyed())
-	{
-		if (bDocking == true)
-		{
-			HarvesterFinishedUnloading();
-		}
-	}
+	if (IsDestroyed() && bDocking)
+		HarvesterFinishedUnloading();
 }
 
 simulated function HarvesterDocked(Rx_Vehicle_HarvesterController HarvesterController)
@@ -108,53 +118,22 @@ simulated function HarvesterFinishedUnloading()
 	DockedHarvester = none;
 }
 
-simulated function GiveTeamCredits(float Credits) 
-{
-	local PlayerReplicationInfo pri;
-	local int i;
-
-	for (i=0;i<WorldInfo.GRI.PRIArray.Length;i++)
-	{
-		pri = WorldInfo.GRI.PRIArray[i];
-		if(Rx_PRI(pri) != None && pri.GetTeamNum() == self.GetTeamNum())
-		{
-			Rx_PRI(pri).addCredits(Credits);
-		}
-	}
-}
-
 simulated function StartCreditsFlowSound()
 {
-    local PlayerController LocalPC;
-    
-    foreach LocalPlayerControllers(class'PlayerController', LocalPC) {
-    	 if(LocalPC.GetTeamNum() == GetTeamNum())
-    	 {
-         	LocalPC.PlaySound(CreditFlowSound, TRUE, FALSE, FALSE);
-    	 }
-    }	
+  if(worldinfo.NetMode == NM_DedicatedServer)
+	return;
+
+	if(GetALocalPlayerController().GetTeamNum() == GetTeamNum())
+		CredAC.Play();
 }
 
 simulated function StopCreditsFlowSound()
 {
-	local AudioComponent AC, CheckAC;
-	local PlayerController LocalPC;
-	
+	if(worldinfo.NetMode == NM_DedicatedServer)
+	return;
 
-    foreach LocalPlayerControllers(class'PlayerController', LocalPC) {
-		foreach LocalPC.AllOwnedComponents(class'AudioComponent',CheckAC)
-		{
-			if (CheckAC.SoundCue == CreditFlowSound && (LocalPC.GetTeamNum() == GetTeamNum()))
-			{
-				AC = CheckAC;
-				break;
-			}
-		}
-		if (AC != None)
-		{
-			AC.Stop();
-		}
-	}
+	if(GetALocalPlayerController().GetTeamNum() == GetTeamNum())
+		CredAC.Stop();
 }
 
 event TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)
@@ -162,14 +141,22 @@ event TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLocatio
 	super.TakeDamage(DamageAmount,EventInstigator,HitLocation,Momentum,DamageType,HitInfo,DamageCauser);
 }
 
+simulated function SimulateHarvDump(float DeltaTime)
+{
+	local Rx_Controller RxPC; 
+	
+	foreach LocalPlayerControllers(class'Rx_Controller', RxPC)
+	{
+		if(RxPC.GetTeamNum() == GetTeamNum()) Rx_PRI(RxPC.PlayerReplicationInfo).AddCredits(fmin((HarvesterCreditDump / HarvesterUnloadTime) * DeltaTime  , CreditsToDump));
+	}
+}
+
 defaultproperties
 {	
 	bDocking = false
 	CreditsToDump = 0
-	CreditTickTimer = 0
 
-	CreditTickRate = 1.0f
-	CreditsPerTick = 2.0f
+	CreditsPerTick = 1.5f
 	HarvesterCreditDump = 300.0f
 	HarvesterUnloadTime = 10.0f
 	HarvesterHarvestTime = 15.0f

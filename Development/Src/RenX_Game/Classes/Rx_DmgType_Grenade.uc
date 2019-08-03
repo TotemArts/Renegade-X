@@ -1,4 +1,4 @@
-class Rx_DmgType_Grenade extends Rx_DmgType; //_Explosive;
+class Rx_DmgType_Grenade extends Rx_DmgType_Explosive;
 
 defaultproperties
 {
@@ -10,14 +10,13 @@ defaultproperties
     DamageWeaponFireMode=0
 
     VehicleMomentumScaling=0.15
-    VehicleDamageScaling=0.15
+    VehicleDamageScaling=0.5 //0.15
     NodeDamageScaling=1.1
     bThrowRagdoll=true
     CustomTauntIndex=7
-    lightArmorDmgScaling=0.15
+    lightArmorDmgScaling=1.0 //0.15
     BuildingDamageScaling=0.15
 	MineDamageScaling=2.0
-	
 	
     AlwaysGibDamageThreshold=200
     bNeverGibs=false

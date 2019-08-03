@@ -1,4 +1,4 @@
-class Rx_Projectile_FlameThrower extends Rx_Projectile;
+class Rx_Projectile_FlameThrower extends Rx_Projectile_Spray;
 
 DefaultProperties
 {
@@ -43,14 +43,20 @@ DefaultProperties
     MaxSpeed=2000
     AccelRate=0
     LifeSpan=0.6 //0.75
-    Damage=10
-    DamageRadius=100
-	HeadShotDamageMult=1.25
+    Damage=11
+    //DamageRadius= 0.0
+	HeadShotDamageMult=1.15 //1.0 //1.25
     MomentumTransfer=1
-	Begin Object Name=CollisionCylinder
-		CollisionRadius=20
-		CollisionHeight=20
-	End Object
+	
+	SprayRadii = (X=10,Y=10,Z=10)
+	
+	/**Begin Object Name=CollisionCylinder
+		CollisionRadius=10
+		CollisionHeight=10
+		//Don't waste server resources on tracing for a client side projectile 
+		CollideActors = false
+		AlwaysLoadOnServer=false
+	End Object*/
     
     bWaitForEffects=true
     bWaitForEffectsAtEndOfLifetime=true
@@ -60,4 +66,20 @@ DefaultProperties
     
     // ProjectileLightClass=class'Rx_Light_FlameThrower'
     // ExplosionLightClass=class'Rx_Light_FlameThrower'
+	
+	/*************************/
+	/*VETERANCY*/
+	/************************/
+	
+	Vet_DamageIncrease(0)=1 //Normal (should be 1)
+	Vet_DamageIncrease(1)=1.10 //Veteran 
+	Vet_DamageIncrease(2)=1.25 //Elite
+	Vet_DamageIncrease(3)=1.50 //Heroic
+
+	Vet_SpeedIncrease(0)=1 //Normal (should be 1)
+	Vet_SpeedIncrease(1)=1.05 //Veteran 
+	Vet_SpeedIncrease(2)=1.10 //Elite
+	Vet_SpeedIncrease(3)=1.15 //Heroic 
+	
+	/***********************/
 }

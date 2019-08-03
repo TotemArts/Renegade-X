@@ -47,13 +47,13 @@ DefaultProperties
 
     bCollideComplex=true
 //    bCollideWorld=true
-    Speed=5000 			// 11200
-    MaxSpeed=5000 		// 11200
+    Speed=6000 //5000 			// 11200
+    MaxSpeed=6000 //5000 		// 11200
     AccelRate=0
     LifeSpan=1.0		// 0.6
-    Damage=25
+    Damage=30 //25
     DamageRadius=160
-	HeadShotDamageMult=1.5
+	HeadShotDamageMult=1.75//1.5
     MomentumTransfer=10000
 	bWaitForEffects=true
     bAttachExplosionToVehicles=false

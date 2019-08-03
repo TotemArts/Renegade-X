@@ -9,26 +9,26 @@ function SetMineLimit(int amount)
 	if (amount > 0)
 		amount = 0;
 
-	Rx_Game(WorldInfo.Game).MineLimit = amount;
-	for (index = 0; index != ArrayCount(Rx_Game(WorldInfo.Game).Teams); index++)
-		Rx_TeamInfo(Rx_Game(WorldInfo.Game).Teams[index]).mineLimit = Rx_Game(WorldInfo.Game).MineLimit;
+	Rx_Game(`WorldInfoObject.Game).MineLimit = amount;
+	for (index = 0; index != ArrayCount(Rx_Game(`WorldInfoObject.Game).Teams); index++)
+		Rx_TeamInfo(Rx_Game(`WorldInfoObject.Game).Teams[index]).mineLimit = Rx_Game(`WorldInfoObject.Game).MineLimit;
 
-	if (Rx_Game(WorldInfo.Game).MineLimit == 0)
+	if (Rx_Game(`WorldInfoObject.Game).MineLimit == 0)
 	{
-		foreach DynamicActors(class'Rx_Weapon_DeployedC4', mine)
+		foreach `WorldInfoObject.DynamicActors(class'Rx_Weapon_DeployedC4', mine)
 			if(mine.bUsesMineLimit) 
 				mine.Destroy();
 	}
 	else
 	{
-		for (index = 0; index != ArrayCount(Rx_Game(WorldInfo.Game).Teams); index++)
+		for (index = 0; index != ArrayCount(Rx_Game(`WorldInfoObject.Game).Teams); index++)
 		{
-			teamInfo = Rx_TeamInfo(Rx_Game(WorldInfo.Game).Teams[index]);
+			teamInfo = Rx_TeamInfo(Rx_Game(`WorldInfoObject.Game).Teams[index]);
 			amount = teamInfo.mineCount - teamInfo.mineLimit;
 			while (amount-- > 0)
 			{
 				oldestMine = None;
-				foreach DynamicActors(class'Rx_Weapon_DeployedC4', mine)
+				foreach `WorldInfoObject.DynamicActors(class'Rx_Weapon_DeployedC4', mine)
 					if (mine.bUsesMineLimit && mine.GetTeamNum() == teamInfo.GetTeamNum() && (oldestMine == None || mine.CreationTime < oldestMine.CreationTime))
 						oldestMine = mine;
 				oldestMine.Destroy();
@@ -41,9 +41,10 @@ function string trigger(string parameters)
 {
 	local int index;
 
-	parameters = string(Rx_Game(WorldInfo.Game).MineLimit);
-	for (index = 0; index != ArrayCount(Rx_Game(WorldInfo.Game).Teams); index++)
-		parameters $= `nbsp $ class'Rx_Game'.static.GetTeamName(index) `s Rx_TeamInfo(Rx_Game(WorldInfo.Game).Teams[index]).MineLimit;
+	parameters = string(Rx_Game(`WorldInfoObject.Game).MineLimit);
+	for (index = 0; index != ArrayCount(Rx_Game(`WorldInfoObject.Game).Teams); index++)
+		parameters $= `rcon_delim $ class'Rx_Game'.static.GetTeamName(index) `s Rx_TeamInfo(Rx_Game(`WorldInfoObject.Game).Teams[index]).MineLimit;
+
 	return parameters;
 }
 

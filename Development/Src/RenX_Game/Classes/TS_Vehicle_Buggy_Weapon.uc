@@ -64,4 +64,20 @@ DefaultProperties
     WeaponProjectiles(1) = Class'TS_Vehicle_Buggy_Gun'
     // AI
     bRecommendSplashDamage=False
+	
+	
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)
+	Vet_ClipSizeModifier(1)=5 //Veteran 
+	Vet_ClipSizeModifier(2)=10 //Elite
+	Vet_ClipSizeModifier(3)=15 //Heroic
+
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.90 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+
+    bOkAgainstLightVehicles = True
+
+
 }

@@ -18,6 +18,7 @@ DefaultProperties
     BuildingDamageScaling=0.009
 	MCTDamageScaling=100.0
 	MineDamageScaling=1.0
+    AircraftDamageScaling=0.2
 	
 	KDamageImpulse=6000
 	KDeathUpKick=200

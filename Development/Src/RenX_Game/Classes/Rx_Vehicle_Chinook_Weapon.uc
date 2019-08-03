@@ -104,5 +104,32 @@ DefaultProperties
 	ImpactEffects(17)=(MaterialType=YellowStone, ParticleTemplate=ParticleSystem'RX_FX_Munitions2.Particles.bullets.P_Bullet_Impact_YellowStone_Heavy',Sound=SoundCue'RX_SoundEffects.Bullet_Impact.SC_BulletImpact_Stone')
 	ImpactEffects(18)=(MaterialType=Snow, ParticleTemplate=ParticleSystem'RX_FX_Munitions2.Particles.bullets.P_Bullet_Impact_Snow_Heavy',Sound=SoundCue'RX_SoundEffects.Bullet_Impact.SC_BulletImpact_Snow')
 	ImpactEffects(19)=(MaterialType=SnowStone, ParticleTemplate=ParticleSystem'RX_FX_Munitions2.Particles.bullets.P_Bullet_Impact_Snow_Heavy',Sound=SoundCue'RX_SoundEffects.Bullet_Impact.SC_BulletImpact_Stone')
+	
+/***********************/
+/*Veterancy*/
+/**********************/
+Vet_ClipSizeModifier(0)=0 //Normal +X
+Vet_ClipSizeModifier(1)=25 //Veteran 
+Vet_ClipSizeModifier(2)=50 //Elite
+Vet_ClipSizeModifier(3)=100 //Heroic
 
+
+Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
+Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+Vet_ReloadSpeedModifier(2)=0.90 //Elite
+Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+
+Vet_DamageModifier(0)=1  //Applied to instant-hits only
+Vet_DamageModifier(1)=1.10 
+Vet_DamageModifier(2)=1.25 
+Vet_DamageModifier(3)=1.50 
+	
+Vet_ROFModifier(0) = 1
+Vet_ROFModifier(1) = 1.05  
+Vet_ROFModifier(2) = 1.10  
+Vet_ROFModifier(3) = 1.25 
+
+/**************************/
+
+    bOkAgainstLightVehicles = False
 }

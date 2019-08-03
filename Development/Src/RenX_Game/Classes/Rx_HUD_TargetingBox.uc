@@ -38,6 +38,25 @@ var CanvasIcon BA_BuildingIcon_Nod_Friendly;
 var CanvasIcon BA_BuildingIcon_GDI_Enemy;
 var CanvasIcon BA_BuildingIcon_Nod_Enemy;
 
+
+//Veterancy icons 
+var CanvasIcon Friendly_Recruit;
+var CanvasIcon Friendly_Veteran;
+var CanvasIcon Friendly_Elite;
+var CanvasIcon Friendly_Heroic;
+var CanvasIcon Enemy_Recruit;
+var CanvasIcon Enemy_Veteran;
+var CanvasIcon Enemy_Elite;
+var CanvasIcon Enemy_Heroic;
+var CanvasIcon Neutral_Recruit;
+var CanvasIcon Neutral_Veteran;
+var CanvasIcon Neutral_Elite;
+var CanvasIcon Neutral_Heroic;
+
+
+var float VetLogoXOffset ;
+var float VetLogoYOffset ;
+
 var private CanvasIcon HealthCellGreen;
 var private CanvasIcon HealthCellYellow;
 var private CanvasIcon HealthCellRed;
@@ -116,9 +135,6 @@ var private float BA_LogoYOffset;
 var private float BA_HealthBarCellSpacing;
 var private float BA_IconToPercentSpacing;
 var private float BA_ArmourPercentYOffset;
-
-
-
 
 var private Box VisualBoundingBox;
 var private float VisualBoundsCenterX;
@@ -236,7 +252,8 @@ function bool IsValidTarget (actor potentialTarget)
 		(Rx_Vehicle(potentialTarget) != none && Rx_Vehicle(potentialTarget).Health > 0) ||
 		(Rx_Weapon_DeployedActor(potentialTarget) != none && Rx_Weapon_DeployedActor(potentialTarget).GetHealth() > 0) ||
 		(Rx_Pawn(potentialTarget) != none && Rx_Pawn(potentialTarget).Health > 0)||
-		(Rx_DestroyableObstacle(potentialTarget) !=none && Rx_DestroyableObstacle(potentialTarget).GetHealth() > 0) ||
+		(Rx_DestroyableObstaclePlus(potentialTarget) !=none && Rx_DestroyableObstaclePlus(potentialTarget).bShowHealth && Rx_DestroyableObstaclePlus(potentialTarget).GetHealth() > 0) ||
+		(Rx_BasicPawn(potentialTarget) !=none && Rx_BasicPawn(potentialTarget).bShowHealth && Rx_BasicPawn(potentialTarget).GetHealth() > 0) ||
 		(Rx_CratePickup(potentialTarget) != none && !Rx_CratePickup(potentialTarget).bPickupHidden)
 		)
 	{
@@ -267,22 +284,26 @@ function UpdateTargetHealthPercent ()
 	}
 	
 	
-
+	/*Ensure higher class objects come 1st*/
 	if (Rx_Pawn(TargetedActor) != none)
 	{
-		TargetHealthPercent =  (float(Rx_Pawn(TargetedActor).Health) + float(Rx_Pawn(TargetedActor).Armor)) / (float(Rx_Pawn(TargetedActor).HealthMax) + float(Rx_Pawn(TargetedActor).ArmorMax));
+		TargetHealthPercent =  (float(Rx_Pawn(TargetedActor).Health) + float(Rx_Pawn(TargetedActor).Armor)) / max(1,float(Rx_Pawn(TargetedActor).HealthMax) + float(Rx_Pawn(TargetedActor).ArmorMax));
+	}
+	else if (Rx_BasicPawn(TargetedActor) != none)
+	{
+		TargetHealthPercent = (Rx_BasicPawn(TargetedActor).GetHealth()*1.0) / max(1.0, (Rx_BasicPawn(TargetedActor).GetMaxHealth()*1.0));
 	}
 	else if (Pawn(TargetedActor) != none)
 	{
-		TargetHealthPercent =  float(Pawn(TargetedActor).Health) / float(Pawn(TargetedActor).HealthMax);
+		TargetHealthPercent =  float(Pawn(TargetedActor).Health) / max(1, float(Pawn(TargetedActor).HealthMax));
 	}
 	else if (Rx_Weapon_DeployedActor(TargetedActor) != none && !Rx_Weapon_DeployedActor(TargetedActor).bCanNotBeDisarmedAnymore)
 	{
-		TargetHealthPercent = float(Rx_Weapon_DeployedActor(TargetedActor).GetHealth()) / float(Rx_Weapon_DeployedActor(TargetedActor).GetMaxHealth());
+		TargetHealthPercent = float(Rx_Weapon_DeployedActor(TargetedActor).GetHealth()) / max(1, float(Rx_Weapon_DeployedActor(TargetedActor).GetMaxHealth()));
 	}
-	else if (Rx_DestroyableObstacle(TargetedActor) != none)
+	else if (Rx_DestroyableObstaclePlus(TargetedActor) != none)
 	{
-		TargetHealthPercent = float(Rx_DestroyableObstacle(TargetedActor).GetHealth()) / float(Rx_DestroyableObstacle(TargetedActor).GetMaxHealth());
+		TargetHealthPercent = (Rx_DestroyableObstaclePlus(TargetedActor).GetHealth()*1.0) / max(1.0, Rx_DestroyableObstaclePlus(TargetedActor).GetMaxHealth()*1.0);
 	}
 	else if (Rx_BuildingAttachment(TargetedActor) != none && Rx_BuildingAttachment_PT(TargetedActor) == none)
 	{
@@ -293,8 +314,8 @@ function UpdateTargetHealthPercent ()
 	}
 	else if (Rx_Building(TargetedActor) != none)
 	{
-		TargetArmorPercent = float(Rx_Building(TargetedActor).GetArmor()) / float(Rx_Building(TargetedActor).GetMaxArmor());
-		TargetHealthPercent = float(Rx_Building(TargetedActor).GetHealth()) / float(Rx_Building(TargetedActor).GetTrueMaxHealth());		
+		TargetArmorPercent = float(Rx_Building(TargetedActor).GetArmor()) / max(1,float(Rx_Building(TargetedActor).GetMaxArmor()));
+		TargetHealthPercent = float(Rx_Building(TargetedActor).GetHealth()) / max(1,float(Rx_Building(TargetedActor).GetTrueMaxHealth()));		
 		TargetHealthMaxPercent = 1.0f; //This may need to look at TrueMaxHealth somewhere.. we'll see after testing. 
 		
 		bHasArmor = true;
@@ -302,9 +323,9 @@ function UpdateTargetHealthPercent ()
 	else
 		TargetHealthPercent = -1;
 		
-	if(Rx_Building_Techbuilding(TargetedActor) != None || Rx_CapturableMCT(TargetedActor) != None
+	if(Rx_Building_Techbuilding(TargetedActor) != None || TargetedActor.isA('Rx_CapturableMCT')
 		|| (Rx_BuildingAttachment(TargetedActor) != none 
-			&& Rx_BuildingAttachment(TargetedActor).OwnerBuilding != None && (Rx_Building_Techbuilding(Rx_BuildingAttachment(TargetedActor).OwnerBuilding.BuildingVisuals) != None || Rx_CapturableMCT(Rx_BuildingAttachment(TargetedActor).OwnerBuilding.BuildingVisuals) != None)) )
+			&& Rx_BuildingAttachment(TargetedActor).OwnerBuilding != None && (Rx_Building_Techbuilding(Rx_BuildingAttachment(TargetedActor).OwnerBuilding.BuildingVisuals) != None || (Rx_BuildingAttachment(TargetedActor).OwnerBuilding.BuildingVisuals).isA('Rx_CapturableMCT'))) )
 	{
 		bHasArmor = false;
 	}	
@@ -313,10 +334,16 @@ function UpdateTargetHealthPercent ()
 
 function UpdateTargetName ()
 {
+	//local Pawn PawnActor; 
+	
 	if (RxIfc_TargetedCustomName(TargetedActor) != none)
 		TargetName = RxIfc_TargetedCustomName(TargetedActor).GetTargetedName(RenxHud.PlayerOwner);
 	else
 		TargetName = TargetedActor.GetHumanReadableName();
+	
+	//PawnActor = Pawn(TargetedActor);
+	
+	//if(PawnActor != none && Rx_PRI(PawnActor.PlayerReplicationInfo) != none && Rx_PRI(PawnActor.PlayerReplicationInfo).bGetIsCommander()) TargetName = TargetName $ "[Commander]" ;
 }
 
 function UpdateTargetDescription ()
@@ -437,7 +464,7 @@ function float GetAttachmentBuildingHealth(Rx_BuildingAttachment BAttachment)
 
 function Draw()
 {
-	if (TargetedActor != none && Canvas != None)
+	if (TargetedActor != none && Canvas != None && Rx_PlayerInput(Renxhud.PlayerOwner.PlayerInput).bDrawTargettingBox)
 	{
 		Canvas.DrawColor = ColorWhite;
 
@@ -717,18 +744,18 @@ private function DrawHealthPercent()
 		return;
 	
 	
-		if (TargetNameTextSize.X - 5 < PercentXOffset)
+		if (TargetNameTextSize.X - 4 < PercentXOffset)
 		{
 			X = VisualBoundsCenterX + LabelXOffset + PercentXOffset;
 		}
 		else
 		{
-			X = VisualBoundsCenterX + LabelXOffset + TargetNameTextSize.X + 5;
+			X = VisualBoundsCenterX + LabelXOffset + TargetNameTextSize.X;
 		}
 		
 		if(TargetNameTextSize.X > 85) 
 		{
-			X += 10;
+			X += 18;
 		}
 	
 
@@ -923,22 +950,30 @@ private function DrawTargetDescription()
 	Canvas.DrawText(TargetDescription,,DescriptionXScale,DescriptionYScale);
 }
 
+function bool TargetedHasVeterancy()
+{
+	return TargetedActor != None && (Rx_Pawn(TargetedActor) != none || Rx_Vehicle(TargetedActor) != none);
+}
+
 private function DrawTeamLogo()
 {
 	local float X,Y;
-	
-	
+	local byte VRank, StanceToDraw; //0:FRIENDLY, 1: ENEMY, 2: NEUTRAL
+ 	
+	if(Rx_Pawn(TargetedActor) != none ) VRank = Rx_Pawn(TargetedActor).VRank; 
+	else
+	if(Rx_Vehicle(TargetedActor) != none ) VRank = Rx_Vehicle(TargetedActor).VRank; 
 	
 	if(bHasArmor)
 	{
 			
-			X = VisualBoundsCenterX + LogoXOffset - BA_BuildingIcon_GDI_Friendly.UL;
+			X = VisualBoundsCenterX + BA_LogoXOffset - BA_BuildingIcon_GDI_Friendly.UL;
 			
 		if (AnchorInfoTop)
 			Y = VisualBoundingBox.Min.Y + BA_LogoYOffset;
 		else
 			Y = VisualBoundingBox.Max.Y + BA_LogoYOffset;
-Canvas.DrawColor.A=200;
+		Canvas.DrawColor.A=200;
 		if (TargetStance == STANCE_ENEMY && TargetedActor.GetTeamNum() == TEAM_NOD)
 			Canvas.DrawIcon(BA_BuildingIcon_Nod_Enemy,X,Y);
 		else if (TargetStance == STANCE_ENEMY && TargetedActor.GetTeamNum() == TEAM_GDI)
@@ -979,23 +1014,43 @@ Canvas.DrawColor.A=200;
 			Y = VisualBoundingBox.Min.Y + LogoYOffset;
 		else
 			Y = VisualBoundingBox.Max.Y + LogoYOffset;
-
+		
 		if (TargetStance == STANCE_ENEMY && TargetedActor.GetTeamNum() == TEAM_NOD)
-			Canvas.DrawIcon(NodEnemyIcon,X,Y);
+		{
+		Canvas.DrawIcon(NodEnemyIcon,X,Y);	
+		StanceToDraw=1;
+		}
+			
 		else if (TargetStance == STANCE_ENEMY && TargetedActor.GetTeamNum() == TEAM_GDI)
+		{
 			Canvas.DrawIcon(GDIEnemyIcon,X,Y);
+			StanceToDraw=1;
+		}
+			
 		else if (TargetStance == STANCE_FRIENDLY && TargetedActor.GetTeamNum() == TEAM_NOD)
 		{
 			// spy addition, spy should have same boundingbox+icon
 			if (Rx_Pawn(TargetedActor) != none && Rx_Pawn(TargetedActor).isSpy())
 			{
 				if(TargetedActor.GetTeamNum() == RenxHud.PlayerOwner.GetTeamNum())
+				{
 					Canvas.DrawIcon(NodFriendlyIcon,X,Y);
+					StanceToDraw=0;
+				}
+					
 				else
+				{
 					Canvas.DrawIcon(GDIFriendlyIcon,X,Y);
+					StanceToDraw=0;
+				}
+					
 			}
 			else
-				Canvas.DrawIcon(NodFriendlyIcon,X,Y);
+			{
+					Canvas.DrawIcon(NodFriendlyIcon,X,Y);
+					StanceToDraw=0;
+			}
+			
 		}
 		else if (TargetStance == STANCE_FRIENDLY && TargetedActor.GetTeamNum() == TEAM_GDI)
 		{
@@ -1003,19 +1058,113 @@ Canvas.DrawColor.A=200;
 			if (Rx_Pawn(TargetedActor) != none && Rx_Pawn(TargetedActor).isSpy())
 			{
 				if(TargetedActor.GetTeamNum() == RenxHud.PlayerOwner.GetTeamNum())
+				{
 					Canvas.DrawIcon(GDIFriendlyIcon,X,Y);
+					StanceToDraw=0;
+				}
 				else
+				{
 					Canvas.DrawIcon(NodFriendlyIcon,X,Y);
+					StanceToDraw=0;
+				}
+					
 			}
 			else
+			{
 				Canvas.DrawIcon(GDIFriendlyIcon,X,Y);
+				StanceToDraw=0;
+			}
+				
 		}
 		else
+		{
 			Canvas.DrawIcon(NeutralIcon,X,Y);
+			StanceToDraw=2;
+		}
+			
+		//Draw veteran icon placeholder 
+	if(TargetedHasVeterancy())
+	{
 		
+		Y+=VetLogoYOffset;
+		if (TargetNameTextSize.X - 4 < VetLogoXOffset)
+		{
+			X = VisualBoundsCenterX + LabelXOffset + PercentXOffset - 42 ;
+			//X+=VetLogoXOffset; 
+		}
+		else
+		{
+			X = VisualBoundsCenterX + LabelXOffset + TargetNameTextSize.X - 42;
+			//X+= TargetNameTextSize.X + 14;
+		}
+		
+		if(TargetNameTextSize.X > 85) 
+		{
+			X += 18;
+		}
+		
+		if(StanceToDraw == 0) 
+		{
+			switch (VRank)
+			{
+				case 0: 
+				Canvas.DrawIcon(Friendly_Recruit, X, Y);
+				break;
+				case 1: 
+				Canvas.DrawIcon(Friendly_Veteran, X, Y);
+				break;
+				case 2: 
+				Canvas.DrawIcon(Friendly_Elite, X, Y);
+				break;
+				case 3: 
+				Canvas.DrawIcon(Friendly_Heroic, X, Y);
+				break;
+			}
+		}
+		else 
+		if(StanceToDraw == 1) 
+		{
+			switch (VRank)
+			{
+				case 0: 
+				Canvas.DrawIcon(Enemy_Recruit, X, Y);
+				break;
+				case 1: 
+				Canvas.DrawIcon(Enemy_Veteran, X, Y);
+				break;
+				case 2: 
+				Canvas.DrawIcon(Enemy_Elite, X, Y);
+				break;
+				case 3: 
+				Canvas.DrawIcon(Enemy_Heroic, X, Y);
+				break;
+			}
+		}
+		else 
+		{
+			switch (VRank)
+			{
+				case 0: 
+				Canvas.DrawIcon(Neutral_Recruit, X, Y);
+				break;
+				case 1: 
+				Canvas.DrawIcon(Neutral_Veteran, X, Y);
+				break;
+				case 2: 
+				Canvas.DrawIcon(Neutral_Elite, X, Y);
+				break;
+				case 3: 
+				Canvas.DrawIcon(Neutral_Heroic, X, Y);
+				break;
+			}
+		}
+	}
 		//Building Armour enabled, and building targeted. 
 	}	
 }
+
+
+
 private function DrawInfoBackground()
 {
 	local float X,Y;
@@ -1056,7 +1205,10 @@ private function DrawInfoBackground()
 	else
 	{
 		Canvas.SetPos(X,Y);
-		Canvas.DrawTileStretched(Icon.Texture, Abs(Icon.UL), Abs(Icon.VL) * 1.25, Icon.U, Icon.V, Icon.UL, Icon.VL,, true, true);
+		if (TargetedHasVeterancy())
+			Canvas.DrawTileStretched(Icon.Texture, Abs(Icon.UL) + Friendly_Veteran.UL + 10, Abs(Icon.VL) * 1.25, Icon.U, Icon.V, Icon.UL, Icon.VL,, true, true);
+		else
+			Canvas.DrawTileStretched(Icon.Texture, Abs(Icon.UL), Abs(Icon.VL) * 1.25, Icon.U, Icon.V, Icon.UL, Icon.VL,, true, true);
 	}
 }
 
@@ -1153,6 +1305,21 @@ DefaultProperties
 	NodFriendlyIcon = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_Friendly_Nod', U= 0, V = 0, UL = 64, VL = 64)
 	NeutralIcon = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_Neutral_Empty', U= 0, V = 0, UL = 64, VL = 64)
 	
+	Friendly_Recruit = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_Friendly_Recruit', U= 0, V = 0, UL = 64, VL = 64)
+	Friendly_Veteran = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_Friendly_Veteran', U= 0, V = 0, UL = 64, VL = 64)
+	Friendly_Elite = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_Friendly_Elite', U= 0, V = 0, UL = 64, VL = 64)
+	Friendly_Heroic = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_Friendly_Heroic', U= 0, V = 0, UL = 64, VL = 64)
+	
+	Enemy_Recruit = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_Enemy_Recruit', U= 0, V = 0, UL = 64, VL = 64)
+	Enemy_Veteran = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_Enemy_Veteran', U= 0, V = 0, UL = 64, VL = 64)
+	Enemy_Elite = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_Enemy_Elite', U= 0, V = 0, UL = 64, VL = 64)
+	Enemy_Heroic = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_Enemy_Heroic', U= 0, V = 0, UL = 64, VL = 64)
+	
+	Neutral_Recruit = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_Neutral_Recruit', U= 0, V = 0, UL = 64, VL = 64)
+	Neutral_Veteran = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_Neutral_Veteran', U= 0, V = 0, UL = 64, VL = 64)
+	Neutral_Elite = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_Neutral_Elite', U= 0, V = 0, UL = 64, VL = 64)
+	Neutral_Heroic = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_Neutral_Heroic', U= 0, V = 0, UL = 64, VL = 64)
+	
 	HealthCellGreen = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_HealthBar_Single_Green', U= 0, V = 0, UL = 16, VL = 16)
 	HealthCellYellow = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_HealthBar_Single_Yellow', U= 0, V = 0, UL = 16, VL = 16)
 	HealthCellRed = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_HealthBar_Single_Red', U= 0, V = 0, UL = 16, VL = 16)
@@ -1198,6 +1365,7 @@ BA_BackgroundYOffset = -55
 // Offset of team logo
 BA_LogoXOffset = -41
 BA_LogoYOffset = -55
+
 BA_HealthBarCellSpacing = 4
 BA_IconToPercentSpacing = 20
 BA_ArmourIconYOffset = 4
@@ -1208,6 +1376,9 @@ BA_ArmourPercentYOffset = 8
 
 	InteractIconBobAmplitude = 5.0f;
 	InteractIconBobFrequency = 4.0f;
+
+VetLogoXOffset = 100
+VetLogoYOffset = -4
 	
 
 }

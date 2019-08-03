@@ -179,13 +179,13 @@ DefaultProperties
 
 
     Begin Object Class=AudioComponent Name=ScorpionEngineSound
-		SoundCue=SoundCue'RX_VH_HoverCraft.Sounds.SC_HoverCraft_Idle'
+		SoundCue=SoundCue'TS_VH_HoverMRLS.Sounds.SC_HoverMRLS_Idle'
 	End Object
 	EngineSound=ScorpionEngineSound
 	Components.Add(ScorpionEngineSound);
     
-    EnterVehicleSound=SoundCue'RX_VH_MRLS.Sounds.MRLS_startCue'
-    ExitVehicleSound=SoundCue'RX_VH_MRLS.Sounds.MRLS_stopCue'
+    EnterVehicleSound=SoundCue'TS_VH_HoverMRLS.Sounds.SC_HoverMRLS_Start'
+    ExitVehicleSound=SoundCue'TS_VH_HoverMRLS.Sounds.SC_HoverMRLS_Stop'
 	
 	ExplosionSound=SoundCue'RX_SoundEffects.Vehicle.SC_Vehicle_Explode_Large'
 
@@ -197,7 +197,7 @@ DefaultProperties
 
     Begin Object Class=UTHoverWheel Name=FLThruster
 		BoneName="b_Root"
-		BoneOffset=(X=100.0,Y=-80.0,Z=-240.0)
+		BoneOffset=(X=100.0,Y=-80.0,Z=-180.0)
 		WheelRadius=10
 		SuspensionTravel=250
 		bPoweredWheel=false
@@ -212,7 +212,7 @@ DefaultProperties
 
 	Begin Object Class=UTHoverWheel Name=RLThruster
 		BoneName="b_Root"
-		BoneOffset=(X=-100.0,Y=-80.0,Z=-240.0)
+		BoneOffset=(X=-100.0,Y=-80.0,Z=-180.0)
 		WheelRadius=10
 		SuspensionTravel=250
 		bPoweredWheel=false
@@ -227,7 +227,7 @@ DefaultProperties
 
 	Begin Object Class=UTHoverWheel Name=FRThruster
 		BoneName="b_Root"
-		BoneOffset=(X=100.0,Y=80.0,Z=-240.0)
+		BoneOffset=(X=100.0,Y=80.0,Z=-180.0)
 		WheelRadius=10
 		SuspensionTravel=250
 		bPoweredWheel=false
@@ -242,7 +242,7 @@ DefaultProperties
 	
 	Begin Object Class=UTHoverWheel Name=RRThruster
 		BoneName="b_Root"
-		BoneOffset=(X=-100.0,Y=80.0,Z=-240.0)
+		BoneOffset=(X=-100.0,Y=80.0,Z=-180.0)
 		WheelRadius=10
 		SuspensionTravel=250
 		bPoweredWheel=false
@@ -261,7 +261,7 @@ DefaultProperties
 	
 	Begin Object Class=UTHoverWheel Name=FLThrusterFar
 		BoneName="b_Root"
-		BoneOffset=(X=220.0,Y=-100.0,Z=-240.0)
+		BoneOffset=(X=220.0,Y=-100.0,Z=-180.0)
 		WheelRadius=10
 		SuspensionTravel=250
 		bPoweredWheel=false
@@ -276,7 +276,7 @@ DefaultProperties
 
 	Begin Object Class=UTHoverWheel Name=RLThrusterFar
 		BoneName="b_Root"
-		BoneOffset=(X=-220.0,Y=-100.0,Z=-240.0)
+		BoneOffset=(X=-220.0,Y=-100.0,Z=-180.0)
 		WheelRadius=10
 		SuspensionTravel=250
 		bPoweredWheel=false
@@ -291,7 +291,7 @@ DefaultProperties
 
 	Begin Object Class=UTHoverWheel Name=FRThrusterFar
 		BoneName="b_Root"
-		BoneOffset=(X=220.0,Y=100.0,Z=-240.0)
+		BoneOffset=(X=220.0,Y=100.0,Z=-180.0)
 		WheelRadius=10
 		SuspensionTravel=250
 		bPoweredWheel=false
@@ -306,7 +306,7 @@ DefaultProperties
 	
 	Begin Object Class=UTHoverWheel Name=RRThrusterFar
 		BoneName="b_Root"
-		BoneOffset=(X=-220.0,Y=100.0,Z=-240.0)
+		BoneOffset=(X=-220.0,Y=100.0,Z=-180.0)
 		WheelRadius=10
 		SuspensionTravel=250
 		bPoweredWheel=false
@@ -318,5 +318,33 @@ DefaultProperties
 		bHoverWheel=true
 	End Object
 	Wheels(7)=RRThrusterFar
+	
+	/************************/
+	/*Veterancy Multipliers*/
+	/***********************/
+
+	//VP Given on death (by VRank)
+	VPReward(0) = 10 
+	VPReward(1) = 12 
+	VPReward(2) = 14 
+	VPReward(3) = 18 
+	
+	Vet_HealthMod(0)=1 //400
+	Vet_HealthMod(1)=1.125 //450 
+	Vet_HealthMod(2)=1.25 //500
+	Vet_HealthMod(3)=1.375 //550
+		
+	Vet_SprintSpeedMod(0)=1
+	Vet_SprintSpeedMod(1)=1
+	Vet_SprintSpeedMod(2)=1.05
+	Vet_SprintSpeedMod(3)=1.10
+		
+	// +X as opposed to *X
+	Vet_SprintTTFD(0)=0
+	Vet_SprintTTFD(1)=0
+	Vet_SprintTTFD(2)=0.10
+	Vet_SprintTTFD(3)=0.15
+
+	/**********************/
 	
 }

@@ -25,6 +25,12 @@ var		 GFxObject               DirCompassIcon;
 
 var		 GFxObject               player_icon;
 
+enum ENUM_ICON
+{
+	ICON_INFANTRY,
+	ICON_VEHICLE,
+	ICON_MISC 
+};
 
 var		 GFxObject               compass;
 var		 GFxObject               icons_NavMarker;
@@ -57,7 +63,8 @@ var		 float                   IconRotationOffset;
 
 /**Use this only for debugging blips*/
 var     Texture                 DebugBlipTexture;
-
+var 	byte					Update_Cycler ; //Used to keep Update() from trying to always do everything every tick. 
+var		bool					UseUpdateCycle;
 function init(Rx_GFxHud h)
 {
 	RxHUD                =  h;
@@ -83,6 +90,7 @@ function init(Rx_GFxHud h)
 	icons_GDIVehicle     =  GetObject("icons_GDIVehicle");                       
 	icons_NeutralVehicle =	GetObject("icons_NeutralVehicle");               
 	icons_NavMarker      =  GetObject("icons_nav");
+
 }
 
 function LoadMapTexture(string mapPathName)
@@ -116,12 +124,19 @@ function Update()
 	if (RxPC == None || Pawn(RxPC.ViewTarget) == none) {
 		return;
 	}
-
+	
+	if(UseUpdateCycle) 
+	{
+		if(Update_Cycler < 3) Update_Cycler+=1;
+		else
+		Update_Cycler=0;
+	}
+	
 	//player compass rotation
 	UpdateCompass();
 
 	//terrain map texture
-	UpdateMap();
+	//UpdateMap();
 
 	//update the player's marker
 	UpdatePlayerBlip();
@@ -167,7 +182,7 @@ function UpdateMap()
 
 	local float f;
 	
-	if(RxMapInfo == None)
+	if(RxMapInfo == None || Pawn(RxPC.ViewTarget) == none)
 		return;
 
 	f = -((RxPC.Rotation.Yaw + 16384) & 65535) * (Pi/32768.0);
@@ -224,63 +239,108 @@ function UpdatePlayerBlip()
 
 function UpdateActorBlips()
 {
-	local Pawn P;
-	local Rx_Pawn RxP;
-	local Rx_Vehicle RxV;
-
-
+	local Actor P;
+	
+	local RxIfc_RadarMarker Marker; 
+	local ENUM_ICON IconType; 
+	
+	//local Rx_Pawn RxP;
+	//local Rx_Vehicle RxV;
+	local byte TeamVisibility; 
+	//local Rx_Weapon_DeployedBeacon B;//(nBab)
+	local Rx_GRI	rxGRI; 
+	local PlayerReplicationInfo	RxPRI; 
+	
+	local array<PlayerReplicationInfo> IgnoredPRIs; //Don't double dip with PRIs in netplay / If the pawn exists just use its location, don't replicate with PRI;  
 	local array<Actor> GDI;
 	local array<Actor> GDIVehicle;
 	local array<Actor> Nod;
 	local array<Actor> NodVehicle;
 	local array<Actor> Neutral;
 	local array<Actor> NeutralVehicle;
-
-	foreach ThisWorld.AllPawns(class'Pawn', P)
-	{		
-		if (P.bHidden  
-			|| (P.Health <= 0) 
-			|| (P.DrivenVehicle != none)
-			//|| P.PlayerReplicationInfo == none    (NOTE: enabling this cause the vehicle to exit early.)
-			|| P == Pawn(RxPC.ViewTarget))
-		{ 
-			continue;
-		}
-		RxP = Rx_Pawn(P);
-		RxV = Rx_Vehicle(P);
+	
+	if(Update_Cycler == 1) return; //1 of every 3 cycles, don't bother update
+	
+	rxGRI = Rx_GRI(ThisWorld.GRI);
+	
+	foreach ThisWorld.DynamicActors(class'Actor', P, class'RxIfc_RadarMarker')
+	{	
+		//if(!P.isA('Pawn') && !P.isA('Rx_BasicPawn')) continue; 
 		
-		if ((RxP == none) && (RxV == none)) continue;
+		Marker = RxIfc_RadarMarker(P);
+		
+		//`log(Marker.GetRadarVisibility())
+		
+		IconType = ENUM_ICON(Marker.GetRadarIconType());
+		
+		TeamVisibility = Marker.GetRadarVisibility();
+		
+		if(Marker.ForceVisible()) 
+			TeamVisibility = 2; //Forced to be visible to all by some means 
+		
+		//PRIs handle replication of location for their pawns in netplay, unless their pawns exist on the client
+		if(ThisWorld.NetMode == NM_Client && (Rx_Pawn(P) != none || Rx_Vehicle(P) != none))
+		{
+			if(Pawn(P).PlayerReplicationInfo != none){
+				IgnoredPRIs.AddItem(Pawn(P).PlayerReplicationInfo);
+			}
+			if ((P.bHidden && PlayerReplicationInfo(P) == none)
+				|| (TeamVisibility == 0)
+				|| Pawn(P).DrivenVehicle != none
+				|| P == Pawn(RxPC.ViewTarget)
+				){
+					continue;
+				}			
+		}
+		else if(ThisWorld.NetMode == NM_Standalone) {
+			if ( PlayerReplicationInfo(P) != none
+				|| (TeamVisibility == 0)
+				||Pawn(P) != none && (Pawn(P).DrivenVehicle != none
+				|| P == Pawn(RxPC.ViewTarget))
+				){
+					continue;
+				}			
+		}
 
-		if (Rx_Defence(P) != none) continue;
-
+		if(TeamVisibility == 0)
+			continue; 
+		
 		switch (P.GetTeamNum())
 		{
 			case TEAM_GDI:
-				if (RxP != none)
+				if (IconType == ICON_INFANTRY)
 				{
 					GDI.AddItem(P);
 				}
-				else if (RxV != none)
+				else if (IconType == ICON_VEHICLE)
 				{
 					GDIVehicle.AddItem(P);
 				}
+				else if (IconType == ICON_MISC)
+				{
+					NeutralVehicle.AddItem(P);
+				}
 				break;
 			case TEAM_NOD:
-				if (RxP != none)
+				if (IconType == ICON_INFANTRY)
 				{
 					Nod.AddItem(P);
 				}
-				else if (RxV != none)
+				else if (IconType == ICON_VEHICLE)
 				{
 					NodVehicle.AddItem(P);
 				}
+				else if (IconType == ICON_MISC)
+				{
+					NeutralVehicle.AddItem(P);
+				}
 				break;
 			default:
-				if (RxP != none)
+				if (IconType == ICON_INFANTRY)
 				{
 					Neutral.AddItem(P);
 				}
-				else if (RxV != none)
+				else if (IconType == ICON_VEHICLE)
 				{
 					NeutralVehicle.AddItem(P);
 				}
@@ -289,12 +349,82 @@ function UpdateActorBlips()
 		IconRotationOffset = 0;//180;
 	}
 
-	UpdateIcons(GDI, GDITeamIcons, TEAM_GDI, false);
-	UpdateIcons(GDIVehicle, GDIVehicleIcons, TEAM_GDI, true);
-	UpdateIcons(Nod, NodTeamIcons, TEAM_NOD, false);
-	UpdateIcons(NodVehicle, NodVehicleIcons, TEAM_NOD, true);
-	UpdateIcons(Neutral, NeutralIcons, TEAM_UNOWNED, false);
-	UpdateIcons(NeutralVehicle, NeutralVehicleIcons, TEAM_UNOWNED, true);
+	//Check PRIs in netplay, incase irrelevant Pawns were missed 
+	if(ThisWorld.NetMode == NM_Client)
+	{
+		foreach rxGRI.PRIArray(RxPRI)
+		{
+			if(IgnoredPRIs.find(RxPRI) != -1) 
+				continue; 
+			
+			Marker = RxIfc_RadarMarker(RxPRI);
+			if(Marker == none) 
+				continue; 
+			IconType = ENUM_ICON(Marker.GetRadarIconType());
+			TeamVisibility = Marker.GetRadarVisibility();
+			
+			if(Marker.ForceVisible()) 
+				TeamVisibility = 2; //Forced to be visible to all by some means 
+			
+			if (TeamVisibility == 0)
+			{
+				continue;
+			}				
+				
+			
+			switch (RxPRI.GetTeamNum())
+			{
+				case TEAM_GDI:
+					if (IconType == ICON_INFANTRY)
+						GDI.AddItem(RxPRI);
+					else if (IconType == ICON_VEHICLE)
+						GDIVehicle.AddItem(RxPRI);
+					break;
+				case TEAM_NOD:
+					if (IconType == ICON_INFANTRY)
+						Nod.AddItem(RxPRI);
+					else if (IconType == ICON_VEHICLE)
+						NodVehicle.AddItem(RxPRI);
+					break;
+				default:
+					if (IconType == ICON_INFANTRY)
+						Neutral.AddItem(RxPRI);
+					else if (IconType == ICON_VEHICLE)
+						NeutralVehicle.AddItem(RxPRI);
+					break;
+			}	
+			IconRotationOffset = 0;//180;
+		}
+	}
+	
+	if(UseUpdateCycle)
+	{
+		if(Update_Cycler == 0)
+		{
+			UpdateIcons(GDI, GDITeamIcons, TEAM_GDI, false);
+			UpdateIcons(GDIVehicle, GDIVehicleIcons, TEAM_GDI, true);	
+		}
+		else
+		if(Update_Cycler == 2)
+		{
+			UpdateIcons(Nod, NodTeamIcons, TEAM_NOD, false);
+			UpdateIcons(NodVehicle, NodVehicleIcons, TEAM_NOD, true);	
+		}
+		else
+		{
+			UpdateIcons(Neutral, NeutralIcons, TEAM_UNOWNED, false);
+			UpdateIcons(NeutralVehicle, NeutralVehicleIcons, TEAM_UNOWNED, true);	
+		}
+	}
+	else
+	{
+		UpdateIcons(GDI, GDITeamIcons, TEAM_GDI, false);
+		UpdateIcons(GDIVehicle, GDIVehicleIcons, TEAM_GDI, true);		
+		UpdateIcons(Nod, NodTeamIcons, TEAM_NOD, false);
+		UpdateIcons(NodVehicle, NodVehicleIcons, TEAM_NOD, true);	
+		UpdateIcons(Neutral, NeutralIcons, TEAM_UNOWNED, false);
+		UpdateIcons(NeutralVehicle, NeutralVehicleIcons, TEAM_UNOWNED, true);	
+	}
 }
 
 function array<GFxObject> GenGDIIcons(int IconCount)
@@ -396,11 +526,13 @@ function UpdateIcons(out array<Actor> Actors, out array<GFxObject> ActorIcons, T
 	// HARDCODED: Radius = 124
 
 	local ASDisplayInfo displayInfo;
+	local RxIfc_RadarMarker CurrentMarker;
 	local array<GFxObject> Icons;
 	local byte i;
 	local vector V;
 	local GFxObject Val;
 	local Rx_GRI rxGRI;
+
 
 	if(RxMapInfo == None)
 		return;
@@ -441,7 +573,10 @@ function UpdateIcons(out array<Actor> Actors, out array<GFxObject> ActorIcons, T
 
 	//sets the Blips Visibility condition here
 	for (i = 0; i < Actors.Length; i++) {
-		V = TransformVector(IconMatrix, Actors[i].Location);
+		
+		CurrentMarker = RxIfc_RadarMarker(Actors[i]); 
+		
+		V = TransformVector(IconMatrix, CurrentMarker.GetRadarActorLocation());
 
 		// Display only within the range of the minimap radius
 		displayInfo.Visible = (VSize2d(V) < RxMapInfo.MinimapRadius);
@@ -450,41 +585,64 @@ function UpdateIcons(out array<Actor> Actors, out array<GFxObject> ActorIcons, T
 		displayInfo.X = V.X;
 		displayInfo.Y = V.Y;
 
-		//Change the vehicle blips to the actor's corresponding vehicles
-		if (Rx_Vehicle(Actors[i]) != none) {
-			//ActorIcons[i].GetObject("vehicleG").GotoAndStop(GetVehicleIconName(Actors[i]));
-			if (Rx_Vehicle(Actors[i]).MinimapIconTexture != none) {
-				LoadTexture("img://" $ PathName(Rx_Vehicle(Actors[i]).MinimapIconTexture), ActorIcons[i].GetObject("vehicleG"));
-			} else {
-				LoadTexture("img://" $ PathName(Texture2D'RenxHud.T_Radar_Blip_Vehicle_Neutral'), ActorIcons[i].GetObject("vehicleG"));
-			}	
-		} 
-
 		//@shahman: icon rotation = actor's rotation + compass's rotation + rotation offset
-		displayInfo.Rotation = (Actors[i].Rotation.Yaw * UnrRotToDeg) + DirCompassIcon.GetDisplayInfo().Rotation + IconRotationOffset ;
-
+		displayInfo.Rotation = (CurrentMarker.GetRadarActorRotation().Yaw * UnrRotToDeg) + DirCompassIcon.GetDisplayInfo().Rotation + IconRotationOffset ;
+		
 		//Condition for other blips that is not the same team as the player owner
-		if (rxGRI != none && !ThisWorld.GRI.OnSameTeam(Pawn(GetPC().viewtarget), Actors[i]) ) {
-			if (Actors[i].GetTeamNum() == TEAM_GDI || Actors[i].GetTeamNum() == TEAM_NOD ){
-				displayInfo.Visible = false;
-				if (!Actors[i].IsInState('Stealthed') && !Actors[i].IsInState('BeenShot') && !(Rx_Pawn_SBH(Actors[i]) != none && Rx_Pawn_SBH(Actors[i]).bStealthRecoveringFromBeeingShotOrSprinting)) {
-					if (RxHUD.RenxHud.SpotTargets.Find(Actors[i]) != -1) {
-						displayInfo.Visible = true;
-					} 
-					else if (RxHUD.RenxHud.TargetingBox.TargetedActor == Actors[i]) {
-						displayInfo.Visible = true;
-					}
+		if (rxGRI != none && (Pawn(GetPC().viewtarget).GetTeamNum() != Actors[i].GetTeamNum()) ) {
+			if ( (Actors[i].GetTeamNum() == TEAM_GDI || Actors[i].GetTeamNum() == TEAM_NOD)) {
+				
+				//No need to go through all of this if it is a stealth tank or SBH that's cloaked
+				if (Actors[i].IsInState('Stealthed'))
+				{
+					displayInfo.Visible = false;
+					ActorIcons[i].SetDisplayInfo(displayInfo);
+					continue;
 				}
+	
+				displayInfo.Visible = false; // init false, as most instances will be false.
+				
+				if(CurrentMarker.GetRadarVisibility() == 2 || 
+					CurrentMarker.ForceVisible())
+				{
+						displayInfo.Visible = true;		
+				}
+				
+				if (RxHUD.RenxHud.TargetingBox.TargetedActor == Actors[i]) 
+						{
+							displayInfo.Visible = true;
+						}
 			} else {
-				displayInfo.Visible = false;
+				//`log("Display Info set for FALSE at end") ; 
+				displayInfo.Visible = true;
 			}
 		}
-	
+
+		if(displayInfo.Visible && bVehicle)
+		{
+			if (CurrentMarker.GetMinimapIconTexture() != none) {
+				LoadTexture("img://" $ PathName(CurrentMarker.GetMinimapIconTexture()), ActorIcons[i].GetObject("vehicleG"));
+			} else {
+				LoadTexture("img://" $ PathName(Texture2D'RenxHud.T_Radar_Blip_Vehicle_Neutral'), ActorIcons[i].GetObject("vehicleG"));
+			}	 
+			
+			//Specific instance for irrelevant pawns needing to check what they're driving through PRI 
+			if(ThisWorld.NetMode == NM_Client && Rx_PRI(Actors[i]) != none && Rx_PRI(Actors[i]).PawnVehicleClass != none )
+			{
+				if (class<Rx_Vehicle>(Rx_PRI(Actors[i]).PawnVehicleClass).default.MinimapIconTexture != none) {
+					LoadTexture("img://" $ PathName(class<Rx_Vehicle>(Rx_PRI(Actors[i]).PawnVehicleClass).default.MinimapIconTexture), ActorIcons[i].GetObject("vehicleG"));
+				} else {
+					LoadTexture("img://" $ PathName(Texture2D'RenxHud.T_Radar_Blip_Vehicle_Neutral'), ActorIcons[i].GetObject("vehicleG"));
+				}	
+			}
+		}		
+
 		ActorIcons[i].SetDisplayInfo(displayInfo);
 	}
 
 }
 
+/**
 function string GetVehicleIconName(Actor marker)
 {
 	local Rx_Vehicle RxV;
@@ -512,7 +670,8 @@ function string GetVehicleIconName(Actor marker)
 	else if(Rx_Vehicle_Orca(RxV) != none) return "Orca";
 	else if(Rx_Vehicle_StealthTank(RxV) != none) return "Stealth Tank";
 	else return "default";
-}
+}*/
+
 DefaultProperties
 {
 	IconsFriendlyCount = 0

@@ -7,7 +7,7 @@ DefaultProperties
 		Materials(1)=MaterialInstanceConstant'RX_WP_AutoRifle.Materials.MI_WP_Counter_Nod'
 	End Object
 	
-//	BeamTemplate=ParticleSystem'RX_FX_Munitions.Beams.P_InstantHit_Tracer_Nod'
+	BeamTemplate=ParticleSystem'RX_FX_Munitions.Beams.P_InstantHit_Tracer_Nod'
 
 	MuzzleFlashPSCTemplate=ParticleSystem'RX_WP_AutoRifle.Effects.MuzzleFlash_Nod'
 }

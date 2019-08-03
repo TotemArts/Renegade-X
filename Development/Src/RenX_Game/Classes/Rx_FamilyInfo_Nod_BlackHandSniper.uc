@@ -1,4 +1,4 @@
-class Rx_FamilyInfo_Nod_BlackHandSniper extends Rx_FamilyInfo;
+class Rx_FamilyInfo_Nod_BlackHandSniper extends Rx_FamilyInfo_Nod;
 
 DefaultProperties
 {
@@ -10,19 +10,54 @@ DefaultProperties
 	PointsForKill           = 22.5 // 35
 	MaxHealth               = 100
 	MaxArmor               	= 150
-	Armor_Type 				= A_Kevlar
+	Armor_Type 				= A_None
 	SpeedMultiplier			= 0.9
+	
 
 	CharacterMesh=SkeletalMesh'RX_CH_Nod_BHS.Mesh.SK_CH_BlackHandSniper'
+	PawnVoiceClass=class'Rx_Pawn_VoiceClass_Nod_BlackHandSniper'
 	
 	ArmMeshPackageName="RX_CH_Arms"
 	ArmMesh="RX_CH_Arms.Mesh.SK_Arms_Nod_Default"
 	ArmSkinPackageName="RX_CH_Arms"
 	
-	//StartWeapons[0] = class'Rx_Weapon_SniperRifle_Nod'	
-	//StartWeapons[1] = class'Rx_Weapon_Pistol'
-	//StartWeapons[2] = class'Rx_Weapon_TimedC4'
-	//StartWeapons[3] = class'Rx_Weapon_Grenade'
+	/*PT Block Info*/
+	/*------------*/
+	BasePurchaseCost	= 500
+	bHighTier			= true
+	PT_Damage			= 5
+	PT_Range			= 6
+	PT_RateOfFire		= 1
+	PT_MagazineCapacity = 2
+	PT_Icon				= Texture2D'RenXPurchaseMenu.T_Icon_Weapon_SniperRifle'
+	/*---------------*/
 
 	InvManagerClass = class'Rx_InventoryManager_Nod_BlackHandSniper' 
+	
+	/***********/
+	/*Veterancy*/
+	/***********/
+	
+	VPReward(0)=4
+	VPReward(1)=5
+	VPReward(2)=7
+	VPReward(3)=10
+	
+	//+X
+	Vet_HealthMod(0)=0
+	Vet_HealthMod(1)=25
+	Vet_HealthMod(2)=50
+	Vet_HealthMod(3)=75
+	
+	//+X
+	Vet_SprintSpeedMod(0)=0
+	Vet_SprintSpeedMod(1)=0.05
+	Vet_SprintSpeedMod(2)=0.075
+	Vet_SprintSpeedMod(3)=0.1
+	
+	/******************/
+
+	PowerUpClasses.Add(class'Rx_Pickup_HealthMedium');
+	PowerUpClasses.Add(class'Rx_Pickup_ArmourMedium');
+	PTString="Buy Char - Sniper"
 }

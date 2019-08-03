@@ -7,14 +7,14 @@ defaultproperties
     SuicideStatsName=SUICIDES_BUGGY
 
     DamageWeaponFireMode=2
-    VehicleDamageScaling=0.11
+    VehicleDamageScaling=0.18//0.11
     NodeDamageScaling=0.5
     VehicleMomentumScaling=0.1
     bBulletHit=True
 
     CustomTauntIndex=10
-    lightArmorDmgScaling=0.16
-	AircraftDamageScaling=0.30 //This is only used by a damage type if the value is greater than 0, otherwise it treats an aircraft like Light armour.
+    lightArmorDmgScaling=0.2//0.16
+	AircraftDamageScaling=0.4//0.30 //This is only used by a damage type if the value is greater than 0, otherwise it treats an aircraft like Light armour.
     BuildingDamageScaling=0.15
 	MineDamageScaling=1.0
 	

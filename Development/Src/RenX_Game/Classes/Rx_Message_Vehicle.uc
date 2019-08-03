@@ -20,11 +20,14 @@ enum VehicleMessage
 	VM_NoEntry_BuyerReserved,
 	VM_NoEntry_TeamReserved,
 
-	VM_EnemyStolen,
+	VM_EnemyStolen_Team,
 	VM_TeammateEntered,
 	VM_Destroyed,
 
-	VM_OwnerLocked
+	VM_OwnerLocked,
+	
+	VM_EnemyStolen_Enemy,
+	VM_EnemyStolen_Unbound
 };
 
 static function ClientReceive(

@@ -1,18 +1,7 @@
-class Rx_Building_Airstrip extends Rx_Building
+class Rx_Building_Airstrip extends Rx_Building_Nod_VehicleFactory
    placeable;
 
 var Rx_Building_AirTower_Internals AirTowerInternals;
-
-simulated function PostBeginPlay()
-{
-    local Vector loc;
-    local Rotator rot;	
-	super.PostBeginPlay();
-	if(WorldInfo.Netmode != NM_Client) {
-		BuildingInternals.BuildingSkeleton.GetSocketWorldLocationAndRotation('Veh_DropOff', loc, rot);
-		Rx_Game(WorldInfo.Game).GetVehicleManager().Set_NOD_ProductionPlace(loc, rot);
-	}
-}
 
 replication
 {
@@ -20,9 +9,39 @@ replication
 		AirTowerInternals;
 }
 
+function CheckObjective()
+{
+}
+
 function RegsiterTowerInternals(Rx_Building_AirTower_Internals inAirTower)
 {
 	AirTowerInternals = inAirTower;
+}
+
+simulated function Rx_BuildingAttachment GetMCT()
+{
+
+	local int i;
+	local Rx_BuildingAttachment Attachment;
+	
+	if(MCT != None)
+		return MCT;
+	else if(AirTowerInternals != None)
+	{
+		for (i = 0; i < AirTowerInternals.BuildingAttachments.length; i++)
+		{
+			Attachment=AirTowerInternals.BuildingAttachments[i];
+			
+			if(Attachment.IsA('Rx_BuildingAttachment_MCT'))
+			{
+				MCT = Attachment;
+				return Attachment;	//found it, abandon everything else
+			}
+		}
+	}
+
+	return none;
+	
 }
 
 simulated function int GetHealth()
@@ -79,12 +98,11 @@ simulated function String GetHumanReadableName()
 defaultproperties
 {
 	BuildingInternalsClass  = Rx_Building_AirStrip_Internals 
-	TeamID                  = TEAM_NOD
 
 	Begin Object Name=Static_Exterior
 		StaticMesh = StaticMesh'RX_BU_AirStrip.Mesh.SM_BU_AirStrip'
 		Translation = (Z=0)
 	End Object
 
-	
+	SpawnsC130 = true
 }

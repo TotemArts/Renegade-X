@@ -1,4 +1,4 @@
-class Rx_Building_PowerPlant_Nod extends Rx_Building_PowerPlant
+class Rx_Building_PowerPlant_Nod extends Rx_Building_Nod_PowerFactory
 	placeable;
       
 

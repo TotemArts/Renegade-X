@@ -6,7 +6,6 @@ class Rx_Sentinel_AGT_MG_Base extends Rx_Sentinel;
 
 var Pawn savedEnemy;
 var Vector AgtLocation;
-
 simulated function byte GetTeamNum()
 {
 	return Team;
@@ -25,6 +24,7 @@ function bool FireAt(Vector Spot)
 	local bool bFired;
 	local Rotator CurrentAimNoRoll;
 
+	
 	//Roll removed because RDiff counts it as a rotation difference, for which roll is not important here.
 	//If weapon doesn't pitch, assume it can hit no matter what the pitch difference (Grenade Launcher, Multi-Mortar).
 	CurrentAimNoRoll.Pitch = (MinPitch == MaxPitch) ? DesiredAim.Pitch : CurrentAim.Pitch;
@@ -35,15 +35,17 @@ function bool FireAt(Vector Spot)
 
 		if(VSize(Spot - Origin) <= GetRange())
 		{
+			//loginternal("firing");
 			if(SWeapon.FireAt(Origin, CurrentAim, Spot))
 			{
 				UpgradeManager.NotifyFired();
 				bForceNetUpdate = true;
+				bFired = true;
+			} else {
+				bFired = false;
 			}
-
-			bFired = true;
 		}
-	}
+	} 
 
 	return bFired;
 }
@@ -53,7 +55,7 @@ function bool FireAt(Vector Spot)
  */
 function bool IsOutsideMinimalDistToOwner(Pawn possibleTarget)
 {
-	if(VSize(possibleTarget.Location - location) > 900) {
+	if(VSize(possibleTarget.Location - location) > MinimumRange) {
 		return true;
 	} else if(possibleTarget == SController.Enemy && bTrackingCloseRange) {
 		return true;
@@ -68,11 +70,7 @@ function bool IsOutsideMinimalDistToOwner(Pawn possibleTarget)
 
 function bool IsVisibleFromGuns(Pawn possibleTarget)
 {
-	local Vector Start;
-	Start = Location;
-	Start.Z += 20;
-
-	return SWeapon.FastTrace(possibleTarget.location,Start,,true);
+	return true;
 }
 
 
@@ -184,7 +182,7 @@ simulated function SetWeapon(Rx_SentinelWeapon NewWeapon)
 	SWeapon = NewWeapon;
 
 	SWeapon.InitializeWeaponComponent(WeaponComponent);
-
+	SetTimer(0.2,false,'UpdateRange'); 
 	UpdateDamageEffects();
 	WeaponComponent.PlaySpawnEffect();
 	WeaponComponent.SetTranslation(vect(0.0,0.0,20.0));
@@ -245,6 +243,8 @@ defaultproperties
 {
 	Team = 0 // GDI AGT Sentinel
 
+	MinimumRange = 925
+	
     // MenuName="AGT cannon"
 	// ShortMenuName="AGT cannon"
 

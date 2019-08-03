@@ -1,6 +1,5 @@
-class Rx_Attachment_FlakCannon extends Rx_WeaponAttachment;
+class Rx_Attachment_FlakCannon extends Rx_WeaponAttachment_Varying;
 
-var ParticleSystem BeamTemplate;
 var class<UDKExplosionLight> ImpactLightClass;
 
 var int CurrentPath;
@@ -101,6 +100,7 @@ DefaultProperties
 
 	BulletWhip=SoundCue'RX_SoundEffects.Bullet_WhizBy.SC_Bullet_WhizBy'
 	BeamTemplate=ParticleSystem'RX_FX_Munitions.Beams.P_InstantHit_Tracer_Flak'
+	BeamTemplate_Heroic=ParticleSystem'RX_FX_Munitions.Beams.P_InstantHit_Tracer_Flak_Heroic'
 
 	WeaponClass = class'Rx_Weapon_FlakCannon'
 	MuzzleFlashSocket=MuzzleFlashSocket
@@ -108,6 +108,6 @@ DefaultProperties
 	MuzzleFlashLightClass=class'RenX_Game.Rx_Light_AutoRifle_MuzzleFlash'
 	MuzzleFlashDuration=2.5
 	
-	AimProfileName = Shotgun
-	WeaponAnimSet = AnimSet'RX_CH_Animations.Anims.AS_WeapProfile_Shotgun' // AnimSet'RX_CH_Animations.Anims.AS_WeapProfile_AutoRifle'
+	AimProfileName = AutoRifle
+	WeaponAnimSet = AnimSet'RX_CH_Animations.Anims.AS_WeapProfile_AutoRifle'
 }

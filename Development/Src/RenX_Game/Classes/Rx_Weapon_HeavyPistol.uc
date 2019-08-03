@@ -8,7 +8,7 @@ simulated function FireAmmunition()
 	WeaponPlaySound( WeaponDistantFireSnd );
 }
 
-function bool IsInstantHit()
+simulated function bool IsInstantHit()
 {
 	return true; 
 }
@@ -43,6 +43,8 @@ DefaultProperties
 	
 	LeftHandIK_Offset=(X=0,Y=0,Z=0)
 	RightHandIK_Offset=(X=0,Y=0,Z=0)
+	
+	bUseHandIKWhenRelax=false
 	
 	FireOffset=(X=20,Y=8,Z=-5)
 	
@@ -110,7 +112,7 @@ DefaultProperties
 	InitalNumClips = 7
 	MaxClips = 7
 
-	bHasInfiniteAmmo = true;
+	bHasInfiniteAmmo = true
 
 	ReloadAnimName(0) = "weaponreload"
 	ReloadAnimName(1) = "weaponreload"
@@ -127,6 +129,7 @@ DefaultProperties
 
     WeaponFireSnd[0]=SoundCue'RX_WP_Pistol.Sounds.SC_HeavyPistol_Fire'
     WeaponFireSnd[1]=none
+    WeaponFireSnd_Heroic[0]=SoundCue'RX_WP_Pistol.Sounds.SC_HeavyPistol_Fire_Heroic'
 	
 	WeaponDistantFireSnd=SoundCue'RX_WP_Pistol.Sounds.SC_HeavyPistol_DistantFire'
 	
@@ -173,4 +176,29 @@ DefaultProperties
 
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_HeavyPistol'
+	
+	/*******************/
+	/*Veterancy*/
+	/******************/
+	
+	Vet_DamageModifier(0)=1  //Applied to instant-hits only
+	Vet_DamageModifier(1)=1.10 
+	Vet_DamageModifier(2)=1.25 
+	Vet_DamageModifier(3)=1.50 
+	
+	Vet_ROFModifier(0) = 1
+	Vet_ROFModifier(1) = 1 
+	Vet_ROFModifier(2) = 1  
+	Vet_ROFModifier(3) = 1  
+	
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)	
+	Vet_ClipSizeModifier(1)=1 //Veteran 
+	Vet_ClipSizeModifier(2)=2 //Elite
+	Vet_ClipSizeModifier(3)=3 //Heroic
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.9 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+	/**********************/
 }

@@ -31,8 +31,23 @@ DefaultProperties
 	
 	FireOffset=(X=35,Y=25,Z=-40)
 	
-	LeftHandIK_Offset=(X=3,Y=-2.5,Z=-1)
-	RightHandIK_Offset=(X=0,Y=0,Z=0)
+	// Side Handle
+//	LeftHandIK_Offset=(X=0,Y=0,Z=0)
+//	LeftHandIK_Rotation=(Pitch=2730,Yaw=-3458,Roll=-364)
+//	RightHandIK_Offset=(X=0,Y=0,Z=0)
+
+	// Upper Handle
+	LeftHandIK_Offset = (X=5.610700,Y=15.237499,Z=13.125501)
+	LeftHandIK_Rotation = (Pitch=-6917,Yaw=-6917,Roll=10740)
+	RightHandIK_Offset = (X=3.0,Y=-5.0,Z=-3.0)
+	
+	LeftHandIK_Relaxed_Offset = (X=6.630000,Y=15.318001,Z=14.550000)
+	LeftHandIK_Relaxed_Rotation = (Pitch=3822,Yaw=-1274,Roll=6007)
+	RightHandIK_Relaxed_Offset = (X=0.000000,Y=-6.000000,Z=-0.690000)
+	RightHandIK_Relaxed_Rotation = (Pitch=2548,Yaw=0,Roll=-3640)
+	
+	bOverrideLeftHandAnim=true
+	LeftHandAnim=H_M_Hands_Closed
 	
 	//-------------- Recoil
 	RecoilDelay = 0.02
@@ -80,10 +95,10 @@ DefaultProperties
 	WeaponFireTypes(0)=EWFT_Projectile
 	WeaponFireTypes(1)=EWFT_None
 
-    Spread(0)=0.03
-    Spread(1)=0.03
+    Spread(0)=0.015//0.03
+    Spread(1)=0.015//0.03
  
-    ClipSize = 200
+    ClipSize = 150
     InitalNumClips = 5
     MaxClips = 5
 
@@ -181,4 +196,29 @@ DefaultProperties
 
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_Chaingun'
+	
+	/*******************/
+	/*Veterancy*/
+	/******************/
+	
+	Vet_DamageModifier(0)=1  //Applied to instant-hits only
+	Vet_DamageModifier(1)=1.10 
+	Vet_DamageModifier(2)=1.25 
+	Vet_DamageModifier(3)=1.50 
+	
+	Vet_ROFModifier(0) = 1
+	Vet_ROFModifier(1) = 1 
+	Vet_ROFModifier(2) = 1  
+	Vet_ROFModifier(3) = 1  
+	
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)	
+	Vet_ClipSizeModifier(1)=25 //Veteran 
+	Vet_ClipSizeModifier(2)=50 //Elite
+	Vet_ClipSizeModifier(3)=100 //Heroic
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.9 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+	/**********************/
 }

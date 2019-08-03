@@ -1,4 +1,4 @@
-class Rx_Building_WeaponsFactory extends Rx_Building
+class Rx_Building_WeaponsFactory extends Rx_Building_GDI_VehicleFactory
    placeable;
 
 simulated function String GetHumanReadableName()
@@ -6,20 +6,8 @@ simulated function String GetHumanReadableName()
 	return "Weapons Factory";
 }
 
-simulated function PostBeginPlay()
-{
-    local Vector loc;
-    local Rotator rot;	
-	super.PostBeginPlay();
-	if(WorldInfo.Netmode != NM_Client) {
-		BuildingInternals.BuildingSkeleton.GetSocketWorldLocationAndRotation('Veh_Spawn', loc, rot);
-		Rx_Game(WorldInfo.Game).GetVehicleManager().Set_GDI_ProductionPlace(loc, rot);
-	}
-}
-
 defaultproperties
 {
-	TeamID                  = TEAM_GDI
 	BuildingInternalsClass  = Rx_Building_WeaponsFactory_Internals
 
     Begin Object Name=Static_Exterior

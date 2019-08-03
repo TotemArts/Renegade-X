@@ -3,7 +3,7 @@ class Rx_Building_CommCentre extends Rx_Building_Techbuilding
 
 simulated function String GetHumanReadableName()
 {
-	return "Communications Centre";
+	return "Communications Center";
 }
 
 defaultproperties

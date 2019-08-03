@@ -1,9 +1,9 @@
 class Rx_Rcon_Command_TeamInfo extends Rx_Rcon_Command;
 
-function string ProcessToken(int TeamNumber, string token)
+function string ProcessToken(int TeamIndex, string token)
 {
 	local Rx_TeamInfo team;
-	team = Rx_TeamInfo(Rx_Game(WorldInfo.Game).Teams[TeamNumber]);
+	team = Rx_TeamInfo(Rx_Game(`WorldInfoObject.Game).Teams[TeamIndex]);
 	token = Caps(token);
 
 	switch (token)
@@ -33,18 +33,50 @@ function string ProcessToken(int TeamNumber, string token)
 	}
 }
 
+function string GetTeamInfo(int TeamIndex)
+{
+	local Rx_TeamInfo team;
+	team = Rx_TeamInfo(Rx_Game(`WorldInfoObject.Game).Teams[TeamIndex]);
+
+	return team.GetHumanReadableName() `s team.GetRenScore() `s team.GetKills() `s team.GetDeaths() `s team.mineCount `s team.mineLimit `s team.vehicleCount `s team.vehicleLimit;
+}
+
 function string trigger(string parameters)
 {
 	local int pos, num;
 	local string ret, NumToken, token;
 
 	if (parameters == "")
-		return "Error: Too few parameters." @ getSyntax();
+	{
+		num = ArrayCount(UTTeamGame(`WorldInfoObject.Game).Teams);
+		ret = "0" `s GetTeamInfo(0);
+
+		pos = 1;
+		while (pos != num)
+		{
+			ret $= "\n" $ string(pos) `s GetTeamInfo(pos);
+			++pos;
+		}
+
+		return ret;
+	}
 
 	pos = InStr(parameters," ",,true);
 
 	if (pos == -1)
-		return "Error: Too few parameters." @ getSyntax();
+	{
+		if (parameters ~= "gdi")
+			num = TEAM_GDI;
+		else if (parameters ~= "nod")
+			num = TEAM_NOD;
+		else
+			num = int(parameters);
+
+		if (num < 0 || num >= ArrayCount(UTTeamGame(`WorldInfoObject.Game).Teams))
+			return "Error: Invalid Team";
+
+		return GetTeamInfo(int(parameters));
+	}
 
 	NumToken = Left(parameters, pos);
 	if (NumToken ~= "gdi")
@@ -54,7 +86,7 @@ function string trigger(string parameters)
 	else
 		num = int(NumToken);
 
-	if (num < 0 || num >= ArrayCount(UTTeamGame(WorldInfo.Game).Teams))
+	if (num < 0 || num >= ArrayCount(UTTeamGame(`WorldInfoObject.Game).Teams))
 		return "Error: Invalid Team";
 
 	parameters = Mid(parameters, pos + 1);
@@ -64,12 +96,12 @@ function string trigger(string parameters)
 		pos = InStr(parameters," ",,true);
 		if (pos == -1)
 		{
-			ret $= `nbsp $ parameters `s ProcessToken(num, parameters);
+			ret $= `rcon_delim $ parameters `s ProcessToken(num, parameters);
 			return ret;
 		}
 
 		token = Left(parameters, pos);
-		ret $= `nbsp $ token `s ProcessToken(num, token);
+		ret $= `rcon_delim $ token `s ProcessToken(num, token);
 		parameters = Mid(parameters, pos + 1);
 	}
 	return ret;

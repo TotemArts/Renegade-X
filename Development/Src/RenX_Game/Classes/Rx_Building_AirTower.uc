@@ -1,6 +1,8 @@
 class Rx_Building_AirTower extends Rx_Building
    placeable;
 
+var() Rx_Building_Airstrip LinkedAirstrip;
+
 simulated function String GetHumanReadableName()
 {
 	return "Airstrip";

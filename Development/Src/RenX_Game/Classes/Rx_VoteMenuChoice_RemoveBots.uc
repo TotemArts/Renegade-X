@@ -13,14 +13,14 @@ function array<string> GetDisplayStrings()
 
 	if (CurrentTier == 0)
 	{
-		ret.AddItem("1: From GDI");
-		ret.AddItem("2: From NOD");
-		ret.AddItem("3: From both Teams");
+		ret.AddItem("1|From GDI");
+		ret.AddItem("2|From NOD");
+		ret.AddItem("3|From both Teams");
 	}
 	else if (CurrentTier == 1)
 	{
-		ret.AddItem("1: Remove all");
-		ret.AddItem("2: Specify amount");
+		ret.AddItem("1|Remove all");
+		ret.AddItem("2|Specify amount");
 	}
 
 	return ret;

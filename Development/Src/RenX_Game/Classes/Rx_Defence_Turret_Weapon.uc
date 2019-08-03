@@ -69,4 +69,20 @@ DefaultProperties
 
     // AI
     bRecommendSplashDamage=True
+    bOkAgainstLightVehicles = True
+    bOkAgainstArmoredVehicles = True
+	
+	
+	/****************************************/
+	/*Veterancy*/
+	/****************************************/
+
+	//*X Reverse percentage (0.75 is 25% increase in speed)
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.90 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+	
+	
+	/********************************/
 }

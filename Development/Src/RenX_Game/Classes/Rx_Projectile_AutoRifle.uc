@@ -39,9 +39,31 @@ DefaultProperties
     LifeSpan=0.3305	//0.425	/0.65 
     Damage=8
     DamageRadius=0
-	HeadShotDamageMult=3.0
+	HeadShotDamageMult=4.0 //3.0
     MomentumTransfer=10000
     bAttachExplosionToVehicles=false
     bCheckProjectileLight=false
     bSuppressExplosionFX=True // Do not spawn hit effect in mid air
+	
+	/*************************/
+	/*VETERANCY*/
+	/************************/
+	
+	Vet_DamageIncrease(0)=1 //Normal (should be 1)
+	Vet_DamageIncrease(1)=1.10 //Veteran 
+	Vet_DamageIncrease(2)=1.25 //Elite
+	Vet_DamageIncrease(3)=1.50 //Heroic
+
+	Vet_SpeedIncrease(0)=1 //Normal (should be 1)
+	Vet_SpeedIncrease(1)=1.5 //Veteran 
+	Vet_SpeedIncrease(2)=3.0 //Elite
+	Vet_SpeedIncrease(3)=3.0 //Heroic (N/A for AutoRifle, as it gets hitscan...... LOL, I forgot I said that when veterancy was first release)
+	
+		
+	Vet_LifespanModifier(0)=1 //Normal (should be 1)
+	Vet_LifespanModifier(1)=0.75 //Veteran 
+	Vet_LifespanModifier(2)=0.45 //Elite
+	Vet_LifespanModifier(3)=1 //Heroic
+	
+	/***********************/
 }

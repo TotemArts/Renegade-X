@@ -1,4 +1,4 @@
-class Rx_Building_PowerPlant_GDI extends Rx_Building_PowerPlant
+class Rx_Building_PowerPlant_GDI extends Rx_Building_GDI_PowerFactory
 	placeable;
 
 simulated function String GetHumanReadableName()

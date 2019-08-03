@@ -1,6 +1,9 @@
 class Rx_Building_Team_Internals extends Rx_Building_Internals;
 
+`include(RenX_Game\RenXStats.uci);
+
 var int                     Health;             // Current health of the building
+var	bool					HealthLocked; 		//Can this building be damaged?
 var int                     HealthMax;          // Maximum health of the building
 var int 					BA_HealthMax;		//Changes to this as max health when building armour is enabled. 
 var int						TrueHealthMax;		// Max Health minus Armor value
@@ -12,8 +15,9 @@ var float                   SavedDmg;           // Since infantry weapons will d
 var const float             HealPointsScale;    // How many points per healed HP
 var const float             HDamagePointsScale; // How many points per damaged HP 
 var const float				ADamagePointsScale; // How many points per damaged Armor
-var float				Destroyed_Score	;	//Total points given when the building is destroyed. 1/2 is given to the player that destroyed it, whilst the other is just added to the team score. 
-
+var float					Destroyed_Score	;	//Total points given when the building is destroyed. 1/2 is given to the player that destroyed it, whilst the other is just added to the team score. 
+var float 					ArmorResetTime;
+var bool 					bCanArmorBreak; 
 struct Attacker
 {
 	var PlayerReplicationInfo PPRI; 
@@ -141,24 +145,27 @@ simulated function bool IsDestroyed()
 
 function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser) 
 {
-
 	local float CurDmg;
 	local int TempDmg;
 	local float Scr;
 	local int dmgLodLevel;
 	local Rx_Controller PC,StarPC; //Let's rub it in their faces, gents!
-	local color C_GREEN, C_RED;
 	local int InstigatorIndex;
 	local Attacker TempAttacker;
 	local Attacker PRII;
+	local float StartHealth, StartArmor; //Keep Track of what we're currently at for health and armor
+
 	
-	C_Green=MakeColor(10,255,0,255); 
-	C_Red=MakeColor(255,0,10,255); 
+	if(HealthLocked) return; //Health is currently locked
 	
-	StarPC=Rx_Controller(EventInstigator);
-	if ( GetTeamNum() == EventInstigator.GetTeamNum() || bDestroyed || Role < ROLE_Authority || Health <= 0 || DamageAmount <= 0 )
+	StarPC=Rx_Controller(EventInstigator); 
+	
+	if ( EventInstigator == none || GetTeamNum() == EventInstigator.GetTeamNum() || bDestroyed || Role < ROLE_Authority || Health <= 0 || DamageAmount <= 0 )
 		return;
 
+	StartHealth = GetHealth();
+	StartArmor = GetArmor(); 
+	
 	// handle non-dmg
 	if (DamageType == None) 
 	{
@@ -170,6 +177,9 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 		CurDmg = Float(DamageAmount);
 		if (class<Rx_DmgType>(DamageType) != None)
 		{
+			//Make an exception for weapons that have been 
+			if(EventInstigator != none && EventInstigator.Pawn != none && Rx_Weapon(EventInstigator.Pawn.Weapon) != none && Rx_Weapon(EventInstigator.Pawn.Weapon).VRank >=2) DamageAmount*=Rx_Weapon(EventInstigator.Pawn.Weapon).Elite_Building_DamageMod;
+			
 			// calculate saved damg and save it
 			CurDmg = Float(DamageAmount) * class<Rx_DmgType>(DamageType).static.BuildingDamageScalingFor();
 		 
@@ -201,8 +211,14 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 
 	if(Armor > 0)
 	{
+		if(DamageAmount - Armor >= 0 && bCanArmorBreak) 
+		{
+			ArmorBreak(EventInstigator); //Armour broken bonus	
+		}
+		
 		if(DamageAmount - Armor > 0)
 		{
+			
 			//Track health damage and who dun it (When breaking armour)
 
 			InstigatorIndex=DamagingParties.Find('PPRI',EventInstigator.PlayerReplicationInfo);
@@ -211,15 +227,22 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 			{
 				TempAttacker.PPRI=EventInstigator.PlayerReplicationInfo;
 				TempAttacker.DamageDone = Min(DamageAmount - Armor, Health);
-			
+				Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingArmourDamage(FMin(DamageAmount - Armor, Health));
 				DamagingParties.AddItem(TempAttacker);
 			}
 			else
 			{
 				if(CurDmg <= float(Health+Armor))
-					DamagingParties[InstigatorIndex].DamageDone+=DamageAmount-Armor;
+				{
+					DamagingParties[InstigatorIndex].DamageDone+=Min(DamageAmount-Armor, GetMaxArmor()+GetMaxHealth()+10);	
+					Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingArmourDamage(FMin(DamageAmount-Armor, GetMaxArmor()+GetMaxHealth()+10));
+				}
 				else
+				{
 					DamagingParties[InstigatorIndex].DamageDone+=Health;
+					Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingArmourDamage(float(Health));
+				}
+				
 			}
 		
 			//End tracking health damage
@@ -233,7 +256,11 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 			Health = Max(Health - (DamageAmount - Armor), 0);	 
 		}	
 		else // Damaging only armor
+		{
+			Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingArmourDamage(DamageAmount);
 			Scr = float(DamageAmount) * ADamagePointsScale;
+		}
+			
 
 		Armor = Max(Armor - DamageAmount, 0);	
 	}
@@ -245,16 +272,24 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 		if(InstigatorIndex == -1)  //New damager
 		{
 			TempAttacker.PPRI=EventInstigator.PlayerReplicationInfo;
-			TempAttacker.DamageDone = Min(DamageAmount, Health);
-		
+			TempAttacker.DamageDone = FMin(DamageAmount, Health);
+			Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingDamage(FMin(DamageAmount, Health)); 
+			
 			DamagingParties.AddItem(TempAttacker) ;
 		}
 		else
 		{
 			if(CurDmg <= float(Health+Armor))
-				DamagingParties[InstigatorIndex].DamageDone+=DamageAmount;
+				{
+					DamagingParties[InstigatorIndex].DamageDone+=DamageAmount;
+					Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingDamage(DamageAmount); 
+				}				
 			else
-				DamagingParties[InstigatorIndex].DamageDone+=Health;
+				{
+					DamagingParties[InstigatorIndex].DamageDone+=Health;
+					Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingDamage(float(Health)); 
+				}
+				
 		}
 			
 		//End tracking health damage
@@ -270,13 +305,19 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 
 	// Add score
 	if (GetTeamNum() != EventInstigator.GetTeamNum() && Rx_PRI(EventInstigator.PlayerReplicationInfo) != None)
+	{
 		Rx_PRI(EventInstigator.PlayerReplicationInfo).AddScoreToPlayerAndTeam(Scr);
+		Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingDamagePoints(Min(DamageAmount, StartHealth+StartArmor ));
+	}
+		
 
 	if (Health <= 0) 
 	{
 		bDestroyed = True;
 		Destroyer = EventInstigator.PlayerReplicationInfo;
 		BroadcastLocalizedMessage(MessageClass,BuildingDestroyed,EventInstigator.PlayerReplicationInfo,,self);
+
+		`RecordTeamStringStat(BUILDING_DESTROYED,`RxGameObject.teams[self.TeamID],"Building "@BuildingName@"Destroyed");
 		
 		//Rx_PRI(Destroyer).AddScoreToPlayerAndTeam(Destroyed_Score/2); //875 to the destroyer of buildings. 
 		//Rx_TeamInfo(Destroyer.Team).AddRenScore(Destroyed_Score/2); //And another 875 to the team score
@@ -286,6 +327,7 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 			if (PRII.PPRI != none)
 			{
 				Rx_PRI(PRII.PPRI).AddScoreToPlayerAndTeam( default.Destroyed_Score*(PRII.DamageDone/TrueHealthMax)) ;
+				if(Rx_Controller(PRII.PPRI.Owner) != none && Rx_Pawn( Rx_Controller(PRII.PPRI.Owner).Pawn) != none) Rx_Pawn( Rx_Controller(PRII.PPRI.Owner).Pawn).SetTimer(2.0,false,'PlayBuildingKillTimer');
 				Destroyed_Score -= default.Destroyed_Score*(PRII.DamageDone/TrueHealthMax);
 			}
 		}
@@ -299,18 +341,23 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 		foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
 		{
 			if (StarPC == none)
-				PC.CTextMessage("GDI",180, Caps("The"@BuildingVisuals.GetHumanReadableName()@ "was destroyed!"),C_RED,255, 255, false, 1);
+				PC.CTextMessage(Caps("The"@BuildingVisuals.GetHumanReadableName()@ "was destroyed!"),'Red', 180);
 			else if (PC.GetTeamNum() == StarPC.GetTeamNum())
-				PC.CTextMessage("GDI",180, Caps("The"@BuildingVisuals.GetHumanReadableName()@ "was destroyed!"),C_GREEN,255, 255, false, 1);
+				{
+					PC.CTextMessage(Caps("The"@BuildingVisuals.GetHumanReadableName()@ "was destroyed!"),'Green',180);
+					PC.DisseminateVPString("[Team Building Kill Bonus]&" $ class'Rx_VeterancyModifiers'.default.Ev_BuildingDestroyed*Rx_Game(WorldInfo.Game).CurrentBuildingVPModifier $ "&");
+				}
 			else
-				PC.CTextMessage("GDI",180, Caps("The"@BuildingVisuals.GetHumanReadableName()@ "was destroyed!"),C_RED,255, 255, false, 1);
+			{
+				PC.CTextMessage(Caps("The"@BuildingVisuals.GetHumanReadableName()@ "was destroyed!"),'Red',180);
+			}
 		}
 		//End show message where people will actually look at it.
 
-		Rx_Game(WorldInfo.Game).LogBuildingDestroyed(Destroyer, self, DamageType);
+		Rx_Game(WorldInfo.Game).LogBuildingDestroyed(Destroyer, self, BuildingVisuals, DamageType);
 
 		PlayDestructionAnimation();
-		Rx_Game(WorldInfo.Game).CheckBuildingsDestroyed(Self);
+		Rx_Game(WorldInfo.Game).CheckBuildingsDestroyed(BuildingVisuals);
 	}
 	else if (DamageAmount > 0) 
 	{
@@ -329,7 +376,11 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 
 	super.TakeDamage(DamageAmount, EventInstigator, HitLocation, Momentum, DamageType, HitInfo, DamageCauser);
 
-	`log(self.Class@ "taking" @DamageAmount@ "damage."@SavedDmg@"damage saved -" @Health@ "remaining",bBuildingDebug,'Buildings');
+	//`log(self.Class@ "taking" @DamageAmount@ "damage."@SavedDmg@"damage saved -" @Health@ "remaining",bBuildingDebug,'Buildings');
+	
+	`RecordGamePositionStat(BUILDING_DAMAGE_ATTACKER_LOCATION, EventInstigator.Pawn.Location, 1);
+	`RecordGamePositionStat(BUILDING_DAMAGE_AMOUNT, HitLocation, DamageAmount);
+	`RecordGamePositionStat(BUILDING_DAMAGE_LOCATION, HitLocation, 1);
 }
 
 //
@@ -381,10 +432,14 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
 				SavedDmg = FMax(0.0f, SavedDmg - Amount);
 				Scr = SavedDmg * HealPointsScale;
 				Rx_PRI(Healer.PlayerReplicationInfo).AddScoreToPlayerAndTeam(Scr);
+				Rx_PRI(Healer.PlayerReplicationInfo).AddRepairPoints_B(RealAmount); //Add to amount of Pawn repair points this 
 			}
 
+			
 			Scr = RealAmount * HealPointsScale;
 			Rx_PRI(Healer.PlayerReplicationInfo).AddScoreToPlayerAndTeam(Scr);
+			Rx_PRI(Healer.PlayerReplicationInfo).AddRepairPoints_B(RealAmount); //Add to amount of Pawn repair points this 
+			
 		}
 
 		if(bRepairArmor)
@@ -446,7 +501,7 @@ function int GetBuildingHealthLod() {
 				return 3;
 		} 	
 		return 2;		
-	} else if(perc > 0) {
+	} else if(perc >= 0) {
 		return 3;		
 	}
 	return (health+Armor)/400;						
@@ -631,9 +686,69 @@ simulated function AddDmgFx(Rx_BuildingAttachment_DmgFx fx, int level)
 	}
 }
 
-function PowerLost()
+function bool PowerLost(optional bool bFromKismet)
 {
+	local Rx_Building_PowerPlant PP;
+
+	foreach AllActors(class'Rx_Building_PowerPlant', PP) 
+	{
+		if(TeamID == PP.TeamID && !PP.IsDestroyed())
+		{	
+			return false;
+		}
+	}
+
 	bNoPower = true;
+	return true;
+}
+
+//PowerRestore function
+// Modified by AX:
+//	CNC-Field does not have a PP, but does have Obelisk/AGT, the old code would never re-enable the power as the map has no PP
+function bool PowerRestore()
+{
+	local Rx_Building_PowerFactory building;
+	local bool foundPowerPlant;
+	local bool bPPAvailable;
+	
+	//Check for Powerplants
+	foreach AllActors(class'Rx_Building_PowerFactory', building) 
+	{
+		if(TeamID == building.TeamID)
+		{	
+			if(!foundPowerPlant)
+				foundPowerPlant = true;
+			if(!building.IsDestroyed())
+			{
+				bPPAvailable = true;
+				break;
+			}
+		}
+	}
+	
+	// If the map has a power plant...
+	if ( foundPowerPlant )
+	{
+		//If the found Powerplant is not destroyed and the building isn't destroyed
+		if(bPPAvailable && !bDestroyed)
+		{
+			//Turn the power back on
+			bNoPower = false;
+			return true;
+		}
+	} 
+	else 
+	{
+		if ( !bDestroyed )
+		{
+			//Turn the power back on
+			bNoPower = false;
+			return true;
+		}
+	}
+	
+	// We have a failure.
+	return false;
 }
 
 simulated function PlayDestructionAnimation() 
@@ -713,6 +828,26 @@ static function string GetLocalString(
 	return "";
 }
 
+function ArmorBreak(Controller Con)
+{
+	local Rx_Controller PC; 
+	
+		foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
+		{
+				if (PC.GetTeamNum() == Con.GetTeamNum() )
+				{
+				PC.DisseminateVPString("[Armour Break Bonus]&" $ class'Rx_VeterancyModifiers'.default.Ev_BuildingArmorBreak $ "&");
+				}
+		}
+		bCanArmorBreak = false; 
+		SetTimer(ArmorResetTime,false,'ResetArmorBreakEventTimer'); 
+}
+
+function ResetArmorBreakEventTimer()
+{
+	bCanArmorBreak = true; 
+}
+
 DefaultProperties
 {
 	/***************************************************/
@@ -737,4 +872,8 @@ DefaultProperties
 
 	DamageLodLevel          = 1
 	bInitialDamageLod       = true
+	
+	ArmorResetTime			= 300 //5 Minute time between being able to be rewarded for breaking armor (Seconds)
+	bCanArmorBreak 			= true
+	HealthLocked			= false 
 }

@@ -1,7 +1,11 @@
 class Rx_Weapon_FlakCannon extends Rx_Weapon_Reloadable;
 
+var int NumPellets, ShotLayer, NumSpreadLayers;
+var bool bUseConstantSpread;
 
-var int NumPellets;
+var float LayerDensity; //Used to change spread per shot/Create rediculous patterns
+
+var float Additive; //Circular additive used in predictable spread pattern  
 
 simulated function CustomFire()
 {
@@ -9,7 +13,9 @@ simulated function CustomFire()
     Rx_Pawn(Owner).ShotgunPelletCount = 0;
     for (i=0; i < NumPellets; i++)
     {
-        super.InstantFire();
+	if(i>0 && Rx_Controller(Instigator.Controller) != none) Rx_Controller(Instigator.Controller).AddShot(); //One gets called in FireAmmunition already 
+        //super.InstantFire();
+		super.ProjectileFire();
         CurrentAmmoInClipClientside++;
     }
     CurrentAmmoInClipClientside--;
@@ -42,9 +48,46 @@ simulated function bool TryHeadshot(byte FiringMode, ImpactInfo Impact)
 	return false;
 }
 
-function bool IsInstantHit()
+simulated function bool IsInstantHit()
 {
-	return CurrentFireMode == 0; 
+	return false; //CurrentFireMode == 0; 
+}
+
+
+simulated function rotator AddSpread(rotator BaseAim)
+{
+	if(bUseConstantSpread) return ShotgunAddSpread(BaseAim); 
+	else
+	return super.AddSpread(BaseAim);
+}
+
+simulated function rotator ShotgunAddSpread(rotator BaseAim)
+{
+	local vector X, Y, Z;
+	local float CurrentSpreadX, RandY, RandZ;
+	
+	CurrentSpreadX = Spread[CurrentFireMode] + (ShotLayer*1.0*LayerDensity) ;
+	
+
+	ShotLayer++;
+	if (CurrentSpreadX == 0)
+	{
+		return BaseAim;
+	}
+	else
+	{
+		// Add in consistent, circular spread
+		GetAxes(BaseAim, X, Y, Z);
+		RandY = sin(Additive * DegToRad);
+		RandZ = cos(DegToRad*Additive);
+		
+		Additive += (360.0/NumPellets) ;
+		
+		if(Additive >= 360) Additive=0; 
+		if(ShotLayer >= NumSpreadLayers) ShotLayer=0;
+		
+		return rotator(X + RandY * CurrentSpreadX * Y + RandZ * CurrentSpreadX * Z);
+	}
 }
 
 DefaultProperties
@@ -73,8 +116,9 @@ DefaultProperties
 	
 	PlayerViewOffset=(X=14.0,Y=-1.0,Z=-2.0)
 	
-	LeftHandIK_Offset=(X=0,Y=-6,Z=0.5)
-	RightHandIK_Offset=(X=0,Y=0,Z=0)
+	LeftHandIK_Offset=(X=0,Y=0,Z=0)
+	RightHandIK_Offset=(X=6,Y=-6,Z=-2)
+	LeftHandIK_Relaxed_Offset = (X=1.000000,Y=-2.000000,Z=3.000000)
 	
 	FireOffset=(X=20,Y=8,Z=-10)
 	
@@ -109,12 +153,14 @@ DefaultProperties
 	WeaponFireTypes(0)=EWFT_Custom
 	WeaponFireTypes(1)=EWFT_Projectile
         
-//	WeaponProjectiles(0)=class'Rx_Projectile_FlakCannon_Alt'
+	WeaponProjectiles(0)=class'Rx_Projectile_FlakCannon_Alt'
 	WeaponProjectiles(1)=class'Rx_Projectile_FlakCannon'
+	WeaponProjectiles_Heroic(0)=class'Rx_Projectile_FlakCannon_Alt_Heroic'
+	WeaponProjectiles_Heroic(1)=class'Rx_Projectile_FlakCannon_Heroic'
 	
 	WeaponRange=2500.0
 	
-	InstantHitDamage(0)=12
+	InstantHitDamage(0)=15 //12
 	
 	HeadShotDamageMult=2.0
 	
@@ -124,13 +170,13 @@ DefaultProperties
 
 	InstantHitMomentum(0)=4000
 
-    Spread(0)=0.075
+    Spread(0)=0.01//0.075
     Spread(1)=0.005
  
-    ClipSize = 12
-    InitalNumClips = 5
-    MaxClips = 5
-    NumPellets = 8
+    ClipSize = 8//12
+    InitalNumClips = 8
+    MaxClips = 8
+    NumPellets = 10//8
 
     ReloadAnimName(0) = "weaponreload"
     ReloadAnimName(1) = "weaponreload"
@@ -174,4 +220,40 @@ DefaultProperties
 
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_FlakCannon'
+	
+	/*******************/
+	/*Veterancy*/
+	/******************/
+	
+	Vet_DamageModifier(0)=1  //Applied to instant-hits only
+	Vet_DamageModifier(1)=1.10 
+	Vet_DamageModifier(2)=1.25 
+	Vet_DamageModifier(3)=1.50 
+	
+	Vet_ROFModifier(0) = 1
+	Vet_ROFModifier(1) = 1 
+	Vet_ROFModifier(2) = 1  
+	Vet_ROFModifier(3) = 1  
+	
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)	
+	Vet_ClipSizeModifier(1)=2 //Veteran 
+	Vet_ClipSizeModifier(2)=4 //Elite
+	Vet_ClipSizeModifier(3)=6 //Heroic
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.9 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+	/**********************/
+	
+	bLocSync = true; 
+	LocSyncIncrement = 4; 
+	
+	//For more consistent spread
+	bUseConstantSpread = true
+	
+	NumSpreadLayers = 2 //5
+	LayerDensity = 0.025
+	
+	ROFTurnover = 4 
 }

@@ -91,15 +91,15 @@ DefaultProperties
     InventoryGroup=16
 
     // reload config
-    ClipSize = 16
+    ClipSize = 8
     InitalNumClips = 999
     MaxClips = 999
     
     ShotCost(0)=1
     ShotCost(1)=1
     
-    ReloadTime(0) = 6.0
-    ReloadTime(1) = 6.0
+    ReloadTime(0) = 4.0
+    ReloadTime(1) = 4.0
 	
 	RecoilImpulse = -0.05f
 	
@@ -126,18 +126,22 @@ DefaultProperties
     Spread(0)=0.3
     Spread(1)=0.3
    
-    WeaponFireSnd(0)     = SoundCue'RX_VH_MRLS.Sounds.MRLS_FireCue'
+    WeaponFireSnd(0)     = SoundCue'TS_VH_HoverMRLS.Sounds.SC_HoverMRLS_Fire'
     WeaponFireTypes(0)   = EWFT_Projectile
     WeaponProjectiles(0) = Class'TS_Vehicle_HoverMRLS_Projectile'
 
-    WeaponFireSnd(1)     = SoundCue'RX_VH_MRLS.Sounds.MRLS_FireCue'
+    WeaponFireSnd(1)     = SoundCue'TS_VH_HoverMRLS.Sounds.SC_HoverMRLS_Fire'
     WeaponFireTypes(1)   = EWFT_Projectile
     WeaponProjectiles(1) = Class'TS_Vehicle_HoverMRLS_Projectile'
+	
+	//Heroic Modifiers
+	WeaponProjectiles_Heroic(0)= Class'TS_Vehicle_HoverMRLS_Projectile_Heroic'
+	WeaponProjectiles_Heroic(1)= Class'TS_Vehicle_HoverMRLS_Projectile_Heroic'
 	
 	ReloadSound(0)=SoundCue'RX_VH_Apache.Sounds.SC_Reload_Missiles'
     ReloadSound(1)=SoundCue'RX_VH_Apache.Sounds.SC_Reload_Missiles'
 	
-	WeaponDistantFireSnd=SoundCue'RX_SoundEffects.Missiles.SC_Missile_DistantFire'
+	WeaponDistantFireSnd=SoundCue'TS_VH_HoverMRLS.Sounds.SC_Missile_DistantFire'
     
     CrosshairMIC = MaterialInstanceConstant'RenX_AssetBase.UI.MI_Reticle_Tank_Type5A'
     
@@ -161,5 +165,24 @@ DefaultProperties
     LockCheckTime        = 0.1			// 0.1
     LockAcquireTime      = 1.0 			// 0.7
     StayLocked           = 0.1 			// 0.1		// This does nothing    
+	
+	/*Veterancy*/
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)
+	Vet_ClipSizeModifier(1)=2 //Veteran 
+	Vet_ClipSizeModifier(2)=4 //Elite
+	Vet_ClipSizeModifier(3)=8 //Heroic
+
+	Vet_ROFModifier(0) = 1
+	Vet_ROFModifier(1) = 0.95 
+	Vet_ROFModifier(2) = 0.9  
+	Vet_ROFModifier(3) = 0.80  
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.90 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
     
+    bOkAgainstLightVehicles = True
+    bOkAgainstArmoredVehicles = True
+    bOkAgainstBuildings = True
 }

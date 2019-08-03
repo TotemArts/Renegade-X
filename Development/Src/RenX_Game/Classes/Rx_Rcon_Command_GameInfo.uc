@@ -12,18 +12,18 @@ function string trigger(string parameters)
 			if (pos == -1)
 			{
 				// last word
-				ret $= Rx_Game(WorldInfo.Game).GetGameProperty(parameters);
+				ret $= `RxGameObject.GetGameProperty(parameters);
 				break;
 			}
-			ret $= Rx_Game(WorldInfo.Game).GetGameProperty(Left(parameters, pos)) $ `nbsp;
+			ret $= `RxGameObject.GetGameProperty(Left(parameters, pos)) $ `rcon_delim;
 			parameters = Mid(parameters, pos + 1);
 		}
 		return ret;
 	}
 
 	// Limits, booleans, others
-	// PlayerLimit, VehicleLimit, MineLimit, TimeLimit, bSteamRequired, bPrivateMessageTeamOnly, bAllowPrivateMessaging, bAutoBalanceTeams, bSpawnCrates, CrateRespawnAfterPickup
-	return "PlayerLimit" `s WorldInfo.Game.MaxPlayers `s "VehicleLimit" `s Rx_Game(WorldInfo.Game).VehicleLimit `s "MineLimit" `s Rx_Game(WorldInfo.Game).MineLimit `s "TimeLimit" `s WorldInfo.Game.TimeLimit `s "bPassworded" `s WorldInfo.Game.AccessControl.RequiresPassword() `s "bSteamRequired" `s Rx_AccessControl(WorldInfo.Game.AccessControl).bRequireSteam `s "bPrivateMessageTeamOnly" `s Rx_Game(WorldInfo.Game).bPrivateMessageTeamOnly `s "bAllowPrivateMessaging" `s Rx_Game(WorldInfo.Game).bAllowPrivateMessaging `s "bAutoBalanceTeams" `s Rx_Game(WorldInfo.Game).bAutoShuffleOnNewRound `s "bSpawnCrates" `s Rx_Game(WorldInfo.Game).SpawnCrates `s "CrateRespawnAfterPickup" `s Rx_Game(WorldInfo.Game).CrateRespawnAfterPickup;
+	// PlayerLimit, VehicleLimit, MineLimit, TimeLimit, bSteamRequired, bPrivateMessageTeamOnly, bAllowPrivateMessaging, TeamMode, bSpawnCrates, CrateRespawnAfterPickup
+	return "PlayerLimit" `s `WorldInfoObject.Game.MaxPlayers `s "VehicleLimit" `s `RxGameObject.VehicleLimit `s "MineLimit" `s `RxGameObject.MineLimit `s "TimeLimit" `s `WorldInfoObject.Game.TimeLimit `s "bPassworded" `s `WorldInfoObject.Game.AccessControl.RequiresPassword() `s "bSteamRequired" `s Rx_AccessControl(`WorldInfoObject.Game.AccessControl).bRequireSteam `s "bPrivateMessageTeamOnly" `s `RxGameObject.bPrivateMessageTeamOnly `s "bAllowPrivateMessaging" `s `RxGameObject.bAllowPrivateMessaging `s "TeamMode" `s `RxGameObject.TeamMode `s "bSpawnCrates" `s `RxGameObject.SpawnCrates `s "CrateRespawnAfterPickup" `s `RxGameObject.CrateRespawnAfterPickup `s "bIsCompetitive" `s `RxGameObject.bIsCompetitive `s "MatchState" `s string(`RxGameObject.GetStateName()) `s "bBots" `s string(!`RxGameObject.bBotsDisabled) `s "GameType" `s `RxGameObject.GameType;
 }
 
 function string getHelp(string parameters)

@@ -26,6 +26,7 @@ function SpawnCopyFor(Pawn Recipient)
 	if (RenPawn != none)
 	{
 		RenPawn.GiveArmor(ArmourGain);
+		RenPawn.DamageRate = 0; 
 	}
 
 	super.SpawnCopyFor(Recipient);

@@ -1,4 +1,4 @@
-class Rx_Weapon_Railgun extends Rx_Weapon_Reloadable;		// Rx_Weapon_Charged;
+class Rx_Weapon_Railgun extends Rx_Weapon_Charged;		//Rx_Weapon_Reloadable ;
 
 var	SoundCue WeaponDistantFireSnd;	// A second firing sound to be played when weapon fires. (Used for distant sound)
 
@@ -21,7 +21,7 @@ simulated state BoltActionReloading
     }
 }
 
-function bool IsInstantHit()
+simulated function bool IsInstantHit()
 {
 	return true; 
 }
@@ -55,8 +55,14 @@ DefaultProperties
 	
 	ArmsAnimSet=AnimSet'RX_WP_Railgun.Anims.AS_Railgun_Arms'
 	
-	LeftHandIK_Offset=(X=1,Y=3,Z=1)
+	LeftHandIK_Offset=(X=0,Y=0,Z=0)
 	RightHandIK_Offset=(X=3,Y=0,Z=-0)
+	
+	LeftHandIK_Relaxed_Offset = (X=9.000000,Y=-2.000000,Z=5.000000)
+	LeftHandIK_Relaxed_Rotation = (Pitch=-2730,Yaw=-1456,Roll=11650)
+	RightHandIK_Relaxed_Offset = (X=2.340000,Y=-0.720000,Z=-3.350000)
+	RightHandIK_Relaxed_Rotation = (Pitch=-2730,Yaw=1274,Roll=7645)
+
 	
 	//-------------- Recoil
 	RecoilDelay = 0.07
@@ -78,10 +84,10 @@ DefaultProperties
     ShotCost(1)=0
 	ShouldFireOnRelease(0)=1
 	ShouldFireOnRelease(1)=0
-    FireInterval(0)=+0.5
-    FireInterval(1)=+0.0
-    ReloadTime(0) = 3.5
-    ReloadTime(1) = 3.5
+    FireInterval(0)=+0.9 //+0.75 //+0.5
+    FireInterval(1)=+0.9 //+0.0
+    ReloadTime(0) = 2.8 //4.0 //3.5
+    ReloadTime(1) = 2.8 //4.0 //3.5
     
     EquipTime=1.0
 //	PutDownTime=0.75
@@ -95,6 +101,8 @@ DefaultProperties
 
     InstantHitDamage(0)=200
     InstantHitDamage(1)=0
+	
+	HeadShotDamageMult=2.0 //1.5
 
     InstantHitDamageTypes(0)=class'Rx_DmgType_Railgun'
     InstantHitDamageTypes(1)=None
@@ -102,7 +110,7 @@ DefaultProperties
     InstantHitMomentum(0)=30000
     InstantHitMomentum(1)=0
 
-	Spread(0)=0.01
+	Spread(0)=0.0
 	IronSightAndScopedSpread(0)= 0.0
   
     ClipSize = 4
@@ -117,11 +125,13 @@ DefaultProperties
 	BoltReloadTime(1) = 2.5f
 
     ReloadAnimName(0) = "weaponreload"
-    ReloadAnimName(1) = "weaponreload"
-    ReloadAnim3PName(0) = "H_M_Autorifle_Reload"
-    ReloadAnim3PName(1) = "H_M_Autorifle_Reload"
-    ReloadArmAnimName(0) = "weaponreload"
-    ReloadArmAnimName(1) = "weaponreload"
+	ReloadAnimName(1) = "weaponreload"
+	ReloadArmAnimName(0) = "weaponreload"
+	ReloadArmAnimName(1) = "weaponreload"
+	BoltReloadAnim3PName(0) = "H_M_BoltReload"
+	BoltReloadAnim3PName(1) = "H_M_BoltReload"
+	ReloadAnim3PName(0) = "H_M_Autorifle_Reload"
+	ReloadAnim3PName(1) = "H_M_Autorifle_Reload"
 	
 	BoltReloadAnimName(0) = "WeaponBoltReload"
 	BoltReloadAnimName(1) = "WeaponBoltReload"
@@ -131,6 +141,25 @@ DefaultProperties
 	RefireBoltReloadInterrupt(0) = 1.1f
 	RefireBoltReloadInterrupt(1) = 1.1f
 
+		/**Charged Weapon Variables*/
+	
+	 WeaponPreFireAnim(0) 	= "WeaponIdle" //"WeaponBoltReload"
+	 WeaponFireAnim(0)		= "WeaponFire"
+	 WeaponPostFireAnim(0) 	= "WeaponIdle" //"WeaponBoltReload"
+		
+		
+	ArmPreFireAnim(0) = "WeaponIdle" //"WeaponBoltReload" 
+	ArmFireAnim(0)	= "WeaponFire"
+	ArmPostFireAnim(0) = "WeaponIdle" //"WeaponBoltReload" 
+	
+	/** The time to delay firing */
+	FireDelayTime = 0.25
+	bCharge = true
+	
+	/** Extra firing sounds */
+	WeaponPreFireSnd(0) = SoundCue'RX_WP_Railgun.Sounds.S_RailGun_Chargeup_Cue'
+	WeaponPostFireSnd(0) = none 
+	
     WeaponFireSnd[0]=SoundCue'RX_WP_Railgun.Sounds.Railgun_FireCue'
     WeaponFireSnd[1]=None
 
@@ -151,6 +180,7 @@ DefaultProperties
 
     MuzzleFlashSocket="MuzzleFlashSocket"
     MuzzleFlashPSCTemplate=ParticleSystem'RX_WP_LaserRifle.Effects.P_LaserRifle_MuzzleFlash_1P'
+    MuzzleFlashPSCTemplate_Heroic=ParticleSystem'RX_WP_Railgun.Effects.P_Railgun_MuzzleFlash_Heroic'
     MuzzleFlashDuration=3.3667
     MuzzleFlashLightClass=class'Rx_Light_AutoRifle_MuzzleFlash'
   
@@ -205,4 +235,39 @@ DefaultProperties
 
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_Railgun'
+	
+	/*******************/
+	/*Veterancy*/
+	/******************/
+	
+	Vet_DamageModifier(0)=1  //Applied to instant-hits only
+	Vet_DamageModifier(1)=1.15 //1.10 
+	Vet_DamageModifier(2)=1.25 
+	Vet_DamageModifier(3)=1.50 
+	
+	Vet_ROFModifier(0) = 1.0
+	Vet_ROFModifier(1) = 0.95
+	Vet_ROFModifier(2) = 0.9 
+	Vet_ROFModifier(3) = 0.85 
+	
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)	
+	Vet_ClipSizeModifier(1)=0 //Veteran 
+	Vet_ClipSizeModifier(2)=1 //Elite
+	Vet_ClipSizeModifier(3)=2 //Heroic
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.90 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+	/**********************/
+	
+	bLocSync = true;
+	ROFTurnover = 2;	
+	bOverrideFireIntervalForReload = false //Don't clip your sounds together
+	
+	//For instant hit weapons 
+	bPierceInfantry = true
+	bPierceVehicles = true
+	MaximumPiercingAbility  =  5
+	CurrentPiercingPower	=  5
 }

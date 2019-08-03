@@ -1,4 +1,4 @@
-class Rx_DmgType_Apache_Gun extends Rx_DmgType; //Explodes... but also is supposed to be good vs. infantry
+class Rx_DmgType_Apache_Gun extends Rx_DmgType; //Explodes... but also is supposed to be good vs. infantry, so 1.0 across the board.
 
 defaultproperties
 {
@@ -7,7 +7,7 @@ defaultproperties
     SuicideStatsName=SUICIDES_APACHEGUN
 
     DamageWeaponFireMode=2
-    VehicleDamageScaling=0.17
+    VehicleDamageScaling=0.185
     NodeDamageScaling=0.5
     VehicleMomentumScaling=0.1
 
@@ -16,9 +16,9 @@ defaultproperties
 	
 	
     CustomTauntIndex=10
-    lightArmorDmgScaling=0.17
-    BuildingDamageScaling=0.34
-	MCTDamageScaling=3.0
+    lightArmorDmgScaling=0.185
+    BuildingDamageScaling=0.185
+	MCTDamageScaling=0.75
 	MineDamageScaling=1.0
 	
     AlwaysGibDamageThreshold=19

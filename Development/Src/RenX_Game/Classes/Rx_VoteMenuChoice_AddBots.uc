@@ -1,4 +1,5 @@
-class Rx_VoteMenuChoice_AddBots extends Rx_VoteMenuChoice;
+class Rx_VoteMenuChoice_AddBots extends Rx_VoteMenuChoice
+	config(RenegadeXAISetup);
 
 var string ConsoleDisplayText;
 
@@ -8,28 +9,38 @@ var int Skill;
 
 var int CurrentTier;
 
+
 function array<string> GetDisplayStrings()
 {
 	local array<string> ret;
 
 	if (CurrentTier == 0)
 	{
-		ret.AddItem("1: To GDI");
-		ret.AddItem("2: To NOD");
-		ret.AddItem("3: To both Teams");
+		ret.AddItem("1|To GDI");
+		ret.AddItem("2|To NOD");
+		ret.AddItem("3|To both Teams");
 	}
 	else if (CurrentTier == 2)
 	{
-		ret.AddItem("1: Skill 1");
-		ret.AddItem("2: Skill 2");
-		ret.AddItem("3: Skill 3");
-		ret.AddItem("4: Skill 4");
-		ret.AddItem("5: Skill 5");
-		ret.AddItem("6: Skill 6");
-		ret.AddItem("7: Skill 7");
+		ret.AddItem("1|Skill 1");
+		ret.AddItem("2|Skill 2");
+		ret.AddItem("3|Skill 3");
+		ret.AddItem("4|Skill 4");
+		ret.AddItem("5|Skill 5");
+		ret.AddItem("6|Skill 6");
+		ret.AddItem("7|Skill 7");
+		ret.AddItem("8|Skill 8");
+
+		if(IsCheatBotEnabled())
+			ret.AddItem("9|Tiberium-blessed Skill");
 	}
 
 	return ret;
+}
+
+unreliable server function bool IsCheatBotEnabled()
+{
+	return Rx_PRI(Handler.PlayerOwner.PlayerReplicationInfo).bCanRequestCheatBots;
 }
 
 function KeyPress(byte T)
@@ -48,12 +59,25 @@ function KeyPress(byte T)
 	}
 	else if (CurrentTier == 2)
 	{
-		// accept 1 - 7
-		if (T >= 1 && T <= 7)
+			// accept 1 - 9 if cheater bots are enabled
+		if(`RxGameObject.CheckCheatBot())
 		{
-			Skill = T;
+			if (T >= 1 && T <= 9)
+			{
+				Skill = T;
 
-			Finish();
+				Finish();
+			}
+		}
+			// accept 1 - 8
+		else
+		{	
+			if (T >= 1 && T <= 8)
+			{
+				Skill = T;
+
+				Finish();
+			}
 		}
 	}
 }
@@ -113,7 +137,10 @@ function string ComposeTopString()
 {
 	local string str;
 
-	str = super.ComposeTopString() $ " wants to add " $ string(Amount) $ " bots with skill " $ string(Skill) $ " to ";
+	if(Skill < 9)
+		str = super.ComposeTopString() $ " wants to add " $ string(Amount) $ " bots with skill " $ string(Skill) $ " to ";
+	else	
+		str = super.ComposeTopString() $ " wants to add " $ string(Amount) $ " CABAL-tier bots to ";
 	switch (BotsToTeam)
 	{
 	case 1:
@@ -151,6 +178,7 @@ function string ParametersLogString()
 function Execute(Rx_Game game)
 {
 	local int i;
+	local UTBot B;
 
 	// max is player max minus current bots and players 
 	i = game.MaxPlayers - game.NumBots - game.NumPlayers;
@@ -158,13 +186,27 @@ function Execute(Rx_Game game)
 	Amount = Max(Amount, 0);
 
 	for (i = 0; i < Amount; i++)
-	{
-		// todo: apply skill
+	{		
 		if (BotsToTeam == 1 || BotsToTeam == 3)
-			game.AddBot( , true, 0);
+		{
+			B = game.AddBot( , true, 0);
+			if(B != None)
+				AdjustSkill(B);
+		}
 		if (BotsToTeam == 2 || BotsToTeam == 3)
-			game.AddBot( , true, 1);
+		{
+			B = game.AddBot( , true, 1);
+			if(B != None)
+				AdjustSkill(B);
+		}
 	}
+}
+
+function AdjustSkill(UTBot B)
+{
+	B.Skill = Skill;
+	B.ResetSkill();
+	Rx_PRI(B.PlayerReplicationInfo).BotSkill = Skill;
 }
 
 DefaultProperties

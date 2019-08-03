@@ -28,6 +28,8 @@ defaultproperties
 {
 	Components.Remove(Sprite)
 
+	bStatic = false
+	bNoDelete = false
 	// 2D scene capture
 	Begin Object Class=SceneCapture2DComponent Name=SceneCapture2DComponent0
 	End Object

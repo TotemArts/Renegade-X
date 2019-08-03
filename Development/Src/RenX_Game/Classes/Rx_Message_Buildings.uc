@@ -55,4 +55,5 @@ static function byte AnnouncementLevel(byte MessageIndex)
 
 DefaultProperties
 {
+	AnnouncementVolume=5.0
 }

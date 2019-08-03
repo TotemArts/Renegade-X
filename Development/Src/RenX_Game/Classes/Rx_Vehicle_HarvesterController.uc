@@ -1,362 +1,59 @@
-/*********************************************************
-*
-* File: Rx_Vehicle_Harvester.uc
-* Author: RenegadeX-Team
-* Pojekt: Renegade-X UDK <www.renegade-x.com>
-*
-* Desc:
-*
-*
-* ConfigFile:
-*
-*********************************************************
-*
-*********************************************************/
+// virtual class
+
 class Rx_Vehicle_HarvesterController extends AIController;
-    
+
+var transient Rx_Vehicle_Harvester harv_vehicle;
 var byte TeamNum;
-
-var Rx_Tib_NavigationPoint tibNode;
-var Rx_Ref_NavigationPoint refNode;
-
-var Rx_Vehicle_Harvester harv_vehicle;
-var NavigationPoint BlockedNavPointBehindMe;
-var Rx_Building_Refinery refinery;
-var vector refineryLoc,loc;
-var rotator refineryRot;
-var Rx_BuildingAttachment DockingStation;
-//var Rx_Building_AdvancedGuardTower agt;
-var bool bTurnLeftToFaceRef;
-
 var bool                            bLogTripTimes;
 var float							tripTimer;
-var Rx_BlockedForHarvesterPathnode	Nav;
+var Rx_Building_Refinery refinery;
+
+//Comm Centre
+var byte RadarVisibility, LastRadarVisibility; //Set radar visibility. 0: Invisible to all 1: visible to your team 2: visible to enemy team 
+
+//Buff/Debuff modifiers//
+
+var float Misc_SpeedModifier; 
+
+//Weapons
+var float Misc_DamageBoostMod; 
+var float Misc_RateOfFireMod;
+var float Misc_ReloadSpeedMod;
+
+//Survivablity
+var float Misc_DamageResistanceMod;
+var float Misc_RegenerationMod; 
+
+//Stat Modifiers
+struct ActiveModifier
+{
+	var class<Rx_StatModifierInfo> ModInfo; 
+	var float				EndTime; 
+	var bool				Permanent; 
+};
+
+var array<ActiveModifier> ActiveModifications; 
+
+var Rx_Controller QueuedStopController; 
+var bool bQueuedStop; //Is there a manual stop queued up? 
+
+replication
+{
+	// Things the server should send to the client.
+	if (bNetDirty)
+		RadarVisibility;
+}
 
 event PostBeginPlay()
 {
-	Super.PostBeginPlay();
-	InitPlayerReplicationInfo();
-}
-
-event SetTeam(int inTeamIdx)
-{
-    TeamNum = inTeamIdx;
-}
-
-function InitPlayerReplicationInfo()
-{
-	if(PlayerReplicationInfo != none)
-	{
-		CleanupPRI();
-	}
-	PlayerReplicationInfo = Spawn(class'Rx_DefencePRI', self);
-
-	if (PlayerReplicationInfo != none) {
-		PlayerReplicationInfo.SetPlayerName(Rx_Vehicle_Harvester(Owner).GetHumanReadableName());
-		PlayerReplicationInfo.SetPlayerTeam(WorldInfo.GRI.Teams[Owner.GetTeamNum()]);
-	}
-}
-
-function StopMovement()
-{
-	local Vehicle V;
-
-	if (Pawn.Physics != PHYS_Flying)
-	{
-		Pawn.Acceleration = vect(0,0,0);
-	}
-	V = Vehicle(Pawn);
-	if (V != None)
-	{
-		V.Steering = 0;
-		V.Throttle = 0;
-		V.Rise = 0;
-	}
-}
-
-
-auto state idle
-{	
-}
-
-
-/*
- * Extends State ScriptedMove from Superclass AIController
- */
-state ScriptedMove
-{
-	ignores SeePlayer, SeeMonster, HearNoise, NotifyHitWall;
-
-	event PoppedState()
-	{
-		Super(ScriptedMove).PoppedState();
-		if (Pawn != None)
-		{
-			StopMovement();
-		}
-	}
-
-Begin:
-	// while we have a valid pawn and move target, and
-	// we haven't reached the target yet
-	while (Pawn != None &&
-		   ScriptedMoveTarget != None &&
-		   !Pawn.ReachedDestination(ScriptedMoveTarget))
-	{
-		// check to see if it is directly reachable
-		if (ActorReachable(ScriptedMoveTarget))
-		{
-			// then move directly to the actor
-			MoveToward(ScriptedMoveTarget, ScriptedFocus);
-		}
-		else
-		{
-			
-			foreach WorldInfo.AllNavigationPoints(class'Rx_BlockedForHarvesterPathnode',Nav)
-			{
-				Nav.TransientCost = 10000000.0; // so that the Harv avoids this kind of pathnodes. The cost is cleared automatically after the next FindPathToward 
-			}
-			
-			// attempt to find a path to the target
-			MoveTarget = FindPathToward(ScriptedMoveTarget, false);
-			if (MoveTarget != None)
-			{
-				// move to the first node on the path
-				MoveToward(MoveTarget, ScriptedFocus);
-			}
-			else
-			{
-				// abort the move
-				`warn("Failed to find path to"@ScriptedMoveTarget);
-				Sleep(3.0);
-				GoTo('Begin');
-				//ScriptedMoveTarget = None;
-			}
-		}
-	}
-	// return to the previous state
-	PopState();
-}
-
-/**
- * Called by APawn::moveToward when the point is unreachable
- * due to obstruction or height differences.
- */
-event MoveUnreachable(vector AttemptedDest, Actor AttemptedTarget)
-{
-	LogInternal("=== Rx_Vehicle_HarvesterController: Point"@AttemptedDest@AttemptedTarget@"unreachable ===");
-}
-
-/** called when a ReachSpec the AI wants to use is blocked by a dynamic obstruction
- * gives the AI an opportunity to do something to get rid of it instead of trying to find another path
- * @note MoveTarget is the actor the AI wants to move toward, CurrentPath the ReachSpec it wants to use
- * @param BlockedBy the object blocking the path
- * @return true if the AI did something about the obstruction and should use the path anyway, false if the path
- * is unusable and the bot must find some other way to go
- */
-event bool HandlePathObstruction(Actor BlockedBy){
-	
-	//LogInternal("=== Rx_Vehicle_HarvesterController: Path"@movetarget@"Obstructed ===");
-	return true; // We are the harvester. We try to ram our way through !
+	super.PostBeginPlay();
+	SetTimer(0.1,true,'CheckActiveModifiers');
 }
 
 state Harvesting
 {
-	ignores SeePlayer, SeeMonster, HearNoise;
 
 
-Begin:
-	
-	
-	if (bLogTripTimes)
-	{
-		`log(((TeamNum == 0)? "GDI" : "Nod") @ " harvester took " @ tripTimer @ " to reach tiberium field.");
-		tripTimer = 0;
-	}
-
-	harv_vehicle.bPlayOpeningAnim = false;
-	harv_vehicle.bPlayHarvestingAnim = true;
-	if(WorldInfo.NetMode != NM_DedicatedServer)
-		Pawn.Mesh.PlayAnim('Harvesting',,true);
-    sleep(refinery.HarvesterHarvestTime);
-
-    if (bLogTripTimes)
-	{
-		`log(((TeamNum == 0)? "GDI" : "Nod") @ " harvester took " @ refinery.HarvesterHarvestTime @ " to harvest from tiberium field.");
-		tripTimer = 0;
-	}
-	if (tibNode != none)
-		tibNode.bBlocked = false;
-    harv_vehicle.bPlayHarvestingAnim = false;  
-	GotoState('MovingToRaf');
-}
-
-state MovingToTib
-{
-   ignores SeePlayer, HearNoise, NotifyPhysicsVolumeChange, NotifyHeadVolumeChange, Falling;
-
-	function BeginState(Name PreviousStateName)
-	{
-		ClearTimer('destroyIfHarvSeemsToBeStuck');
-		setTimer(480.0, false, 'destroyIfHarvSeemsToBeStuck');
-		// get all the nav points first
-		if(refNode == None) {
-			refNode = GetRefNode();
-		}
-		if(tibNode == None) {
-			tibNode = GetTibNode();
-		}
-		Enemy = None;
-		Focus = None;
-
-        ScriptedMoveTarget = tibNode;
-	}
-
-Begin:
-	
-   SetTimer(1.0,true,'CheckDistToTib');	
-	if (tibNode != none)
-		tibNode.bBlocked = false;
-	if (refNode != none)
-		refNode.bBlocked = false;
-   PushState('ScriptedMove');
-   if(tibNode != none && Pawn.ReachedDestination(tibNode))
-   {
-        tibNode.bBlocked = true;
-        WorldInfo.Game.NotifyNavigationChanged(tibNode);
-        GotoState('Harvesting');
-   }
-}
-
-function CheckDistToTib() {
-	if(tibNode != none && VSize(Pawn.location - tibNode.location) < 1000.0) {
-		harv_vehicle.bPlayClosingAnim = false;
-		harv_vehicle.bPlayOpeningAnim = true;
-		if(WorldInfo.NetMode != NM_DedicatedServer)
-			Pawn.Mesh.PlayAnim('Opening');
-		ClearTimer('CheckDistToTib');
-	}	
-}
-
-state MovingToRaf
-{
-   ignores SeePlayer, HearNoise, NotifyPhysicsVolumeChange, NotifyHeadVolumeChange, Falling;
-
-	function BeginState(Name PreviousStateName)
-	{
-		if(WorldInfo.NetMode != NM_DedicatedServer)
-			Pawn.Mesh.PlayAnim('Opening',,,,,true);
-		harv_vehicle.bPlayClosingAnim = true;
-		if(refNode == None) {
-			refNode = GetRefNode();
-		}
-		if(tibNode == None) {
-			tibNode = GetTibNode();
-		}
-		Enemy = None;
-		Focus = None;
-
-        ScriptedMoveTarget = refNode;
-	}
-
-Begin:
-
-   PushState('ScriptedMove');
-   if(Pawn.ReachedDestination(refNode))
-   {
-	    
-	  refinery.BuildingInternals.BuildingSkeleton.GetSocketWorldLocationAndRotation('RefNodeSocket', refineryLoc, refineryRot);      
-	  if (refNode != none)
-	  {
-		refNode.bBlocked = true;
-		WorldInfo.Game.NotifyNavigationChanged(refNode);
-	  }
-      loc = refineryLoc;
-      loc.z -= 70;
-      
-	  foreach refinery.BuildingInternals.BuildingAttachments(DockingStation) 
-	  	if(DockingStation.isA('Rx_BuildingAttachment_RefDockingStation')) 
-	  		break;  
-      
-	  if(class'Rx_Utils'.static.LeftRightOrientationOfAtoB(refinery, Pawn) < 0.0)
-	  	bTurnLeftToFaceRef = true;
-	  if(bTurnLeftToFaceRef)	      
-      	harv_vehicle.Steering = 1.0;
-      else	
-      	harv_vehicle.Steering = -1.0;
-  	  
-  	  SetTimer(1.0,false,'CheckIfOrientedRight');
-   }
-}
-
-simulated function GetRefinery()
-{
-	foreach AllActors(class'Rx_Building_Refinery', refinery)
-	  {
-		if (refinery.GetTeamNum() == TeamNum)
-		{
-			break;
-		}
-	  }
-}
-
-function CheckIfOrientedRight()
-{
-	harv_vehicle.bTurningToDock = true;
-}
-
-function Tick(float DeltaTime)
-{
-	local float orient, orient2;
-	local Rx_BuildingAttachment ba;
-
-	if (refinery == none)
-		GetRefinery();
-
-	if (bLogTripTimes)
-	{
-		tripTimer += DeltaTime;
-	}
-	
-	Super.Tick(DeltaTime);
-	if(harv_vehicle.bTurningToDock) 
-	{
-		orient = class'Rx_Utils'.static.LeftRightOrientationOfAtoB(DockingStation,Pawn);
-		orient2 = class'Rx_Utils'.static.OrientationToB(Pawn,DockingStation);
-		
-	 	if(orient2 <= 0 && ((bTurnLeftToFaceRef && orient >= 0.0) || (!bTurnLeftToFaceRef && orient <= 0.0))) 
-	 	{
-			harv_vehicle.bTurningToDock = false;
-			harv_vehicle.Steering = 0.0;
-			harv_vehicle.Throttle = -1.0;
-			
-			foreach refinery.BuildingInternals.BuildingAttachments(ba) 
-				if(ba.isA('Rx_BuildingAttachment_RefDockingStation'))
-			{
-					Rx_BuildingAttachment_RefDockingStation(ba).Activate(true);
-					break;
-				}
-			if (WorldInfo.NetMode != NM_DedicatedServer) 
-			{
-				Rx_BuildingAttachment_RefDockingStation(ba).Activate(true);
-			}
-			SetTimer(3.0,false,'StartUnload');
-		}
-	}
-}
-
-function StartUnload()
-{
-	harv_vehicle.Throttle = 0.0;
-	if (refNode != none)
-		refNode.bBlocked = false;
-	refinery.HarvesterDocked(self);
-
-	if (bLogTripTimes)
-	{
-		`log(((TeamNum == 0)? "GDI" : "Nod")  @ " harvester took " @ tripTimer @ " to return to refinery.");
-		tripTimer = 0;
-	}
 }
 
 function GotoTib()
@@ -366,75 +63,306 @@ function GotoTib()
 
 	if (bLogTripTimes)
 	{
-		`log(((TeamNum == 0)? "GDI" : "Nod") @ " harvester took " @ tripTimer @ " to unload.");
+		//`log(((TeamNum == 0)? "GDI" : "Nod") @ " harvester took " @ tripTimer @ " to unload.");
 		tripTimer = 0;
 	}
-}
-
-function GotoTib2()
-{
-	local Rx_BuildingAttachment ba;
-	
-	harv_vehicle.Throttle = 0.0;
-	foreach refinery.BuildingInternals.BuildingAttachments(ba) 
-		if(ba.isA('Rx_BuildingAttachment_RefGarageDoor'))
-			Rx_BuildingAttachment_RefGarageDoor(ba).Close();
-		else if(ba.isA('Rx_BuildingAttachment_RefDockingStation'))
-			Rx_BuildingAttachment_RefDockingStation(ba).Activate(false);			
-
-	GotoState('MovingToTib');
-}
-
-function Rx_Tib_NavigationPoint GetTibNode()
-{
-   local Rx_Tib_NavigationPoint Node;
-   local byte Num;
-
-   foreach AllActors(class'Rx_Tib_NavigationPoint', Node)
-   {
-      Num++;
-      if (Node.TeamNum == TeamNum)
-      {
-         return Node;
-      }
-
-      if (Num == 3)
-         `Log ("Warning: there are more than 2 Rx_Tib_NavigationPoint <Harvester could get Problems> !!!!");
-   }
-   `Log ("Warning: no RenX_Tib_Nodes found! harvester won't work!!!!!");
-   return none;
-}
-
-function destroyIfHarvSeemsToBeStuck() {
-	harv_vehicle.BlowupVehicle();
-}
-
-function Rx_Ref_NavigationPoint GetRefNode()
-{
-   local Rx_Ref_NavigationPoint Node;
-   local byte Num;
-
-   foreach AllActors(class'Rx_Ref_NavigationPoint', Node)
-   {
-      Num++;
-      if (Node.TeamNum == TeamNum)
-      {
-         return Node;
-      }
-
-      if (Num == 3)
-         `Log ("Warning: there are more than 2 Rx_Ref_NavigationPoint <Harvester could get Problems> !!!!");
-   }
-   `Log ("Warning: no RenX_Tib_Nodes found! harvester won't work!!!!!");
-   return none;
 }
 
 function bool IsTurningToDock() {
 	return harv_vehicle.bTurningToDock;
 }
 
-defaultproperties
+function OnEMPHit(Controller InstigatedByController, Actor EMPCausingActor, optional int TimeModifier = 0)
 {
-	bIsPlayer 					= false
+	//`logd("harvester EMPd");
+
+	if(IsInState('Harvesting'))
+	{
+		harv_vehicle.bPlayHarvestingAnim = false;  
+		Pawn.Mesh.stopanim();
+		PauseTimer(true, 'finishHarvesting');
+	}
+	else if(refinery.DockedHarvester == self)
+	{
+		refinery.bHarvEMPd = true;
+	}
+}
+
+function OnEMPBleed(bool finish=false)
+{
+	//`logd("OnEMPBleed start");
+	if(IsInState('Harvesting') && finish)
+	{
+		harv_vehicle.bPlayHarvestingAnim = true;  
+		Pawn.Mesh.PlayAnim('Harvesting',,true);
+		PauseTimer(false, 'finishHarvesting');
+	}
+	else if(refinery.DockedHarvester == self && finish)
+	{
+		refinery.bHarvEMPd = false;
+	}
+}
+
+function SetSpottedRadarVisibility()
+{
+	LastRadarVisibility = RadarVisibility; 
+	
+	SetRadarVisibility(2); //Set full visible from spotting
+	
+	SetTimer(8.0,false, 'ResetRadarVisibility' ); //8 seconds just seems fair
+}
+
+function SetRadarVisibility(byte Visibility)
+{
+	//`log("--------- BOT set Pawn Radar Visibility---------" @ RadarVisibility) ; 
+	RadarVisibility = Visibility; 
+	if(Rx_Pawn(Pawn) != none ) 
+		Rx_Pawn(Pawn).SetRadarVisibility(Visibility); 
+	else
+	if(Rx_Vehicle(Pawn) != none ) 
+		Rx_Vehicle(Pawn).SetRadarVisibility(Visibility); 
+}
+
+simulated function byte GetRadarVisibility()
+{
+	return RadarVisibility; 
+}
+
+function CheckRadarVisibility()
+{
+	local Actor CommTower;
+	local Rx_GRI GRI; 
+	
+	GRI = Rx_GRI(WorldInfo.GRI); 
+		//`log("controller check Radar Visibility") ; 
+		foreach GRI.TechBuildingArray(CommTower)
+		{
+				//`log(CommTower.GetTeamNum()); 
+			if(CommTower.isA('Rx_Building_CommCentre_Internals') == false || CommTower.GetTeamNum() < 0 || CommTower.GetTeamNum() > 1  ) return; 
+			if(CommTower.GetTeamNum() == GetTeamNum() ) 
+				SetRadarVisibility(1);
+			else
+			if(CommTower.GetTeamNum() != GetTeamNum() ) 
+				SetRadarVisibility(2);
+			break;
+		
+		}
+}
+
+function ResetRadarVisibility()
+{
+	SetRadarVisibility(LastRadarVisibility); 
+}
+
+function ToggleSelfDestructTimer(Rx_Controller InstigatingController)
+{
+	if(IsTimerActive('SelfDestructHarvester')) 
+	{
+		InstigatingController.CTextMessage("Harvester Destruction Cancelled",'Pink');
+		ClearTimer('SelfDestructHarvester');
+	}
+	else
+	{
+		SetTimer(10.0,false,'SelfDestructHarvester');
+		InstigatingController.CTextMessage("Destroying Harvester in 10 seconds!",'Pink');
+	}
+	
+}
+
+function SelfDestructHarvester()
+{
+	harv_vehicle.BlowUpVehicle(); 
+} 
+
+function bool ToggleHaltHarv(Rx_Controller InstigatingController, optional bool bForce) ; 
+
+function UpdateHaltedHarvWaypoint(bool bNeedsPush);
+
+//Rx_Controller rollover
+
+/**Set modifiers**/
+
+function AddActiveModifier(class<Rx_StatModifierInfo> Info)//class<Rx_StatModifierInfo> Info) 
+{
+	local int FindI; 
+	local ActiveModifier TempModifier; 
+	//local class<Rx_StatModifierInfo> Info; 
+	
+	//Info = class'Rx_StatModifierInfo_Nod_PTP';
+	
+	FindI = ActiveModifications.Find('ModInfo', Info);
+	
+	//Do not allow stacking of the same modification. Instead, reset the end time of said modification
+	if(FindI != -1) 
+	{
+		//`log("Found in array");
+		ActiveModifications[FindI].EndTime = WorldInfo.TimeSeconds+Info.default.Mod_Length; 
+		//return; 	
+	}
+	else //New modifier, so add it in and re-update modification numbers
+	{
+		//`log("Adding to array"); 
+		TempModifier.ModInfo = Info; 
+		if(Info.default.Mod_Length > 0) TempModifier.EndTime = WorldInfo.TimeSeconds+Info.default.Mod_Length;
+		else
+		TempModifier.Permanent = true; 
+		ActiveModifications.AddItem(TempModifier);	
+	}
+	
+	UpdateModifiedStats(); 
+}
+
+
+function UpdateModifiedStats()
+{
+	local ActiveModifier TempMod;
+	local byte			 HighestPriority; 
+	//local LinearColor	 PriorityColor; 
+	local bool			 bAffectsWeapon;
+	local class<Rx_StatModifierInfo> PriorityModClass; /*Highest priority modifier class (For deciding what overlay to use)*/
+	
+	ClearAllModifications(); //start from scratch
+	HighestPriority = 255 ; // 255 for none
+	
+	if(ActiveModifications.Length < 1) 
+	{
+		if(Rx_Pawn(Pawn) != none) 
+		{
+			//In case speed was modified. Update animation info
+			Rx_Pawn(Pawn).SetSpeedUpgradeMod(0.0);
+			Rx_Pawn(Pawn).UpdateRunSpeedNode(); 
+			Rx_Pawn(Pawn).SetGroundSpeed();
+			Rx_Pawn(Pawn).ClearOverlay();
+		}
+		else if(Rx_Vehicle(Pawn) != none)
+		{
+			Rx_Vehicle(Pawn).ClearOverlay();
+		}
+		//TODO: Insert code to handle vehicles 
+		return; 	
+	}
+	
+	foreach ActiveModifications(TempMod) //Build all buffs
+	{
+		Misc_SpeedModifier+=TempMod.ModInfo.default.SpeedModifier;	
+		Misc_DamageBoostMod+=TempMod.ModInfo.default.DamageBoostMod;	
+		Misc_RateOfFireMod-=TempMod.ModInfo.default.RateOfFireMod;
+		Misc_ReloadSpeedMod-=TempMod.ModInfo.default.ReloadSpeedMod;
+		Misc_DamageResistanceMod-=TempMod.ModInfo.default.DamageResistanceMod;
+		Misc_RegenerationMod+=TempMod.ModInfo.default.RegenerationMod;
+		bAffectsWeapon=TempMod.ModInfo.static.bAffectsWeapons();
+		if(TempMod.ModInfo.default.EffectPriority < HighestPriority || TempMod.ModInfo.default.EffectPriority == 0) 
+		{
+			HighestPriority = TempMod.ModInfo.default.EffectPriority;
+			//PriorityColor = TempMod.ModInfo.default.EffectColor;
+			PriorityModClass = TempMod.ModInfo;
+		}
+	}
+	
+	
+	if(Rx_Pawn(Pawn) != none) 
+	{
+		//In case speed was modified. Update animation info
+		Rx_Pawn(Pawn).SetSpeedUpgradeMod(Misc_SpeedModifier);
+		Rx_Pawn(Pawn).UpdateRunSpeedNode();
+		Rx_Pawn(Pawn).SetGroundSpeed();
+		Rx_Pawn(Pawn).SetOverlay(PriorityModClass, bAffectsWeapon) ; 
+		
+		if(Rx_Weapon(Pawn.Weapon) != none) Rx_Weapon(Pawn.Weapon).SetROFChanged(true);	
+	}
+	else if(Rx_Vehicle(Pawn) != none) 
+	{
+		//Misc_SpeedModifier+=1.0; //Add one to account for vehicles not operating like Rx_Pawn 
+		Rx_Vehicle(Pawn).UpdateThrottleAndTorqueVars();
+		Rx_Vehicle(Pawn).SetOverlay(PriorityModClass.default.EffectColor) ; 
+		
+		if(Rx_Vehicle_Weapon(Pawn.Weapon) != none) Rx_Vehicle_Weapon(Pawn.Weapon).SetROFChanged(true);	
+	}
+}
+
+function ClearAllModifications()
+{
+	//Buff/Debuff modifiers
+	Misc_SpeedModifier 			= default.Misc_SpeedModifier;
+
+	//Weapons
+	Misc_DamageBoostMod 		= default.Misc_DamageBoostMod; 
+	Misc_RateOfFireMod 			= default.Misc_RateOfFireMod; 
+	Misc_ReloadSpeedMod 		= default.Misc_ReloadSpeedMod; 
+
+	//Survivablity
+	Misc_DamageResistanceMod 	= default.Misc_DamageResistanceMod;
+	Misc_RegenerationMod 		= default.Misc_RegenerationMod; 	
+}
+
+function RemoveAllEffects()
+{
+	ActiveModifications.Length = 0; 
+	
+	UpdateModifiedStats(); 
+}
+
+function CheckActiveModifiers()
+{
+	local ActiveModifier TempMod;
+	local float			 TimeS; 
+	
+	if(ActiveModifications.Length < 1) return; 
+	
+	TimeS=WorldInfo.TimeSeconds; 
+	
+	//Should never be more than 1 or 2 of these at any given time, so shouldn't affect tick, though can be moved to a timer if necessary. 
+	foreach ActiveModifications(TempMod) 
+	{
+		if(!TempMod.Permanent && TimeS >= TempMod.EndTime) 
+		{
+			ActiveModifications.RemoveItem(TempMod);
+			
+			UpdateModifiedStats(); 
+		}
+	}
+}
+
+function PawnDied(Pawn inPawn)
+{
+	super.PawnDied(inPawn);
+	if(refinery.DockedHarvester == self)
+	{
+		refinery.bHarvEMPd = false;
+	}	
+}
+
+/****End Modifier Functions*****/
+
+function ClearQueuedStop()
+{
+	bQueuedStop = false; 
+	QueuedStopController = none; 
+}
+
+function SetQueuedStop(Rx_Controller StopController)
+{
+	bQueuedStop = true; 
+	QueuedStopController = StopController; 
+	Rx_Game(WorldInfo.Game).CTextBroadCast(GetTeamNum(),"Harvester Stop Queued",'LightBlue');
+}
+
+DefaultProperties
+{
+	RadarVisibility = 1 
+	bIsPlayer = false
 	bLogTripTimes = false
+	
+	//Buff/Debuff modifiers//
+
+	Misc_SpeedModifier 			= 0.0 
+
+	//Weapons
+	Misc_DamageBoostMod 		= 0.0  
+	Misc_RateOfFireMod 			= 0.0f //1.0 
+	Misc_ReloadSpeedMod 		= 0.0f //1.0 
+
+	//Survivablity
+	Misc_DamageResistanceMod 	= 1.0 
+	Misc_RegenerationMod 		= 1.0  
 }

@@ -635,7 +635,7 @@ function PlaySoundFromTheme(name EventName, optional name SoundThemeName='defaul
 	local int ThemeIndex;
 	local UISoundTheme Theme;
 
-	`log("gfcProcessSound Callback - Sound Theme: "$SoundThemeName$" SoundEvent: "$EventName,,'DevGFxUI');
+	`logd("gfcProcessSound Callback - Sound Theme: "$SoundThemeName$" SoundEvent: "$EventName,,'DevGFxUI');
 
 	ThemeIndex = SoundThemes.Find('ThemeName', SoundThemeName);
 
@@ -648,12 +648,12 @@ function PlaySoundFromTheme(name EventName, optional name SoundThemeName='defaul
 		}
 		else
 		{
-			`log("Invalid theme binding for theme " $ SoundThemeName,, 'GearsUI');
+			`logd("Invalid theme binding for theme " $ SoundThemeName,, 'GearsUI');
 		}
 	}
 	else
 	{
-		`log("Unable to find sound theme for movie " $ SoundThemeName,, 'GearsUI');
+		`logd("Unable to find sound theme for movie " $ SoundThemeName,, 'GearsUI');
 	}
 }
 

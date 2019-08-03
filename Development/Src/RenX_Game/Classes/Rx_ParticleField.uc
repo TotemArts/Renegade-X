@@ -5,7 +5,8 @@ var ParticleSystemComponent Particles;
 var ParticleSystem ParticlesTemplate;
 var repnotify bool bStopParticles;
 var float StopParticlesTime;
-var bool bClientInitialised;
+var bool bClientInitialised, bNeedsUpdate;
+var float ParticleScale; 
 
 replication
 {
@@ -43,6 +44,8 @@ simulated event Tick( float DeltaTime )
 		}
 		bClientInitialised=true;
 	}
+	
+	if(bNeedsUpdate) RefreshParticleSystem(); 
 }
 
 simulated function StopParticles()
@@ -52,6 +55,21 @@ simulated function StopParticles()
 		
 	if (WorldInfo.NetMode != NM_DedicatedServer)
 		Particles.DeactivateSystem();
+}
+
+simulated function SetParticleScale(float Sc)
+{
+	ParticleScale = Sc; 
+	bNeedsUpdate = true; 
+}
+
+simulated function RefreshParticleSystem()
+{
+	`log("Refreshed"); 
+	Particles.DeactivateSystem();
+	Particles.SetScale(ParticleScale);
+	Particles.ActivateSystem();
+	bNeedsUpdate = false; 
 }
 
 DefaultProperties
@@ -84,4 +102,6 @@ DefaultProperties
 	bIgnoreEncroachers=true
 	bIgnoreRigidBodyPawns=true
 	bUpdateSimulatedPosition=true
+	
+	ParticleScale = 1.0
 }

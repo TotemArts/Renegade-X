@@ -24,8 +24,8 @@ function array<string> GetDisplayStrings()
 
 	if (CurrentTier == 1)
 	{
-		ret.AddItem("1: Among All");
-		ret.AddItem("2: Only Team");
+		ret.AddItem("1|Among All");
+		ret.AddItem("2|Only Team");
 	}
 
 	return ret;

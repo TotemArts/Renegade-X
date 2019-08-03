@@ -25,7 +25,6 @@ defaultproperties
 	Inf_KevlarDamageScaling = 0.7	//Kevlar (General rule is 15% less damage from direct hits/bullets, but no penalties)
 	Inf_LazarusDamageScaling = 1.0  // Lazarus SBH armour, standard rule is +40% to Electrical damage but likely no other damage modifiers.
 	
-	
 	AlwaysGibDamageThreshold=98
 	bNeverGibs=True
 	
@@ -35,6 +34,8 @@ defaultproperties
 	KDamageImpulse=5000
 	KDeathUpKick=200
 
-	IconTextureName="T_WeaponIcon_TacticalRifle";
+	IconTextureName="T_WeaponIcon_TacticalRifle"
 	IconTexture=Texture2D'RX_WP_TacticalRifle.UI.T_WeaponIcon_TacticalRifle'
+	
+	bUnsourcedDamage=false
 }

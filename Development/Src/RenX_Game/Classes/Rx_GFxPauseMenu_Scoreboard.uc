@@ -52,34 +52,34 @@ function SetupBuildingIcons()
 	ObeliskIcon.SetVisible(false);
 
 	foreach GetPC().AllActors(class'Rx_Building', building) {
-		if (Rx_Building_Barracks(building) != none) {
+		if (Rx_Building_GDI_InfantryFactory(building) != none) {
 			BarracksIcon.SetVisible(true);
 			BarracksIcon.GetObject("icon").GotoAndStopI(3);
-		} else if (Rx_Building_HandOfNod(building) != none) {
+		} else if (Rx_Building_Nod_InfantryFactory(building) != none) {
 			HandOfNodIcon.SetVisible(true);
 			HandOfNodIcon.GetObject("icon").GotoAndStopI(5);
-		} else if (Rx_Building_WeaponsFactory(building) != none) {
+		} else if (Rx_Building_GDI_VehicleFactory(building) != none) {
 			WarFactoryIcon.SetVisible(true);
 			WarFactoryIcon.GetObject("icon").GotoAndStopI(2);
-		} else if (Rx_Building_AirTower(building) != none) {
+		} else if (Rx_Building_Nod_VehicleFactory(building) != none) {
 			AirstripIcon.SetVisible(true);
 			AirstripIcon.GetObject("icon").GotoAndStopI(6);
-		} else if (Rx_Building_Refinery_GDI(building) != none) {
+		} else if (Rx_Building_GDI_MoneyFactory(building) != none) {
 			GDIRefineryIcon.SetVisible(true);
 			GDIRefineryIcon.GetObject("icon").GotoAndStopI(7);
-		} else if (Rx_Building_Refinery_Nod(building) != none) {
+		} else if (Rx_Building_Nod_MoneyFactory(building) != none) {
 			NodRefineryIcon.SetVisible(true);
 			NodRefineryIcon.GetObject("icon").GotoAndStopI(7);
-		} else if (Rx_Building_PowerPlant_GDI(building) != none) {
+		} else if (Rx_Building_GDI_PowerFactory(building) != none) {
 			GDIPowerPlantIcon.SetVisible(true);
 			GDIPowerPlantIcon.GetObject("icon").GotoAndStopI(8);
-		} else if (Rx_Building_PowerPlant_Nod(building) != none) {
+		} else if (Rx_Building_Nod_PowerFactory(building) != none) {
 			NodPowerPlantIcon.SetVisible(true);
 			NodPowerPlantIcon.GetObject("icon").GotoAndStopI(8);
-		} else if (Rx_Building_AdvancedGuardTower(building) != none) {
+		} else if (Rx_Building_GDI_Defense(building) != none) {
 			AGTIcon.SetVisible(true);
 			AGTIcon.GetObject("icon").GotoAndStopI(1);
-		} else if (Rx_Building_Obelisk(building) != none) {
+		} else if (Rx_Building_Nod_Defense(building) != none) {
 			ObeliskIcon.SetVisible(true);
 			ObeliskIcon.GetObject("icon").GotoAndStopI(4);
 		}
@@ -100,16 +100,16 @@ function TickHUD()
 
 
 	foreach GetPC().AllActors(class'Rx_Building', building) {
-		UpdateBuildingIcon(Rx_Building_Barracks(building), BarracksIcon);
-		UpdateBuildingIcon(Rx_Building_HandOfNod(building), HandOfNodIcon);
-		UpdateBuildingIcon(Rx_Building_WeaponsFactory(building), WarFactoryIcon);
-		UpdateBuildingIcon(Rx_Building_AirTower(building), AirstripIcon);
-		UpdateBuildingIcon(Rx_Building_Refinery_GDI(building), GDIRefineryIcon);
-		UpdateBuildingIcon(Rx_Building_Refinery_Nod(building), NodRefineryIcon);
-		UpdateBuildingIcon(Rx_Building_PowerPlant_GDI(building), GDIPowerPlantIcon);
-		UpdateBuildingIcon(Rx_Building_PowerPlant_Nod(building), NodPowerPlantIcon);
-		UpdateBuildingIcon(Rx_Building_AdvancedGuardTower(building), AGTIcon);
-		UpdateBuildingIcon(Rx_Building_Obelisk(building), ObeliskIcon);
+		UpdateBuildingIcon(Rx_Building_GDI_InfantryFactory(building), BarracksIcon);
+		UpdateBuildingIcon(Rx_Building_Nod_InfantryFactory(building), HandOfNodIcon);
+		UpdateBuildingIcon(Rx_Building_GDI_VehicleFactory(building), WarFactoryIcon);
+		UpdateBuildingIcon(Rx_Building_Nod_VehicleFactory(building), AirstripIcon);
+		UpdateBuildingIcon(Rx_Building_GDI_MoneyFactory(building), GDIRefineryIcon);
+		UpdateBuildingIcon(Rx_Building_Nod_MoneyFactory(building), NodRefineryIcon);
+		UpdateBuildingIcon(Rx_Building_GDI_PowerFactory(building), GDIPowerPlantIcon);
+		UpdateBuildingIcon(Rx_Building_Nod_PowerFactory(building), NodPowerPlantIcon);
+		UpdateBuildingIcon(Rx_Building_GDI_Defense(building), AGTIcon);
+		UpdateBuildingIcon(Rx_Building_Nod_Defense(building), ObeliskIcon);
 	}
 
 	GDITeamPoints.SetText(Rx_TeamInfo(GetPC().WorldInfo.GRI.Teams[TEAM_GDI]).GetRenScore());

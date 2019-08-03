@@ -6,6 +6,7 @@ var MaterialInterface TeamSkin;
 var byte TeamIndex;
 
 
+
 simulated function PostBeginPlay()
 {
 	Super.PostBeginPlay();
@@ -46,7 +47,14 @@ simulated function SetSkin(Material NewMaterial)
 	}
 }
 
-function ConsumeAmmo( byte FireModeNum )
+simulated function PerformRefill()
+{
+	Super.PerformRefill();
+
+	UpdateAmmoCounter();
+} 
+
+simulated function ConsumeAmmo( byte FireModeNum )
 {
     super.ConsumeAmmo(FireModeNum);
     UpdateAmmoCounter();
@@ -63,7 +71,7 @@ simulated function PostReloadUpdate()
     UpdateAmmoCounter();
 }
 
-function bool IsInstantHit()
+simulated function bool IsInstantHit()
 {
 	return true; 
 }
@@ -95,8 +103,13 @@ DefaultProperties
 	
 	PlayerViewOffset=(X=-4.0,Y=-2.0,Z=-2.0)
 	
-	LeftHandIK_Offset=(X=-0.5,Y=1,Z=7.5)
-	RightHandIK_Offset=(X=-3,Y=-6,Z=1)
+	LeftHandIK_Offset=(X=-6.102400,Y=-2.950000,Z=4.731000)
+	LeftHandIK_Rotation=(Pitch=3458,Yaw=-364,Roll=-2730)
+	RightHandIK_Offset=(X=-2,Y=-8,Z=-1)
+	
+	LeftHandIK_Relaxed_Offset = (X=-0.110000,Y=-5.445000,Z=5.880000)
+	LeftHandIK_Relaxed_Rotation = (Pitch=4733,Yaw=3640,Roll=4915)
+
 	
 	TeamIndex = 1 
 	
@@ -110,7 +123,7 @@ DefaultProperties
 	RecoilInterpSpeed = 15.0
 	RecoilDeclinePct = 0.8
 	RecoilDeclineSpeed = 2.0
-	MaxSpread = 0.06
+	MaxSpread = 0.08//0.06
 	RecoilSpreadIncreasePerShot = 0.001
 	RecoilSpreadDeclineSpeed = 0.075
 	RecoilSpreadDecreaseDelay = 0.15
@@ -136,7 +149,7 @@ DefaultProperties
     InstantHitDamage(0)=16
     InstantHitDamage(1)=0
 	
-	HeadShotDamageMult=2.0
+	HeadShotDamageMult= 1.4 //2.0 I cry 
     
 //	BotDamagePercentage = 0.6;
 
@@ -149,12 +162,12 @@ DefaultProperties
     Spread(0)=0.0045
     Spread(1)=0.0
  
-    ClipSize = 120
+    ClipSize = 100 //120
     InitalNumClips = 5
     MaxClips = 5
 	bHasInfiniteAmmo=true
 	
-	FireDelayTime = 0.01
+	FireDelayTime = 1.0 //0.01
 	bCharge = true
 
     ReloadAnimName(0) = "weaponreload"
@@ -178,7 +191,7 @@ DefaultProperties
     ArmPostFireAnim[0]="WeaponFireEnd"
     ArmPostFireAnim[1]="WeaponFireEnd"
     
-    WeaponPreFireSnd[0]=none // SoundCue'RX_WP_LaserChaingun.Sounds.SC_LaserChainGun_Fire_Start'
+    WeaponPreFireSnd[0]= SoundCue'RX_WP_LaserChaingun.Sounds.SC_LaserChainGun_Fire_Start' //none 
     WeaponPreFireSnd[1]=none
     WeaponFireSnd[0]=SoundCue'RX_WP_LaserChaingun.Sounds.SC_LaserChainGun_Fire_Loop'
     WeaponFireSnd[1]=none
@@ -197,6 +210,7 @@ DefaultProperties
 
     MuzzleFlashSocket="MuzzleFlashSocket"
     MuzzleFlashPSCTemplate=ParticleSystem'RX_WP_LaserChaingun.Effects.P_LaserChainGun_MuzzleFlash_1P'
+	MuzzleFlashPSCTemplate_Heroic=ParticleSystem'RX_WP_LaserChaingun.Effects.P_LaserChainGun_MuzzleFlash_1P_Blue'
     MuzzleFlashDuration=3.3667
     MuzzleFlashLightClass=class'Rx_Light_AutoRifle_MuzzleFlash'
 	
@@ -251,6 +265,38 @@ DefaultProperties
 
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_LaserChainGun'
-    
+	
+	/*******************/
+	/*Veterancy*/
+	/******************/
+	
+	Vet_DamageModifier(0)=1  //Applied to instant-hits only
+	Vet_DamageModifier(1)=1.10 
+	Vet_DamageModifier(2)=1.25 
+	Vet_DamageModifier(3)=1.50 
+	
+	Vet_ROFModifier(0) = 1
+	Vet_ROFModifier(1) = 0.95 
+	Vet_ROFModifier(2) = 0.90  
+	Vet_ROFModifier(3) = 0.85  
+	
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)	
+	Vet_ClipSizeModifier(1)=10 //Veteran 
+	Vet_ClipSizeModifier(2)=25 //Elite
+	Vet_ClipSizeModifier(3)=50 //Heroic
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.9 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+	/**********************/
+	
+	bLocSync = true; 
+	LocSyncIncrement = 30; 
+	
+	Vet_ChargeRateModifier(0) = 1.0
+	Vet_ChargeRateModifier(1) = 0.75 
+	Vet_ChargeRateModifier(2) = 0.50  
+	Vet_ChargeRateModifier(3) = 0.25  
 }
 	

@@ -7,5 +7,5 @@ DefaultProperties
 		Materials(1)=MaterialInstanceConstant'RX_WP_AutoRifle.Materials.MI_WP_Counter_GDI'
 	End Object
 	
-//	BeamTemplate=ParticleSystem'RX_FX_Munitions.Beams.P_InstantHit_Tracer_GDI'
+	BeamTemplate=ParticleSystem'RX_FX_Munitions.Beams.P_InstantHit_Tracer_GDI'
 }

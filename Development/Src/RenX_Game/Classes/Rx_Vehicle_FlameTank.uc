@@ -22,6 +22,7 @@ class Rx_Vehicle_FlameTank extends Rx_Vehicle_Treaded
 var() AudioComponent FlameAmbient;
 var() SoundCue FlameBeginSound;
 var() SoundCue FlameStopSound;
+var   SoundCue Snd_FlameAmbient_Heroic;
 
 simulated function VehicleWeaponFireEffects(vector HitLocation, int SeatIndex)
 {
@@ -70,6 +71,13 @@ function bool ValidEnemyForVehicle(Pawn NewEnemy)
 	return true;
 }
 
+simulated function SetHeroicMuzzleFlash(bool SetTrue)
+ {
+	super.SetHeroicMuzzleFlash(SetTrue);
+	if(SetTrue) FlameAmbient.SoundCue=Snd_FlameAmbient_Heroic;
+	else
+	FlameAmbient.SoundCue=FlameAmbient.default.SoundCue; 
+ }
 
 DefaultProperties
 {
@@ -99,7 +107,47 @@ DefaultProperties
 	bSecondaryFireTogglesFirstPerson=true
 	
 	SprintTrackTorqueFactorDivident=0.975
+	
+	BarrelLength(0)=150
+	BarrelLength(1)=150
+	
+/************************/
+/*Veterancy Multipliers*/
+/***********************/
 
+//VP Given on death (by VRank)
+	VPReward(0) = 8 
+	VPReward(1) = 10 
+	VPReward(2) = 12 
+	VPReward(3) = 16 
+	
+	VPCost(0) = 30
+	VPCost(1) = 70
+	VPCost(2) = 150
+
+Vet_HealthMod(0)=1 //800
+Vet_HealthMod(1)=1.125 //900 
+Vet_HealthMod(2)=1.25 //1000
+Vet_HealthMod(3)=1.375 //1100
+	
+Vet_SprintSpeedMod(0)=1
+Vet_SprintSpeedMod(1)=1.05
+Vet_SprintSpeedMod(2)=1.10
+Vet_SprintSpeedMod(3)=1.15
+	
+// +X as opposed to *X
+Vet_SprintTTFD(0)=0
+Vet_SprintTTFD(1)=0.05//0
+Vet_SprintTTFD(2)=0.1
+Vet_SprintTTFD(3)=0.15
+
+
+
+/**********************/
+
+Snd_FlameAmbient_Heroic=SoundCue'RX_VH_FlameTank.Sounds.SC_FlameTank_Fire_Heroic'
+	
+	
     Begin Object Class=SVehicleSimTank Name=SimObject
 
         bClampedFrictionModel=true
@@ -153,6 +201,7 @@ DefaultProperties
 	
 	SkeletalMeshForPT=SkeletalMesh'RX_VH_FlameTank.Mesh.SK_PTVH_FlameTank'
 
+
 	VehicleIconTexture=Texture2D'RX_VH_FlameTank.UI.T_VehicleIcon_FlameTank'
 	MinimapIconTexture=Texture2D'RX_VH_FlameTank.UI.T_MinimapIcon_FlameTank'
 
@@ -168,6 +217,8 @@ DefaultProperties
                 GunPivotPoints=("MainTurretYaw"),
                 CameraTag=CamView3P,
                 CameraBaseOffset=(Z=-10),
+				SeatBone=Base,
+				SeatSocket=VH_Death,
                 CameraOffset=-460,
                 SeatIconPos=(X=0.5,Y=0.33),
                 MuzzleFlashLightClass=class'Rx_Light_Tank_MuzzleFlash'
@@ -218,7 +269,7 @@ DefaultProperties
 	WheelParticleEffects[9]=(MaterialType=YellowSand,ParticleTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_YellowSand_Small')
 	DefaultWheelPSCTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_Dirt_Small'
 	
-    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Vehicle_Huge')
+    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_VH_FlameTank.Effects.P_Explosion_Vehicle')
     BigExplosionSocket=VH_Death
 	
 	DamageMorphTargets(0)=(InfluenceBone=MT_Front,MorphNodeName=MorphNodeW_Front,LinkedMorphNodeName=none,Health=40,DamagePropNames=(Damage1))
@@ -350,4 +401,5 @@ DefaultProperties
         Side=SIDE_Left
     End Object
     Wheels(11)=LB_Wheel_06
+
 }

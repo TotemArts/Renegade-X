@@ -1,4 +1,4 @@
-class Rx_Building_Refinery_GDI extends Rx_Building_Refinery
+class Rx_Building_Refinery_GDI extends Rx_Building_GDI_MoneyFactory
 	placeable;
 
 simulated function String GetHumanReadableName()

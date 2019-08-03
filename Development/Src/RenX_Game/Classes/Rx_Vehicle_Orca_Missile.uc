@@ -70,19 +70,25 @@ DefaultProperties
    MaxExplosionLightDistance=7000.000000
    Speed=4000
    MaxSpeed=4000
-   AccelRate=500
+   AccelRate=1000
    LifeSpan=1.125
-   Damage=53
+   Damage=32
    DamageRadius=400
    MomentumTransfer=100000.000000
    
    LockWarningInterval=1.5
    BaseTrackingStrength=5.0
-   HomingTrackingStrength=5.0
-	 HeadShotDamageMult=10.0 // 5.0
+   HomingTrackingStrength=7.0
+	 HeadShotDamageMult=5.0
    
    //RotationRate=(Roll=50000)
 
    bCheckProjectileLight=true
    ProjectileLightClass=class'RenX_Game.Rx_Light_Rocket'
-}
+   /**
+	Vet_SpeedIncrease(0)=1 //Normal (should be 1)
+	Vet_SpeedIncrease(1)=1.10 //Veteran 
+	Vet_SpeedIncrease(2)=1.25 //Elite
+	Vet_SpeedIncrease(3)=1.50 //Heroic
+*/
+	}

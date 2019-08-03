@@ -3,7 +3,7 @@
 //=============================================================================
 class Rx_Sentinel_Obelisk_Laser_Base extends Rx_Sentinel;
 
-var vector FireStartLoc;
+var vector FireStartLoc; 
 
 replication
 {
@@ -26,31 +26,17 @@ simulated function Tick(float DeltaTime)
  */
 function bool IsOutsideMinimalDistToOwner(Pawn possibleTarget)
 {
-	return (VSize(possibleTarget.Location - Owner.Location) > 800);
+	return (VSize(possibleTarget.Location - Owner.Location) > MinimumRange );//800);
 }
 
 function bool IsVisibleFromGuns(Pawn possibleTarget)
 {
-    local Actor HitActor;
-    local Vector HitLocation, HitNormal, Start, End;
-
-	Start = FireStartLoc;
-    Start.Z -= 90;
-    
-    End = possibleTarget.location;    
-
-    Start = Start + vector(rotator(End-Start)) * 300.0;
-	
-	if(!FastTrace(End,Start))
-		return false;
-
-    HitActor = Trace(HitLocation, HitNormal, End, Start, true, vect(0,0,0),, TRACEFLAG_Bullet);	
-    return HitActor == possibleTarget; 
+	return true;
 }
 
 function setFireStartLoc(Vector v)
 {
-	FireStartLoc = v;	
+	FireStartLoc = v;	 
 }
 
 function bool FireAt(Vector Spot)
@@ -58,22 +44,19 @@ function bool FireAt(Vector Spot)
 	local Vector Origin;
 	local bool bFired;
 
-
     Origin = GetPawnViewLocation();
 
-//	if(RDiff(DesiredAim, CurrentAimNoRoll) <= SWeapon.GetMaxAimError())
-//	{
-		if(VSize(Spot - Origin) <= GetRange())
+	if(VSize(Spot - Origin) <= GetRange())
+	{
+		if(SWeapon.FireAt(Origin, CurrentAim, Spot))
 		{
-			if(SWeapon.FireAt(Origin, CurrentAim, Spot))
-			{
-				UpgradeManager.NotifyFired();
-				bForceNetUpdate = true;
-			}
-
+			UpgradeManager.NotifyFired();
+			bForceNetUpdate = true;
 			bFired = true;
+		} else {
+			bFired = false;
 		}
-//	}
+	}
 
 	return bFired;
 }
@@ -92,10 +75,20 @@ simulated function bool IsSameTeam(Pawn Other)
     return bSameTeam;
 }
 
+simulated function Vector GetPawnViewLocation()
+{
+	local vector ViewLocation;
+	ViewLocation = FireStartLoc;
+	ViewLocation.Z -= 90;
+	return ViewLocation;
+}
+
 defaultproperties
 {
 	Team = 1 // NOD Obelisk Laser
 
+	MinimumRange = 1100
+	
 	//bNeverReplicateRotation=true
 
     //MenuName="Obelisk Laser"

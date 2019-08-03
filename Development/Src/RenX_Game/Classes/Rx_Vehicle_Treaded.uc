@@ -57,38 +57,58 @@ simulated function PostBeginPlay()
  * */
 simulated event Tick( float DeltaTime )
 {
-	local float right, left, PitchSet, VelocitySalt;
+	local float right, left, PitchSet, VelocitySalt, TorqueCal, TorqueSideCal;
 
 	super.Tick(DeltaTime);
 	if (WorldInfo.NetMode != NM_DedicatedServer && bDriving)
 	{
 		VelocitySalt = (VSize(Velocity) / MaxSpeed) * VelocityBeginMultiplier;
-		PitchSet = (Abs(SimTank.LeftTrackTorque) + Abs(SimTank.RightTrackTorque)) / SimTank.MaxEngineTorque;
+		if(SimTank.MaxEngineTorque != 0)
+			PitchSet = (Abs(SimTank.LeftTrackTorque) + Abs(SimTank.RightTrackTorque)) / SimTank.MaxEngineTorque;
+		else
+			PitchSet = (Abs(SimTank.LeftTrackTorque) + Abs(SimTank.RightTrackTorque));
 		PitchOld =  FInterpEaseOut(PitchOld, PitchSet > 0.0f ? MaxCuePitch : MinCuePitch, EaseOutStep, EaseOutFactor);
 		PitchSet = ((VelocitySalt * VelocitySaltDegree) + ((1.0f - VelocitySaltDegree) * PitchOld));
 		EngineSound.SoundCue.PitchMultiplier = PitchSet;
 
 		LeftTreadMaterialInstance.GetScalarParameterValue(TreadSpeedParameterName, left);
 		RightTreadMaterialInstance.GetScalarParameterValue(TreadSpeedParameterName, right);
+		
+		TorqueCal = SimTank.MaxEngineTorque * (SimTank.InsideTrackTorqueFactor);
 
-		left += (SimTank.LeftTrackVel / (SimTank.MaxEngineTorque * SimTank.InsideTrackTorqueFactor))*0.06;
-		right += (SimTank.RightTrackVel / (SimTank.MaxEngineTorque * SimTank.InsideTrackTorqueFactor))*0.06;
+		if(TorqueCal != 0)
+			TorqueSideCal = SimTank.LeftTrackVel / TorqueCal;
+		else
+			TorqueSideCal = SimTank.LeftTrackVel;
+
+		left += TorqueSideCal*0.06;
+
+		if(TorqueCal != 0)
+			TorqueSideCal = SimTank.RightTrackVel / TorqueCal;
+		else
+			TorqueSideCal = SimTank.RightTrackVel;
+
+		right += TorqueSideCal*0.06;
 
 		LeftTreadMaterialInstance.SetScalarParameterValue(TreadSpeedParameterName, left);
 		RightTreadMaterialInstance.SetScalarParameterValue(TreadSpeedParameterName,  right);
 	}
 
 	// brute force method to overcome bDriving false not blocking treaded vehicle movement
-	if (bEMPd)
-		ZeroMovementVariables();
+	//if (bEMPd)
+		//ZeroMovementVariables();
 }
 
 reliable server function IncreaseSprintSpeed()
 {
 	local float SprintSpeed_Max;
-
+	
+	if(bEMPd) return;
+	
 	Super.IncreaseSprintSpeed();
 
+	
+	
 	SprintSpeed_Max = Default.MaxSpeed * MinSprintSpeedMultiplier;
 
 	if(PlayerController(Controller) != None)
@@ -101,7 +121,7 @@ reliable server function IncreaseSprintSpeed()
 	if(SVehicleSimTank(SimObj) != None)
 	{
 		SVehicleSimTank(SimObj).MaxEngineTorque = SVehicleSimTank(SimObj).Default.MaxEngineTorque * MinSprintSpeedMultiplier;
-		SVehicleSimTank(SimObj).InsideTrackTorqueFactor =  SVehicleSimTank(SimObj).Default.InsideTrackTorqueFactor * (MinSprintSpeedMultiplier / SprintTrackTorqueFactorDivident);
+		SVehicleSimTank(SimObj).InsideTrackTorqueFactor =  SVehicleSimTank(SimObj).Default.InsideTrackTorqueFactor * (MinSprintSpeedMultiplier / (SprintTrackTorqueFactorDivident+GetTurnTrackSpeedModifier()));
 	}
 }
 reliable server function DecreaseSprintSpeed()
@@ -129,10 +149,21 @@ reliable server function DecreaseSprintSpeed()
 simulated function SetInputs(float InForward, float InStrafe, float InUp)
 {
 	Super.SetInputs(InForward, InStrafe, InUp);
+	
+	//Incase these get added or subtraced to somewhere up the stack
+	if(bEMPd) 
+	{
+		InForward	=	0.0; 
+		InStrafe	=	0.0;
+		InUp		=	0.0;
+	}
+	
 	// Reverse steering when reversing
 	if (Throttle < 0.0 && PlayerController(Controller) != None && bReverseSteeringInverted)
 		Steering *= -1.0;
 }
+
+
 
 DefaultProperties
 {

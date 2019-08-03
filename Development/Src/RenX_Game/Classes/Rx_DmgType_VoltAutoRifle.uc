@@ -66,11 +66,13 @@ defaultproperties
 	BleedCount=5
 	
 	PS_AttachToGib=ParticleSystem'RX_WP_VoltAutoRifle.Effects.P_Gib_Effect'
-	DamageCameraAnim=CameraAnim'Camera_FX.LinkGun.C_WP_Link_Beam_Hit'
+	DamageCameraAnim=CameraAnim'RX_FX_Munitions2.Camera_FX.C_WP_Link_Beam_Hit' //CameraAnim'Camera_FX.LinkGun.C_WP_Link_Beam_Hit'
 
 	BoneToAttach="b_hip"
 	PS_AttachToBody=ParticleSystem'RX_FX_Munitions.Beams.P_CharacterBurn_Electric'
 
 	IconTextureName="T_WeaponIcon_VoltAutoRifle"
 	IconTexture=Texture2D'RX_WP_VoltAutoRifle.UI.T_WeaponIcon_VoltAutoRifle'
+	
+	bUnsourcedDamage=false
 }

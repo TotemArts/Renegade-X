@@ -39,14 +39,38 @@ simulated function Init(Rx_Building Visuals, bool isDebug )
 
 function FindAirStrip()
 {
-	local Rx_Building_AirStrip strip;
-	ForEach AllActors(class'Rx_Building_AirStrip',strip)
+	local Rx_Building_AirStrip strip,beststrip;
+	local float BestDist,CurDist;
+
+	if(Rx_Building_AirTower(BuildingVisuals).LinkedAirstrip != None)
 	{
-		strip.RegsiterTowerInternals(self);
-		if (AirstripInternals == None)
-			AirstripInternals = Rx_Building_AirStrip_Internals(strip.BuildingInternals);
-		break; // found Air Strip no need to search anymore
+		beststrip = Rx_Building_AirTower(BuildingVisuals).LinkedAirstrip;
 	}
+	else
+	{
+		ForEach AllActors(class'Rx_Building_AirStrip',strip)
+		{
+			if(beststrip == None)
+			{
+				beststrip = strip;
+				BestDist = VSize(BuildingVisuals.location - strip.location);
+			}
+			else if (strip.AirTowerInternals == none)
+			{
+				CurDist = VSize(BuildingVisuals.location - strip.location);
+				if(BestDist > CurDist)
+				{
+					beststrip = strip;
+					BestDist = VSize(BuildingVisuals.location - strip.location);			
+				}
+			}
+		}
+	}
+
+	beststrip.RegsiterTowerInternals(self);
+	if (AirstripInternals == None)
+		AirstripInternals = Rx_Building_AirStrip_Internals(beststrip.BuildingInternals);
+
 }
 
 simulated function ToggleIdleAnimation()

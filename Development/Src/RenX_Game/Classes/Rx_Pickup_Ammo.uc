@@ -14,10 +14,29 @@ auto state Pickup
 
 function SpawnCopyFor(Pawn Recipient)
 {   
-	if(Rx_InventoryManager(Recipient.InvManager) != none)
-    {
-		Rx_InventoryManager(Recipient.InvManager).PerformWeaponRefill();
-    }
+	local Rx_Weapon Weap;
+	local Rx_Weapon_Reloadable RWeap;
+	local int AddAmount;
+	//if(Rx_InventoryManager(Recipient.InvManager) != none)
+		//Rx_InventoryManager(Recipient.InvManager).PerformWeaponRefill();
+
+	ForEach Rx_InventoryManager(Recipient.InvManager).InventoryActors(class'Rx_Weapon', Weap)
+	{
+		if (Rx_Weapon_Deployable(Weap) == None)
+		{
+			if(Rx_Weapon_Reloadable(Weap) != none)
+			{
+				RWeap = Rx_Weapon_Reloadable(Weap); 
+				AddAmount = fmin(RWeap.AmmoCount+RWeap.ClipSize*RWeap.Ammo_Increment, RWeap.MaxAmmoCount);
+				RWeap.AmmoCount = AddAmount; 
+				if(WorldInfo.NetMode == NM_DedicatedServer) RWeap.ClientUpdateAmmoCount(AddAmount);
+			}				
+			else
+			Weap.PerformRefill(); 
+			
+			Weap.bForceHidden = false;
+		}
+	}
 
 	super.SpawnCopyFor(Recipient);
 }

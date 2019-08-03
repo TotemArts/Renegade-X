@@ -644,13 +644,16 @@ function int GetCurrentGameProfileIndex()
 
 	ClassPath = PathName(WorldInfo.Game.Class);
 
-	if (ActiveGameProfile == INDEX_None && ActiveGameProfileName != "")
-		ActiveGameProfile = AvailableGameProfiles.Find('GameName', ActiveGameProfileName);
+	if(AvailableGameProfiles.Length != 0)
+	{
+		if (ActiveGameProfile == INDEX_None && ActiveGameProfileName != "")
+			ActiveGameProfile = AvailableGameProfiles.Find('GameName', ActiveGameProfileName);
 
 
-	// If 'ActiveGameProfile' is set the respective 'AvailableGameProfiles' entry matches the current gametype, return it's index
-	if (ActiveGameProfile != INDEX_None && AvailableGameProfiles[ActiveGameProfile].GameClass == ClassPath)
-		return ActiveGameProfile;
+		// If 'ActiveGameProfile' is set the respective 'AvailableGameProfiles' entry matches the current gametype, return it's index
+		if (ActiveGameProfile != INDEX_None && AvailableGameProfiles[ActiveGameProfile].GameClass == ClassPath)
+			return ActiveGameProfile;
+	}
 
 
 	// Otherwise, set 'ActiveGameProfile' to the first gametype in the list which matches this one (or -1 if there are none), and return

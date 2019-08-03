@@ -14,7 +14,16 @@
 *********************************************************/
 class Rx_Vehicle_FlameTank_Projectile extends Rx_Vehicle_Projectile;
 
-
+simulated function PostBeginPlay()
+{
+	super.PostBeginPlay(); 
+	
+	if(WorldInfo.NetMode == NM_DedicatedServer) //Not on client, so lower your collision box
+	{
+		CylinderComponent.SetCylinderSize(1,1);
+	}
+}
+	
 DefaultProperties
 {
 //    AmbientSound=SoundCue'A_Weapon_RocketLauncher.Cue.A_Weapon_RL_Travel_Cue'
@@ -61,16 +70,28 @@ DefaultProperties
     DamageRadius=200
 	HeadShotDamageMult=1
     MomentumTransfer=1
+	
+	//SprayRadii = (X=30.0,Y=30.0,Z=30.0)
+	
 	Begin Object Name=CollisionCylinder
 		CollisionRadius=30
 		CollisionHeight=30
 	End Object
+	
+	
 
+	Vet_SpeedIncrease(0)=1 //Normal (should be 1)
+	Vet_SpeedIncrease(1)=1 //Veteran 
+	Vet_SpeedIncrease(2)=1.1 //Elite
+	Vet_SpeedIncrease(3)=1.25 //Heroic
+	
     bWaitForEffects=true
 	bWaitForEffectsAtEndOfLifetime = true
 	bAttachExplosionToVehicles=true    
     bCheckProjectileLight=false
 	bSuppressExplosionFX=true
+	
+	bCollideWorld = true; 
 
     ProjectileLightClass=class'RenX_Game.Rx_Light_FlameThrower'
     // ExplosionLightClass=Class'RenX_Game.Rx_Light_FlameThrower'

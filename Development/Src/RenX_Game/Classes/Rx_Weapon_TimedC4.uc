@@ -40,6 +40,18 @@ simulated function WeaponEmpty();
 // // 	return super.Deploy();
 // }
 
+function bool CanAttack(Actor Other)
+{
+	local Vector Dummy1, Dummy2;
+
+
+	if((Other.IsA('Vehicle') || Other.IsA('Rx_BuildingAttachment')) && VSize(Other.location - Instigator.GetWeaponStartTraceLocation()) <= 200 && Rx_Bot(Instigator.Controller).LineOfSightTo(Other)
+		&& Trace(Dummy1,Dummy2,Other.Location,Instigator.Location,,,,TRACEFLAG_Bullet) == Other)
+		return true;
+	else
+		return false;
+}
+
 DefaultProperties
 {
 	DeployedActorClass=class'Rx_Weapon_DeployedTimedC4'
@@ -138,13 +150,15 @@ DefaultProperties
 	
 	// AI Hints:
 	//MaxDesireability=0.7
-	AIRating=+0.3
+	AIRating=+0.1
 	CurrentRating=+0.3
 	bFastRepeater=false
 	bInstantHit=false
 	bSplashJump=false
 	bRecommendSplashDamage=true
 	bSniping=false
+	bOkAgainstBuildings=true
+	bOkAgainstVehicles=true
 
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_TimedC4'

@@ -14,7 +14,7 @@ simulated function bool CalcCamera(float fDeltaTime, out vector out_CamLoc, out 
 
 	if (MyVehicle != None && MySeatIndex > 0 && MySeatIndex < MyVehicle.Seats.length)
 	{
-		UTVehicle(MyVehicle).VehicleCalcCamera(fDeltaTime, MySeatIndex, out_CamLoc, out_CamRot, out_CamStart);
+		Rx_Vehicle(MyVehicle).VehicleCalcCamera(fDeltaTime, MySeatIndex, out_CamLoc, out_CamRot, out_CamStart);
 		return true;
 	}
 	else
@@ -25,10 +25,17 @@ simulated function bool CalcCamera(float fDeltaTime, out vector out_CamLoc, out 
 
 simulated function SwitchWeapon(byte NewGroup)
 {
-	if(UTPlayerController(Controller) == None || (!Rx_PlayerInput(UTPlayerController(Controller).PlayerInput).bAltPressed 
-			&& !Rx_PlayerInput(UTPlayerController(Controller).PlayerInput).bCntrlPressed)) {	
+	if(UTPlayerController(Controller) == None || (!Rx_PlayerInput(UTPlayerController(Controller).PlayerInput).bRadio1Pressed 
+			&& !Rx_PlayerInput(UTPlayerController(Controller).PlayerInput).bRadio0Pressed)) {	
 		super.SwitchWeapon(NewGroup);
 	}
+}
+
+function DriverLeft()
+{
+	if(Rx_Controller(Driver.Controller) != None)
+		Rx_Controller(Driver.Controller).ClientSetLocationAndKeepRotation( Driver.Location );
+	super.DriverLeft();
 }
 
 defaultproperties

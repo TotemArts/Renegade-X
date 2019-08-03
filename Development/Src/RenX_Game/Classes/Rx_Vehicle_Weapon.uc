@@ -15,13 +15,17 @@
 class Rx_Vehicle_Weapon extends UTVehicleWeapon
 	abstract;
 
+`include(RenX_Game\RenXStats.uci);
+
+
 var MaterialInstanceConstant CrosshairMIC;
 var MaterialInstanceConstant LockedOnCrosshairMIC;
-var MaterialInstanceConstant HitIndicatorCrosshairMIC,HitIndicatorCrosshairMIC2,CrosshairMIC2;
+var MaterialInstanceConstant HitIndicatorCrosshairMIC,HitIndicatorCrosshairMIC2,CrosshairMIC2,DotCrosshairMIC,DotCrosshairMIC2;
 var float CrosshairWidth, CrosshairHeight;
 
 var name FireSocket;
 var ParticleSystem BeamTemplates[2];
+var ParticleSystem BeamTemplates_Heroic[2]; 
 
 var bool bDebugWeapon;
 var float CloseRangeAimAdjustRange;
@@ -66,6 +70,7 @@ var bool 				   CurrentlyReloadingClientside;
 var bool				   bReloadAfterEveryShot;
 var bool				   bDropOnTarget; 
 var float				   TossZ_Mod, TrackingMod; //Used for missiles that drop on their target. 
+
 /**
  * For reload capable weapons. Reload time and Reload Anim name's 
  * 
@@ -94,11 +99,53 @@ var() float SlowHeadshotScale;
 /** headshot scale factor when running or falling */
 var() float RunningHeadshotScale;
 
+//Veterancy
+var repnotify byte VRank; 
+
+var float Vet_DamageModifier[4]; //*X
+var float Vet_ROFModifier[4];   //*X
+
+//
+var float SF_Tolerance; //Tolerance for weapon's ammo firing deviation 
+
+var array< class<Projectile> > WeaponProjectiles_Heroic; 
+var array<SoundCue>				WeaponFireSounds_Heroic;
+
+var bool bROFChanged; //Track if our ROF changes mid firing 
+
+//ROF Tracking FM0
+var int FM0_LastFireTime;
+var byte FM0_ROFTicker, FM0_ROFTurnover; //Iterator | How many shots until it takes an average and moves on.    Should never be more than 9 (Which will make it 10 shots averaged together)
+var int FM0_ROFAvgs[10]; //10 though may not ever make it to ten. Saves AVG#
+var int FM0_PrevAVG; 
+var string FM0_AVGString; //String to send to controller when requested 
+
+/***************************/
+
+//ROF Tracking FM1
+var int FM1_LastFireTime;
+var byte FM1_ROFTicker, FM1_ROFTurnover; //Iterator | How many shots until it takes an average and moves on.    Should never be more than 9 (Which will make it 10 shots averaged together)
+var int FM1_ROFAvgs[10]; //10 though may not ever make it to ten. Saves AVG#
+var int FM1_PrevAVG; 
+var string FM1_AVGString; //String to send to controller when requested 
+
+// AI
+
+var bool bOkAgainstBuildings;
+var bool bOkAgainstLightVehicles;
+var bool bOkAgainstArmoredVehicles;
+
 replication
 {
     if (Role == ROLE_Authority && bNetDirty)
-        bLockedOnTarget, LockedTarget;
+        bLockedOnTarget,PendingLockedTarget, LockedTarget, VRank;
 }
+
+/**
+* Just a Note for future reference: Child Replicated variables OVERWRITE parent ones.*
+* Putting UpdateHeroicEffects here does nothing for Rx_Vehicle_MultiWeapon or Reloadable ones*
+*/ 
+
 
 simulated function PostBeginPlay()
 {
@@ -107,6 +154,8 @@ simulated function PostBeginPlay()
 	CrosshairMIC2.SetParent(CrosshairMIC);	
 	HitIndicatorCrosshairMIC2 = new(Outer) class'MaterialInstanceConstant';
 	HitIndicatorCrosshairMIC2.SetParent(HitIndicatorCrosshairMIC);	
+	DotCrosshairMIC2 = new(Outer) class'MaterialInstanceConstant';
+	DotCrosshairMIC2.SetParent(DotCrosshairMIC);	
 	bCanReplicationFire = true;										
 }
 
@@ -119,14 +168,57 @@ simulated function DrawCrosshair( Hud HUD )
 	local UTHUDBase H;
 	local Pawn MyPawnOwner;
 	local actor TargetActor;
-	local int targetTeam, rectColor;	
+	local int targetTeam;
+	local LinearColor LC, LockColor, TempLC; //nBab
+	local vector ScreenLoc;
+	local bool	bTargetBehindUs; 
+	local float XResScale;
+
 	
+	//set initial color based on settings (nBab)
+	LC.A = 1.f;
+	switch (Rx_HUD(Rx_Controller(Instigator.Controller).myHUD).SystemSettingsHandler.GetCrosshairColor())
+	{
+		//white
+		case 0:
+			LC.R = 1.f;
+			LC.G = 1.f;
+			LC.B = 1.f;
+			break;
+		//orange
+		case 1:
+			LC.R = 2.f;
+			LC.G = 0.5f;
+			LC.B = 0.f;
+			break;
+		//violet
+		case 2:
+			LC.R = 2.f;
+			LC.G = 0.f;
+			LC.B = 2.f;
+			break;
+		//blue
+		case 3:
+			LC.R = 0.f;
+			LC.G = 0.f;
+			LC.B = 2.f;
+			break;
+		//cyan
+		case 4:
+			LC.R = 0.f;
+			LC.G = 2.f;
+			LC.B = 2.f;
+			break;	
+	}
+
 	H = UTHUDBase(HUD);
 	if ( H == None )
 		return;
 
- 	CrosshairSize.Y = CrosshairHeight;
-	CrosshairSize.X = CrosshairWidth;
+	XResScale = H.Canvas.SizeX/1920.0;	
+	
+ 	CrosshairSize.Y = CrosshairHeight * XResScale;
+	CrosshairSize.X = CrosshairWidth * XResScale;
 
 	X = H.Canvas.ClipX * 0.5 - (CrosshairSize.X * 0.5);
 	Y = H.Canvas.ClipY * 0.5 - (CrosshairSize.Y * 0.5);
@@ -148,30 +240,72 @@ simulated function DrawCrosshair( Hud HUD )
 				if (targetTeam != MyPawnOwner.GetTeamNum())
 				{
 					if (!TargetActor.IsInState('Stealthed') && !TargetActor.IsInState('BeenShot'))
-						rectColor = 1; //enemy, go red, except if stealthed (else would be cheating ;] )
+					{
+						//enemy, go red, except if stealthed (else would be cheating ;] )
+						//nBab
+						LC.R = 10.f;
+						LC.G = 0.f;
+						LC.B = 0.f;
+					}
 				}
 				else
-					rectColor = 2; //Friendly
+				{
+					//Friendly
+					//nBab
+					LC.R = 0.f;
+					LC.G = 10.f;
+					LC.B = 0.f;
+				}
 			}
-		}
+		}		
 	}
 	
 	if (!HasAnyAmmo()) //no ammo, go yellow
-		rectColor = 3;
+	{
+		//nBab
+		LC.R = 10.f;
+		LC.G = 8.f;
+		LC.B = 0.f;
+	}
 	else
 	{
 		if (Rx_Vehicle_Weapon_Reloadable(self) != None 
 				&& Rx_Vehicle_Weapon_Reloadable(self).CurrentlyReloading 
 				&& !Rx_Vehicle_Weapon_Reloadable(self).bReloadAfterEveryShot) //reloading, go yellow
-			rectColor = 3;
+		{
+			//nBab
+			LC.R = 10.f;
+			LC.G = 8.f;
+			LC.B = 0.f;
+		}
 	}
 
-	CrosshairMIC2.SetScalarParameterValue('ReticleColourSwitcher', rectColor);
+	//nBab
+	CrosshairMIC2.GetVectorParameterValue('Reticle_Colour', TempLC);
+	if (TempLC != LC)
+		CrosshairMIC2.SetVectorParameterValue('Reticle_Colour', LC);
+	
 	if ( CrosshairMIC2 != none )
 	{
 		//H.Canvas.SetPos( X+1, Y+1 );
 		H.Canvas.SetPos( X, Y );
 		H.Canvas.DrawMaterialTile(CrosshairMIC2,CrosshairSize.X, CrosshairSize.Y,0.0,0.0,1.0,1.0);
+		if(PendingLockedTarget != none)
+			{
+				bTargetBehindUs = class'Rx_Utils'.static.OrientationOfLocAndRotToBLocation(Rx_Controller(Instigator.Controller).ViewTarget.Location,Instigator.Controller.Rotation,PendingLockedTarget.location) < -0.5;
+			
+				if(!bTargetBehindUs)
+				{
+				LockColor.R = 0.f;
+				LockColor.G = 5.f;
+				LockColor.B = 5.f;
+				CrosshairMIC2.SetVectorParameterValue('Reticle_Colour', LockColor);
+				ScreenLoc = PendingLockedTarget.location; 
+				ScreenLoc = H.Canvas.Project(ScreenLoc);
+				H.Canvas.SetPos( ScreenLoc.X - CrosshairWidth/2, ScreenLoc.Y - CrosshairWidth/2 );
+				H.Canvas.DrawMaterialTile(CrosshairMIC2, CrosshairWidth, CrosshairHeight);
+				}
+			}
 		DrawHitIndicator(H,x,y);
 	}
 	
@@ -181,12 +315,62 @@ simulated function DrawLockedOn( HUD H )
 {
     local vector2d CrosshairSize;
     local float x, y;
+    local LinearColor LC, TempLC; //nBab
+	local vector ScreenLoc; 
+	local bool bTargetBehindUs; 
+	local float XResScale; 
 
+	//set initial color based on settings (nBab)
+	LC.A = 1.f;
+	switch (Rx_HUD(Rx_Controller(Instigator.Controller).myHUD).SystemSettingsHandler.GetCrosshairColor())
+	{
+		//white
+		case 0:
+			LC.R = 1.f;
+			LC.G = 1.f;
+			LC.B = 1.f;
+			break;
+		//orange
+		case 1:
+			LC.R = 2.f;
+			LC.G = 0.5f;
+			LC.B = 0.f;
+			break;
+		//violet
+		case 2:
+			LC.R = 2.f;
+			LC.G = 0.f;
+			LC.B = 2.f;
+			break;
+		//blue
+		case 3:
+			LC.R = 0.f;
+			LC.G = 0.f;
+			LC.B = 2.f;
+			break;
+		//cyan
+		case 4:
+			LC.R = 0.f;
+			LC.G = 2.f;
+			LC.B = 2.f;
+			break;	
+	}
+	
+	CrosshairMIC2.GetVectorParameterValue('Reticle_Colour', TempLC);
+	if (TempLC != LC)
+		CrosshairMIC2.SetVectorParameterValue('Reticle_Colour', LC);
+
+	LockedOnCrosshairMIC.GetVectorParameterValue('Reticle_Colour', TempLC);
+	if (TempLC != LC)
+		LockedOnCrosshairMIC.SetVectorParameterValue('Reticle_Colour', LC);
+	
    	if (H == none || H.Canvas == none)
       	return;
 
-    CrosshairSize.Y = CrosshairHeight;
-    CrosshairSize.X = CrosshairWidth;
+	XResScale = H.Canvas.SizeX/1920.0;	
+		
+    CrosshairSize.Y = CrosshairHeight * XResScale;
+    CrosshairSize.X = CrosshairWidth * XResScale;
 
 
 	X = H.Canvas.ClipX * 0.5 - (CrosshairSize.X * 0.5);
@@ -197,6 +381,22 @@ simulated function DrawLockedOn( HUD H )
         H.Canvas.DrawMaterialTile(CrosshairMIC,CrosshairSize.X, CrosshairSize.Y,0.0,0.0,1.0,1.0);
         H.Canvas.SetPos(x, y);
         H.Canvas.DrawMaterialTile(LockedOnCrosshairMIC,CrosshairSize.X, CrosshairSize.Y,0.0,0.0,1.0,1.0);
+		if(LockedTarget != none)
+			{
+				bTargetBehindUs = class'Rx_Utils'.static.OrientationOfLocAndRotToBLocation(Rx_Controller(Instigator.Controller).ViewTarget.Location,Instigator.Controller.Rotation,LockedTarget.location) < -0.5;
+			
+				if(!bTargetBehindUs)
+				{
+				LC.R = 10.f;
+				LC.G = 0.f;
+				LC.B = 0.f;
+				CrosshairMIC.SetVectorParameterValue('Reticle_Colour', LC);
+				ScreenLoc = LockedTarget.location; 
+				ScreenLoc = H.Canvas.Project(ScreenLoc);
+				H.Canvas.SetPos( ScreenLoc.X - CrosshairWidth/2, ScreenLoc.Y - CrosshairWidth/2 );
+				H.Canvas.DrawMaterialTile(CrosshairMIC, CrosshairWidth, CrosshairHeight);	
+				}
+			}
         DrawHitIndicator(H,x,y);
     }
 }
@@ -204,12 +404,57 @@ simulated function DrawLockedOn( HUD H )
 simulated function DrawHitIndicator(HUD H, float x, float y)
 {
 	local vector2d CrosshairSize;
+	local LinearColor LC; //nBab
+	local float		XResScale;
+	
+	
+	//set color based on settings (nBab)
+	LC.A = 1.f;
+	switch (Rx_HUD(Rx_Controller(Instigator.Controller).myHUD).SystemSettingsHandler.GetCrosshairColor())
+	{
+		//white
+		case 0:
+			LC.R = 1.f;
+			LC.G = 1.f;
+			LC.B = 1.f;
+			break;
+		//orange
+		case 1:
+			LC.R = 2.f;
+			LC.G = 0.5f;
+			LC.B = 0.f;
+			break;
+		//violet
+		case 2:
+			LC.R = 2.f;
+			LC.G = 0.f;
+			LC.B = 2.f;
+			break;
+		//blue
+		case 3:
+			LC.R = 0.f;
+			LC.G = 0.f;
+			LC.B = 2.f;
+			break;
+		//cyan
+		case 4:
+			LC.R = 0.f;
+			LC.G = 2.f;
+			LC.B = 2.f;
+			break;	
+	}
+	
+	if(Rx_Hud(H).HitMarker_Color == Rx_Hud(H).LC_Red) LC = Rx_Hud(H).HitMarker_Color;
+	HitIndicatorCrosshairMIC2.SetVectorParameterValue('Reticle_Colour', LC);
 	
 	if(Rx_Hud(H).GetHitEffectAplha() <= 0.0) {
 		return;
 	}	
-    CrosshairSize.Y = default.CrosshairHeight;
-    CrosshairSize.X = default.CrosshairWidth;
+	
+	XResScale = H.Canvas.SizeX/1920.0;
+	
+    CrosshairSize.Y = default.CrosshairHeight*XResScale;
+    CrosshairSize.X = default.CrosshairWidth*XResScale;
     H.Canvas.SetPos(x, y);
     HitIndicatorCrosshairMIC2.SetScalarParameterValue('Reticle_Opacity', Rx_Hud(H).GetHitEffectAplha()/100.0);
     H.Canvas.DrawMaterialTile(HitIndicatorCrosshairMIC2,CrosshairSize.X, CrosshairSize.Y,0.0,0.0,1.0,1.0);
@@ -237,22 +482,61 @@ function ConsumeAmmo( byte FireModeNum )
 
 simulated function FireAmmunition()
 {
-	if(WorldInfo.NetMode == NM_Client && bReloadAfterEveryShot)
+	local int Year, Month, DayOfWeek, Day, Hour, Min, Sec, MSec; 
+	
+	
+	GetSystemTime(Year, Month,DayOfWeek, Day, Hour,Min, Sec, MSec ) ;
+	
+	if(CurrentFireMode == 0) CalcFM0ROF(Sec, MSec);
+	else
+	CalcFM1ROF(Sec,MSec); 
+	//`log((Sec*1000+MSec) - LastFireTime @ "/" @ FireInterval[CurrentFireMode]*1000 @ "/" @ Sec*1000+MSec);
+	
+	
+	
+	
+	if(Rx_Controller(Instigator.Controller) != none) Rx_Controller(Instigator.Controller).AddShot();
+	
+	/**if(WorldInfo.NetMode == NM_Client && bReloadAfterEveryShot)
 	{
 		if(!bCanReplicationFire)
 		{
+			`log("Fail on replication fire"); 
 			return;
 		}
 		else
 		{
 			bCanReplicationFire = false;
-			SetTimer(FireInterval[0],false,'resetCanReplicationFire');
+			SetTimer(FireInterval[0]*Vet_ROFModifier[VRank],false,'resetCanReplicationFire');
 		}
-	}		
+	}	*/	
 	super.FireAmmunition();
 	if(bHasRecoil) {
 		SetWeaponRecoil();
 	}
+
+	
+	if(Instigator.Controller != none)
+	{
+		`RecordWeaponIntStat(WEAPON_FIRED,Instigator.Controller,class,1);
+		`RecordProjectileIntStat(WEAPON_FIRED,Instigator.Controller,GetProjectileClass(),1);
+	}
+	else
+	{
+		`RecordWeaponIntStat(WEAPON_FIRED,none,class,1);
+		`RecordProjectileIntStat(WEAPON_FIRED,none,GetProjectileClass(),1);
+	}
+}
+
+/**
+ * Returns interval in seconds between each shot, for the firing state of FireModeNum firing mode.
+ *
+ * @param	FireModeNum	fire mode
+ * @return	Period in seconds of firing mode
+ */
+simulated function float GetFireInterval( byte FireModeNum )
+{
+	return FireInterval[FireModeNum] > 0 ? FireInterval[FireModeNum]*GetROFModifier() : 0.01;
 }
 
 simulated function resetCanReplicationFire()
@@ -262,7 +546,118 @@ simulated function resetCanReplicationFire()
 
 simulated function bool CanReplicationFire()
 {
-	return bCanReplicationFire && bReloadAfterEveryShot;
+	return true;//bCanReplicationFire && bReloadAfterEveryShot;
+}
+
+simulated function CalcFM0ROF(float Sec, float MSec) //Current seconds/Milliseconds
+{
+	local float ROFTotal; 
+	local int	i; 
+	
+	if((Sec*1000+MSec) - FM0_LastFireTime <= FireInterval[0]*GetROFModifier()*1000 && (Sec*1000+MSec) - FM0_LastFireTime > 0) 
+	{
+		FM0_ROFAvgs[FM0_ROFTicker] = (Sec*1000+MSec) - FM0_LastFireTime ;
+	
+		if(FM0_ROFTicker >= FM0_ROFTurnover) 
+		{
+			for(i=0;i<FM0_ROFTicker;i++)
+				ROFTotal += FM0_ROFAvgs[i];
+
+			FM0_ROFTicker = 0; 
+			ROFTotal=ROFTotal/FM0_ROFTurnover;
+		
+			//`log(ROFTotal @ "/" @ FireInterval[0]*1000);
+		
+			if(FM0_PrevAVG==0) FM0_PrevAVG=FireInterval[0]*GetROFModifier()*1000;
+		
+			FM0_PrevAVG = (FM0_PrevAVG+ROFTotal)/2;
+		
+			FM0_AVGString = FM0_PrevAVG @ "/" @ FireInterval[0]*GetROFModifier()*1000 @ "[FM:" $ 0 $"]";  
+		}
+		FM0_ROFTicker+=1;
+	}
+	else
+	{
+		FM0_ROFAvgs[FM0_ROFTicker] = FireInterval[0]*GetROFModifier()*1000;
+		
+		if(FM0_ROFTicker >= FM0_ROFTurnover) 
+		{
+			for(i=0;i<FM0_ROFTicker;i++)
+				ROFTotal += FM0_ROFAvgs[i];
+
+			FM0_ROFTicker = 0;
+			ROFTotal=ROFTotal/FM0_ROFTurnover;
+			//`log(ROFTotal @ "/" @ FireInterval[0]*1000); 
+		
+			if(FM0_PrevAVG==0) FM0_PrevAVG=FireInterval[0]*GetROFModifier()*1000;
+		
+			FM0_PrevAVG = (FM0_PrevAVG+ROFTotal)/2;
+		
+			FM0_AVGString = FM0_PrevAVG @ "/" @ FireInterval[0]*GetROFModifier()*1000 @ "[FM:" $ 0 $"]"; 
+		}
+		FM0_ROFTicker +=1; 
+	}
+	FM0_LastFireTime = Sec*1000+MSec;
+}
+
+simulated function CalcFM1ROF(float Sec, float MSec) //Current seconds/Milliseconds
+{
+	local float ROFTotal;
+	local int	i; 
+	
+	if((Sec*1000+MSec) - FM1_LastFireTime <= FireInterval[1]*GetROFModifier()*1000 && (Sec*1000+MSec) - FM1_LastFireTime > 0) 
+	{
+	FM1_ROFAvgs[ FM1_ROFTicker ] = (Sec*1000+MSec) - FM1_LastFireTime ;
+	
+	if(FM1_ROFTicker >= FM1_ROFTurnover) 
+		{
+		for(i=0;i<FM1_ROFTicker;i++)
+		ROFTotal += FM1_ROFAvgs[i];
+		FM1_ROFTicker = 0; 
+		ROFTotal=ROFTotal/FM1_ROFTurnover;
+		
+		//`log(ROFTotal @ "/" @ FireInterval[1]*1000);
+		
+		if(FM1_PrevAVG==0) FM1_PrevAVG=FireInterval[1]*GetROFModifier()*1000;
+		
+		FM1_PrevAVG = (FM1_PrevAVG+ROFTotal)/2;
+		
+		//96 
+		
+		
+		FM1_AVGString = FM1_PrevAVG @ "/" @ FireInterval[1]*GetROFModifier()*1000 @ "[FM:" $ 1 $"]"; ; 
+		//`log("["$self.class $"]" @ FM1_PrevAVG);
+		}
+		FM1_ROFTicker+=1;
+		 
+		
+	}
+	else
+	{
+		FM1_ROFAvgs[FM1_ROFTicker] = FireInterval[1]*GetROFModifier()*1000;
+		
+		if(FM1_ROFTicker >= FM1_ROFTurnover) 
+		{
+		for(i=0;i<FM1_ROFTicker;i++)
+			ROFTotal += FM1_ROFAvgs[i];
+		FM1_ROFTicker = 0;
+		ROFTotal=ROFTotal/FM1_ROFTurnover;
+		//`log(ROFTotal @ "/" @ FireInterval[1]*1000); 
+		
+		if(FM1_PrevAVG==0) FM1_PrevAVG=FireInterval[1]*GetROFModifier()*1000;
+		
+		FM1_PrevAVG = (FM1_PrevAVG+ROFTotal)/2;
+		
+		
+		FM1_AVGString = FM1_PrevAVG @ "/" @ FireInterval[1]*GetROFModifier()*1000 @ "[FM:" $ 1 $"]"; 
+		//`log("["$self.class $"]" @ FM1_AVGString);
+		}
+		FM1_ROFTicker +=1; 
+		
+		
+	}
+		FM1_LastFireTime = Sec*1000+MSec;
+	
 }
 
 
@@ -322,13 +717,21 @@ simulated function Projectile ProjectileFire()	// Add impulse on the vehicle eve
 	}
 	
 	IncrementFlashCount();
-
+	//`log("Using New PF"); 
+	if(bCheckIfBarrelInsideWorldGeomBeforeFiring && IsBarrelInGeometry()) SpawnedProjectile = UDKProjectile(Spawn(GetProjectileClassSimulated(),,, Rx_Vehicle(MyVehicle).GetAdjustedPhysicalFireStartLoc(self)));
+	else
 	SpawnedProjectile = UDKProjectile(Spawn(GetProjectileClassSimulated(),,, MyVehicle.GetPhysicalFireStartLoc(self)));
-
 	if ( SpawnedProjectile != None )
 	{
 		SpawnedProjectile.Init( vector(AddSpread(MyVehicle.GetWeaponAim(self))) );
-
+		if(Rx_Projectile(SpawnedProjectile) != none ) 
+		{
+			Rx_Projectile(SpawnedProjectile).SetWeaponInstigator(self);
+			Rx_Projectile(SpawnedProjectile).Vrank=VRank; 
+			Rx_Projectile(SpawnedProjectile).FMTag=CurrentFireMode;
+			//Rx_Projectile(SpawnedProjectile).RxInitLifeSpan();
+		}
+		
 		if ( Role==ROLE_Authority && MyVehicle != none && MyVehicle.Mesh != none)
 		{
 			// apply force to vehicle
@@ -362,6 +765,20 @@ simulated function Projectile ProjectileFireOld()
 	
 	
     SpawnedProjectile = UDKProjectile(Super.ProjectileFire());
+	
+	//`log("Call Projectile Fire Old" @ SpawnedProjectile); 
+	//ScriptTrace();
+	
+	if(Rx_Projectile(SpawnedProjectile) != none ) 
+	{
+		Rx_Projectile(SpawnedProjectile).Vrank=VRank; 
+		Rx_Projectile(SpawnedProjectile).FMTag=CurrentFireMode; 
+		Rx_Projectile(SpawnedProjectile).SetWeaponInstigator(self);
+	}
+	else if(Rx_Projectile_Rocket(SpawnedProjectile) != none)
+	{
+		Rx_Projectile_Rocket(SpawnedProjectile).SetWeaponInstigator(self);
+	}
 	
 	if(bLockedOnTarget && bDropOnTarget && CurrentFireMode != 1) 
 	{
@@ -403,6 +820,9 @@ simulated function SetRocketTarget(Rx_Projectile_Rocket Rocket)
 		if(PlayerController(C) != None)
 		{
 			PlayerController(Instigator.Controller).GetPlayerViewPoint(CameraLocation, CameraRotation);
+			
+			if(Rx_Controller(Instigator.Controller).bBehindView && Rx_Controller(Instigator.Controller).ViewTarget != none) CameraLocation = CameraLocation + vector(CameraRotation) * VSize(CameraLocation - MyVehicle.GetEffectLocation(SeatIndex) );//Rx_Controller(Instigator.Controller).ViewTarget.location); //Again, the camera is capable of getting stuck in both geometry and behind vehicles. Scan up closer to the actual vehicle so we don't shoot behind ourselves.
+			//`log(VSize(CameraLocation -  MyVehicle.GetEffectLocation(SeatIndex)));//Rx_Controller(Instigator.Controller).ViewTarget.location));
 			DesiredAimPoint = CameraLocation + Vector(CameraRotation) * GetTraceRange(); 
 			if (GetTraceOwner().Trace(HitLocation, HitNormal, DesiredAimPoint, CameraLocation, true, vect(0,0,0),,TRACEFLAG_Bullet) != None)
 			{
@@ -523,7 +943,7 @@ function AdjustLockTarget(actor NewLockTarget)
 simulated function bool CanLockOnTo(Actor TA)
 {
     if ( (TA == None) || !TA.bProjTarget || TA.bDeleteMe || (Pawn(TA) == None) || (TA == Instigator) || (Pawn(TA).Health <= 0)
-    		|| TA.IsInState('Stealthed') || TA.IsInState('BeenShot') )
+    		|| TA.IsInState('Stealthed') || TA.IsInState('BeenShot') || Rx_Pawn(TA) != none || Rx_SupportVehicle_DropOffChinook(TA) != none)
     {
         return false;
     }
@@ -635,6 +1055,7 @@ function CheckTargetLock()
         // Begin by tracing the shot to see if it hits anyone
         Instigator.Controller.GetPlayerViewPoint( StartTrace, AimRot );
         Aim = vector(AimRot);
+		if(Rx_Controller(Instigator.Controller).bBehindView) StartTrace = StartTrace + Aim * VSize(StartTrace - MyVehicle.GetEffectLocation(SeatIndex)); //150 offset to account for the camera possibly being stuck in something
         EndTrace = StartTrace + Aim * LockRange;
         HitActor = Trace(HitLocation, HitNormal, EndTrace, StartTrace, true,,, TRACEFLAG_Bullet);
 
@@ -644,7 +1065,7 @@ function CheckTargetLock()
             // We didn't hit a valid target, have the controller attempt to pick a good target
             BestAim = ((UDKPlayerController(Instigator.Controller) != None) && UDKPlayerController(Instigator.Controller).bConsolePlayer) ? ConsoleLockAim : LockAim;
             BestDist = 0.0;
-            TA = Instigator.Controller.PickTarget(class'Pawn', BestAim, BestDist, Aim, StartTrace, LockRange);
+            TA = Instigator.Controller.PickTarget(class'Vehicle', BestAim, BestDist, Aim, StartTrace, LockRange);
             if ( TA != None && CanLockOnTo(TA) )
             {
                 BestTarget = TA;
@@ -815,7 +1236,7 @@ simulated function bool TryHeadshot(byte FiringMode, ImpactInfo Impact)
 		
 		//`log("In TryHS" @ WeaponFireTypes[FiringMode] == EWFT_InstantHit); 
 		
-		
+	//scripttrace();	
 	if(WeaponFireTypes[FiringMode] == EWFT_InstantHit)
 	{
 		if (Instigator == None || VSize(Instigator.Velocity) < Instigator.GroundSpeed * Instigator.CrouchedPct)
@@ -827,7 +1248,7 @@ simulated function bool TryHeadshot(byte FiringMode, ImpactInfo Impact)
 			Scaling = RunningHeadshotScale;
 		}
 
-		HeadDamage = InstantHitDamage[FiringMode]* HeadShotDamageMult;
+		HeadDamage = InstantHitDamage[FiringMode] * GetDamageModifier() * HeadShotDamageMult;
 		
 		//`log("TryHS" @ WeaponFireTypes[FiringMode] == EWFT_InstantHit @ HeadDamage );
 		if ( (Rx_Pawn(Impact.HitActor) != None && Rx_Pawn(Impact.HitActor).TakeHeadShot(Impact, HeadShotDamageType, HeadDamage, Scaling, Instigator.Controller, false)))
@@ -837,7 +1258,7 @@ simulated function bool TryHeadshot(byte FiringMode, ImpactInfo Impact)
 			return true;
 		}
 	}
-	//	`log("False");
+		//`log("False");
 	return false;
 }
 
@@ -846,6 +1267,9 @@ simulated function ProcessInstantHit( byte FiringMode, ImpactInfo Impact, option
 	local bool bFixMomentum;
 	local KActorFromStatic NewKActor;
 	local StaticMeshComponent HitStaticMesh;
+	//We need all of this, as calling super doesn't account for veterancy.
+	local int TotalDamage;
+	
 	
 	//`log("Process Instant Hit");
 	
@@ -883,7 +1307,33 @@ simulated function ProcessInstantHit( byte FiringMode, ImpactInfo Impact, option
 				InstantHitMomentum[FiringMode] = 1;
 				bFixMomentum = true;
 			}
-			Super(UDKWeapon).ProcessInstantHit(FiringMode, Impact, NumHits);
+			//Super(UDKWeapon).ProcessInstantHit(FiringMode, Impact, NumHits);
+			
+			//Copied from SUPER(Weapon) Adjusted to include Veterancy multipliers
+			if (Impact.HitActor != None)
+		{
+		// default damage model is just hits * base damage
+		NumHits = Max(NumHits, 1);
+		TotalDamage = InstantHitDamage[CurrentFireMode] * GetDamageModifier() * NumHits;
+
+		if ( Impact.HitActor.bWorldGeometry )
+		{
+			HitStaticMesh = StaticMeshComponent(Impact.HitInfo.HitComponent);
+			if ( (HitStaticMesh != None) && HitStaticMesh.CanBecomeDynamic() )
+			{
+				NewKActor = class'KActorFromStatic'.Static.MakeDynamic(HitStaticMesh);
+				if ( NewKActor != None )
+				{
+					Impact.HitActor = NewKActor;
+				}
+			}
+		}
+		Impact.HitActor.TakeDamage( TotalDamage, Instigator.Controller,
+						Impact.HitLocation, InstantHitMomentum[FiringMode] * Impact.RayDir,
+						InstantHitDamageTypes[FiringMode], Impact.HitInfo, self );
+		}
+			
+			
 			if (bFixMomentum)
 			{
 				InstantHitMomentum[FiringMode] = 0;
@@ -902,6 +1352,7 @@ reliable server function ServerALInstanthitHit( byte FiringMode, ImpactInfo Impa
 reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, TraceHitInfo HitInfo)
 {
 	local class<Rx_Projectile>	ProjectileClass;
+	local class<Rx_Projectile_Rocket> ProjectileClassRocket; 
 	local class<DamageType> 	DamageType, TempDamageType; //TempDamageType Holds the REAL damage type for a weapon
 	local Rx_Vehicle			Shooter;
 	local vector				Momentum, FireDir;
@@ -910,10 +1361,16 @@ reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, T
 	//`log("Process Headshot");
 	
 	ArmorMultiplier=1; //Used for infantry armour, so it will also apply to headshots
+	
 	Shooter = Rx_Vehicle(Owner);
+	if(Shooter == None && UTWeaponPawn(Owner) != None)
+		Shooter = Rx_Vehicle(UTWeaponPawn(Owner).MyVehicle); 
+	
 	ProjectileClass = class<Rx_Projectile>(GetProjectileClass());
-
-	//`log("Shooter:" @ Shooter @ "Projectile: " @ ProjectileClass);
+	//If it is a rocket it won't be an Rx_Projectile
+	if(ProjectileClass == none) ProjectileClassRocket = class<Rx_Projectile_Rocket>(GetProjectileClass());
+	
+	//`log("Shooter:" @ Shooter @ "Projectile: " @ ProjectileClass @ ProjectileClassRocket);
 	
 	//`log("WeaponFireTypes" @ WeaponFireTypes[CurrentFireMode]); 
 	
@@ -926,7 +1383,7 @@ reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, T
 	// If we don't have a projectile class, and are not an instant hit weapon
 	//if (ProjectileClass == none && !self.bInstantHit)
 	
-	if (ProjectileClass == none && WeaponFireTypes[CurrentFireMode] != EWFT_InstantHit)
+	if (ProjectileClass == none && ProjectileClassRocket == none && WeaponFireTypes[CurrentFireMode] != EWFT_InstantHit)
 	{
 		return;
 	}
@@ -946,25 +1403,52 @@ reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, T
 	
 	
 	//if (!self.bInstantHit)
-	if(WeaponFireTypes[CurrentFireMode] != EWFT_InstantHit )
+	if(WeaponFireTypes[CurrentFireMode] != EWFT_InstantHit)
 	{
-		Damage  = ProjectileClass.default.Damage * ProjectileClass.default.HeadShotDamageMult;
-		TempDamageType = ProjectileClass.default.MyDamageType;
-		
-		FireDir = Normal(Target.Location - Instigator.Location);
-		Momentum = ProjectileClass.default.MomentumTransfer * FireDir;
-
-		if(ProjectileClass.default.HeadShotDamageType != None) 
+		if(ProjectileClassRocket == none)
 		{
-			DamageType = ProjectileClass.default.HeadShotDamageType; 
 			
-		} 
-		else 
-		{
-			DamageType = ProjectileClass.default.MyDamageType; 
+		
+			Damage  = ProjectileClass.default.Damage * ProjectileClass.static.GetDamageModifier(VRank, Instigator.Controller) * ProjectileClass.default.HeadShotDamageMult;
+			TempDamageType = ProjectileClass.default.MyDamageType;
+			
+			FireDir = Normal(Target.Location - Instigator.Location);
+			Momentum = ProjectileClass.default.MomentumTransfer * FireDir;
+
+			if(ProjectileClass.default.HeadShotDamageType != None) 
+			{
+				DamageType = ProjectileClass.default.HeadShotDamageType; 
+				
+			} 
+			else 
+			{
+				DamageType = ProjectileClass.default.MyDamageType; 
+			}
 		}
+		else
+		if(ProjectileClassRocket != none)
+		{
+			
+		
+			Damage  = ProjectileClassRocket.default.Damage * ProjectileClassRocket.static.GetDamageModifier(VRank, Instigator.Controller) * ProjectileClassRocket.default.HeadShotDamageMult;
+			TempDamageType = ProjectileClassRocket.default.MyDamageType;
+			
+			FireDir = Normal(Target.Location - Instigator.Location);
+			Momentum = ProjectileClassRocket.default.MomentumTransfer * FireDir;
+
+			if(ProjectileClassRocket.default.HeadShotDamageType != None) 
+			{
+				DamageType = ProjectileClassRocket.default.HeadShotDamageType; 
+				
+			} 
+			else 
+			{
+				DamageType = ProjectileClassRocket.default.MyDamageType; 
+			}
+		}
+			
 	} else {
-		Damage  = self.InstantHitDamage[CurrentFireMode] * self.HeadShotDamageMult;
+		Damage  = self.InstantHitDamage[CurrentFireMode] * GetDamageModifier() * self.HeadShotDamageMult;
 		TempDamageType = self.InstantHitDamageTypes[CurrentFireMode];
 
 		FireDir = Normal(Target.Location - Instigator.Location);
@@ -1005,7 +1489,7 @@ reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, T
 	Target.TakeDamage(Damage, Instigator.Controller, HitLocation, Momentum, DamageType, HitInfo, self);	
 }
 
-reliable server function ServerALHit(Actor Target, vector HitLocation, TraceHitInfo HitInfo, bool mctDamage)
+reliable server function ServerALHit(Actor Target, vector HitLocation, TraceHitInfo HitInfo, bool mctDamage, byte FMTag)
 {
 	local class<Rx_Projectile>	ProjectileClass;
 	local class<DamageType> 	DamageType;
@@ -1020,15 +1504,20 @@ reliable server function ServerALHit(Actor Target, vector HitLocation, TraceHitI
 	if(Shooter == None && UTWeaponPawn(Owner) != None)
 		Shooter = Rx_Vehicle(UTWeaponPawn(Owner).MyVehicle); 
 
+	if(Rx_Vehicle_MultiWeapon(self) != none) ProjectileClass=class<Rx_Projectile>(WeaponProjectiles[FMTag]) ;
+	else
 	ProjectileClass = class<Rx_Projectile>(GetProjectileClass());
 	//`log("ProjectileClass IS: " @ ProjectileClass @ CurrentFireMode @ Shooter);
 	
-	if(Rx_Vehicle_MultiWeapon(self) != none && ProjectileClass==None) /*Hack to fix the Mammoth for the moment. Honestly weapon to projectile relationships seem pretty bad all over*/
+	/**
+	if(Rx_Vehicle_MultiWeapon(self) != none && ProjectileClass==None) //Hack to fix the Mammoth for the moment. Honestly weapon to projectile relationships seem pretty bad all over
 		{
 		if(CurrentFireMode==0) ProjectileClass=class<Rx_Projectile>(WeaponProjectiles[1]); //Use the other
 		else
 		ProjectileClass=class<Rx_Projectile>(WeaponProjectiles[0]);
 		}
+	*/
+	
 	
 	
 	if(WorldInfo.Netmode == NM_DedicatedServer && AIController(Instigator.Controller) == None) {
@@ -1065,7 +1554,7 @@ reliable server function ServerALHit(Actor Target, vector HitLocation, TraceHitI
 
 	Momentum = ProjectileClass.default.MomentumTransfer * FireDir;
 	DamageType = ProjectileClass.default.MyDamageType;
-	Damage = ProjectileClass.default.Damage;
+	Damage = ProjectileClass.default.Damage * ProjectileClass.static.GetDamageModifier(VRank, Instigator.Controller);
 	if(mctDamage) {
 		Damage = Damage * class<Rx_DmgType>(DamageType).static.MCTDamageScalingFor();
 	}
@@ -1076,7 +1565,7 @@ reliable server function ServerALHit(Actor Target, vector HitLocation, TraceHitI
 	Target.TakeDamage(Damage, Instigator.Controller, HitLocation, Momentum, DamageType, HitInfo, self);
 }
 
-reliable server function ServerALRadiusDamage(Actor Target, vector HurtOrigin, bool bFullDamage)
+reliable server function ServerALRadiusDamage(Actor Target, vector HurtOrigin, bool bFullDamage, byte FMTag)
 {
 	local class<Rx_Projectile>	ProjectileClass;
 	local class<DamageType> 	DamageType;
@@ -1084,11 +1573,17 @@ reliable server function ServerALRadiusDamage(Actor Target, vector HurtOrigin, b
 	local float					Momentum;
 	local float 				Damage,DamageRadius;
 
-	//`log("ServerALRadiusDamage");
 	
-	Shooter = Rx_Vehicle(Owner);
 
+	//Shooter = Rx_Vehicle(Owner);
+	Shooter = Rx_Vehicle(MyVehicle); 
+	//ProjectileClass = class<Rx_Projectile>(GetProjectileClass());
+	
+	if(Rx_Vehicle_MultiWeapon(self) != none) ProjectileClass=class<Rx_Projectile>(WeaponProjectiles[FMTag]) ;
+	else
 	ProjectileClass = class<Rx_Projectile>(GetProjectileClass());
+	
+	//`log("ServerALRadiusDamage" @ Shooter @ ProjectileClass);
 	
 	if(WorldInfo.Netmode == NM_DedicatedServer && AIController(Instigator.Controller) == None) {
 		if(Rx_Controller(Instigator.Controller) == None) {
@@ -1100,10 +1595,12 @@ reliable server function ServerALRadiusDamage(Actor Target, vector HurtOrigin, b
 	{
 		return;  
 	}
+	/** Useless lines ??
 	if (Target != none && VSize(Target.Location - HurtOrigin) > 400 )
 	{
 		return;
 	}
+	*/
 	if (Shooter.Health <= 0 && !IsInsideGracePeriod(VSize(Target.Location - Shooter.Location)) )
 	{
 		return;
@@ -1111,7 +1608,7 @@ reliable server function ServerALRadiusDamage(Actor Target, vector HurtOrigin, b
 
 	Momentum = ProjectileClass.default.MomentumTransfer;
 	DamageType = ProjectileClass.default.MyDamageType;
-	Damage = ProjectileClass.default.Damage;
+	Damage = ProjectileClass.default.Damage*ProjectileClass.static.GetDamageModifier(VRank, Instigator.Controller);
 	DamageRadius = ProjectileClass.default.DamageRadius;
 	
 	Target.TakeRadiusDamage(Instigator.Controller,Damage,DamageRadius,DamageType,Momentum,HurtOrigin,bFullDamage,self);
@@ -1170,7 +1667,7 @@ simulated function InstantFireClientRadiusCheck(byte FiringMode, vector HurtOrig
 	local array<ClientSideHit> Hits;
 	local ClientSideHit Temp;
 	
-//	`log("Process InstantFireCLIENTRadiusDamage");
+	//`log("Process InstantFireCLIENTRadiusDamage");
 	
 	// client radius check
 	foreach VisibleCollidingActors( class'Actor', A, InstantHitDamageRadius[FiringMode], HurtOrigin,,,,class'RxIfc_ClientSideInstantHitRadius' )
@@ -1206,7 +1703,7 @@ reliable server function ServerInstantFireRadiusHit(Actor HitActor, float Distan
 	// Redo this check on the server due to lag consideration. ie a vehicle may have changed teams but that has yet to be replicated to the client
 	if (!InstantHitDamageRadiusIgnoreTeam[ClientHitFiringMode] && Instigator.GetTeamNum() == HitActor.GetTeamNum())
 		return;
-	RxIfc_ClientSideInstantHitRadius(HitActor).TakeDamageFromDistance(FMax(Distance, 0), Instigator.Controller, InstantHitDamage[ClientHitFiringMode], InstantHitDamageRadius[ClientHitFiringMode], 
+	RxIfc_ClientSideInstantHitRadius(HitActor).TakeDamageFromDistance(FMax(Distance, 0), Instigator.Controller, InstantHitDamage[ClientHitFiringMode]*GetDamageModifier(), InstantHitDamageRadius[ClientHitFiringMode], 
 			InstantHitDamageTypes[ClientHitFiringMode], InstantHitMomentum[ClientHitFiringMode], ClientHitHurtOrigin, InstantHitDamageRadiusDoFull[ClientHitFiringMode], self );
 }
 
@@ -1245,7 +1742,7 @@ function InstantFireHurtRadius(byte FiringMode, vector HurtOrigin, Actor Impacte
 		}
 		if ( !Victim.bWorldGeometry && (Victim != self) && (Victim.bCanBeDamaged || Victim.bProjTarget) )
 		{
-			Victim.TakeRadiusDamage(Instigator.Controller, InstantHitDamage[FiringMode], InstantHitDamageRadius[FiringMode], 
+			Victim.TakeRadiusDamage(Instigator.Controller, InstantHitDamage[FiringMode]*GetDamageModifier(), InstantHitDamageRadius[FiringMode], 
 				InstantHitDamageTypes[FiringMode], InstantHitMomentum[FiringMode], HurtOrigin, InstantHitDamageRadiusDoFull[FiringMode], self);
 
 			if (!bSkipClientSideCalculated && !bShowHit && PlayerController(Instigator.Controller) != None && Pawn(Victim) != None && (InstantHitDamageRadiusIgnoreTeam[ClientHitFiringMode] || Instigator.GetTeamNum() != Victim.GetTeamNum()) )
@@ -1285,7 +1782,7 @@ simulated function bool UsesClientSideProjectiles(byte FireMode)
 
 simulated function bool ShouldRefire()
 {
- 	local vector FireStartLoc;
+ 	//local vector FireStartLoc;
  	local Rx_Vehicle veh;
  	
  	if(CurrentlyReloadingClientside)
@@ -1294,15 +1791,6 @@ simulated function bool ShouldRefire()
  		return false;
  	}
  		
- 	if(bCheckIfBarrelInsideWorldGeomBeforeFiring) {
-	 	FireStartLoc = MyVehicle.GetEffectLocation(SeatIndex);
-	 	if(!FastTrace(FireStartLoc,MyVehicle.location)) {
-			//`log("Cleared Pending Fire"); 
-			ClearPendingFire(CurrentFireMode);
-			return false;
-		}
-	} 
-	
  	if(bCheckIfFireStartLocInsideOtherVehicle)
  	{
  	    foreach CollidingActors(class'Rx_Vehicle', veh, 3, Owner.location, true)
@@ -1311,11 +1799,52 @@ simulated function bool ShouldRefire()
 				continue;
 			//`log("Cleared Pending Fire"); 
 			ClearPendingFire(CurrentFireMode);
+			ClientPendingFire[CurrentFireMode] = false;
 			return false;
 		}
 	} 	
 	
+	if(bROFChanged && IsTimerActive('RefireCheckTimer')) UpdateRateofFire() ;
+	
 	return super.ShouldRefire();
+}
+
+simulated function UpdateRateofFire()
+{
+	SetTimer(GetFireInterval(CurrentFireMode),true,'RefireCheckTimer');
+	SetROFChanged(false); //Reset 
+}
+
+simulated function SetROFChanged(bool SetTo)
+{
+	bROFChanged = SetTo;
+}
+
+simulated function bool IsBarrelInGeometry()
+{
+local vector FireStartLoc;
+	
+	 	FireStartLoc = MyVehicle.GetEffectLocation(SeatIndex);
+	 	if(!FastTrace(FireStartLoc,MyVehicle.location)) {
+			return true;
+		}
+	return false;  	
+	
+}
+
+
+simulated function bool IsBarrelInAnotherVehicle()
+
+{
+	local Rx_Vehicle veh;
+	
+ 	    foreach CollidingActors(class'Rx_Vehicle', veh, 3, Owner.location, true)
+   		{
+			if(veh == Pawn(Owner))
+				continue;
+			return true;
+		}
+		return false; 
 }
 
 simulated function SetCurrentlyReloadingClientside(bool NewValue)	
@@ -1331,7 +1860,7 @@ simulated function SetCurrentlyReloadingClientsideToFalseTimer()
 //Inject to keep server and client in sync with reloading weapons 
 simulated function StartFire(byte FireModeNum)
 {
-	
+	//`log(self @ "-----------Firing------------"); 
 	if(UTBot(instigator.Controller) != None || AIController(Instigator.Controller) != none) 
 	{
 		
@@ -1347,7 +1876,7 @@ simulated function StartFire(byte FireModeNum)
 		if(bReadyToFire() && (Role < Role_Authority || WorldInfo.NetMode == NM_StandAlone))
 		{
 			// if we're a client, synchronize server
-			`log("Sending Fire Request[Vehicle]"); 
+			//`log("Sending Fire Request[Vehicle]"); 
 			ServerStartFire(FireModeNum);
 			BeginFire(FireModeNum);
 			return;
@@ -1364,6 +1893,117 @@ simulated function StopFire(byte FireModeNum)
 	ClientPendingFire[FireModeNum]=false; 
 }
 
+function PromoteWeapon(byte rank) /*Covers most of what needs to be done(Damage,ROF,ClipSize,etc.) Special things obviously need to be added for special weapons*/
+{
+	VRank = rank; 
+	UpdateHeroicEffects(rank==3); 
+	CachedMaxRange = 0 ; //Ensure if the range changes after being promoted.
+	ReplicateVRank(rank);
+}
+
+/**
+ * Returns the Maximum Range for this weapon
+ */
+simulated function float MaxRange()
+{
+	local int i;
+	local class<Rx_Projectile> RxProj;
+	
+	if ( CachedMaxRange > 0 )
+	{
+		return CachedMaxRange;
+	}
+
+	// return the range of the fire mode that fires farthest
+	if (bInstantHit)
+	{
+		CachedMaxRange = WeaponRange;
+	}
+
+	for (i = 0; i < WeaponProjectiles.length; i++)
+	{
+		if(WeaponProjectiles[i] == none) continue;
+		if (class<Rx_Projectile>(WeaponProjectiles[i]) != None)
+		{
+			RxProj=class<Rx_Projectile>(WeaponProjectiles[i]);
+			CachedMaxRange = FMax(CachedMaxRange, WeaponProjectiles[i].static.GetRange()*RxProj.default.Vet_SpeedIncrease[VRank]*RxProj.default.Vet_LifespanModifier[VRank] );
+		}
+		else
+		CachedMaxRange = FMax(CachedMaxRange, WeaponProjectiles[i].static.GetRange());
+	}
+	return CachedMaxRange;
+}
+
+reliable client function ClientGetAmmo();
+
+
+simulated function UpdateHeroicEffects(bool bHeroic)
+{
+//	local Rx_Vehicle UTP;
+	
+	//`log("Update Heroic Effects" @ bHeroic @VRank); 
+	if(bHeroic)
+	{ 
+		//If we have Heroic projectiles, switch to them
+		if(WeaponProjectiles_Heroic.Length > 0) WeaponProjectiles[0]=WeaponProjectiles_Heroic[0];
+		if(WeaponProjectiles_Heroic.Length > 1) WeaponProjectiles[1]=WeaponProjectiles_Heroic[1];	
+		
+		//Same for sounds
+		if(WeaponFireSounds_Heroic.Length > 0) WeaponFireSnd[0]=WeaponFireSounds_Heroic[0];
+		if(WeaponFireSounds_Heroic.Length > 1) WeaponFireSnd[1]=WeaponFireSounds_Heroic[1];	
+		bNetDirty = true; 
+	}
+	else
+	{
+		WeaponProjectiles[0] = default.WeaponProjectiles[0];
+		WeaponProjectiles[1] = default.WeaponProjectiles[1];	
+		
+		WeaponFireSnd[0] = default.WeaponFireSnd[0];
+		WeaponFireSnd[1] = default.WeaponFireSnd[1];	
+	}
+}
+
+simulated function string GetROFAVG()
+{
+	if(CurrentFireMode == 0) return "["$self.class $"]:" @ FM0_AVGString ; 
+	else
+	return "["$self.class $"]:" @ FM1_AVGString ; 	
+}
+
+
+simulated function float GetDamageModifier()
+{
+	if(Rx_Controller(Instigator.Controller) != none) return Vet_DamageModifier[VRank]+Rx_Controller(Instigator.Controller).Misc_DamageBoostMod; 
+	else
+	if(Rx_Bot(Instigator.Controller) != none) return Vet_DamageModifier[Vrank]+Rx_Bot(Instigator.Controller).Misc_DamageBoostMod; 
+	else
+	if(Rx_Defence_Controller(Instigator.Controller) != none) return Vet_DamageModifier[Vrank]+Rx_Defence_Controller(Instigator.Controller).Misc_DamageBoostMod; 
+	else
+	if(Rx_Vehicle_HarvesterController(Instigator.Controller) != none) return Vet_DamageModifier[Vrank]+Rx_Vehicle_HarvesterController(Instigator.Controller).Misc_DamageBoostMod; 
+	else
+	return 1.0; 
+}
+
+simulated function float GetROFModifier()
+{
+	if(Rx_Controller(Instigator.Controller) != none) return Vet_ROFModifier[VRank]+Rx_Controller(Instigator.Controller).Misc_RateOfFireMod; 
+	else
+	if(Rx_Bot(Instigator.Controller) != none) return Vet_ROFModifier[Vrank]+Rx_Bot(Instigator.Controller).Misc_RateOfFireMod; 
+	else
+	if(Rx_Vehicle_HarvesterController(Instigator.Controller) != none) return Vet_ROFModifier[Vrank]+Rx_Vehicle_HarvesterController(Instigator.Controller).Misc_RateOfFireMod;
+	else
+	if(Rx_Defence_Controller(Instigator.Controller) != none) return Vet_ROFModifier[Vrank]+Rx_Defence_Controller(Instigator.Controller).Misc_RateOfFireMod; 
+	else
+	return 1.0; 
+}
+
+reliable client function ReplicateVRank(byte rank)
+{
+	VRank = rank;
+	UpdateHeroicEffects(rank==3);
+	CachedMaxRange = 0 ; //Recache range
+}
+
 DefaultProperties
 {
 	InventoryGroup=0
@@ -1376,7 +2016,8 @@ DefaultProperties
 	CrosshairMIC = MaterialInstanceConstant'RenXHud.MI_Reticle_Default_NoDot'
 	LockedOnCrosshairMIC = MaterialInstanceConstant'RenX_AssetBase.UI.MI_Reticle_MissileLock'
 	HitIndicatorCrosshairMIC = MaterialInstanceConstant'RenX_AssetBase.UI.MI_Reticle_HitMarker'
-
+	DotCrosshairMIC = MaterialInstanceConstant'RenX_AssetBase.UI.MI_Reticle_Simple'
+	
 	SecondaryLockingDisabled = true
 	
 	CrosshairWidth = 256
@@ -1399,4 +2040,28 @@ DefaultProperties
 	
 	ClientPendingFire(0) = false
 	ClientPendingFire(1) = false
-}
+	
+	//Veterancy
+	
+	VRank = 0 
+
+	Vet_DamageModifier(0)=1  //Applied to instant-hits only
+	Vet_DamageModifier(1)=1 
+	Vet_DamageModifier(2)=1 
+	Vet_DamageModifier(3)=1 
+	
+	Vet_ROFModifier(0) = 1
+	Vet_ROFModifier(1) = 1  
+	Vet_ROFModifier(2) = 1  
+	Vet_ROFModifier(3) = 1  
+	
+	SF_Tolerance = 50; //For now, till it becomes an issue   
+	
+	FM0_ROFTurnover = 5; //9 for most automatics. Single shot weapons should be more, except the shotgun
+	FM1_ROFTurnover = 5;
+	
+	FM0_AVGString = "X/X"
+	FM1_AVGString = "X/X"
+
+	bOkAgainstLightVehicles=true
+	}

@@ -27,6 +27,9 @@ var array<class<Rx_Weapon> > SidearmWeapons;
 var array<class<Rx_Weapon> > ExplosiveWeapons;
 var array<class<Rx_Weapon> > Items;
 
+var array<Rx_WeaponAbility>  AbilityWeapons; // Separated, as these don't simply have rigid inventory groups just where they're placed 
+//var array<class<Rx_PassiveAbility> > PassiveAbilities;
+
 /** one1: Weapon classification. */
 var enum EClassification
 {
@@ -34,14 +37,16 @@ var enum EClassification
 	CLASS_SECONDARY,
 	CLASS_SIDEARM,
 	CLASS_EXPLOSIVE,
-	CLASS_ITEM
+	CLASS_ITEM,
+	CLASS_ABILITY
 } Classification;
 
 var array<class<Rx_Weapon> > AvailableSidearmWeapons;
 var array<class<Rx_Weapon> > AvailableExplosiveWeapons;
 var array<class<Rx_Weapon> > AvailableSecondaryWeapons;
 var array<class<Rx_Weapon> > AvailableItems;
-
+var array<class<Rx_WeaponAbility> > AvailableAbilityWeapons; //
+var Weapon LastWeapon; 
 
 event PreBeginPlay()
 {
@@ -58,7 +63,8 @@ function int GetPrimaryWeaponSlots() { return default.PrimaryWeapons.Length; }
 function int GetSecondaryWeaponSlots() { return default.SecondaryWeapons.Length; }
 function int GetSidearmWeaponSlots() { return default.SidearmWeapons.Length; }
 function int GetExplosiveWeaponSlots() { return default.ExplosiveWeapons.Length; }
-function int GetItemSlots() { return 1; }
+function int GetItemSlots() { return 1; };
+function  int GetWeaponAbilitySlots() {return default.AvailableAbilityWeapons.Length ; } 	; 
 
 /** one1: Override these functions in subclasses. GUI should call these functions to
  *  obtain list of possible weapons for character. */
@@ -132,6 +138,7 @@ simulated function RemoveWeaponsOfClassification(EClassification classindex)
 	for (i = 0; i < remlist.Length; i++)
 	{
 		RemoveFromInventory(FindInventoryType(remlist[i]));
+		FindInventoryType(remlist[i]).Destroy();
 	}
 		
 	remlist.Length = 0;
@@ -148,6 +155,7 @@ simulated function RemoveWeaponOfClass(class<Rx_Weapon> wclass)
 	{
 		if (inv.Class == wclass) {
 			RemoveFromInventory(inv);
+			inv.Destroy();
 		}
 	}
 
@@ -215,13 +223,18 @@ simulated function Rx_Weapon AddWeaponOfClass(class<Rx_Weapon> wclass, EClassifi
 	if(FindInventoryType(wclass) != None) {
 		SetCurrentWeapon(Rx_Weapon(FindInventoryType(wclass)));
 		Rx_Pawn(Owner).RefreshBackWeapons();
+		
 		return None;
 	}
 
 	w = Rx_Weapon(CreateInventory(wclass, false));
+	
 	SetCurrentWeapon(w);
 	Rx_Pawn(Owner).RefreshBackWeapons();
-
+	//PromoteAllWeapons(Rx_PRI(Owner.PlayerReplicationInfo).VRank);
+	if(ROLE == ROLE_Authority) 
+		w.PromoteWeapon(Rx_Pawn(Owner).VRank);
+	
 	return w;
 }
 
@@ -244,7 +257,7 @@ function GetHiddenWeaponAttachmentClasses(out class<Rx_BackWeaponAttachment> att
 		if (inv == Instigator.Weapon) continue;
 
 		// no back attachment specified, ignore
-		if (inv.BackWeaponAttachmentClass == none) continue;
+		if (inv.BackWeaponAttachmentClass == none || !inv.bDrawBackAttachment() ) continue;
 
 		attclasses[inv.BackWeaponAttachmentClass.static.GetSocketIndex(self)] = inv.BackWeaponAttachmentClass;
 	}
@@ -287,13 +300,17 @@ static private function SetStartingHiddenWeaponAttachmentClassesPerCategory(
 private function AddWeaponsFromArray(array<class<Rx_Weapon> > a, bool bActivateFirst)
 {
 	local int i;
+	//local Rx_Weapon W;  
 
     for (i = 0; i < a.length; i++) 
     {
       	if (FindInventoryType(a[i]) == none) 
       	{
-  	    	CreateInventory(a[i], !(i == 0 && bActivateFirst));
-    	}
+  	    	Rx_Weapon(CreateInventory(a[i], !(i == 0 && bActivateFirst)));
+			
+			/**if(W != none) 
+				W.CreateAttachedAbility();*/
+		}
 	} 
 }
 
@@ -311,33 +328,44 @@ simulated function SetWeaponsForPawn()
 		if(Rx_Weapon_Beacon(W) == None && Rx_Weapon_Airstrike(W) == None) 
 		{
        		RemoveFromInventory(W);
+			w.Destroy();
        	}
  	}
 
-	// add primary weapons
-	AddWeaponsFromArray(PrimaryWeapons, true);
-
+	//Setup Abilities if they exist
+	InitAbilities(); 
+	
 	// add secondary weapons
 	AddWeaponsFromArray(SecondaryWeapons, false);
 
 	// add sidearm weapons
 	AddWeaponsFromArray(SidearmWeapons, false);
 
-	if(UDKBot(Pawn(Owner).controller) == None)
-	{ 
+//	if(UDKBot(Pawn(Owner).controller) == None)
+//	{ 
 		// add explosives
 		AddWeaponsFromArray(ExplosiveWeapons, false);
-	}
-
+//	}
+//
 	// add items
 	AddWeaponsFromArray(Items, false);
+	
+	// add primary weapons
+	AddWeaponsFromArray(PrimaryWeapons, true);
 
-	SetTimer(0.5, false, 'SwitchToStartWeapon');
+	
+	
+	//SetTimer(0.5, false, 'SwitchToStartWeapon');
 }
 
 /** one1: Moved from Rx_PRI. */
 simulated function SwitchToStartWeapon()
 {
+	//local Weapon LinkWeapon; 
+	
+	//LinkWeapon = Weapon(CreateInventory(class'UTWeap_LinkGun', false));
+	
+	//SetCurrentWeapon(LinkWeapon);
 	SetCurrentWeapon(Weapon(FindInventoryType(default.PrimaryWeapons[0])));
 }
 simulated function SwitchToSidearmWeapon()
@@ -368,23 +396,73 @@ reliable client function SetCurrentWeapon( Weapon DesiredWeapon )
 	}
 }
 
+//Legacy. Uses weapon groups 
 simulated function SwitchToPreviousWeapon()
 {
-	if( Rx_Pawn(Instigator).bThrowingGrenade )
-	{
 		Instigator.Weapon.StopFire(0);
 		Rx_Pawn(Instigator).bThrowingGrenade = false;
 		SwitchWeapon(PreviousInventoryGroup);
-	}
+}
+
+//Uses the actual last weapon held
+simulated function SwitchtoLastUsedWeapon()
+{
+	//`log("Switch to Last Used Weapon" @ LastWeapon);
+
+	Rx_Pawn(Instigator).PreviousWeaponClass = class<Rx_Weapon>(Instigator.Weapon.class);
+	SetCurrentWeapon(LastWeapon); 
 }
 
 simulated function SwitchWeapon(byte NewGroup)
 {
-	if( Rx_Pawn(Instigator).bThrowingGrenade && NewGroup != 4 )
+	local UTWeapon CurrentWeapon;
+	
+	if( Rx_Pawn(Instigator).bThrowingGrenade && NewGroup != 12 )
 		return;
-	else
+		
+		CurrentWeapon = UTWeapon(Instigator.Weapon);
+		Rx_Pawn(Instigator).PreviousWeaponClass = class<Rx_Weapon>(CurrentWeapon.class);
+		LastWeapon=CurrentWeapon; 
+		
+		/**if (CurrentWeapon != none && CurrentWeapon.InventoryGroup == NewGroup)
+		{
+			return;
+		}*/
+	
 		Super.SwitchWeapon(NewGroup);
+	
 }
+
+simulated function Weapon GetBestWeapon( optional bool bForceADifferentWeapon  )
+{
+	local Weapon	W, BestWeapon;
+	local float		Rating, BestRating;
+
+	ForEach InventoryActors( class'Weapon', W )
+	{
+		if(Rx_WeaponAbility(W) != none) continue; 
+		
+		if( w.HasAnyAmmo() )
+		{
+			if( bForceADifferentWeapon &&
+				W == Instigator.Weapon )
+			{
+				continue;
+			}
+
+			Rating = W.GetWeaponRating();
+			if( BestWeapon == None ||
+				Rating > BestRating )
+			{
+				BestWeapon = W;
+				BestRating = Rating;
+			}
+		}
+	}
+
+	return BestWeapon;
+}
+
 simulated function AdjustWeapon(int NewOffset)
 {
 	local Weapon CurrentWeapon;
@@ -660,6 +738,18 @@ simulated function PerformWeaponRefill()
 		Weap.bForceHidden = false;
 	}
 }
+
+simulated function PromoteAllWeapons(byte rank) 
+{
+	local Rx_Weapon Weap;
+
+	ForEach InventoryActors( class'Rx_Weapon', Weap )
+	{
+		Weap.PromoteWeapon(rank);
+		Weap.bForceHidden = false;
+	}
+}
+
 simulated function DoubleToggleCam()
 {
 	local Rx_Controller pc;
@@ -689,6 +779,57 @@ simulated function SetPendingFire(Weapon InWeapon, int InFiringMode)
 	} 
 }
 
+simulated function bool IsEquiped(class<Rx_Weapon> Weap, optional EClassification C)
+{
+	local class<Rx_Weapon> testWeap;
+
+	if(C == 0 || C == EClassification.CLASS_PRIMARY)
+	{
+		foreach PrimaryWeapons(testWeap)
+		{
+			if(Weap == testWeap)
+				return true;
+		}
+	}
+	if(C == 0 || C == EClassification.CLASS_SECONDARY)
+	{
+		foreach SecondaryWeapons(testWeap)
+		{
+			if(Weap == testWeap)
+				return true;
+		}
+	}
+
+	if(C == 0 || C == EClassification.CLASS_SIDEARM)
+	{
+		foreach SidearmWeapons(testWeap)
+		{
+			if(Weap == testWeap)
+				return true;
+		}
+	}
+
+	if(C == 0 || C == EClassification.CLASS_EXPLOSIVE)
+	{
+		foreach ExplosiveWeapons(testWeap)
+		{
+			if(Weap == testWeap)
+				return true;
+		}
+	}
+
+	if(C == 0 || C == EClassification.CLASS_ITEM)
+	{
+		foreach Items(testWeap)
+		{
+			if(Weap == testWeap)
+				return true;
+		}
+	}
+
+	return false;
+}
+
 simulated function GetWeaponList(out array<UTWeapon> WeaponList, optional bool bFilter, optional int GroupFilter, optional bool bNoEmpty)
 {
 	local UTWeapon Weap;
@@ -696,7 +837,14 @@ simulated function GetWeaponList(out array<UTWeapon> WeaponList, optional bool b
 
 	ForEach InventoryActors( class'UTWeapon', Weap )
 	{
-		if ( (!bFilter || Weap.InventoryGroup == GroupFilter) && ( (!bNoEmpty && Rx_Weapon_Deployable(Weap) == None && Rx_Weapon_Airstrike(Weap) == None) || Weap.HasAnyAmmo()) )
+		//Ignore Abilities 
+		if(Rx_WeaponAbility(Weap) != none) 
+		{
+		//Pawn(Owner).controller.ClientPlaySound(SoundCue'RX_SoundEffects.SFX.SC_Boink') ;
+		continue; 		
+		}
+			
+		if ( (!bFilter || Weap.InventoryGroup == GroupFilter) && ( (!bNoEmpty && Rx_Weapon_Deployable(Weap) == None && Rx_Weapon_Airstrike(Weap) == None) || Weap.HasAnyAmmo()))
 		{
 			if ( WeaponList.Length>0 )
 			{
@@ -726,6 +874,184 @@ simulated function GetWeaponList(out array<UTWeapon> WeaponList, optional bool b
 	}
 }
 
+function float GetInventoryWeight()
+{
+	local UTWeapon InvActor;
+	local float Total;  
+	
+	ForEach InventoryActors( class'UTWeapon', InvActor )
+	{
+		if(Rx_Weapon(InvActor) != none) 
+			Total += Rx_Weapon(InvActor).WeaponSpeedModifier ;
+	}
+	return Total; 
+}
+
+//Initialize/create active and passive abilities
+private function InitAbilities()
+{
+	local int i; 
+	local Rx_WeaponAbility NewAbility;
+	//local Rx_PassiveAbility NewPAbility; 
+	
+	//Rid yourself of old abilities
+	ClearAbilities();
+	if(ROLE < ROLE_Authority)
+		return; 
+	
+	for(i=0;i<AvailableAbilityWeapons.Length;i++)
+	{
+		if(AvailableAbilityWeapons[i] != none) 
+		{
+			NewAbility = Rx_WeaponAbility(CreateInventory(AvailableAbilityWeapons[i],true));
+			//`log("Created New Ability" @ NewAbility) ; 
+				AbilityWeapons.InsertItem(i, NewAbility);
+				NewAbility.AssignedSlot = i;				
+		}
+	}
+	
+	/**for(i=0;i<=AvailablePassiveAbilities.Length;i++)
+	{
+		if(AvailablePassiveAbilities[i] != none) 
+		{
+			NewAbility = Rx_PassiveAbility(CreateInventory(AvailablePassiveAbilities[i],false));
+			PassiveAbilities.InsertItem(i, NewPAbility);
+		}
+	}*/
+	
+}
+
+//Add abilities derived from weapons you're holding/picked up
+function Rx_WeaponAbility AddAbilityFromWeapon(class<Rx_WeaponAbility> WeaponA)
+{
+	local Rx_WeaponAbility NewAbility;
+			
+			if(ROLE < ROLE_Authority)
+				return none; 
+			
+			NewAbility = Rx_WeaponAbility(CreateInventory(WeaponA,true));
+			//`log("Created New Ability" @ NewAbility) ; 
+			
+			//Authoritative source adds it. Remote clients add on replication
+				AbilityWeapons.InsertItem(AbilityWeapons.Length, NewAbility);
+				NewAbility.AssignedSlot = AbilityWeapons.Length-1;
+				
+	
+	//Incase anything else needs to modify this
+	return AbilityWeapons[AbilityWeapons.length-1];	
+}
+
+simulated function ClearAbilities()
+{
+	local Rx_WeaponAbility RxA; 
+	//local Rx_PassiveAbility RxPA;
+	foreach AbilityWeapons(RxA) 
+	{
+		RemoveFromInventory(RxA);
+		RxA.Destroy();
+	}
+	
+	/**foreach PassiveAbilities(RxPA) 
+	{
+		RemoveFromInventory(RxPA);
+	}*/
+	
+	AbilityWeapons.Length = 0;
+	//PassiveAbilities.Length = 0; 
+}
+
+//Shouldn't need support for multiple abilities. The Jumpjets will be more of an always on kind of thing with its own HUD element
+//EDIT: Dumb comment; Adding support for multiple abilities. 
+
+
+/*Gets the list of abilities and also returns if there are any to begin with*/
+simulated function bool GetAbilityList(out array<Rx_WeaponAbility> WeaponAbilityList, out array<Rx_PassiveAbility> PassiveAbilityList) 
+{
+
+local int i; 	
+		
+	if(AbilityWeapons.Length > 0) 
+	{
+		for(i=0;i<AbilityWeapons.Length;i++)
+		{
+			if(AbilityWeapons[i] != none) WeaponAbilityList.InsertItem(i, AbilityWeapons[i]); 
+			//`log("Found Ability" @ AbilityWeapons[i]); 
+		}
+		return true; 
+	}		
+	else
+		return false; 
+}
+
+simulated function Rx_WeaponAbility GetIndexedAbility(byte AbilityIndex)
+{
+	if(AbilityWeapons.Length > AbilityIndex) {
+			return AbilityWeapons[AbilityIndex]; 
+	}
+	else
+		return none; 
+}
+
+simulated function ClientSwitchToWeaponAbility(byte AbilityNumber)
+{	
+	SwitchToWeaponAbility(AbilityNumber) ;
+	//ServerSwitchToWeaponAbility(AbilityNumber); 
+	
+}
+
+reliable server function ServerSwitchToWeaponAbility(byte AbilityNumber)
+{
+	//`log("Fire Server"); 
+	SwitchToWeaponAbility(AbilityNumber) ; 
+}
+
+simulated function SwitchToWeaponAbility(byte AbilityNumber) //Switches to ability 
+{
+	/*By default there is support for up to 4 different ability slots linked to '5', 'X', 'G' and 'Q'(Each coinciding to 1-4 respectively) */
+	local array<Rx_WeaponAbility> MyAbilities;
+	local Rx_WeaponAbility CurrentAbility;
+	local array<Rx_PassiveAbility> PAbility; 
+	
+	if(!GetAbilityList(MyAbilities, PAbility)) 
+		return; 
+	else if(Rx_WeaponAbility_Attached(Instigator.Weapon) != none){
+		//SwitchToPreviousWeapon();
+		SwitchtoLastUsedWeapon();
+	}
+	else if(AbilityWeapons[AbilityNumber] != none) {
+			CurrentAbility = AbilityWeapons[AbilityNumber] ; 
+			
+			if( Instigator.Weapon != AbilityWeapons[AbilityNumber] && CurrentAbility.bCanBeSelected() ) 
+			{
+				LastWeapon=Instigator.Weapon; 
+				Rx_Pawn(Instigator).PreviousWeaponClass = class<Rx_Weapon>(Instigator.Weapon.class);
+				PreviousInventoryGroup = Rx_Weapon(Instigator.Weapon).InventoryGroup;
+				SetCurrentWeapon(AbilityWeapons[AbilityNumber]); 
+			}
+			else
+			if(Instigator.Weapon == AbilityWeapons[AbilityNumber])
+			{
+				SwitchToPreviousWeapon();
+			}
+		return; 
+		}	
+	
+}
+
+//Inject to handle weapon abilities attached to weapons
+simulated function bool AddInventory(Inventory NewItem, optional bool bDoNotActivate)
+{
+	if(super.AddInventory(NewItem, bDoNotActivate))
+	{
+		//Create a new ability
+		if(Rx_Weapon(NewItem) != none) 
+			Rx_Weapon(NewItem).CreateAttachedAbility();
+		
+		return true; 
+	}
+	
+	return false; 
+}
 
 defaultproperties
 {
@@ -734,7 +1060,7 @@ defaultproperties
 	PendingFire(1)=0
 
 	
-	AvailableSidearmWeapons(0) = class'Rx_Weapon_Pistol'
+	AvailableSidearmWeapons(0) = class'Rx_Weapon_Pistol_Unsilenced'//class'Rx_Weapon_Pistol'
 	/**
 	AvailableSidearmWeapons(1) = class'Rx_Weapon_SMG'
 	AvailableSidearmWeapons(2) = class'Rx_Weapon_SMG_GDI'
@@ -760,6 +1086,6 @@ defaultproperties
 	AvailableItems(3) = class'Rx_Weapon_Airstrike_Nod'
 	AvailableItems(4) = class'Rx_Weapon_RepairTool'
 
-	SidearmWeapons[0] = class'Rx_Weapon_Pistol'
+	SidearmWeapons[0] = class'Rx_Weapon_Pistol_Unsilenced' //class'Rx_Weapon_Pistol'
 	ExplosiveWeapons[0] = class'Rx_Weapon_TimedC4'
 }

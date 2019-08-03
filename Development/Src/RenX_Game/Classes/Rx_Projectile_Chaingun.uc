@@ -56,21 +56,46 @@ DefaultProperties
     
     MyDamageType=class'Rx_DmgType_ChainGun'
 	
+	/**
 	Begin Object Name=CollisionCylinder
-		CollisionRadius=20
-		CollisionHeight=20
-	End Object
+		CollisionRadius=10
+		CollisionHeight=10
+		//Don't waste server resources on tracing for a client side projectile 
+		CollideActors = false
+		AlwaysLoadOnServer=false
+	End Object*/
 
     DrawScale= 1.0f
 
     bCollideComplex=true
-    Speed=14000 //9000
-    MaxSpeed=14000 //9000
+    Speed=18000 //14000 //9000
+    MaxSpeed=18000 //14000 //9000
     AccelRate=0
-    LifeSpan=0.512 //0.8
-    Damage=8
+    LifeSpan=0.45 //0.512 //0.8
+    Damage=10 //8
     DamageRadius=0
-	HeadShotDamageMult=2.0
+	HeadShotDamageMult=3.0 // 2.0
     MomentumTransfer=10000
     bSuppressExplosionFX=True // Do not spawn hit effect in mid air
+	
+	/*************************/
+	/*VETERANCY*/
+	/************************/
+	
+	Vet_DamageIncrease(0)=1 //Normal (should be 1)
+	Vet_DamageIncrease(1)=1.10 //Veteran 
+	Vet_DamageIncrease(2)=1.25 //Elite
+	Vet_DamageIncrease(3)=1.50 //Heroic
+
+	Vet_SpeedIncrease(0)=1 //Normal (should be 1)
+	Vet_SpeedIncrease(1)=1.5 //Veteran 
+	Vet_SpeedIncrease(2)=3.0 //Elite
+	Vet_SpeedIncrease(3)=6.0 //Heroic 
+	
+	Vet_LifespanModifier(0)=1 //Normal (should be 1)
+	Vet_LifespanModifier(1)=0.75 //Veteran 
+	Vet_LifespanModifier(2)=0.45 //Elite
+	Vet_LifespanModifier(3)=0.225 //Heroic
+	
+	/***********************/
 }

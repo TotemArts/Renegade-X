@@ -5,4 +5,5 @@ DefaultProperties
     AttachmentClass=class'Rx_Attachment_VoltAutoRifle_GDI'
 
     MuzzleFlashPSCTemplate=ParticleSystem'RX_WP_VoltAutoRifle.Effects.P_VoltRifle_MuzzleFlash_1P_Blue'
+	MuzzleFlashPSCTemplate_Heroic=ParticleSystem'RX_WP_VoltAutoRifle.Effects.P_VoltRifle_MuzzleFlash_1P'
 }

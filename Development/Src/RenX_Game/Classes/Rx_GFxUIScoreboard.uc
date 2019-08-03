@@ -124,6 +124,7 @@ function Draw()
 // 			ChatBox.SetString("htmlText", chatText);
 // 		}
 // 	}
+	
 		
 	for (i = 0; i < 10 ; i++)
 	{
@@ -158,22 +159,23 @@ function Draw()
 	
 	for (i = 0; i < PRIArray.Length ; i++)
 	{
-		if (!PRIArray[i].bIsSpectator)
-		{
-			if(PRIArray[i].GetTeamNum() == TEAM_GDI) {
-				if(GRI != none && !GRI.bMatchIsOver) {
-					PopulateFields(0,PRIArray[i].GetHumanReadableName(),false,Rx_Pri(PRIArray[i]).GetRenScore(),Rx_Pri(PRIArray[i]).GetRenKills(),PRIArray[i].Deaths, PRIArray[i].Ping * 4);
-				} else {
-					PopulateFields(0,PRIArray[i].GetHumanReadableName(),false,Rx_Pri(PRIArray[i]).GetRenScore(),Rx_Pri(PRIArray[i]).GetRenKills(),PRIArray[i].Deaths, -1);
-				}
+		if(PRIArray[i].GetTeamNum() == TEAM_GDI) {
+			if(GRI != none && !GRI.bMatchIsOver) {
+				PopulateFields(0,PRIArray[i].GetHumanReadableName(),false,Rx_Pri(PRIArray[i]).GetRenScore(),Rx_Pri(PRIArray[i]).GetRenKills(),PRIArray[i].Deaths, PRIArray[i].Ping * 4, isLocalPlayer(PRIArray[i]), Rx_Pri(PRIArray[i]).bIsCommander);
+					
+			} else {
+				PopulateFields(0,PRIArray[i].GetHumanReadableName(),false,Rx_Pri(PRIArray[i]).GetRenScore(),Rx_Pri(PRIArray[i]).GetRenKills(),PRIArray[i].Deaths, -1, isLocalPlayer(PRIArray[i]), Rx_Pri(PRIArray[i]).bIsCommander);
 			}
-			else {
-				if(GRI != none && !GRI.bMatchIsOver) {
-					PopulateFields(1,PRIArray[i].GetHumanReadableName(),false,Rx_Pri(PRIArray[i]).GetRenScore(),Rx_Pri(PRIArray[i]).GetRenKills(),PRIArray[i].Deaths, PRIArray[i].Ping * 4);
-				} else {
-					PopulateFields(1,PRIArray[i].GetHumanReadableName(),false,Rx_Pri(PRIArray[i]).GetRenScore(),Rx_Pri(PRIArray[i]).GetRenKills(),PRIArray[i].Deaths, -1);
-				}
+		}
+		else if (PRIArray[i].GetTeamNum() == TEAM_NOD) {
+			if(GRI != none && !GRI.bMatchIsOver) {
+				PopulateFields(1,PRIArray[i].GetHumanReadableName(),false,Rx_Pri(PRIArray[i]).GetRenScore(),Rx_Pri(PRIArray[i]).GetRenKills(),PRIArray[i].Deaths, PRIArray[i].Ping * 4, isLocalPlayer(PRIArray[i]), Rx_Pri(PRIArray[i]).bIsCommander);
+			} else {
+				PopulateFields(1,PRIArray[i].GetHumanReadableName(),false,Rx_Pri(PRIArray[i]).GetRenScore(),Rx_Pri(PRIArray[i]).GetRenKills(),PRIArray[i].Deaths, -1, isLocalPlayer(PRIArray[i]), Rx_Pri(PRIArray[i]).bIsCommander);
 			}
+		}
+		else {
+			continue;
 		}
 	}
 	gdiScore = Rx_TeamInfo(GetPC().WorldInfo.GRI.Teams[TEAM_GDI]).GetRenScore();
@@ -183,6 +185,10 @@ function Draw()
 
 	
 	ServerName.SetText(GetPC().WorldInfo.GRI.ServerName);
+}
+
+function bool isLocalPlayer(PlayerReplicationInfo in_pri) {
+	return GetPC().PlayerReplicationInfo == in_pri;
 }
 
 function CheckEndGameScoreboard()
@@ -222,7 +228,6 @@ function CheckEndGameScoreboard()
 				//TODO: find a way to call this once per second
 				PlaySoundFromTheme('Click', 'default'); 
 			}
-
 		} else {
 			if (NextRoundRed != none) {
 				if (NextRoundRed.GetBool("_visible")) {
@@ -323,6 +328,20 @@ function CheckEndGameScoreboard()
 			else
 				ScoreboardVictoryMsg.GotoAndStopI(3);
 		}
+
+		
+		//setting the textfields for player award fields (nBab)
+		if (GetVariableObject("_root.gdi_mvp.tf") != None)
+		{
+			GetVariableObject("_root.gdi_mvp.tf").SetText(RxGRI.MVP[0]);
+			GetVariableObject("_root.gdi_bestOffense.tf").SetText(RxGRI.BestOP[0]);
+			GetVariableObject("_root.gdi_bestDefense.tf").SetText(RxGRI.BestDP[0]);
+			GetVariableObject("_root.gdi_bestSupport.tf").SetText(RxGRI.BestSP[0]);
+			GetVariableObject("_root.nod_mvp.tf").SetText(RxGRI.MVP[1]);
+			GetVariableObject("_root.nod_bestOffense.tf").SetText(RxGRI.BestOP[1]);
+			GetVariableObject("_root.nod_bestDefense.tf").SetText(RxGRI.BestDP[1]);
+			GetVariableObject("_root.nod_bestSupport.tf").SetText(RxGRI.BestSP[1]);
+		}
 	}		
 }
 
@@ -420,33 +439,33 @@ function OnMapVoteListItemClick(GFxClikWidget.EventData ev)
 
 function int GetBuildingIndex(Rx_Building B)
 {
-	if(Rx_Building_Barracks(B) != None) return 0;
-	if(Rx_Building_WeaponsFactory(B) != None) return 1;
-	if(Rx_Building_Refinery_GDI(B) != None) return 2;
-	if(Rx_Building_PowerPlant_GDI(B) != None) return 3;
-	if(Rx_Building_AdvancedGuardTower(B) != None) return 4;
+	if(Rx_Building_GDI_InfantryFactory(B) != None) return 0;
+	if(Rx_Building_GDI_VehicleFactory(B) != None) return 1;
+	if(Rx_Building_GDI_MoneyFactory(B) != None) return 2;
+	if(Rx_Building_GDI_PowerFactory(B) != None) return 3;
+	if(Rx_Building_GDI_Defense(B) != None) return 4;
 	
-	if(Rx_Building_HandOfNod(B) != None) return 5;
-	if(Rx_Building_AirTower(B) != None) return 6;
-	if(Rx_Building_Refinery_Nod(B) != None) return 7;
-	if(Rx_Building_PowerPlant_Nod(B) != None) return 8;
-	if(Rx_Building_Obelisk(B) != None) return 9;
+	if(Rx_Building_Nod_InfantryFactory(B) != None) return 5;
+	if(Rx_Building_Nod_VehicleFactory(B) != None) return 6;
+	if(Rx_Building_Nod_MoneyFactory(B) != None) return 7;
+	if(Rx_Building_Nod_PowerFactory(B) != None) return 8;
+	if(Rx_Building_Nod_Defense(B) != None) return 9;
 	return -1;
 }
 
 function int GetBuildingPicIndex(Rx_Building B)
 {
-	if(Rx_Building_Barracks(B) != None) return 3;
-	if(Rx_Building_WeaponsFactory(B) != None) return 8;
-	if(Rx_Building_Refinery_GDI(B) != None) return 7;
-	if(Rx_Building_PowerPlant_GDI(B) != None) return 6;
-	if(Rx_Building_AdvancedGuardTower(B) != None) return 1;
+	if(Rx_Building_GDI_InfantryFactory(B) != None) return 3;
+	if(Rx_Building_GDI_VehicleFactory(B) != None) return 8;
+	if(Rx_Building_GDI_MoneyFactory(B) != None) return 7;
+	if(Rx_Building_GDI_PowerFactory(B) != None) return 6;
+	if(Rx_Building_GDI_Defense(B) != None) return 1;
 	
-	if(Rx_Building_HandOfNod(B) != None) return 4;
-	if(Rx_Building_AirTower(B) != None) return 2;
-	if(Rx_Building_Refinery_Nod(B) != None) return 7;
-	if(Rx_Building_PowerPlant_Nod(B) != None) return 6;
-	if(Rx_Building_Obelisk(B) != None) return 5;
+	if(Rx_Building_Nod_InfantryFactory(B) != None) return 4;
+	if(Rx_Building_Nod_VehicleFactory(B) != None) return 2;
+	if(Rx_Building_Nod_MoneyFactory(B) != None) return 7;
+	if(Rx_Building_Nod_PowerFactory(B) != None) return 6;
+	if(Rx_Building_Nod_Defense(B) != None) return 5;
 	return -1;
 }
 
@@ -593,9 +612,15 @@ function int SortPriDelegate( coerce PlayerReplicationInfo pri1, coerce PlayerRe
 	return 0;
 }
 
-function PopulateFields(int t,string n,bool mvp,int s,int k,int d, int p)
+function PopulateFields(int t,string n,bool mvp,int s,int k,int d, int p, bool lp, bool cmdr)
 {
+	
+	//nBab
+	//n="<b>"$n$"</b>";
 	RootMC.ActionScriptVoid("PopulateFields");
+	
+	
+	
 }
 
 function ResetFields()
@@ -610,5 +635,5 @@ DefaultProperties
 	bHasFadeIn = false;
 	bMapVoteInitialized = false;
 	bChatInitialized = false;
-	//bCaptureInput=true
+	//bCaptureInput=true;
 }

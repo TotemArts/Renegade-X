@@ -46,7 +46,14 @@ simulated function SetSkin(Material NewMaterial)
 	}
 }
 
-function ConsumeAmmo( byte FireModeNum )
+simulated function PerformRefill()
+{
+	Super.PerformRefill();
+
+	UpdateAmmoCounter();
+} 
+
+simulated function ConsumeAmmo( byte FireModeNum )
 {
     super.ConsumeAmmo(FireModeNum);
     UpdateAmmoCounter();
@@ -94,6 +101,9 @@ DefaultProperties
 	
 	FireOffset=(X=10,Y=7,Z=-7)
 	
+	LeftHandIK_Relaxed_Offset = (X=3.0,Y=-1.0,Z=4.0)
+
+	
 	//-------------- Recoil
 	RecoilDelay = 0.02
 	MinRecoil = 65.0						// 50.0			120
@@ -119,7 +129,19 @@ DefaultProperties
 	EquipTime=0.5
 //	PutDownTime=0.35
 
-	WeaponRange=6000.0
+	WeaponRange=9000 //12000//6000.0
+	
+	InstantHitDamage(0)=8
+	InstantHitDamage(1)=8
+	
+	HeadShotDamageMult=4.0 //3.0
+
+	InstantHitDamageTypes(0)=class'Rx_DmgType_AutoRifle'
+	InstantHitDamageTypes(1)=class'Rx_DmgType_AutoRifle'
+
+	InstantHitMomentum(0)=10000
+	InstantHitMomentum(1)=10000
+	
 /*
 	WeaponFireTypes(0)=EWFT_InstantHit
 	WeaponFireTypes(1)=EWFT_None
@@ -245,4 +267,31 @@ DefaultProperties
 
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_AutoRifle'
+	
+	/*******************/
+	/*Veterancy*/
+	/******************/
+	
+	Vet_DamageModifier(0)=1  //Applied to instant-hits only
+	Vet_DamageModifier(1)=1.10 
+	Vet_DamageModifier(2)=1.25 
+	Vet_DamageModifier(3)=1.50 
+	
+	Vet_ROFModifier(0) = 1
+	Vet_ROFModifier(1) = 1 
+	Vet_ROFModifier(2) = 1  
+	Vet_ROFModifier(3) = 1  
+	
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)	
+	Vet_ClipSizeModifier(1)=10 //Veteran 
+	Vet_ClipSizeModifier(2)=25 //Elite
+	Vet_ClipSizeModifier(3)=50 //Heroic
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=1 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.9 //Elite
+	Vet_ReloadSpeedModifier(3)=0.8 //Heroic
+	
+	VeterancyFireTypes(0) = (Firetype = EWFT_InstantHit, MinRank = 3)
+	/**********************/
 }

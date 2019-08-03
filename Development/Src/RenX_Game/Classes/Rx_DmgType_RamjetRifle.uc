@@ -17,6 +17,7 @@ defaultproperties
     BuildingDamageScaling=0.009
 	MCTDamageScaling=100.0
 	MineDamageScaling=2.0
+    AircraftDamageScaling=0.2
 	
 	GibPerterbation=0.15
     AlwaysGibDamageThreshold=100

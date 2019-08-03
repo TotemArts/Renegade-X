@@ -1,4 +1,4 @@
-class Rx_FamilyInfo_GDI_Grenadier extends Rx_FamilyInfo;
+class Rx_FamilyInfo_GDI_Grenadier extends Rx_FamilyInfo_GDI;
 
 DefaultProperties
 {
@@ -19,14 +19,39 @@ DefaultProperties
 	ArmMesh="RX_CH_Arms.Mesh.SK_Arms_GDI_Default"
 	ArmSkinPackageName="RX_CH_Arms"
 	
-	/** one1: Obsolete.
-	 *  
-	StartWeapons[0] = class'Rx_Weapon_GrenadeLauncher'
-	StartWeapons[1] = class'Rx_Weapon_Pistol'
-	StartWeapons[2] = class'Rx_Weapon_TimedC4'
-	StartWeapons[3] = class'Rx_Weapon_Grenade'
-	*/
+	/*PT Block Info*/
+	/*------------*/
+	BasePurchaseCost	= 0; //250;
+	bHighTier			= false
+	PT_Damage			= 4
+	PT_Range			= 3
+	PT_RateOfFire		= 2
+	PT_MagazineCapacity = 2
+	PT_Icon				= Texture2D'RenXPurchaseMenu.T_Icon_Weapon_GrenadeLauncher'
+	/*---------------*/
 
 	/** one1: Added. */
 	InvManagerClass = class'Rx_InventoryManager_GDI_Grenadier'
+	
+	/***********/
+	/*Veterancy*/
+	/***********/
+	
+	//+X
+	Vet_HealthMod(0)=0
+	Vet_HealthMod(1)=25
+	Vet_HealthMod(2)=50
+	Vet_HealthMod(3)=75
+	
+	//+X
+	Vet_SprintSpeedMod(0)=0
+	Vet_SprintSpeedMod(1)=0.05
+	Vet_SprintSpeedMod(2)=0.075
+	Vet_SprintSpeedMod(3)=0.1
+	
+	/******************/
+
+	PowerUpClasses.Add(class'Rx_Pickup_HealthSmall');
+	PowerUpClasses.Add(class'Rx_Pickup_ArmourLight');
+	PTString="Buy Char - BasicAT"
 }

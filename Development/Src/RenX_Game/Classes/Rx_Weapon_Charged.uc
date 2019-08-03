@@ -34,6 +34,16 @@ var bool bCharge;
 var bool bCharged;
 var bool bPlayingADSFire;
 
+/*variables to determine some charging characteristics*/
+var bool bPartialChargeFire; //Fire with a partial charge 
+var bool bFireDuringCharge;
+var float ChargeAmount, LastChargeAmount;
+//Veterancy factor to determine how much faster a weapon can charge up before firing. 
+var float Vet_ChargeRateModifier[4] ; 
+
+var bool	bMakeNoise; 
+var bool	bFireonRelease; 
+
 simulated function AddBeamEmitter()
 {
 	if( WorldInfo.NetMode != NM_DedicatedServer )
@@ -104,10 +114,12 @@ simulated state WeaponCharging
 
 	simulated function PlayPreFireEffects()
 	{		
-
+		local UTPawn POwner;
+		
+		POwner = UTPawn(Instigator);
 		// Play pre-fire weapon anim
 		if( WeaponPreFireAnim[CurrentFireMode] != '' )
-			PlayWeaponAnimation( WeaponPreFireAnim[CurrentFireMode], FireDelayTime );
+			PlayWeaponAnimation( WeaponPreFireAnim[CurrentFireMode], FireDelayTime*Vet_ChargeRateModifier[VRank] );
 		else if( WeaponFireAnim[CurrentFireMode] != '' )
 			PlayWeaponAnimation( WeaponFireAnim[CurrentFireMode], GetFireInterval(CurrentFireMode) );
 
@@ -115,7 +127,7 @@ simulated state WeaponCharging
 		if( ArmsAnimSet != none )
 		{
 			if( ArmPreFireAnim[CurrentFireMode] != '' )
-				PlayArmAnimation( ArmPreFireAnim[CurrentFireMode], FireDelayTime);
+				PlayArmAnimation( ArmPreFireAnim[CurrentFireMode], FireDelayTime*Vet_ChargeRateModifier[VRank]);
 			else if( ArmFireAnim[CurrentFireMode] != '' )
 				PlayArmAnimation( ArmFireAnim[CurrentFireMode], GetFireInterval(CurrentFireMode) );
 		}				
@@ -127,14 +139,18 @@ simulated state WeaponCharging
 
 		// Play weapon pre-fire sound
 		if( WeaponPreFireSnd[CurrentFireMode] != None )
-			WeaponPlaySound( WeaponPreFireSnd[CurrentFireMode] );	
+			POwner.SetWeaponAmbientSound( WeaponPreFireSnd[CurrentFireMode]);
+			//WeaponPlaySound( WeaponPreFireSnd[CurrentFireMode] );	
 		
-		SetTimer(FireDelayTime,false,'GotoWeaponFiring');	
+		SetTimer(FireDelayTime*Vet_ChargeRateModifier[VRank],false,'GotoWeaponFiring');	
 	}
 
 	simulated function GotoWeaponFiring()
 	{
 		local AnimNodeSequence WeapNode;
+		local UTPawn POwner;
+		
+		
 		
 		if( WorldInfo.NetMode != NM_DedicatedServer )
 		{
@@ -145,10 +161,41 @@ simulated state WeaponCharging
 				SetTimer(WeapNode.GetTimeLeft(), false,'GotoWeaponFiring');
 				return;
 			}
-		}		
-		GotoState('WeaponFiring');
+		}
+		ChargeAmount = 1.0;
+		
+		POwner = UTPawn(Instigator);
+		
+		if(!bFireonRelease)
+			GotoState('WeaponFiring');
+		else
+		{
+			if(POwner != none)
+				POwner.SetWeaponAmbientSound(SoundCue'RX_WP_Railgun.Sounds.S_RailGun_Light_ChargeWait_Cue'); 
+		}
+			
 	}
-
+	
+	simulated function StopFire(byte FireModeNum)
+	{
+		local UTPawn POwner;
+			
+		POwner = UTPawn(Instigator);
+		
+		if(bPartialChargeFire)
+		{
+			ChargeAmount = ChargeAmount >= 1.0 ? 1.0 : fmax(default.ChargeAmount,(FireDelayTime*Vet_ChargeRateModifier[VRank])*GetTimerCount('GotoWeaponFiring'));
+			//bCharged = false;
+			GotoState('WeaponFiring');
+			super.StopFire(FireModeNum);
+			return; 
+		}
+		POwner.SetWeaponAmbientSound(None);
+		bCharged = false;
+		super.StopFire(FireModeNum);
+		GotoState('Active');		
+	}
+	
 }
 
 simulated state WeaponFiring
@@ -170,14 +217,17 @@ simulated state WeaponFiring
 				AddBeamEmitter();
 				SetBeamEmitterActive(true);
 
-				// Set ambient sound
-				POwner.SetWeaponAmbientSound(WeaponFireSnd[CurrentFireMode]);
+				// Set ambient sound (if we're not a burst fire weapon) Burst fire charged weapons handle weapon sounds in FireAmmunition
+				if(!GetIsBurstFire()){
+					POwner.SetWeaponAmbientSound(WeaponFireSnd[CurrentFireMode]);
 
-				// Loop firing animation
-				if (bIronsightActivated)
-					LoopADSFireAnims();
-				else
-					LoopFireAnims();
+					// Loop firing animation
+					if (bIronsightActivated)
+						LoopADSFireAnims();
+					else
+						LoopFireAnims();
+				}
+					
 			}						
 
 			super.BeginState(PreviousStateName);
@@ -187,7 +237,7 @@ simulated state WeaponFiring
 	simulated function EndState(Name NextStateName)
 	{
 		// Play post-fire effects
-		if (bCharged)
+		if (bCharged && !GetIsBurstFire())
 			PlayPostFireEffects();
 		
 		// Set weapon as not firing
@@ -244,7 +294,12 @@ simulated state WeaponFiring
 	simulated function PlayFireEffects( byte FireModeNum, optional vector HitLocation )
 	{
 		local UTPlayerController PC;
-
+		if(GetIsBurstFire())
+		{
+			super.PlayFireEffects(FireModeNum, HitLocation);
+			return; 
+		}
+		
 		// Play controller vibration
 		PC = UTPlayerController(Instigator.Controller);
 		if( PC != None && LocalPlayer(PC.Player) != None )
@@ -259,7 +314,7 @@ simulated state WeaponFiring
 	simulated function PlayPostFireEffects()
 	{
 		local UTPawn POwner;
-
+		
 		// Stop ambient sound
 		POwner = UTPawn(Instigator);
 		if( POwner != None )
@@ -277,10 +332,12 @@ simulated state WeaponFiring
 
 		// Play weapon post-fire sound
 		if( WeaponPostFireSnd[CurrentFireMode] != None )
-			WeaponPlaySound( WeaponPostFireSnd[CurrentFireMode] );
+				POwner.SetWeaponAmbientSound(WeaponPostFireSnd[CurrentFireMode] );
+		//WeaponPlaySound( WeaponPostFireSnd[CurrentFireMode] );
 
-		// Attract attention of nearby AI's
-		MakeNoise(1.0);
+		// Attract attention of nearby AI's (Aside from on Clients. wasted Traces on humans)
+		if(WorldInfo.NetMode != NM_Client)
+			MakeNoise(1.0);
 
 		// Disable beam
 		SetBeamEmitterActive(false);
@@ -296,6 +353,24 @@ simulated state WeaponFiring
 		if(Rx_Weapon_AutoRifle(self) == None)
 			MakeNoise(1.0);
 	}	
+	
+	//If bursting with a charge weapon 
+	simulated function BurstNextShot()
+{
+	if(HasAmmo(CurrentFireMode) && CurrentBurst < BurstNum-1)
+	{
+		FireAmmunition();
+		//WeaponPlaySound( WeaponDistantFireSnd );
+		SetTimer(TimeBetweenBursts,False,'BurstNextShot');
+		CurrentBurst++; 
+	}
+	else
+	{
+		CurrentBurst = 0; 
+		bIsInBurstFire = false;
+		PlayPostFireEffects();
+	}
+}
 }
 
 simulated state Active
@@ -317,6 +392,15 @@ simulated state Active
 		}
 
 		super.OnAnimEnd(SeqNode,PlayedTime,ExcessTime);
+	}
+	
+}
+
+simulated state Inactive
+{
+	simulated function BeginState(Name PreviousStateName)
+	{
+		bCharged=false; 	
 	}
 }
 
@@ -388,6 +472,29 @@ simulated function CustomFire()
 	}
 }
 
+simulated state Reloading
+{
+	simulated function BeginState( name PreviousState )
+	{
+		bCharged = false;
+		super.BeginState(PreviousState);
+	}
+}
+
+//Little code to adjust for burst fire weapons 
+simulated function FireAmmunition(){
+	super.FireAmmunition();
+	
+	LastChargeAmount = ChargeAmount; //Keep it around for the few functions that need a record (e.g, setting refire timers and such after fireammunition is called.) 
+	
+	//For burst fire weapons, play the sound here// 
+	if(GetIsBurstFire())
+		WeaponPlaySound(WeaponFireSnd[CurrentFireMode]); 
+	
+	ChargeAmount = default.ChargeAmount; //reset to default  
+	
+}
+
 defaultproperties
 {
     ProjectileCount=1
@@ -446,4 +553,9 @@ defaultproperties
 		bIsLooping=TRUE
 	End Object
 	WeaponFireWaveForm=ForceFeedbackWaveformLooping1
+	
+	Vet_ChargeRateModifier(0) = 1.0
+	Vet_ChargeRateModifier(1) = 1.0 
+	Vet_ChargeRateModifier(2) = 1.0  
+	Vet_ChargeRateModifier(3) = 1.0  
 }

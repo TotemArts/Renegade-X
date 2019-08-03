@@ -14,7 +14,6 @@
 *********************************************************/
 class Rx_Vehicle_Projectile extends Rx_Projectile;
 
-
 DefaultProperties
 {
    ExplosionDecal=none

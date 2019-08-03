@@ -62,7 +62,7 @@ simulated function bool TryHeadshot(Actor Other, Vector HitLocation, Vector HitN
 	{
 		UTPawn(Other).Mesh.ForceSkelUpdate();
 		CheckHitInfo(Impact.HitInfo, UTPawn(Other).Mesh, Impact.RayDir, Impact.HitLocation);
-		return Rx_Pawn(Other).TakeHeadShot(Impact, HeadShotDamageType, DamageAmount, Scaling, InstigatorController, true);
+		return Rx_Pawn(Other).TakeHeadShot(Impact, HeadShotDamageType, DamageAmount, Scaling, InstigatorController, true, GetWeaponInstigator());
 	}
 	
 	return False;

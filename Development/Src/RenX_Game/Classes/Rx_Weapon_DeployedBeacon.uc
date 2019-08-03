@@ -4,7 +4,10 @@
 
 class Rx_Weapon_DeployedBeacon extends Rx_Weapon_DeployedActor
 	abstract
-	implements (RxIfc_TargetedDescription);
+	implements (RxIfc_TargetedDescription)
+	implements(RxIfc_RadarMarker);
+
+`include(RenX_Game\RenXStats.uci);
 
 var int 					  count;
 var array<SoundCue>           GdiCountdownSounds;
@@ -26,6 +29,8 @@ var rotator					  emitterRotation;
 var ParticleSystemComponent   BlinkingLightComponent;
 var float		     	      DeployTime;
 var float					  Damage_Taken;
+var Texture					  MinimapIconTexture; //Why is this list spaced and not TAB'd ? 
+
 
 /*Track who does damage to me so I can distribute points correctly on disarming*/
 struct Attacker
@@ -36,20 +41,47 @@ struct Attacker
 
 var array<Attacker>	DamagingParties;	//Track who is doing damage to me to evenly distribute points
 
-
+function Explosion()
+{
+	super.Explosion();
+	`RecordGamePositionStat(WEAPON_BEACON_EXPLODED, Location, 1);
+}
 
 
 simulated function PostBeginPlay()
 {
+	local PlayerController LPC; 
+	
    Super.PostBeginPlay();
    emitterRotation = rotation;
    emitterRotation.pitch = 0;
+   
+   
+   if(WorldInfo.NetMode == NM_Client || WorldInfo.NetMode == NM_Standalone) 
+   {
+	   
+	   foreach LocalPlayerControllers(class'PlayerController', LPC)
+			
+		if(Rx_HUD(LPC.myHUD).SystemSettingsHandler.GetBeaconIcon() == 1)
+			{
+				MinimapIconTexture = Texture2D'RenxHud.T_Beacon_Star';
+			} 				
+	}
+
+}
+
+simulated event HitWall( vector HitNormal, actor Wall, PrimitiveComponent WallComp )
+{
+	super.HitWall(HitNormal, Wall, WallComp);
+	Landed(HitNormal, wall);
 }
 
 simulated function PerformDeploy()
 {
    local vector BlinkinglightSpawnLocation;
    local rotator BlinkinglightSpawnRotation;
+   local AudioComponent TempAudio;
+   
    super.PerformDeploy();
 
    if (!bImminentExplode)
@@ -69,7 +101,15 @@ simulated function PerformDeploy()
       }
       if(WorldInfo.NetMode != NM_DedicatedServer)
       {
-		 CreateAudioComponent(BeepCue,true,true,true,,true);
+		 TempAudio = CreateAudioComponent(BeepCue,true,true,true,,true); 
+		 
+		 if(TempAudio == none) SetTimer(1.0, true, 'CheckBeepSound');		
+		 else //Stop the engine from removing beacon beep sounds 
+		 {
+			TempAudio.bShouldRemainActiveIfDropped=true;
+			TempAudio.bIgnoreForFlushing=true;
+		 }		 
+		 
 		 if (TimeUntilExplosion - 10.5f > 0)
 			SetTimer(TimeUntilExplosion - 10.5f, false, 'CreateBuildUpAndExplosionSound');
 		 else
@@ -116,23 +156,28 @@ simulated function PlayImminentSound()
 function BroadcastPlaced()
 {
 	local Rx_Controller PC, IPC;
-	local color C_Red, C_Green;
-
-	C_Red=MakeColor(255,20,20,255);
-	C_Green=MakeColor(20,255,20,255);
-
+	local string SpotLocation; 
+	
 	IPC=Rx_Controller(InstigatorController);
-
+	SpotLocation = IPC.GetSpottargetLocationInfo(self);
+	
+	if(Rx_Pawn(IPC.Pawn).PawninEnemyBase(SpotLocation, IPC.Pawn) ) IPC.DisseminateVPString("[Assault Beacon Placed] &" $ class'Rx_Veterancymodifiers'.default.Ev_GoodBeaconLaid $ "&");   
+	
 	`LogRx("GAME"`s "Deployed;" `s self.Class `s "by" `s `PlayerLog(InstigatorController.PlayerReplicationInfo) `s "near" `s GetSpotMarkerName() `s "at" `s Location);
 	BroadcastLocalizedMessage(class'Rx_Message_Deployed',-1,InstigatorController.PlayerReplicationInfo,,self.Class);
+	
 	foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
 	{
 	if (PC.GetTeamNum() == IPC.GetTeamNum())
-		PC.CTextMessage("GDI",150, "Friendly" @ DeployableName @ " placed " @ "[" $ PC.GetSpottargetLocationInfo(self) $ "]" @ "!",C_Green,255, 255, false, 1, 0.75);
+		{
+		PC.CTextMessage("Friendly" @ DeployableName @ " placed " @ "[" $ SpotLocation $ "]" @ "!",'Green', 150);
+		}
 	else
-		PC.CTextMessage("GDI",150, "Enemy" @ DeployableName @ "placed!",C_Red,255, 255, false, 0.75);
-	}
+		PC.CTextMessage("Enemy" @ DeployableName @ "placed!",'Red',150,,,true);
+	}	
 }
+
+
 
 simulated function playCountInitiatedDownSound()
 {
@@ -182,10 +227,7 @@ simulated function Destroyed()
 function BroadcastDisarmed(Controller Disarmer)
 {
 	local Rx_Controller PC, IPC ;
-	local color C_Red, C_Green;
    
-   C_Red=MakeColor(255,20,20,255);
-   C_Green=MakeColor(20,255,20,255);
 	
 	IPC=Rx_Controller(InstigatorController);
 	
@@ -197,14 +239,12 @@ function BroadcastDisarmed(Controller Disarmer)
 
 	foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
    {
-      if(PC.GetTeamNum() == IPC.GetTeamNum()) PC.CTextMessage("GDI",130, DeployableName@"disarmed!",C_Red,255, 255, false, 1, 0.75);
+      if(PC.GetTeamNum() == IPC.GetTeamNum()) PC.CTextMessage(DeployableName@"disarmed!",'Red',130);
 	  else
-	PC.CTextMessage("GDI",130, DeployableName@"disarmed!",C_Green,255, 255, false, 1, 0.75);
+	PC.CTextMessage(DeployableName@"disarmed!",'Green',130);
 
    }
-	
-	
-	}
+}
 
 
 simulated function playCountDownSound() 
@@ -271,26 +311,30 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 		
 			if(InstigatorIndex == -1)  //New damager
 			{
-			TempAttacker.PPRI=EventInstigator.PlayerReplicationInfo;
-			
-			TempAttacker.DamageDone = Min(DamageAmount,HP);
-			
-			Damage_Taken+=TempAttacker.DamageDone; //Add this damage to the total damage taken.
-			
-			DamagingParties.AddItem(TempAttacker) ;
+				TempAttacker.PPRI=EventInstigator.PlayerReplicationInfo;
+				
+				TempAttacker.DamageDone = Min(DamageAmount,HP);
+				
+				Damage_Taken+=TempAttacker.DamageDone; //Add this damage to the total damage taken.
+				
+				Rx_PRI(TempAttacker.PPRI).AddBeaconDisarmPoints(Min(DamageAmount,HP));
+				
+				DamagingParties.AddItem(TempAttacker) ;
 			
 			}
 			else
 			{
 				if(DamageAmount <= float(HP))
 				{
-				DamagingParties[InstigatorIndex].DamageDone+=DamageAmount;
-				Damage_Taken+=DamageAmount; //Add this damage to the total damage taken.
+					DamagingParties[InstigatorIndex].DamageDone+=DamageAmount;
+					Damage_Taken+=DamageAmount; //Add this damage to the total damage taken.
+					Rx_PRI(DamagingParties[InstigatorIndex].PPRI).AddBeaconDisarmPoints(DamageAmount);
 				}
 				else
 				{
-				DamagingParties[InstigatorIndex].DamageDone+=HP;	
-				Damage_Taken+=HP; //Add this damage to the total damage taken.
+					DamagingParties[InstigatorIndex].DamageDone+=HP;	
+					Damage_Taken+=HP; //Add this damage to the total damage taken.
+					Rx_PRI(DamagingParties[InstigatorIndex].PPRI).AddBeaconDisarmPoints(HP);
 				}
 				
 				
@@ -306,15 +350,18 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 		if (WorldInfo.NetMode == NM_DedicatedServer || WorldInfo.NetMode == NM_ListenServer) // trigger client replication
 			bDisarmed = true;
 		if (WorldInfo.NetMode != NM_DedicatedServer)
+		{
 			PlayDisarmedEffect();      
 			ClearTimer('Explosion');
+			`RecordGamePositionStat(WEAPON_BEACON_DISARMED, Location, 1);
+		}
 
 		foreach DamagingParties(PRII)
 		{
 		if(PRII.PPRI != none)
 			{
-			Rx_PRI(PRII.PPRI).AddScoreToPlayerAndTeam(default.DisarmScoreReward*(PRII.DamageDone/Damage_Taken)) ; 
-			DisarmScoreReward-=default.DisarmScoreReward*(PRII.DamageDone/Damage_Taken);
+				Rx_PRI(PRII.PPRI).AddScoreToPlayerAndTeam(default.DisarmScoreReward*(PRII.DamageDone/Damage_Taken)) ; 
+				DisarmScoreReward-=default.DisarmScoreReward*(PRII.DamageDone/Damage_Taken);
 			}
 		}
 		
@@ -324,13 +371,13 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 			DisarmScoreReward=0; 
 		}
 		
-		/**
+		
 		if (EventInstigator.PlayerReplicationInfo != none && EventInstigator.PlayerReplicationInfo.GetTeamNum() != TeamNum)
 		{
-			Rx_Pri(EventInstigator.PlayerReplicationInfo).AddScoreToPlayerAndTeam(DisarmScoreReward,true);
-		}*/
+			Rx_Controller(EventInstigator).DisseminateVPString( "[Beacon Disarmed]&" $ class'Rx_VeterancyModifiers'.default.Ev_BeaconDisarmed $ "&");
+		}
 		
-		SetTimer(0.1, false, 'DestroyMe'); // delay it a bit so disappearing blends a littlebit better with the disarmed effects
+		SetTimer(0.1, false, 'DestroyMe'); // delay it a bit so disappearing blends a little bit better with the disarmed effects
 	}
 					
 	
@@ -338,7 +385,6 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 	
 	
 }
-
 
 simulated function string GetTargetedDescription(PlayerController PlayerPerspective)
 {
@@ -349,6 +395,95 @@ simulated function string GetTargetedDescription(PlayerController PlayerPerspect
 	else
 		return string(DisarmTime);
 }
+
+simulated function CheckBeepSound()
+{
+	if(CreateAudioComponent(BeepCue,true,true,true,,true) != none) ClearTimer('CheckBeepSound') ;
+}
+
+/******************
+*RxIfc_RadarMarker*
+*******************/
+
+//0:Infantry 1: Vehicle 2:Miscellaneous  
+simulated function int GetRadarIconType()
+{
+	return 1; //Vehicle
+} 
+
+simulated function bool ForceVisible()
+{
+	return false;  
+}
+
+simulated function vector GetRadarActorLocation() 
+{
+	return location; 
+} 
+simulated function rotator GetRadarActorRotation()
+{
+	return rotation; 
+}
+
+simulated function byte GetRadarVisibility()
+{
+	return 1; 
+} 
+simulated function Texture GetMinimapIconTexture()
+{
+	return MinimapIconTexture; 
+}
+
+/******************
+*END RadarMarker***
+*******************/
+
+/******************
+HANDEPSILON - Bot Handler
+*******************/
+
+function bool TellBotToRepair(Rx_Bot B)
+{
+	if(bCanNotBeDisarmedAnymore)
+		return false;
+
+	if(B.IsHealing(false) && B.Focus == Self 
+		&& ((B.GetTeamNum() == TeamNum && HP < MaxHP) || (B.GetTeamNum() != TeamNum && HP > 0)))
+		return true;
+
+	if(B.HasRepairGun() && ((B.GetTeamNum() == TeamNum && HP < MaxHP) || (B.GetTeamNum() != TeamNum && HP > 0)))
+	{
+		B.Focus=Self;
+		B.DoRangedAttackOn(Self);
+		return true;
+	}
+
+	return false;
+
+}
+
+function bool IsPotentiallyDangerous()
+{
+	local Rx_Building NearbyBuilding;
+
+	foreach OverlappingActors(class'Rx_Building', NearbyBuilding, BuildingDmgRadius*75)
+	{
+		if(NearbyBuilding.GetHealth() > 0 && Rx_Building_TechBuilding(NearbyBuilding) == None
+			&& ((TeamNum==0 && NearbyBuilding.TeamID == TEAM_NOD) || (TeamNum==1 && NearbyBuilding.TeamID == TEAM_GDI)))
+			return true;
+	}
+
+	return false;
+}
+
+function bool TooCloseToBuilding(Rx_Building Building)
+{
+	return VSize(Building.Location - Location) <= BuildingDmgRadius*75;
+}
+
+
+
+
 
 DefaultProperties
 {
@@ -365,4 +500,7 @@ DefaultProperties
 	Damage = 5000;
 	HP = 400;
 	Damage_Taken = 0 //Tracks all of the damage that has been taken from disarming. 
+	
+	MinimapIconTexture = Texture2D'RenxHud.T_Beacon_Star'
+
 }

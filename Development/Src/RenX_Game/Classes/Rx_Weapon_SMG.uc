@@ -1,6 +1,6 @@
 class Rx_Weapon_SMG extends Rx_Weapon_Charged;		// Rx_Weapon_Reloadable;
 
-function bool IsInstantHit()
+simulated function bool IsInstantHit()
 {
 	return true; 
 }
@@ -32,9 +32,13 @@ DefaultProperties
 	AttachmentClass = class'Rx_Attachment_SMG'
 	
 	PlayerViewOffset=(X=4.5,Y=-1.5,Z=-1.5)
-	
-	LeftHandIK_Offset=(X=1,Y=8,Z=1)
+
+	LeftHandIK_Offset=(X=-4.704200,Y=-2.984400,Z=0.071600)
+	LeftHandIK_Rotation=(Pitch=-2730,Yaw=-4915,Roll=3640)
 	RightHandIK_Offset=(X=2,Y=-2,Z=-5)
+	bUseHandIKWhenRelax=False
+	bOverrideLeftHandAnim=true
+	LeftHandAnim=H_M_Hands_Closed
 	
 	FireOffset=(X=20,Y=8,Z=-10)
 	
@@ -47,7 +51,7 @@ DefaultProperties
 	RecoilInterpSpeed = 40.0
 	RecoilDeclinePct = 0.25
 	RecoilDeclineSpeed = 4.0
-	MaxSpread = 0.05
+	MaxSpread = 0.04
 	RecoilSpreadIncreasePerShot = 0.0025	
 	RecoilSpreadDeclineSpeed = 0.8
 	RecoilSpreadDecreaseDelay = 0.15
@@ -87,7 +91,7 @@ DefaultProperties
 //	WeaponProjectiles(0)=class'RenX_Game.Rx_Projectile_SMG'
 //	WeaponProjectiles(1)=class'RenX_Game.Rx_Projectile_SMG'
 
-	Spread(0)=0.0015 //0.002
+	Spread(0)=0.001 //0.002
 	Spread(1)=0.0
 	
 	ClipSize = 30
@@ -175,4 +179,29 @@ DefaultProperties
 
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_SMG'
+	
+	/*******************/
+	/*Veterancy*/
+	/******************/
+	
+	Vet_DamageModifier(0)=1  //Applied to instant-hits only
+	Vet_DamageModifier(1)=1.10 
+	Vet_DamageModifier(2)=1.25 
+	Vet_DamageModifier(3)=1.50 
+	
+	Vet_ROFModifier(0) = 1
+	Vet_ROFModifier(1) = 1 
+	Vet_ROFModifier(2) = 1  
+	Vet_ROFModifier(3) = 1  
+	
+	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)	
+	Vet_ClipSizeModifier(1)=5 //Veteran 
+	Vet_ClipSizeModifier(2)=10 //Elite
+	Vet_ClipSizeModifier(3)=15 //Heroic
+
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.9 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+	/**********************/
 }

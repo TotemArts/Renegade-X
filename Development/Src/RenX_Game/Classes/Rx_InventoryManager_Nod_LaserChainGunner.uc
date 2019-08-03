@@ -4,7 +4,7 @@ DefaultProperties
 {
 	
 	PrimaryWeapons[0] = class'Rx_Weapon_LaserChainGun'	//2
-	PrimaryWeapons[1] = class'Rx_Weapon_EMPGrenade_Rechargeable' //5
+	//PrimaryWeapons[1] = class'Rx_Weapon_EMPGrenade_Rechargeable' //5
 	PrimaryWeapons[2] = class'Rx_Weapon_ATMine' //4
 
 	SidearmWeapons[0] = none
@@ -12,5 +12,7 @@ DefaultProperties
 	
 	//AvailableExplosiveWeapons(0) = class'Rx_Weapon_ATMine'
 	//AvailableExplosiveWeapons(1) = none
+	
+	AvailableAbilityWeapons(0) = class'Rx_WeaponAbility_EMPGrenade' 
 	
 	}

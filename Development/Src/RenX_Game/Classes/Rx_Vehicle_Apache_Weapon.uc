@@ -64,7 +64,7 @@ DefaultProperties
     SecondaryLockingDisabled=false
     
     ClipSize(0) = 40
-    ClipSize(1) = 12
+    ClipSize(1) = 16
 
     ShotCost(0)=1
     ShotCost(1)=1
@@ -73,7 +73,7 @@ DefaultProperties
     ReloadTime(1) = 8.0
     
     FireInterval(0)=0.15
-    FireInterval(1)=0.15
+    FireInterval(1)=0.2
     
     Spread(0)=0.015
     Spread(1)=0.05
@@ -103,7 +103,11 @@ DefaultProperties
 	WeaponDistantFireSnd(0)=None		// The gun sound is being handled in the vehicle class
 	WeaponDistantFireSnd(1)=SoundCue'RX_SoundEffects.Missiles.SC_Missile_DistantFire'
 	
-	
+	WeaponProjectiles_Heroic(0)= Class'Rx_Vehicle_Apache_Gun_Heroic'
+	WeaponProjectiles_Heroic(1)= Class'Rx_Vehicle_Apache_Missile_Heroic'
+ 
+	WeaponFireSounds_Heroic(0)=none
+	WeaponFireSounds_Heroic(1)=SoundCue'RX_VH_Apache.Sounds.SC_Apache_Missile_Heroic'
 	
 /*	
 	WeaponRange=4500.0
@@ -168,4 +172,49 @@ DefaultProperties
      // AI
     bRecommendSplashDamage=True
     bTargetLockingActive = true;
+	
+/***********************/
+/*Veterancy*/
+/**********************/
+Vet_ClipSizeModifier(0)=0 //Normal +X
+Vet_ClipSizeModifier(1)=10 //Veteran 
+Vet_ClipSizeModifier(2)=25 //Elite
+Vet_ClipSizeModifier(3)=50 //Heroic
+
+
+Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
+Vet_ReloadSpeedModifier(1)=1 //Veteran 
+Vet_ReloadSpeedModifier(2)=0.90 //Elite
+Vet_ReloadSpeedModifier(3)=0.80 //Heroic
+
+Vet_SecondaryClipSizeModifier(0)=0 //Normal +X
+Vet_SecondaryClipSizeModifier(1)=2 //Veteran 
+Vet_SecondaryClipSizeModifier(2)=4 //Elite
+Vet_SecondaryClipSizeModifier(3)=6 //Heroic
+
+
+Vet_SecondaryReloadSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
+Vet_SecondaryReloadSpeedModifier(1)=0.90 //Veteran 
+Vet_SecondaryReloadSpeedModifier(2)=0.85 //Elite
+Vet_SecondaryReloadSpeedModifier(3)=0.75 //Heroic 
+
+Vet_ROFSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
+Vet_ROFSpeedModifier(1)=0.95 //Veteran 
+Vet_ROFSpeedModifier(2)=0.9 //Elite
+Vet_ROFSpeedModifier(3)=0.85 //Heroic
+
+Vet_SecondaryROFSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
+Vet_SecondaryROFSpeedModifier(1)=1 //Veteran 
+Vet_SecondaryROFSpeedModifier(2)=0.9 //Elite
+Vet_SecondaryROFSpeedModifier(3)=0.85 //Heroic
+
+/***********************************/
+
+
+FM0_ROFTurnover = 6; //9 for most automatics. Single shot weapons should be more, except the shotgun
+FM1_ROFTurnover = 4; 
+
+    bOkAgainstLightVehicles = True
+	bOkAgainstArmoredVehicles = True
+	bOkAgainstBuildings = True
 }

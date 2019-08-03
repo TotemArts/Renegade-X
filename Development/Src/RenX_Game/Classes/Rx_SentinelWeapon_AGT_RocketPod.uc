@@ -89,8 +89,9 @@ auto state Running
         Start.Z -= 150;
 
         Start = Start + vector(rotator(End-Start)) * 300.0;
-
-        HitActor = Cannon.Trace(HitLocation, HitNormal, End, Start, true, vect(0,0,0),, TRACEFLAG_Bullet);
+		
+		// HitActor = Cannon.Trace(HitLocation, HitNormal, End, Start, true, vect(0,0,0),, TRACEFLAG_Bullet);
+        HitActor = Cannon.Trace(HitLocation, HitNormal, End, Start, true, vect(10,10,10),, TRACEFLAG_Bullet);
 
         if(HitActor != Cannon.Target)
         {
@@ -108,17 +109,16 @@ auto state Running
     }
 }
 
-function bool CanHit(Pawn PotentialTarget) {
+function bool CanHit(Pawn PotentialTarget, vector End) {
     local Actor HitActor;
-    local Vector Start, End, HitLocation, HitNormal;
+    local Vector Start, HitLocation, HitNormal;
 
     Start = Cannon.GetPawnViewLocation();
     Start.Z -= 150;
-	End = PotentialTarget.location;
 
     Start = Start + vector(rotator(End-Start)) * 300.0;
 
-    HitActor = Cannon.Trace(HitLocation, HitNormal, End, Start, true, vect(0,0,0),, TRACEFLAG_Bullet);
+    HitActor = Cannon.Trace(HitLocation, HitNormal, End, Start, true, vect(10,10,10),, TRACEFLAG_Bullet);
 
     if(HitActor != PotentialTarget)
     {

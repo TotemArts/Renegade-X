@@ -278,7 +278,7 @@ simulated function NotifyTeamChanged(){}
  */
 simulated function NotifyInvisible(bool bInvisible){}
 
-function bool CanHit(Pawn PotentialTarget) {
+function bool CanHit(Pawn PotentialTarget, vector End) {
 	return true;
 }
 

@@ -24,6 +24,7 @@ var repnotify bool 					bPlayOpeningAnim;
 var repnotify bool 					bPlayClosingAnim;
 var repnotify bool 					bPlayHarvestingAnim;
 var bool 							bTurningToDock;
+var string							FriendlyStateName; 
 
 var SkeletalMeshComponent AntennaMesh;
 
@@ -52,7 +53,7 @@ simulated function PostBeginPlay()
 replication
 {
 	if ( bNetDirty && ROLE == ROLE_AUTHORITY)
-		bPlayOpeningAnim, bPlayClosingAnim, bPlayHarvestingAnim; 
+		bPlayOpeningAnim, bPlayClosingAnim, bPlayHarvestingAnim, FriendlyStateName; 
 }
 
 simulated event ReplicatedEvent(name VarName)
@@ -66,6 +67,8 @@ simulated event ReplicatedEvent(name VarName)
 	} else if( VarName == 'bPlayHarvestingAnim' ) {
 		if(bPlayHarvestingAnim)
 			Mesh.PlayAnim('Harvesting',,true);
+		else
+			Mesh.StopAnim();
 	} else {
 		super.ReplicatedEvent(VarName);
 	}
@@ -91,7 +94,13 @@ function harvInit() {
 
 	SetTeamNum(TeamNum);
 	DummyDriver = Spawn(class'UTPawn',,,tv,,,true);
-	Controller = Spawn(class'Rx_Vehicle_HarvesterController',self,,tv,,,true);
+
+	if(Rx_MapInfo(WorldInfo.GetMapInfo()).MapBotType == navmesh)
+		Controller = Spawn(class'Rx_Vehicle_HarvesterController_Mesh',self,,tv,,,true);
+	else
+		Controller = Spawn(class'Rx_Vehicle_HarvesterController_Waypoints',self,,tv,,,true);
+
+
 	Controller.SetOwner(None);
 	AIController(Controller).SetTeam(TeamNum);
 	Controller.Possess(DummyDriver,true);
@@ -116,13 +125,6 @@ function Start()
    Controller.GotoState('MovingToTib');
 }
 
-function regenerateHealth()
-{
-	//if(Health  < HealthMax/2) {
-	if(Health  < HealthMax) {
-		Health += 2;
-	}
-}
 
 simulated function bool DriverEnter(Pawn p) {
 	if(p.IsA('Rx_Pawn')) {
@@ -213,57 +215,97 @@ simulated event TakeDamage(int Damage, Controller EventInstigator, vector HitLoc
 		BroadcastAttack();
 		LastAttackBroadCastTime = WorldInfo.TimeSeconds;
 	}
+	
+	if(Health <= 0 && EventInstigator.PlayerReplicationInfo != none)
+		Rx_PRI(EventInstigator.PlayerReplicationInfo).AddVehicleKill();
+	
 }
 
 function BroadcastAttack()
 {
-   local PlayerController PC;
-
-   foreach WorldInfo.AllControllers(class'PlayerController', PC) {
-      if (GetTeamNum() == 0) {
-         //PC.ClientMessage(AttMsgs[PC.GetTeamNum()], 'HARVATTACKED_NOD', 5.0f);
-         PC.ClientPlaySound(AttackedEvaSounds[PC.GetTeamNum()]);
-      }
-      else {
-		 //PC.ClientMessage(AttMsgs[PC.GetTeamNum() + 2], 'HARVATTACKED_GDI', 5.0f);
-         PC.ClientPlaySound(AttackedEvaSounds[PC.GetTeamNum() + 2]);
-      }
-   }
+	BroadcastLocalizedMessage(class'Rx_Message_Harvester',0,self.PlayerReplicationInfo);
 }
 
 function BroadcastDestroyed()
 {
-   local PlayerController PC;
+	local Rx_Controller PC; 
+	
+	foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
+		{
+			if (PC.GetTeamNum() == GetTeamNum())
+			{
+				PC.CTextMessage(Caps("Harvester Lost"),'Red',180, 1);
+			}
+			else
+			{
+				PC.CTextMessage(Caps("Enemy Harvester Destroyed"),'Green',180,1);
+				PC.DisseminateVPString("[Team Harvester Kill Bonus]&" $ class'Rx_VeterancyModifiers'.default.Ev_HarvesterDestroyed $ "&");
+			}
+		}
 
-   foreach WorldInfo.AllControllers(class'PlayerController', PC) {
-      if (GetTeamNum() == 0) {
-         //PC.ClientMessage(AttMsgs[PC.GetTeamNum()], 'HARVATTACKED_NOD', 5.0f);
-         PC.ClientPlaySound(DestroyedEvaSounds[PC.GetTeamNum()]);
-      }
-      else {
-		 //PC.ClientMessage(AttMsgs[PC.GetTeamNum() + 2], 'HARVATTACKED_GDI', 5.0f);
-         PC.ClientPlaySound(DestroyedEvaSounds[PC.GetTeamNum() + 2]);
-      }
-   }
+	BroadcastLocalizedMessage(class'Rx_Message_Harvester',1,self.PlayerReplicationInfo);
 }
 
 simulated function Destroyed()
 {
 	if(Rx_Game(WorldInfo.Game) != None)
 		Rx_Game(WorldInfo.Game).GetVehicleManager().HarvDestroyed(TeamNum,true);
+	
 	super.Destroyed();
-	BroadcastDestroyed();
+	
+}
+
+simulated state DyingVehicle
+{
+	simulated function BeginState(name PreviousStateName)
+	{
+		BroadcastDestroyed();
+		super.BeginState(PreviousStateName);
+	}
 }
 
 simulated function byte GetTeamNum() {
 	return TeamNum;
 }
 
+function string BuildDeathVPString(Controller Killer, class<DamageType> DamageType)
+{
+	if(Killer == none || LastTeamToUse == Killer.GetTeamNum() ) return ""; //Meh, you get nothing
+		
+		return "[Harvester Kill]&+" $ default.VPReward[VRank] $ "&" ;
+	
+}
 
+//A much lighter variant of the VPString builder, used to calculate assists (Which only add in negative modifiers for in-base and higher VRank)
+function int BuildAssistVPString(Controller Killer) 
+{
+	//No Modifiers for the Harvester
+	return 0; 	
+}
+
+simulated function string GetFriendlyStateName()  //State specific
+{
+	return FriendlyStateName; 
+}
+
+function SetFriendlyStateName(string SetToString)  //State specific
+{
+	FriendlyStateName = SetToString; 
+}
+
+simulated function bool ForceVisible()
+{
+	return PlayerReplicationInfo == none || Rx_DefencePRI(PlayerReplicationInfo).bSpotted;  
+}
 DefaultProperties
 {
 
+	/*Begin Object Name=CollisionCylinder
+	CollisionHeight=100.0   //half of vehicle height (This needs to be half as the collisioncylinder starts in the center (half way up) the pawn.)
+	CollisionRadius=254.0   //half of vehicle extent (use the longest of the width or length)
+	End Object
 
+	CylinderComponent=CollisionCylinder*/
 
 //========================================================\\
 //************** Vehicle Physics Properties **************\\
@@ -273,7 +315,7 @@ DefaultProperties
 	
 	bBlocksNavigation = true	
 
-	Health=1000
+	Health=1000//1000
     MaxDesireability=0
     MomentumMult=0.7
     bCanFlip=False
@@ -288,7 +330,43 @@ DefaultProperties
      ViewPitchMin=-13000
     HornIndex=1
     COMOffset=(x=-19.0,y=0.0,z=-40.0)
-	 
+	bAlwaysRegenerate = true 
+	
+	RadarVisibility = 0 //start invisible for a moment 
+	
+	/************************/
+	/*Veterancy Multipliers*/
+	/***********************/
+
+
+
+	//You think I won't find a way to make heroic harvesters? Pfffft, watch me D= 
+	Vet_HealthMod(0)=1 //1000
+	Vet_HealthMod(1)=1.25 //1250
+	Vet_HealthMod(2)=1.5 //1500
+	Vet_HealthMod(3)=2.0 //2000
+	
+	Vet_SprintSpeedMod(0)=1
+	Vet_SprintSpeedMod(1)=1.05
+	Vet_SprintSpeedMod(2)=1.10
+	Vet_SprintSpeedMod(3)=1.20
+	
+	// +X as opposed to *X
+	Vet_SprintTTFD(0)=0
+	Vet_SprintTTFD(1)=0.05
+	Vet_SprintTTFD(2)=0.10
+	Vet_SprintTTFD(3)=0.20
+
+	//VP Given on death (by VRank)
+		VPReward(0) = 6 
+		VPReward(1) = 8
+		VPReward(2) = 10 
+		VPReward(3) = 14 
+
+		VPCost(0) = 10
+		VPCost(1) = 20
+		VPCost(2) = 30
+	/**********************/
 
 	AttackedEvaSounds(0) = SoundCue'RX_EVA_VoiceClips.gdi_EVA.S_EVA_GDI_GDIHarvester_UnderAttack_Cue' 
 	AttackedEvaSounds(1) = SoundCue'RX_EVA_VoiceClips.Nod_EVA.S_EVA_Nod_GDIHarvester_UnderAttack_Cue'
@@ -352,6 +430,7 @@ DefaultProperties
         TurnMaxGripReduction=0.99 //0.980
         TurnGripScaleRate=0.8
         MaxEngineTorque=1700
+		EngineBrakeFactor=10.0;
         End Object
     SimObj=SimObject
     Components.Add(SimObject)
@@ -365,6 +444,8 @@ DefaultProperties
     Seats(0)={( GunClass=none,
                 CameraTag=CamView3P,
                 CameraBaseOffset=(Z=-10),
+				SeatBone=Base,
+				SeatSocket=VH_Death,
                 CameraOffset=-600,
                 )}
                 
@@ -401,7 +482,7 @@ DefaultProperties
 	WheelParticleEffects[9]=(MaterialType=YellowSand,ParticleTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_YellowSand_Small')
 	DefaultWheelPSCTemplate=ParticleSystem'RX_FX_Vehicle.Wheel.P_FX_Wheel_Dirt_Small'	
 	
-    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Vehicle_Huge')
+    BigExplosionTemplates[0]=(Template=ParticleSystem'RX_VH_Harvester.Effect.P_Explosion_Vehicle')
     BigExplosionSocket=VH_Death
 	
 	DamageMorphTargets(0)=(InfluenceBone=MT_F,MorphNodeName=MorphNodeW_F,LinkedMorphNodeName=none,Health=300,DamagePropNames=(Damage1))
@@ -503,4 +584,6 @@ DefaultProperties
         Side=SIDE_Left
     End Object
     Wheels(5)=L_Wheel_03
+	
+	bAlwaysRelevant = true 
 }
