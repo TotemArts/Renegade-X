@@ -32,7 +32,7 @@ simulated function bool TryHeadshot(byte FiringMode, ImpactInfo Impact)
     	
 	if(FiringMode == 0)
 	{
-		if (Instigator == None || VSize(Instigator.Velocity) < Instigator.GroundSpeed * Instigator.CrouchedPct)
+		if (Instigator == None || VSizeSq(Instigator.Velocity) < Square(Instigator.GroundSpeed * Instigator.CrouchedPct))
 		{
 			Scaling = SlowHeadshotScale;
 		}

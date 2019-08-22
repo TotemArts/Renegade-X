@@ -95,6 +95,11 @@ simulated function String GetHumanReadableName()
 	return "Airstrip";
 }
 
+simulated function Rx_BuildingObjective GetObjective()
+{
+	return AirTowerInternals.BuildingVisuals.myObjective;
+}
+
 defaultproperties
 {
 	BuildingInternalsClass  = Rx_Building_AirStrip_Internals 

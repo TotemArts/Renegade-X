@@ -343,14 +343,14 @@ reliable server function ServerALHitCharged(Actor Target, vector HitLocation, Tr
     {
         return;  
     }
-    HitDistDiff = VSize(Target.Location - HitLocation);
+    HitDistDiff = VSizeSq(Target.Location - HitLocation);
     if (Target != none)
     {
         if(Rx_Building(Target) != None) {
-            if(HitDistDiff > 3000) {
+            if(HitDistDiff > 9000000) {
                 return;
             }
-        } else if(HitDistDiff > 250) {
+        } else if(HitDistDiff > 62500) {
             return;
         }
     }
@@ -394,7 +394,7 @@ reliable server function ServerALRadiusDamageCharged(Actor Target, vector HurtOr
     {
         return;  
     }
-    if (Target != none && VSize(Target.Location - HurtOrigin) > 400 )
+    if (Target != none && VSizeSq(Target.Location - HurtOrigin) > 160000 )
     {
         return;
     }

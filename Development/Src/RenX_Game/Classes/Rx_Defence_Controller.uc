@@ -295,7 +295,7 @@ function PredictTargetLocation(Actor A, Vector Origin, out Vector AimSpot)
 	PredictionTime = GetPredictionTime(AimSpot, Origin);
 
 	//Where the target will probably be by then.
-	if(VSize(A.Velocity) > MaxPredictionSpeed)
+	if(VSizeSq(A.Velocity) > Square(MaxPredictionSpeed))
 		PredictionVelocity = Normal(A.Velocity) * MaxPredictionSpeed;
 	else
 		PredictionVelocity = A.Velocity;

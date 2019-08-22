@@ -227,7 +227,12 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 			{
 				TempAttacker.PPRI=EventInstigator.PlayerReplicationInfo;
 				TempAttacker.DamageDone = Min(DamageAmount - Armor, Health);
-				Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingArmourDamage(FMin(DamageAmount - Armor, Health));
+				
+				//Give the remaining Armour in Armour damage 
+				Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingArmourDamage(Armor);
+				//Give Health damage points where they are due 
+				Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingDamage(FMin(DamageAmount - Armor, Health));
+				
 				DamagingParties.AddItem(TempAttacker);
 			}
 			else
@@ -235,12 +240,16 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 				if(CurDmg <= float(Health+Armor))
 				{
 					DamagingParties[InstigatorIndex].DamageDone+=Min(DamageAmount-Armor, GetMaxArmor()+GetMaxHealth()+10);	
-					Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingArmourDamage(FMin(DamageAmount-Armor, GetMaxArmor()+GetMaxHealth()+10));
+					
+					Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingArmourDamage(FMin(DamageAmount-Armor, GetMaxArmor()));
+					
+					Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingDamage(FMin(DamageAmount-Armor, GetMaxHealth()+10));
 				}
 				else
 				{
-					DamagingParties[InstigatorIndex].DamageDone+=Health;
-					Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingArmourDamage(float(Health));
+					DamagingParties[InstigatorIndex].DamageDone+=Health+Armor;
+					Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingArmourDamage(Armor);
+					Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingDamage(float(Health));
 				}
 				
 			}
@@ -327,7 +336,10 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 			if (PRII.PPRI != none)
 			{
 				Rx_PRI(PRII.PPRI).AddScoreToPlayerAndTeam( default.Destroyed_Score*(PRII.DamageDone/TrueHealthMax)) ;
-				if(Rx_Controller(PRII.PPRI.Owner) != none && Rx_Pawn( Rx_Controller(PRII.PPRI.Owner).Pawn) != none) Rx_Pawn( Rx_Controller(PRII.PPRI.Owner).Pawn).SetTimer(2.0,false,'PlayBuildingKillTimer');
+				
+				if(Rx_Controller(PRII.PPRI.Owner) != none && Rx_Pawn( Rx_Controller(PRII.PPRI.Owner).Pawn) != none) Rx_Pawn( Rx_Controller(PRII.PPRI.Owner).Pawn).
+					SetTimer(2.0,false,'PlayBuildingKillTimer');
+					
 				Destroyed_Score -= default.Destroyed_Score*(PRII.DamageDone/TrueHealthMax);
 			}
 		}

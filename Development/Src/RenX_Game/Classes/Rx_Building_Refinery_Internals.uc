@@ -12,7 +12,7 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 		{
 			if ( harv != None && harv.GetTeamNum() == GetTeamNum())
 			{
-				if(Rx_Game(WorldInfo.Game).AreTeamRefineriesDestroyed(GetTeamNum()) || VSize(harv.location - location) < 1000)
+				if(Rx_Game(WorldInfo.Game).AreTeamRefineriesDestroyed(GetTeamNum()) || VSizeSq(harv.location - location) < 1000000)
 					harv.TakeDamage(10000,None,vect(0,0,0),vect(0,0,0),class'Rx_DmgType');
 
 			}

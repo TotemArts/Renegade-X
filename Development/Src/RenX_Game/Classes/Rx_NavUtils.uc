@@ -42,7 +42,7 @@ static function bool HasReachedGoal(pawn InPawn, Actor Goal, float GoalDistance,
 
 	if( class'actor'.static.BP2Vect(InPawn.Controller.NavigationHandle.FinalDestination) != vect(0,0,0) )
 	{
-		if( VSize(class'actor'.static.BP2Vect(InPawn.Controller.NavigationHandle.FinalDestination)-InPawn.Location) < GoalDistance )
+		if( VSizeSq(class'actor'.static.BP2Vect(InPawn.Controller.NavigationHandle.FinalDestination)-InPawn.Location) < Square(GoalDistance) )
 		{
 			return TRUE;
 		}

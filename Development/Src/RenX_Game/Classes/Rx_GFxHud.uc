@@ -2070,7 +2070,7 @@ function DisableHUDItems()
 	hideRespawnHud();
 }
 
-function AddEVAMessage(string sMessage) 
+function AddEVAMessage(coerce string sMessage) 
 {
 	local MessageRow mrow;
 	local ASDisplayInfo DisplayInfo;

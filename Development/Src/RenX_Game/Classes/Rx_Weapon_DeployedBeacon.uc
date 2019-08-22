@@ -478,7 +478,7 @@ function bool IsPotentiallyDangerous()
 
 function bool TooCloseToBuilding(Rx_Building Building)
 {
-	return VSize(Building.Location - Location) <= BuildingDmgRadius*75;
+	return VSizeSq(Building.Location - Location) <= Square(BuildingDmgRadius*75);
 }
 
 

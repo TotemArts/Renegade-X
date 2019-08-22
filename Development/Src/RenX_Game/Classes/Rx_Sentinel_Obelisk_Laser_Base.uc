@@ -26,7 +26,7 @@ simulated function Tick(float DeltaTime)
  */
 function bool IsOutsideMinimalDistToOwner(Pawn possibleTarget)
 {
-	return (VSize(possibleTarget.Location - Owner.Location) > MinimumRange );//800);
+	return (VSizeSq(possibleTarget.Location - Owner.Location) > Square(MinimumRange) );//800);
 }
 
 function bool IsVisibleFromGuns(Pawn possibleTarget)
@@ -46,7 +46,7 @@ function bool FireAt(Vector Spot)
 
     Origin = GetPawnViewLocation();
 
-	if(VSize(Spot - Origin) <= GetRange())
+	if(VSizeSq(Spot - Origin) <= Square(GetRange()))
 	{
 		if(SWeapon.FireAt(Origin, CurrentAim, Spot))
 		{

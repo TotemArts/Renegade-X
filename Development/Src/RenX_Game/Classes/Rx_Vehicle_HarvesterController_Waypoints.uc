@@ -163,7 +163,7 @@ state ScriptedMove
 		
 		Halted_Waypoint = GetHaltedWaypoint(); 
 		
-		if(Halted_Waypoint != none && VSize(Halted_Waypoint.location-location) <= 1000)
+		if(Halted_Waypoint != none && VSizeSq(Halted_Waypoint.location-location) <= 1000000)
 			{
 				StopMovement();
 				//ClearTimer('CloseToHaltedWaypoint');
@@ -244,7 +244,7 @@ function NavigationPoint FindBetterPathToward(Actor Destination)
 		if((Rx_BlockedForHarvesterPathnode(N) != None && !bIgnoreBlockHarvNodes) || !ActorReachable(N) || Pawn.Anchor == N)
 			continue;
 
-		CurrentDist = VSize(Destination.Location - N.Location);
+		CurrentDist = VSizeSq(Destination.Location - N.Location);
 
 		if(BestN == None || BestDist > CurrentDist)
 		{
@@ -363,7 +363,7 @@ Begin:
 }
 
 function CheckDistToTib() {
-	if(tibNode != none && VSize(Pawn.location - tibNode.location) < 1000.0) {
+	if(tibNode != none && VSizeSq(Pawn.location - tibNode.location) < 1000000.0) {
 		harv_vehicle.bPlayClosingAnim = false;
 		harv_vehicle.bPlayOpeningAnim = true;
 		if(WorldInfo.NetMode != NM_DedicatedServer)
@@ -627,14 +627,14 @@ state HarvesterHalted
 		
 		//`log("Updated Harv Waypoint"); 
 		
-		if(Halted_Waypoint != none && VSize(Halted_Waypoint.location-location) > 1000) 
+		if(Halted_Waypoint != none && VSizeSq(Halted_Waypoint.location-location) > 1000000) 
 			{
 				ScriptedMoveTarget = Halted_Waypoint;
 				harv_vehicle.SetFriendlyStateName("Moving to stand by");
 				PushState('ScriptedMove');
 			}
 			else
-			if(Halted_Waypoint != none && VSize(Halted_Waypoint.location-location) <= 1000)
+			if(Halted_Waypoint != none && VSizeSq(Halted_Waypoint.location-location) <= 1000000)
 			{
 				StopMovement(); 
 				ClearTimer('CloseToHaltedWaypoint');

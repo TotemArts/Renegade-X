@@ -286,7 +286,7 @@ function PreBeginPlay()
 {
 	local class<Rx_GameplayEventsWriter> GameplayEventsWriterClass;
 	local color C;
-	local Rx_Building_VehicleFactory VehFactory;
+	local Rx_Building B;
 
 	//Optionally setup the gameplay event logger
    if (bLogGameplayEvents && GameplayEventsWriterClassName != "")
@@ -329,13 +329,14 @@ function PreBeginPlay()
 
 	if ( Role == ROLE_Authority )
 	{
-		ForEach `WorldInfoObject.AllActors(class'Rx_Building_VehicleFactory', VehFactory)
+		ForEach `WorldInfoObject.AllActors(class'Rx_Building', B)
 		{
-			if (Rx_Building_Helipad_Nod(VehFactory) != None || Rx_Building_Helipad_GDI(VehFactory) != None)
+			if (Rx_Building_Helipad_Nod(B) != None || Rx_Building_Helipad_GDI(B) != None)
 			{
 				VehicleManagerClass = HelipadVehicleManagerClass;
 				PurchaseSystemClass = HelipadPurchaseSystemClass;
 			}
+			B.GetAttackPoints();
 		}
 
 		PurchaseSystem = spawn(PurchaseSystemClass, self,'PurchaseSystem',Location,Rotation);
@@ -397,7 +398,7 @@ function PreBeginPlay()
 	//SystemSettingsHandler = Spawn(class'Rx_SystemSettingsHandler');
 
 	MaxMapVoteSize = Clamp(MaxMapVoteSize, 1, 9);
-	RecentMapsToExclude = Clamp(RecentMapsToExclude, 0, 8);
+	RecentMapsToExclude = Clamp(RecentMapsToExclude, 0, 14);
 	
 
 	//Get out map info here
@@ -512,6 +513,13 @@ function PostBeginPlay()
 	local string CappedName;
 	local class<Rx_ScoreEvent> Event;
 	//local Rx_MatchInfo m;
+
+	if(Rx_MapInfo(WorldInfo.GetMapInfo()).bIsDeathmatchMap) // if deathmatch map, switch to UT's team AI
+	{
+		TeamAIType[0] = class'UTTeamAI';
+		TeamAIType[1] = class'UTTeamAI';
+		BotClass      = class'RenX_Game.Rx_Bot';
+	}
 
 	super.PostBeginPlay();
 
@@ -2185,11 +2193,94 @@ exec function AddBots(int Num)
 	}
 }
 
+exec function RxAddBots(int Num, optional int Skill, optional String ToTeam)
+{
+	local int AddCount;
+	local bool bUseTeamIndex;
+	local int TeamIndex;
+
+	if(ToTeam != "")
+	{
+		bUseTeamIndex = true;
+
+		if(ToTeam ~= "GDI")
+		{
+			TeamIndex = 0;
+		}
+		else if (ToTeam ~= "Nod")
+		{
+			TeamIndex = 1;
+		}
+		else
+			bUseTeamIndex = false;
+	}
+
+	DesiredPlayerCount = Clamp(Max(DesiredPlayerCount, NumPlayers+NumBots)+Num, 1, 64);
+
+	// add up to 8 immediately, then the rest automatically via game timer.
+	while ( (NumPlayers + NumBots < DesiredPlayerCount) && (RxAddBot(Skill, ,bUseTeamIndex,TeamIndex) != none) && (AddCount < 8) )
+	{
+		`log("added bot");
+		AddCount++;
+	}
+}
+
 exec function UTBot AddNamedBot(string BotName, optional bool bUseTeamIndex, optional int TeamIndex)
 {
 
 	DesiredPlayerCount = Clamp(Max(DesiredPlayerCount, NumPlayers + NumBots) + 1, 1, 64);
 	return AddBot(BotName, bUseTeamIndex, TeamIndex);
+}
+
+function UTBot RxAddBot(optional int Skill, optional string BotName, optional bool bUseTeamIndex, optional int TeamIndex)
+{
+	local int first, second;
+	local PlayerController PC;	
+	local UTBot B;
+	
+	if(bBotsDisabled || (NumPlayers+NumBots >= MaxPlayers))
+		return None;
+		
+	if(bUseTeamIndex) 
+	{
+		B = OnAddBot(super.AddBot(BotName, bUseTeamIndex, TeamIndex));
+	} 
+	else 
+	{
+		first = 0;
+		second = 1;
+		// imbalance teams in favor of bot team in single player
+		if (  WorldInfo.NetMode == NM_Standalone )
+		{
+			ForEach LocalPlayerControllers(class'PlayerController', PC)
+			{
+				if ( (PC.PlayerReplicationInfo.Team != None) && (PC.PlayerReplicationInfo.Team.TeamIndex == 1) )
+				{
+					first = 1;
+					second = 0;
+				}
+				break;
+			}
+		}
+		
+		if ( Rx_TeamInfo(Teams[first]).Size < Rx_TeamInfo(Teams[second]).Size )
+		{
+			B = OnAddBot(super.AddBot(BotName, true, first));
+		}
+		else
+		{
+			B = OnAddBot(super.AddBot(BotName, true, second));
+		}	
+	}
+
+	if(B != None && Skill > 0)
+	{
+		Skill = Clamp(Skill,1,9);
+		B.Skill = Skill;
+		B.ResetSkill();
+	}
+
+	return B;
 }
 
 function UTBot AddBot(optional string BotName, optional bool bUseTeamIndex, optional int TeamIndex)
@@ -3137,7 +3228,7 @@ function ActivateRandomCrate()
 
 function PlayEndOfMatchMessage()
 {
-	local Rx_Controller PC;
+/*	local Rx_Controller PC;
 
 
 	//M.Palko endgame crash track log.
@@ -3177,6 +3268,8 @@ function PlayEndOfMatchMessage()
 			}
 		}
 	}
+
+*/
 }
 
 simulated function bool WasSurrenderWin()
@@ -3504,10 +3597,11 @@ function RestartPlayer(Controller NewPlayer)
 			UTTeamInfo(Rx_Bot(NewPlayer).Squad.Team).AI.SetBotOrders(Rx_Bot(NewPlayer));
 		}
 		 
-	    if(Rx_Bot(NewPlayer).IsInBuilding()) {
-	   		Rx_Bot(NewPlayer).setStrafingDisabled(true);	
-	    }
-	} else if(PlayerController(NewPlayer) != None) {
+//	    if(Rx_Bot(NewPlayer).IsInBuilding()) {
+//	   		Rx_Bot(NewPlayer).setStrafingDisabled(true);	
+//	    }
+	} 
+	else if(PlayerController(NewPlayer) != None) {
 		RxHUD = Rx_Hud(PlayerController(NewPlayer).myHUD);
 		if (WorldInfo.NetMode != NM_DedicatedServer && RxHUD != None)
 			RxHUD.ClearPlayAreaAnnouncement();

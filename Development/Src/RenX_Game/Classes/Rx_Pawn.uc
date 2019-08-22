@@ -133,10 +133,8 @@ var repnotify float       SpeedUpgradeMultiplier;
 var float		SpeedUpgradeMultiplier_NonReplicated; //Used Explicitly for 
 var float 		JumpHeightMultiplier; 
 
-var name 		DodgeForwardAnim;
-var name 		DodgeBackwardAnim;
-var name 		DodgeLeftAnim; 
-var name 		DodgeRightAnim;  
+var string 		DodgeNodeName;
+var AnimNodeBlendList DodgeNode; //Should be named 'Dive', because we're special  
 
 var name 		WeaponAimedToRestAnim;
 var name 		WeaponSprintAnim;
@@ -322,6 +320,10 @@ var vector lastRxPawnOutCamLoc;
 var Rx_PassiveAbility PassiveAbilities[3]; //What passive abilities, if any, does this pawn have? (0 = Jump / 1 = G key / 2 = X Key) 
 
 var bool bTickHandIK; //Controls if we need to be ticking hand IK on this Pawn usually only briefly after reloads
+var bool bUpdate3rdPersonEyeHeightBob;
+
+var float DodgeBlendTime; 
+var AnimNodeSequence DodgeGroupNode; //Holds a reference to the forward dodge node to signal the 'Dive' group to play
 
 //-----------------------------------------------------------------------------
 // Pawn control
@@ -391,7 +393,7 @@ simulated function SetShadowBoundsScale()
 
 function CheckLoc()
 {
-	if(VSize(location - LastLocation) > 8)
+	if(VSizeSq(location - LastLocation) > 64)
 	{
 		TempTime = WorldInfo.TimeSeconds;
 		
@@ -860,7 +862,6 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 	if(Rx_Controller(EventInstigator) != None && GetTeamNum() != EventInstigator.GetTeamNum()) {
 		if(Rx_Projectile_Rocket(DamageCauser) != None && Rx_Controller(EventInstigator) != None && GetTeamNum() != EventInstigator.GetTeamNum()) { 
 			Rx_Controller(EventInstigator).IncReplicatedHitIndicator();
-			
 		}
 	}
 	
@@ -973,6 +974,7 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 		
 		TearOffMomentum = momentum;
 		
+		
 		if(bIsTarget || bIsDefensiveTarget) ClientNotifyTargetKilled();
 		
 		//Clear out those who who haven't attacked us in the last 10 seconds
@@ -1052,6 +1054,7 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 		PlayVoiceSound('Death', true) ;
 		Died(Killer, DamageType, HitLocation);
 		SetRadarVisibility(0); 
+		ClearPassiveAbilities();
 	}
 	else
 	{
@@ -1790,6 +1793,7 @@ simulated function TakeRadiusDamage
 					&& InstigatedBy != None && InstigatedBy.Pawn != none && (Rx_Weapon(ProjectileWeaponOwner) != None || Rx_Vehicle_Weapon(ProjectileWeaponOwner) != None)) {	
 			if(Health > 0 && self.GetTeamNum() != InstigatedBy.GetTeamNum() && UTPlayerController(InstigatedBy) != None) {
 				Rx_Hud(UTPlayerController(InstigatedBy).myHud).ShowHitMarker();
+				Rx_Controller(InstigatedBy).PlayHitMarkerSound();
 			}
 
 			if (InstigatedBy != None && InstigatedBy.Pawn != none && Rx_Weapon_VoltAutoRifle(ProjectileWeaponOwner) != None)
@@ -1975,11 +1979,11 @@ function StartSprint()
 		/**
 		if(GetTeamNum() == TEAM_GDI && GetObelisk() != None && !obelisk.IsDestroyed()) {
 			//DrawDebugLine(location,obelisk.SentinelLocation,0,0,255,true);
-			if(VSize(location-obelisk.location) <= 800 || FastTrace(location, obelisk.SentinelLocation,,true)) {
+			if(VSizeSq(location-obelisk.location) <= 640000 || FastTrace(location, obelisk.SentinelLocation,,true)) {
 				return;
 			}
 		} else if(GetTeamNum() == TEAM_Nod && GetAgt() != None && !Agt.IsDestroyed()) {
-			if(VSize(location-Agt.location) <= 500 || FastTrace(location, Agt.SentinelLocation,,true)) {
+			if(VSizeSq(location-Agt.location) <= 250000 || FastTrace(location, Agt.SentinelLocation,,true)) {
 				return;
 			}
 		}
@@ -2465,6 +2469,13 @@ simulated event PostInitAnimTree(SkeletalMeshComponent SkelComp)
 		HoverboardingNode = UTAnimBlendByHoverboarding( mesh.FindAnimNode('Hoverboarding') );
 
 		FlyingDirOffset = AnimNodeAimOffset( mesh.FindAnimNode('FlyingDirOffset') );
+		
+		//Dodge (Dive) Blend node 
+		DodgeNode = AnimNodeBlendList(Mesh.FindAnimNode(name(DodgeNodeName)));
+		DodgeNode.SetActiveChild(0,1.0);
+		
+		DodgeGroupNode = AnimNodeSequence( mesh.FindAnimNode('DodgeAnimNode') );//Only need Fwd.. The rest are linked to it
+		`log(DodgeGroupNode);
 	
 		// IF the Aimnode doesnt exist in the tree dont set WeaponAimNode equal to it
 		if( AimNode != none )
@@ -2811,7 +2822,8 @@ simulated function bool TakeHeadShot(const out ImpactInfo Impact, class<DamageTy
 			if(Health > 0 && self.GetTeamNum() != InstigatingController.GetTeamNum() && UTPlayerController(InstigatingController) != None)
 			{
 				Rx_Hud(UTPlayerController(InstigatingController).myHud).ShowHitMarker(true);
-				Rx_Controller(InstigatingController).AddHSHit()  ; 	
+				Rx_Controller(InstigatingController).AddHSHit(); 
+				Rx_Controller(InstigatingController).PlayHitMarkerSound(true);	
 			}	
 			
 			Rx_Weapon(WeaponToCall).ServerALHeadshotHit(self,Impact.HitLocation,Impact.HitInfo);
@@ -2821,7 +2833,7 @@ simulated function bool TakeHeadShot(const out ImpactInfo Impact, class<DamageTy
 			if(Health > 0 && self.GetTeamNum() != InstigatingController.GetTeamNum() && UTPlayerController(InstigatingController) != None)
 				{
 					Rx_Hud(UTPlayerController(InstigatingController).myHud).ShowHitMarker(true);
-					Rx_Controller(InstigatingController).AddHSHit()  ; 	
+					Rx_Controller(InstigatingController).AddHSHit(); 	
 				}
 			//`log("Weapon was " @ Rx_Vehicle_Weapon(InstigatingController.Pawn.Weapon) @ InstigatingController.Pawn.Weapon);
 			Rx_Vehicle_Weapon(WeaponToCall).ServerALHeadshotHit(self,Impact.HitLocation,Impact.HitInfo);
@@ -2887,9 +2899,11 @@ simulated function SwitchWeapon(byte NewGroup)
 
 simulated function ThrowGrenade()
 {
-	if(!bThrowingGrenade) return; 
+	if(!bThrowingGrenade) 
+		return; 
 	else
-	if(Rx_Weapon_RechargeableGrenade(Weapon) != none ) Weapon.StartFire(0); 
+	if(Rx_Weapon_RechargeableGrenade(Weapon) != none ) 
+		Weapon.StartFire(0); 
 }
 
 simulated function FinishGrenadeThrow()
@@ -2982,7 +2996,8 @@ function DoDodge(eDoubleClickDir DoubleClickMove)
 	}
 	TimeInDodge = 0.0f;
 	SetTimer(DodgeDuration,false,'UnDodge'); //time until the dodge is done
-	calcDodgeAnim(DoubleClickMove);
+	
+	//calcDodgeAnim(DoubleClickMove);
 	playDodgeAnimation();	
 
 }
@@ -3065,7 +3080,10 @@ function UnDodge()
 	}
 	GroundSpeed = default.GroundSpeed * GetSpeedModifier() ;//(SpeedUpgradeMultiplier+GetRxFamilyInfo().default.Vet_SprintSpeedMod[VRank]) ;
 	AirSpeed = default.AirSpeed*GetSpeedModifier();//SpeedUpgradeMultiplier * (SpeedUpgradeMultiplier+GetRxFamilyInfo().default.Vet_SprintSpeedMod[VRank]) ;
-	DodgeAnim = '';
+	
+	DodgeNode.SetActiveChild(0,DodgeBlendTime);
+	
+	//DodgeAnim = '';
 	if(WasInFirstPersonBeforeDodge) {
 		if(Controller != None && PlayerController(Controller) != None && WorldInfo.NetMode != NM_DedicatedServer) {
 			Rx_Controller(Controller).SetBehindView(false);
@@ -3087,23 +3105,9 @@ function playDodgeAnimation()
 {
 	ReloadAnim = ''; // to notify remote clients (with repnotify) that they should stop reloadanimation if they play it
 	BoltReloadAnim = '';
-	FullBodyAnimSlot.PlayCustomAnimByDuration( DodgeAnim, DodgeDuration + 0.2, 0.2, 0.2);
-}
-
-function calcDodgeAnim(eDoubleClickDir DoubleClickMove) 
-{
-	if (DoubleClickMove == DCLICK_Forward) {
-		DodgeAnim = DodgeForwardAnim;
-	}
-	else if (DoubleClickMove == DCLICK_Back) {
-		DodgeAnim = DodgeBackwardAnim;
-	}
-	else if (DoubleClickMove == DCLICK_Left) {
-		DodgeAnim = DodgeLeftAnim;
-	}
-	else if (DoubleClickMove == DCLICK_Right) {
-		DodgeAnim = DodgeRightAnim;
-	}
+	DodgeGroupNode.PlayAnim(false, 1.0, 0.0);
+	DodgeNode.SetActiveChild(1,DodgeBlendTime);
+	//FullBodyAnimSlot.PlayCustomAnimByDuration( DodgeAnim, DodgeDuration + 0.2, 0.2, 0.2);
 }
 
 simulated function FaceRotation(rotator NewRotation, float DeltaTime)
@@ -3682,6 +3686,9 @@ function float GetAccelrateModifier() {
 	return SeekAccelrateModifier;
 }
 
+exec function ToggleThirdPersonEyeheightBob() { 
+	bUpdate3rdPersonEyeHeightBob = !bUpdate3rdPersonEyeHeightBob; 
+}
 
 /* UpdateEyeHeight()
 * Update player eye position, based on smoothing view while moving up and down stairs, and adding view bobs for landing and taking steps.
@@ -3744,7 +3751,10 @@ event UpdateEyeHeight( float DeltaTime )
 	else if ( bLandRecovery )
 	{
 		// return eyeheight back up to full height
-		smooth = FMin(0.9, 9.0 * DeltaTime);
+		if(IsFirstPerson())
+		    smooth = FMin(0.9, 9.0 * DeltaTime);
+		else 
+            smooth = FMin(0.9, 6.0 * DeltaTime);
 		OldEyeHeight = EyeHeight;
 		LandBob *= (1 - smooth);
 		// linear interpolation at end
@@ -3763,16 +3773,31 @@ event UpdateEyeHeight( float DeltaTime )
 	}
 	else
 	{
+		
 		// drop eyeheight a bit on landing
-		smooth = FMin(0.65, 8.0 * DeltaTime);
+		if(IsFirstPerson())
+		    smooth = FMin(0.65, 8.0 * DeltaTime);
+		else 
+		    smooth = FMin(0.65, 4.0 * DeltaTime);
 		OldEyeHeight = EyeHeight;
 		EyeHeight = EyeHeight * (1 - 1.5*smooth);
 		LandBob += 0.08 * (OldEyeHeight - Eyeheight);
-		if ( (Eyeheight < 0.25 * BaseEyeheight + 1) || (LandBob > 2.4)  )
+		if(IsFirstPerson())
 		{
-			bLandRecovery = true;
-			Eyeheight = 0.25 * BaseEyeheight + 1;
-		}
+			if ( (Eyeheight < 0.25 * BaseEyeheight + 1) || (LandBob > 2.4)  )
+			{
+				bLandRecovery = true;
+				Eyeheight = 0.25 * BaseEyeheight + 1;
+			}
+		}	
+		else if(bUpdate3rdPersonEyeHeightBob)
+		{
+			if ( (Eyeheight < 0.75 * BaseEyeheight + 1) || (LandBob > 2.4)  )
+			{
+				bLandRecovery = true;
+				Eyeheight = 0.75 * BaseEyeheight + 1;
+			}
+		}	
 	}
 
 	// don't bob if disabled, or just landed
@@ -3944,6 +3969,8 @@ simulated function bool CalcThirdPersonCam( float fDeltaTime, out vector out_Cam
 	
 	// SmoothCam for going up and down stairs.
 	DesiredCamStart.Z += CameraSmoothZOffset;
+	if(bUpdate3rdPersonEyeHeightBob)
+	    DesiredCamStart.Z += Eyeheight - BaseEyeheight;
 
 	if ( bWinnerCam )
 	{
@@ -3966,7 +3993,8 @@ simulated function bool CalcThirdPersonCam( float fDeltaTime, out vector out_Cam
 			CurrentCamOffset.X = GetCollisionRadius();
 		}
 	}
-	DesiredCamStart.Z += CameraZOffset;
+	DesiredCamStart.Z += CameraZOffset;	
+
 	CurrentCamPitch = out_CamRot.Pitch;
 	AngleOffset = vect(0,0,0);
 	if (out_CamRot.Pitch <= `PITCH_LOWEST)
@@ -3980,6 +4008,7 @@ simulated function bool CalcThirdPersonCam( float fDeltaTime, out vector out_Cam
 			AngleOffset.Z = Abs((out_CamRot.Pitch - CamHighAngleStart) / (`PITCH_HIGHEST - CamHighAngleStart)) * CamHighOffsetMax;
 	}
 	DesiredCamStart += AngleOffset >> out_CamRot;
+	
 	// Smooth cam start from prev locations.
 	CamStart = GetSmoothedCamStart(DesiredCamStart);
 
@@ -4033,7 +4062,7 @@ simulated function bool CalcThirdPersonCam( float fDeltaTime, out vector out_Cam
 			CamStart.z += 30;
 			if (Trace(HitLocation, HitNormal, out_CamLoc, DesiredCamStart, false, vect(12,12,12)) != None) {
 				out_CamLoc = HitLocation;
-				if(VSize(location-out_CamLoc) < 55.0)
+				if(VSizeSq(location-out_CamLoc) < 3025.0)
 				{
 					if(WorldInfo.NetMode != NM_DedicatedServer)
 						SetHidden(true); // when cam gets near to prevent the cam showing the inside of the character	
@@ -4098,7 +4127,7 @@ simulated function vector GetSmoothedCamStart(vector DesiredStart)
 	DeltaTime = (len > 2) ? (WorldInfo.TimeSeconds - OldPositions[len-2].Time) : 0.0;
 
 	// If we're too far from out previous position, and it's not because of velocity (therefor we have been moved), reset the camera
-	if (len > 2 && VSize(DesiredStart - Oldpositions[len-2].Position) * DeltaTime > VSize(Velocity)+1)
+	if (len > 2 && VSizeSq(DesiredStart - Oldpositions[len-2].Position) * DeltaTime > VSizeSq(Velocity)+1)
 	{
 		OldPositions.remove(0,OldPositions.Length);
 //		return CamStart;
@@ -4200,7 +4229,7 @@ simulated event PlayFootStepSound(int FootDown)
 
 		`log("Attempting hit on "$B);
 
-		if (VSize(B.Location-Location) <= BuildingDmgRadius)
+		if (VSizeSq(B.Location-Location) <= Square(BuildingDmgRadius))
 		{
 			i = -1;
 			bBuildingHit=true;
@@ -4214,7 +4243,7 @@ simulated event PlayFootStepSound(int FootDown)
 				`log("Checking target "$i);
 				BuildingLocation = B.BuildingInternals.Trace2dTargets[i];
 				FlatLocation.Z = BuildingLocation.Z;
-				if (VSize(BuildingLocation-FlatLocation) <= BuildingDmgRadius)
+				if (VSizeSq(BuildingLocation-FlatLocation) <= Square(BuildingDmgRadius))
 				{
 					`log(i$" Distance check hit with distance "$VSize(BuildingLocation-FlatLocation));
 					bBuildingHit=true;
@@ -4223,7 +4252,7 @@ simulated event PlayFootStepSound(int FootDown)
 				{
 					foreach TraceActors(class'Rx_Building', tracedB, HitLoc, HitNorm, BuildingLocation, FlatLocation)
 					{  
-						if (tracedB == B && VSize(HitLoc-FlatLocation) <= BuildingDmgRadius)
+						if (tracedB == B && VSizeSq(HitLoc-FlatLocation) <= Square(BuildingDmgRadius))
 						{
 							`log(i$" Trace check hit with distance "$VSize(HitLoc-FlatLocation));
 							bBuildingHit = true;
@@ -4241,7 +4270,7 @@ simulated event PlayFootStepSound(int FootDown)
 			BuildingLocation = B.Location;
 			foreach TraceActors(class'Rx_Building', tracedB, HitLoc, HitNorm, BuildingLocation, Location)
 			{  
-				if (tracedB == B && VSize(HitLoc-Location) <= BuildingDmgRadius)
+				if (tracedB == B && VSizeSq(HitLoc-Location) <= Square(BuildingDmgRadius))
 				{
 					`log("-1 Trace check hit with distance "$VSize(HitLoc-Location));
 					bBuildingHit = true;
@@ -4464,6 +4493,8 @@ event Landed(vector HitNormal, actor FloorActor)
 	bVaulted = false;
 	super.Landed(HitNormal,FloorActor);
 
+	NotifyPassivesLanded();
+	
 	//SetTimer(0.15, false, 'JumpRecoilTimer'); 
 	
 	if(Health <= 0)
@@ -4638,13 +4669,16 @@ function setArmorType(byte AType)
 simulated function TakeFallingDamage()
 {
 	local float EffectiveSpeed;
-
-	if (Velocity.Z < -0.5 * MaxFallSpeed)
+	local float AdjustedMaxFallSpeed; 
+	
+	AdjustedMaxFallSpeed = MaxFallSpeed*GetRxFamilyInfo().default.FallspeedModifier; 
+	
+	if (Velocity.Z < -0.5 * AdjustedMaxFallSpeed)
 	{
 		if ( Role == ROLE_Authority )
 		{
 			MakeNoise(1.0);
-			if (Velocity.Z < -1 * MaxFallSpeed)
+			if (Velocity.Z < -1 * AdjustedMaxFallSpeed)
 			{
 				EffectiveSpeed = Velocity.Z;
 				if (TouchingWaterVolume())
@@ -4652,9 +4686,9 @@ simulated function TakeFallingDamage()
 					/*Leaving it at 100 still left enough momentum to slap people into the ground if they sorta glitched/jittered at the water's edge*/
 					EffectiveSpeed += 800 ;//100; 
 				}
-				if (EffectiveSpeed < -1 * MaxFallSpeed)
+				if (EffectiveSpeed < -1 * AdjustedMaxFallSpeed)
 				{ 
-					TakeDamage(-100 * (EffectiveSpeed + MaxFallSpeed)/MaxFallSpeed, None, Location, vect(0,0,0), class'Rx_DmgType_Fell');
+					TakeDamage(-100 * (EffectiveSpeed + AdjustedMaxFallSpeed)/AdjustedMaxFallSpeed, None, Location, vect(0,0,0), class'Rx_DmgType_Fell');
 				}
 				}
 		}
@@ -4831,7 +4865,7 @@ function string GetPawnLocation (Pawn P)
 		
 	foreach WGRI.SpottingArray(TempActor) {
 		SpotMarker = RxIfc_SpotMarker(TempActor);
-		DistToSpot = VSize(TempActor.location - P.location);
+		DistToSpot = VSizeSq(TempActor.location - P.location);
 		if(NearestSpotDist == 0.0 || DistToSpot < NearestSpotDist) {
 			NearestSpotDist = DistToSpot;	
 			NearestSpotMarker = SpotMarker;
@@ -5794,6 +5828,50 @@ simulated function NotifyTeamChanged() {
 	}
 }
 
+simulated function ChangeCharacterClass()
+{
+	local UTPlayerReplicationInfo PRI;
+
+	// set mesh to the one in the PRI, or default for this team if not found
+	PRI = GetUTPlayerReplicationInfo();
+
+	if (PRI != None)
+	{
+		SetCharacterClassFromInfo(GetFamilyInfo());
+
+		if (WorldInfo.NetMode != NM_DedicatedServer)
+		{
+			// refresh weapon attachment
+			if (CurrentWeaponAttachmentClass != None)
+			{
+				// recreate weapon attachment in case the socket on the new mesh is in a different place
+				if (CurrentWeaponAttachment != None)
+				{
+					CurrentWeaponAttachment.DetachFrom(Mesh);
+					CurrentWeaponAttachment.Destroy();
+					CurrentWeaponAttachment = None;
+				}
+				WeaponAttachmentChanged();
+			}
+			// refresh overlay
+			if (OverlayMaterialInstance != None)
+			{
+				SetOverlayMaterial(OverlayMaterialInstance);
+			}
+		}
+	}
+
+	if (!bReceivedValidTeam)
+	{
+		SetTeamColor();
+		bReceivedValidTeam = (GetTeam() != None);
+	}
+
+	if (Rx_Controller(Controller) != None && `RxGameObject != None) {
+		Rx_Controller(Controller).UpdateDiscordPresence(`RxGameObject.MaxPlayers);
+	}
+}
+
 function float GetInventoryWeight(){
 	if(Rx_InventoryManager(InvManager) == none)
 		return 0.0; 
@@ -5819,9 +5897,13 @@ simulated function ClearPassiveAbilities()
 	local int i; 
 	
 	for(i=0;i<3;i++){
+			if(PassiveAbilities[i] != none)
+					PassiveAbilities[i].RemoveUser(); 
 			PassiveAbilities[i] = none; 
 		}
 }
+
+/*Passive Abilities Interface*/
 
 simulated function bool ActivateJumpAbility(bool bToggle) {
 	
@@ -5839,7 +5921,7 @@ simulated function bool ActivateJumpAbility(bool bToggle) {
 	{
 		if(PassiveAbilities[0] != none) 
 		{
-			PassiveAbilities[0].DeactivateAbility(); 
+			PassiveAbilities[0].DeactivateAbility(false); //Only abilities themselves will force deactivate 
 			return true; 	
 		}
 		
@@ -5852,6 +5934,44 @@ simulated function bool ActivateJumpAbility(bool bToggle) {
 simulated function bool ActivateAbility0(bool Toggle); 
 
 simulated function bool ActivateAbility1(bool Toggle); 
+
+simulated function NotifyPassivesDodged(int DodgeDir){
+	local int i; 
+	
+	for(i=0;i<3;i++){
+		if(PassiveAbilities[i] != none)
+			PassiveAbilities[i].NotifyDodged(0); 
+	}
+}
+
+simulated function NotifyPassivesCrouched(bool Toggle){
+	local int i; 
+	
+	for(i=0;i<3;i++){
+		if(PassiveAbilities[i] != none)
+			PassiveAbilities[i].NotifyCrouched(Toggle); 
+	}
+}
+
+simulated function NotifyPassivesSprint(bool Toggle){
+	local int i; 
+	
+	for(i=0;i<3;i++){
+		if(PassiveAbilities[i] != none)
+			PassiveAbilities[i].NotifySprint(Toggle); 
+	}
+}
+
+simulated function NotifyPassivesLanded(){
+	local int i; 
+	
+	for(i=0;i<3;i++){
+		if(PassiveAbilities[i] != none)
+			PassiveAbilities[i].NotifyLanded(); 
+	}
+}
+
+/*END Passive ability interface*/
 
 DefaultProperties
 {
@@ -6027,10 +6147,6 @@ DefaultProperties
 	SwimmingZOffset=0.0
 	SwimmingZOffsetSpeed=100.0
 	OutofWaterZ=0
-	DodgeSpeed=420
-	DodgeSpeedZ=300.0
-	DodgeDuration=0.75	// 1.0
-	bDodgeCapable=false //true;  Not this patch yet... till we figure something out. Yosh
 	AccelRate=1400
 	MaxLeanRoll=2500
 	JumpZ=325.0
@@ -6132,10 +6248,13 @@ DefaultProperties
 	Stamina=100.0f
 	MaxStamina = 100.0f
 	
-	DodgeForwardAnim 	= H_M_Dive_Fwd
-	DodgeBackwardAnim 	= H_M_Dive_Bwd
-	DodgeLeftAnim 		= H_M_Dive_Left
-	DodgeRightAnim 		= H_M_Dive_Right
+	//Dodge......BAAAAAALL!!!!!
+	DodgeNodeName		= "Dive1"
+	DodgeBlendTime = 0.5f
+	DodgeSpeed=420
+	DodgeSpeedZ=300.0
+	DodgeDuration=1.0	// 1.0
+	bDodgeCapable=false //true;  Not this patch yet... till we figure something out. Yosh
 	
 	WeaponAimedToRestAnim = WeaponAimedToRest
 	WeaponSprintAnim = WeaponSprint

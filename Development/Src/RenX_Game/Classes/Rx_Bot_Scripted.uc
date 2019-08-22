@@ -10,8 +10,10 @@ class Rx_Bot_Scripted extends Rx_Bot_Waypoints;
 
 
 // Patrol Script Objective
+var Rx_ScriptedBotSpawner MySpawner;
 var Rx_ScriptedObj_PatrolPoint PatrolTask;
 var int PatrolNumber;
+var UTGameObjective MyObjective;
 
 function InitPlayerReplicationInfo()
 {
@@ -90,7 +92,7 @@ protected event ExecuteWhatToDoNext()
 	if ( (StartleActor != None) && !StartleActor.bDeleteMe )
 	{
 		StartleActor.GetBoundingCylinder(StartleRadius, StartleHeight);
-		if ( VSize(StartleActor.Location - Pawn.Location) < StartleRadius  )
+		if ( VSizeSq(StartleActor.Location - Pawn.Location) < Square(StartleRadius)  )
 		{
 			Startle(StartleActor);
 			return;
@@ -99,18 +101,21 @@ protected event ExecuteWhatToDoNext()
 	bIgnoreEnemyChange = true;
 	if ( (Enemy != None) && ((Enemy.Health <= 0) || (Enemy.Controller == None)) )
 		LoseEnemy();
-	if ( Enemy == None )
-		UTSquadAI(Squad).FindNewEnemyFor(self,false);
-	else if ( !UTSquadAI(Squad).MustKeepEnemy(Enemy) && !LineOfSightTo(Enemy) )
+	if(Squad != None)
 	{
-		// decide if should lose enemy
-		if ( UTSquadAI(Squad).IsDefending(self) )
+		if ( Enemy == None )
+			UTSquadAI(Squad).FindNewEnemyFor(self,false);
+		else if ( !UTSquadAI(Squad).MustKeepEnemy(Enemy) && !LineOfSightTo(Enemy) )
 		{
-			if ( LostContact(4) )
+			// decide if should lose enemy
+			if ( UTSquadAI(Squad).IsDefending(self) )
+			{
+				if ( LostContact(4) )
+					LoseEnemy();
+			}
+			else if ( LostContact(7) )
 				LoseEnemy();
 		}
-		else if ( LostContact(7) )
-			LoseEnemy();
 	}
 	bIgnoreEnemyChange = false;
 
@@ -164,11 +169,23 @@ protected event ExecuteWhatToDoNext()
 
 function ForceAssignObjective(UTGameObjective O)
 {
-	UTSquadAI(Squad).SetObjective(O,true);
+	if(Squad != None)
+		UTSquadAI(Squad).SetObjective(O,true);
+	else
+		MyObjective = O;
+
+	if(Rx_ScriptedObj(O) != None)
+		Rx_ScriptedObj(O).DoTaskFor(Self);
 }
 
 function bool AssignSquadResponsibility ()
 {
+
+	if(Rx_ScriptedObj(MyObjective) != None && Rx_ScriptedObj(MyObjective).DoTaskFor(Self))
+		return true;
+
+	if(MySpawner != None && MySpawner.DoTaskFor(Self))
+		return true;
 
 	if(Rx_Vehicle(Pawn) != None && Enemy != None && !Rx_Vehicle(Pawn).ValidEnemyForVehicle(Enemy)) 
 	{
@@ -189,13 +206,17 @@ function bool AssignSquadResponsibility ()
 		return false;
 	LastAttractCheck = WorldInfo.TimeSeconds;
 
-	return UTSquadAI(Squad).AssignSquadResponsibility(self);	
+	if(Squad != None)
+		return UTSquadAI(Squad).AssignSquadResponsibility(self);	
+
+	else
+		return false;
 
 }
 
 function bool StartPatrol()
 {
-	if(FindPatrolPath())
+	if(FindPatrolPathTowards(RouteGoal))
 	{
 		GoToState('Patrolling');
 		return true;
@@ -205,28 +226,19 @@ function bool StartPatrol()
 
 }
 
-function bool FindPatrolPath()
+function bool FindPatrolPathTowards(Actor PatrolPoint)
 {
 	local Actor BestPath;
 
-	if(Enemy != None)
-		return false;
-
-	if(RouteGoal == None)
-		return false;
-
-	if(Pawn.ReachedDestination(RouteGoal))
+	if(RouteGoal == PatrolPoint && !Pawn.ReachedDestination(MoveTarget))
 	{
-		if(PatrolNumber < PatrolTask.PatrolPoints.Length)
-			PatrolNumber += 1;
-		else
-			PatrolNumber = 0;
-
-		RouteGoal = PatrolTask.PatrolPoints[PatrolNumber];
-	}
-
-	if(!Pawn.ReachedDestination(MoveTarget))
+		GoToState('Patrolling');
 		return true;
+	}
+	else
+	{
+		RouteGoal = PatrolPoint;
+	}
 
 	BestPath = FindPathToward(RouteGoal);
 
@@ -234,6 +246,10 @@ function bool FindPatrolPath()
 		BestPath = FindRandomDest();
 
 	MoveTarget = BestPath;
+	GoToState('Patrolling');
+
+	return true;
+
 
 
 }
@@ -243,14 +259,41 @@ state Patrolling
 
 
 Begin:
+	if(Enemy != None && LineOfSightTo(Enemy))
+	{
+		ChooseAttackMode();
+		Focus = Enemy;
+	}
+	else
+		Focus = MoveTarget;
+
 	SwitchToBestWeapon();
 	WaitForLanding();
 
 	GoalString = "Patrolling to"@MoveTarget;
 
-	MoveToward(MoveTarget,FaceActor(1),GetDesiredOffset(),ShouldStrafeTo(MoveTarget),PatrolTask.bWalkingPatrol);
+	MoveToward(MoveTarget,FaceActor(1),GetDesiredOffset(),ShouldStrafeTo(MoveTarget));
 
 	LatentWhatToDoNext();
+}
+
+function Actor FaceActor(float StrafingModifier)
+{
+	if(Enemy != None)
+		return Enemy;
+	else if(Focus != None)
+		return Focus;
+
+	return MoveTarget;
+}
+
+function float GetDesiredOffset()
+{
+	if(Squad != None)
+		return Super.GetDesiredOffset();
+
+	else
+		return 0.0;
 }
 
 state Dead

@@ -645,10 +645,10 @@ simulated function DrawCrosshair( Hud HUD )
 		
 		DrawHitIndicator(H,x,y);
 		
-		if(MyPawnOwner != None && VSize(MyVehicle.location - Rx_Hud(HUD).AimLoc) < 2000)
+		if(MyPawnOwner != None && VSizeSq(MyVehicle.location - Rx_Hud(HUD).AimLoc) < 4000000)
 		{
 			ScreenLoc = Rx_Vehicle(MyVehicle).GetWeaponAimLocation(Rx_Hud(HUD).AimLoc);
-			if(ScreenLoc != vect(0,0,0) && VSize(ScreenLoc - Rx_Hud(HUD).AimLoc) > 50)
+			if(ScreenLoc != vect(0,0,0) && VSizeSq(ScreenLoc - Rx_Hud(HUD).AimLoc) > 2500)
 			{
 				ScreenLoc = H.Canvas.Project(ScreenLoc);
 			    H.Canvas.SetPos( ScreenLoc.X, ScreenLoc.Y ); 		    

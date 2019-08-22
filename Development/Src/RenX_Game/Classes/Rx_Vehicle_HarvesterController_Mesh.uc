@@ -345,7 +345,7 @@ Begin:
 		// if we are moving towards a moving target, repath every time we successfully reach the next node
 		// as that Pawn's movement may cause the best path to change
 		else if( ScriptedMoveTarget != None &&
-			VSize(ScriptedMoveTarget.Location - BP2Vect(LastMoveTargetPathLocation)) > 512.0 )
+			VSizeSq(ScriptedMoveTarget.Location - BP2Vect(LastMoveTargetPathLocation)) > 262144.0 )
 		{
 			Vect2BP(LastMoveTargetPathLocation, ScriptedMoveTarget.location);
 			`LogRx("(" $ Pawn.name $ ")" @ GetPackageName()@GetFuncName()@" Repathing because target moved:" @ ScriptedMoveTarget);
@@ -370,7 +370,7 @@ Begin:
 		}
 		else
 		{
-			if(VSize(IntermediatePoint-LastMovePoint) < (Pawn.GetCollisionRadius() * 0.1f) )
+			if(VSizeSq(IntermediatePoint-LastMovePoint) < Square(Pawn.GetCollisionRadius() * 0.1f) )
 			{
 				NumMovePointFails++;
 
@@ -553,7 +553,7 @@ state Fallback_FindNearbyMeshPoint
 			Retval = Poses[Rand(Poses.Length)];
 
 			// if for some reason we have a 0,0,0 vect that is never going to be correct
-			if( VSize(Retval) == 0.0f )
+			if( VSizeSq(Retval) == 0.0f )
 			{
 				out_FallbackDest = vect(0,0,0);
 				return FALSE;
@@ -671,7 +671,7 @@ Begin:
 }
 
 function CheckDistToTib() {
-	if(tibNode != none && VSize(Pawn.location - tibNode.location) < 1000.0) {
+	if(tibNode != none && VSizeSq(Pawn.location - tibNode.location) < 1000000.0) {
 		harv_vehicle.bPlayClosingAnim = false;
 		harv_vehicle.bPlayOpeningAnim = true;
 		if(WorldInfo.NetMode != NM_DedicatedServer)

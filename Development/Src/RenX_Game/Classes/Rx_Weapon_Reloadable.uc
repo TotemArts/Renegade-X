@@ -1247,7 +1247,7 @@ simulated function DrawCrosshair( Hud HUD )
 		H.Canvas.DrawMaterialTile(CrosshairDotMIC2, default.CrosshairWidth*MinDotScale, default.CrosshairHeight*MinDotScale);
 	}
 	DrawHitIndicator(H,x,y);
-	
+			
 	
 /**	if(bDebugWeapon)
 	{

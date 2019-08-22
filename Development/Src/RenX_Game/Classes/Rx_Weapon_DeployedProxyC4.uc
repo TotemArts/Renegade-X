@@ -82,11 +82,11 @@ function Landed(vector HitNormal, Actor FloorActor)
 	{
 		if(closestDoorSensor == None)
 			ClosestDoorSensor = V;
-		else if(VSize(location-V.Location) < VSize(location-ClosestDoorSensor.Location))
+		else if(VSizeSq(location-V.Location) < VSizeSq(location-ClosestDoorSensor.Location))
 			ClosestDoorSensor = V;		
 	}	
 	
-	if(VSize(location-ClosestDoorSensor.Location) <= 115)
+	if(VSizeSq(location-ClosestDoorSensor.Location) <= 13225)
 	{
 		Move(HitNormal * 4.5); // if close to a door move up a bit to prevent sinking into the no collision geom that Ref and PP have at their doors		
 		return;					

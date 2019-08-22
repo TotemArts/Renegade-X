@@ -18,7 +18,7 @@ var bool bCurrentlyRecharging; //Is it currently recharging
 var bool bFireWhileRecharging; //Can it fire while it's recharging
 
 var bool bCurrentlyActive; 
-
+var bool bRespondingToCrouch; 
 
 /** The GFX ability set, 0-15. */
 var byte AbilityMovieGroup;
@@ -95,7 +95,7 @@ simulated function AddCharge(int Num = 1)
 
 simulated function SubtractCharge()
 {
-	CurrentCharges = max(0, CurrentCharges-1) ; 
+	CurrentCharges = max(0, CurrentCharges-GetConsumptionRate()) ; 
 }
 
 simulated function bool bCanBeSelected()
@@ -132,15 +132,49 @@ simulated function Init(Pawn InitiatingPawn)
 	`log("Initialize Passive Ability" @ self @ "with Pawn " @ UsingPawn);
 } 
 
+function RemoveUser()
+{
+	UsingPawn = none; 
+	SetTimer(0.5,false,'ToDestroy');
+	
+}
+
+function ToDestroy()
+{
+   Destroy();
+}
+
 simulated function ActivateAbility()
 {
 	`log("Activate"); 
 } 
 
-simulated function DeactivateAbility()
+simulated function DeactivateAbility(bool bForce)
 {
 	`log("Deactivate"); 
 }
+
+simulated function NotifyLanded(); //Called when our pawn lands 
+
+//Called if our Pawn pulls a dodge move. 
+simulated function bool NotifyDodged(int DodgeDir){
+	return false; 
+}
+
+//Called when crouch is pressed/released
+simulated function NotifyCrouched(bool Toggle); 
+
+simulated function NotifySprint(bool Toggle); //Called when our pawn starts/stops sprinting
+
+simulated function DrawHUD(Canvas HUDCanvas); 
+
+simulated function float GetConsumptionRate(){
+	return 1; 
+}
+
+simulated function bool GetRespondingToCrouch(); //Returns if this ability is currently responding to crouch being pressed 
+
+
 
 DefaultProperties
 {

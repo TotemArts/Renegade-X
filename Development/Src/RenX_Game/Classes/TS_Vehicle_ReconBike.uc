@@ -62,7 +62,12 @@ simulated function VehicleWeaponFireEffects(vector HitLocation, int SeatIndex)
 DefaultProperties
 {
 
-
+    Begin Object Name=CollisionCylinder
+    CollisionHeight=80.0
+    CollisionRadius=150.0
+    Translation=(X=0.0,Y=0.0,Z=0.0)
+    End Object
+    
 //========================================================\\
 //************** Vehicle Physics Properties **************\\
 //========================================================\\

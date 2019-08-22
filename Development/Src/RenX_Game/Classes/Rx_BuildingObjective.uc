@@ -26,8 +26,8 @@ simulated function PostBeginPlay()
 	//Failed to find a building objective
 	if(ROLE == ROLE_Authority && myBuilding == none){
 		foreach WorldInfo.AllActors(class'Rx_Building', BI){
-			if(NearestBuildingDistance == -1 || VSize(location-BI.location) < NearestBuildingDistance){
-				NearestBuildingDistance = VSize(location-BI.location);
+			if(NearestBuildingDistance == -1 || VSizeSq(location-BI.location) < NearestBuildingDistance){
+				NearestBuildingDistance = VSizeSq(location-BI.location);
 				NearestBuilding=BI; 
 			}
 		}
@@ -41,7 +41,7 @@ simulated function PostBeginPlay()
 	}
 	myBuilding.myObjective = self;
 
-	BestDist = 100000;
+	BestDist = 10000000;
 
 	class'NavigationPoint'.static.GetAllNavInRadius(myBuilding.GetMCT(),myBuilding.GetMCT().location,1000.0,NavPoints);
 	
@@ -50,7 +50,7 @@ simulated function PostBeginPlay()
 			if(N.PathList.Length <= 0)
 				continue;
  
-			Dist = VSize(myBuilding.GetMCT().location - N.location);
+			Dist = VSizeSq(myBuilding.GetMCT().location - N.location);
 
 			if(Dist <= BestDist)
 			{
@@ -402,7 +402,7 @@ private function bool FindClosestDefensePointForHealing(UTBot B) {
 	BestPoint = B.DefensePoint;
 	
 	if(BestPoint != None && BestPoint.DefendedObjective == Self && Rx_Weapon(B.Pawn.Weapon).CanAttackFromPosition(BestPoint.location, GetShootTarget(B))) {
-		ShortestDist = VSize(BestPoint.location - B.location);
+		ShortestDist = VSizeSq(BestPoint.location - B.location);
 	} else {
 		ShortestDist = 0;
 	}
@@ -418,9 +418,9 @@ private function bool FindClosestDefensePointForHealing(UTBot B) {
 			continue;
 		}
 		
-		if(ShortestDist == 0 || VSize(DefensePoint.location - B.location) < ShortestDist) {
+		if(ShortestDist == 0 || VSizeSq(DefensePoint.location - B.location) < ShortestDist) {
 			BestPoint = DefensePoint;
-			ShortestDist = VSize(DefensePoint.location - B.location);
+			ShortestDist = VSizeSq(DefensePoint.location - B.location);
 		} 	
 	}
 	
@@ -476,11 +476,11 @@ function float CalcDefensePriority(Controller C)
 	if(C.Pawn == None)
 		Distance = 0;
 	else
-		Distance = VSize(C.Pawn.Location - InfiltrationPoint.Location);
+		Distance = VSizeSq(C.Pawn.Location - InfiltrationPoint.Location);
 	
-	DistanceMod = 1000 + Distance;
+	DistanceMod = 1000000 + Distance;
 	
-	if (C.Enemy != None && VSize(C.Enemy.Location - InfiltrationPoint.Location) < Distance)
+	if (C.Enemy != None && VSizeSq(C.Enemy.Location - InfiltrationPoint.Location) < Distance)
 	{
 
 		DistanceMod *= 5;

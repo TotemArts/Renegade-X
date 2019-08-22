@@ -82,6 +82,8 @@ var float TargetArmorPercent;
 var bool bHasArmor;
 var Vector2D TargetNameTextSize;
 var Vector2D TargetDescriptionTextSize;
+var bool bDisplayTargetInfo;
+var bool bDisplayBoundingBox;
 
 var private int TargetStance;
 
@@ -468,8 +470,11 @@ function Draw()
 	{
 		Canvas.DrawColor = ColorWhite;
 
-		DrawBoundingBoxCorners();
-		DrawTargetInfo();
+		if (bDisplayBoundingBox == true)
+			DrawBoundingBoxCorners();
+
+		if (bDisplayTargetInfo == true)
+			DrawTargetInfo();
 	}
 }
 
@@ -1222,6 +1227,9 @@ private function UpdateTargetStance(Actor inActor)
 
 DefaultProperties
 {
+	bDisplayBoundingBox = true
+	bDisplayTargetInfo = true
+
 	// Doesn't let the targeting box get closer than this from the top, or sides of the screen.
 	ScreenEdgePadding = 50
 	// Doesn't let the targeting box get closer than this from the bottom of the screen.

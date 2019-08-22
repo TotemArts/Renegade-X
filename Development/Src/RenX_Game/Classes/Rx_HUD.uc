@@ -138,6 +138,9 @@ var float		MiniCommandWindow_AnchorX, MiniCommandWindow_AnchorY;
 
 var CanvasIcon Neutral_Recruit, Neutral_Veteran, Neutral_Elite, Neutral_Heroic;
 
+var bool bEnableFade;
+var float FadePercentage,FadePerSecond;
+
 function Actor GetActorAtScreenCentre()
 {
 	return ScreenCentreActor;
@@ -157,13 +160,13 @@ function UpdateScreenCentreActor()
 	
 	PotentialTarget = none;
 	WeaponAimingActor = none;
-	ClosestHit = GetWeaponTargetingRange();
+	ClosestHit = Square(GetWeaponTargetingRange());
 
 	GetCameraOriginAndDirection(CameraOrigin,CameraDirection);
 	
 	TraceRange = CameraOrigin + CameraDirection * GetWeaponTargetingRange();
-	extendedDist = VSize(CameraOrigin - PlayerOwner.ViewTarget.location);
-	TraceRange += CameraDirection * extendedDist;
+	extendedDist = VSizeSq(CameraOrigin - PlayerOwner.ViewTarget.location);
+	TraceRange += CameraDirection * Sqrt(extendedDist);
 
 	// This trace will ignore the view target so we don't target ourselves.
 	foreach TraceActors(class'actor',HitActor,HitLoc,HitNormal,TraceRange,CameraOrigin,vect(0,0,0),,1)
@@ -176,11 +179,11 @@ function UpdateScreenCentreActor()
 			break;
 		if (StaticMeshActor(HitActor) != None)
 			break;			
-		tempDist = VSize(CameraOrigin - HitLoc) - extendedDist;
+		tempDist = VSizeSq(CameraOrigin - HitLoc) - extendedDist;
 		if (HitActor != PlayerOwner.ViewTarget && (Rx_Pickup(HitActor) == none || Rx_CratePickup(HitActor) != none) && ClosestHit >= tempDist)
 		{
 			ClosestHit = tempDist;
-			if (ClosestHit < GetWeaponRange()) // If the hit actor is also within weapon range, then weapon aiming actor is it.
+			if (ClosestHit < Square(GetWeaponRange())) // If the hit actor is also within weapon range, then weapon aiming actor is it.
 				WeaponAimingActor = HitActor;
 			PotentialTarget = HitActor;
 			TargetingBox.TargetActorHitLoc = HitLoc;
@@ -671,10 +674,13 @@ event PostRender()
 	// Pre calculate most common variables
 	if (SizeX != Canvas.SizeX || SizeY != Canvas.SizeY)
 		PreCalcValues();
-	
+
 	// Set up delta time
 	RenderDelta = WorldInfo.TimeSeconds - LastHUDRenderTime;
 	LastHUDRenderTime = WorldInfo.TimeSeconds;
+
+
+	ProcessFade(RenderDelta);
 		
 	UTGRI = UTGameReplicationInfo(WorldInfo.GRI);
 
@@ -1175,7 +1181,7 @@ function DrawNewScorePanel()
 					{
 						foreach AllActors(class'Actor',TempActor,class'RxIfc_SpotMarker') {
 							SpotMarker = RxIfc_SpotMarker(TempActor);
-							DistToSpot = VSize(TempActor.location - P.location);
+							DistToSpot = VSizeSq(TempActor.location - P.location);
 							if(NearestSpotDist == 0.0 || DistToSpot < NearestSpotDist) {
 								NearestSpotDist = DistToSpot;	
 								NearestSpotMarker = SpotMarker;
@@ -2633,6 +2639,43 @@ function CloseOtherMenus()
 		Rx_Controller(PlayerOwner).DestroyOldComMenu();
 		Rx_Controller(PlayerOwner).DisableVoteMenu(true);
 	}
+}
+
+function SetFadeToBlack (float Time, bool bToBlack)
+{
+
+	bEnableFade = true;
+
+	if(bToBlack)
+		FadePerSecond = 1.f / Time;
+
+	else
+		FadePerSecond = -1.f / Time;
+}
+
+function ProcessFade (float DeltaTime)
+{
+	local byte AlphaNum;
+
+	if(bEnableFade)
+	{
+		FadePercentage += FadePerSecond * DeltaTime;
+
+		FadePercentage = FClamp(FadePercentage,0.f,1.f);
+
+		if((FadePerSecond > 0.f && FadePercentage >= 1.f) || (FadePerSecond <= 0.f && FadePercentage <= 0.f))
+			bEnableFade = false;
+	}
+
+	if(FadePercentage <= 0.f)	//skip drawing if the percentage is 0
+		return;
+
+	AlphaNum = FadePercentage * 255;
+	Canvas.SetDrawColor(0,0,0,AlphaNum);
+	Canvas.SetPos(0,0);
+	Canvas.DrawRect(SizeX,SizeY);
+		
+
 }
 
 DefaultProperties

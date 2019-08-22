@@ -53,15 +53,15 @@ function FindAirStrip()
 			if(beststrip == None)
 			{
 				beststrip = strip;
-				BestDist = VSize(BuildingVisuals.location - strip.location);
+				BestDist = VSizeSq(BuildingVisuals.location - strip.location);
 			}
 			else if (strip.AirTowerInternals == none)
 			{
-				CurDist = VSize(BuildingVisuals.location - strip.location);
+				CurDist = VSizeSq(BuildingVisuals.location - strip.location);
 				if(BestDist > CurDist)
 				{
 					beststrip = strip;
-					BestDist = VSize(BuildingVisuals.location - strip.location);			
+					BestDist = CurDist;			
 				}
 			}
 		}

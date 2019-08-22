@@ -33,7 +33,7 @@ function bool FireAt(Vector Spot)
 	{
         Origin = GetPawnViewLocation();
 
-		if(VSize(Spot - Origin) <= GetRange())
+		if(VSizeSq(Spot - Origin) <= Square(GetRange()))
 		{
 			//loginternal("firing");
 			if(SWeapon.FireAt(Origin, CurrentAim, Spot))
@@ -55,7 +55,7 @@ function bool FireAt(Vector Spot)
  */
 function bool IsOutsideMinimalDistToOwner(Pawn possibleTarget)
 {
-	if(VSize(possibleTarget.Location - location) > MinimumRange) {
+	if(VSizeSq(possibleTarget.Location - location) > Square(MinimumRange)) {
 		return true;
 	} else if(possibleTarget == SController.Enemy && bTrackingCloseRange) {
 		return true;

@@ -290,6 +290,8 @@ struct ActiveModifier
 
 var array<ActiveModifier> ActiveModifications; 
 var bool bJumpReleased; 
+var bool bDodgePressed;
+var bool bUseDoubleClickDodge; //Use legacy double-tap dodge (False by default )
 
 replication
 {
@@ -321,9 +323,10 @@ simulated event ReplicatedEvent(name VarName)
 	}
 	else if(VarName == 'Misc_RateOfFireMod')
 	{
-		if(Rx_Pawn(Pawn) != none && Rx_Weapon(Pawn.Weapon) != none) Rx_Weapon(Pawn.Weapon).SetROFChanged(true);	
-		else
-		if(Rx_Vehicle(Pawn) != none && Rx_Vehicle_Weapon(Pawn.Weapon) != none) Rx_Vehicle_Weapon(Pawn.Weapon).SetROFChanged(true);	
+		if(Rx_Pawn(Pawn) != none && Rx_Weapon(Pawn.Weapon) != none) 
+			Rx_Weapon(Pawn.Weapon).SetROFChanged(true);	
+		else if(Rx_Vehicle(Pawn) != none && Rx_Vehicle_Weapon(Pawn.Weapon) != none)
+			Rx_Vehicle_Weapon(Pawn.Weapon).SetROFChanged(true);	
 	}
 	else
 	{
@@ -334,6 +337,14 @@ simulated event ReplicatedEvent(name VarName)
 exec function ToggleADSSens()
 {
 	Rx_PlayerInput(PlayerInput).ToggleADSSens();
+}
+
+function PlayHitMarkerSound(optional bool bIsHeadshot = false)
+{
+	if (bIsHeadshot)
+		ClientPlaySound(SoundCue'RX_SoundEffects.HitMarker.SC_HitMarker_Headshot');
+	else
+		ClientPlaySound(SoundCue'RX_SoundEffects.HitMarker.SC_HitMarker_Body');
 }
 
 reliable client function RequestDeviceUUID()
@@ -1980,10 +1991,14 @@ state PlayerWalking
 
 	exec function StartSprint()
 	{
+		if(RxIfc_PassiveAbility(Pawn) != none)
+			RxIfc_PassiveAbility(Pawn).NotifyPassivesSprint(true); 
+		
 		if (Rx_Pawn(Pawn) != None)
 		{
 			
-			if(bZoomed) return; 
+			if(bZoomed) 
+				return; 
 			
 			if (bHoldSprint)
 			{
@@ -2003,6 +2018,9 @@ state PlayerWalking
 
 	exec function StopSprinting()
 	{
+		if(RxIfc_PassiveAbility(Pawn) != none)
+			RxIfc_PassiveAbility(Pawn).NotifyPassivesSprint(false); 
+		
 		if (Rx_Pawn(Pawn) != None && bHoldSprint == false)
 			Rx_Pawn(Pawn).StopSprinting();
 	}
@@ -2046,7 +2064,18 @@ state PlayerWalking
 	function ProcessMove(float DeltaTime, vector NewAccel, eDoubleClickDir DoubleClickMove, rotator DeltaRot)
 	{
 		if(!Rx_Pawn(Pawn).bDodging) {
-			Super.ProcessMove(DeltaTime,NewAccel,DoubleClickMove,DeltaRot);
+			if (!bUseDoubleClickDodge && bDodgePressed )
+			{
+				TryDodge();
+			} 	
+			if(bUseDoubleClickDodge)
+				Super.ProcessMove(DeltaTime,NewAccel,DoubleClickMove,DeltaRot);
+			else
+			{
+				Super.ProcessMove(DeltaTime,NewAccel,DCLICK_None,DeltaRot);
+				bDodgePressed = false; 
+			}
+				
 		}
 	}	
 	
@@ -2124,6 +2153,9 @@ state PlayerDriving
 	/** Sprinting System */
 	exec function StartSprint()
 	{
+		if(RxIfc_PassiveAbility(Pawn) != none)
+			RxIfc_PassiveAbility(Pawn).NotifyPassivesSprint(true); 
+		
 		if (Rx_Vehicle(Pawn) != None && !Rx_Vehicle(Pawn).bEMPd) 
 		{
 			if (bHoldSprint)
@@ -2144,6 +2176,9 @@ state PlayerDriving
 
 	exec function StopSprinting()
 	{
+		if(RxIfc_PassiveAbility(Pawn) != none)
+			RxIfc_PassiveAbility(Pawn).NotifyPassivesSprint(false); 
+		
 		if (Rx_Vehicle(Pawn) != None && bHoldSprint == false)
 			Rx_Vehicle(Pawn).StopSprinting();
 	}
@@ -2295,8 +2330,8 @@ state Dead
 		GetPlayerViewPoint( cameraLoc, cameraRot );
 		if ( P != None )
 		{
-			newdist = VSize(cameraLoc - ViewTarget.Location);
-			if (newdist < P.CylinderComponent.CollisionRadius + P.CylinderComponent.CollisionHeight )
+			newdist = VSizeSq(cameraLoc - ViewTarget.Location);
+			if (newdist < Square(P.CylinderComponent.CollisionRadius + P.CylinderComponent.CollisionHeight) )
 			{
 				// find alternate camera rotation
 				tries = 0;
@@ -2311,7 +2346,7 @@ state Dead
 					ViewRotation.Yaw += 4096;
 					SetRotation(ViewRotation);
 					GetPlayerViewPoint( cameraLoc, cameraRot );
-					newdist = VSize(cameraLoc - ViewTarget.Location);
+					newdist = VSizeSq(cameraLoc - ViewTarget.Location);
 					if (newdist > bestdist)
 					{
 						bestdist = newdist;
@@ -2457,7 +2492,7 @@ state Dead
 
 Begin:
     Sleep(5.0);
-	if ( (ViewTarget == None) || (ViewTarget == self) || (VSize(ViewTarget.Velocity) < 1.0) )
+	if ( (ViewTarget == None) || (ViewTarget == self) || (VSizeSq(ViewTarget.Velocity) < 1.0) )
 	{
 		Sleep(1.0);
 		if (myHUD != None)
@@ -3244,25 +3279,33 @@ function BotSayAffirmativeToplayer() {
 
 function BroadcastBaseDefenseSpotMessages(Rx_Defence DefenceStructure) 
 {
-	local String msg;
+	local String msg,TeamColor;
 	local int nr;
 		
-	if(DefenceStructure.GetTeamNum() == GetTeamNum()) {
+	if(DefenceStructure.GetTeamNum() == TEAM_GDI)
+		TeamColor = GDIColor;
+	else if(DefenceStructure.GetTeamNum() == TEAM_NOD)
+		TeamColor = NodColor;
+	else
+		TeamColor = ArmourColor;
+
+	if(DefenceStructure.GetTeamNum() == GetTeamNum()) 
+	{
 		
 		
 		if(DefenceStructure.GetHealth(0) == DefenceStructure.HealthMax) { 
-			msg = "Defend Defence Structure"@DefenceStructure.GetHumanReadableName();
+			msg = "Defend the <font color='"$TeamColor$"'>"@DefenceStructure.GetHumanReadableName()$"</font>!";
 			nr = 27;
 		}
 		else if(DefenceStructure.GetHealth(0) > DefenceStructure.HealthMax/3) {
-			msg = "Defence Structure"@DefenceStructure.GetHumanReadableName()@"needs repair!";
+			msg = "The <font color='"$TeamColor$"'>"@DefenceStructure.GetHumanReadableName()$"</font> needs repair!";
 			nr = 0;
 		} else {
-			msg = "Defence Structure"@DefenceStructure.GetHumanReadableName()@"needs repair immediately!";	
+			msg = "The <font color='"$TeamColor$"'>"@DefenceStructure.GetHumanReadableName()$"</font> needs repair immediately!";	
 			nr = 0;
 		}	
 	} else {
-		msg = "Attack Defence Structure "$DefenceStructure.GetHumanReadableName()$"!"; 
+		msg = "Attack the <font color='"$TeamColor$"'>"@DefenceStructure.GetHumanReadableName()$"</font>!"; 
 		nr = 20;
 	}
 	BroadCastSpotMessage(nr, msg);	
@@ -3477,8 +3520,7 @@ function BroadcastEnemySpotMessages()
 				SpottedVehicles[19]++;
 			} else if(TS_Vehicle_Titan(SpotTarget) != None) {
 				SpottedVehicles[20]++;
-			}
-			 else if(Rx_Vehicle_M2Bradley(SpotTarget) != None) {
+			} else if(Rx_Vehicle_M2Bradley(SpotTarget) != None) {
 				SpottedVehicles[21]++;
 			}
 */
@@ -3741,7 +3783,7 @@ function BroadcastEnemySpotMessages()
 				SpottingMsg = SpottingMsg $  "<font color ='" $GDIColor$ "'>" $  SpottedVehicles[19] @ "Wolverine</font>";
 			else if(i==20 && SpottedVehicles[20] > 0)
 				SpottingMsg = SpottingMsg $  "<font color ='" $GDIColor$ "'>" $  SpottedVehicles[20] @ "Titan</font>";
-			else if(i==20 && SpottedVehicles[21] > 0)
+			else if(i==21 && SpottedVehicles[21] > 0)
 				SpottingMsg = SpottingMsg $  "<font color ='" $NodColor$ "'>" $  SpottedVehicles[21] @ "Light Tank [M2]</font>";
 			
 			if(SpottedVehicles[i] > 1)
@@ -3963,7 +4005,7 @@ reliable server function TellNearbyBotsToFocusFire(Pawn Target)
 	{
 		foreach WorldInfo.AllControllers(class'Rx_Bot',B)
 		{
-			if(B.GetTeamNum() == GetTeamNum() && (VSize(Pawn.Location - B.Pawn.Location) <= 1500 || B.CanAttack(Target)))
+			if(B.GetTeamNum() == GetTeamNum() && (VSizeSq(Pawn.Location - B.Pawn.Location) <= 2250000 || B.CanAttack(Target)))
 			B.OnFocusFire(Self, Target);
 		}
 	}
@@ -3985,7 +4027,7 @@ function string GetSpottargetLocationInfo(Actor FirstSpotTarget)
 	
 	foreach WGRI.SpottingArray(TempActor) {
 		SpotMarker = RxIfc_SpotMarker(TempActor);
-		DistToSpot = VSize(TempActor.location - FirstSpotTarget.location);
+		DistToSpot = VSizeSq(TempActor.location - FirstSpotTarget.location);
 		if(NearestSpotDist == 0.0 || DistToSpot < NearestSpotDist) {
 			NearestSpotDist = DistToSpot;	
 			NearestSpotMarker = SpotMarker;
@@ -4082,6 +4124,40 @@ exec function RemoveDodgeDirection()
 		pressedDodgeDirection = EMPTY;
 }
 
+exec function SetDodgePressed()
+{
+	bDodgePressed = true; 
+}
+
+function bool TryDodge()
+{
+	local vector2D DodgeVector; 
+	
+	DodgeVector.X = PlayerInput.aForward; 
+	DodgeVector.Y = PlayerInput.aStrafe; 
+	
+	//Strafing.... right? 
+	if(DodgeVector.X > 0) 
+	{
+		return UTPawn(Pawn).Dodge(DCLICK_Forward);
+	}
+	else if(DodgeVector.X < 0){
+		//Dodge Left
+		return UTPawn(Pawn).Dodge(DCLICK_Back);
+	}
+	else if(DodgeVector.Y > 0) 
+	{
+		//Walking Forward 
+		return UTPawn(Pawn).Dodge(DCLICK_Right);
+	}
+	else if(DodgeVector.Y < 0){
+		//Dodge Back
+		return UTPawn(Pawn).Dodge(DCLICK_Left);
+	}
+	
+	return false; 
+}
+
 exec function EnableOneClickDodge()
 {
 	if (!bCanOneClickDodge)
@@ -4130,7 +4206,8 @@ exec function CloseTauntMenu()
 /**Overview Map*/
 exec function ToggleOverviewMap()
 {
-	if(WorldInfo.GRI != None && WorldInfo.GRI.bMatchIsOver) return;
+	if(WorldInfo.GRI != None && WorldInfo.GRI.bMatchIsOver) 
+		return;
 	Rx_Hud(MyHUD).ToggleOverviewMap();
 }
 
@@ -5139,13 +5216,26 @@ function FadeInScoreboard()
 {
 	//`log("################################ -( RxController:FadeInScoreboard() )-");
 	//@Shahman:       Currently, a hacky workaround is used to do fade in fade out system for the time being, 
+	//@Handepsilon:		No more of that. Alpha animation in Scaleform is expensive, so Canvas it is.
+	//					besides, we need a fadeout anyways because Epic feels like Camera Actor
+	//					is the only one deserving ability to fade to black -.-
+
+
 	if (Rx_HUD(myHUD).Scoreboard == none) {
 		Rx_HUD(myHUD).SetShowScores(true);
 	}
+
+
+
 	Rx_HUD(myHUD).Scoreboard.Scoreboard.SetVisible(false);
 	Rx_HUD(myHUD).Scoreboard.ServerName.SetVisible(false);
-	Rx_HUD(myHUD).Scoreboard.FadeMC.GotoAndPlay("FadeIn");
-	Rx_HUD(myHUD).Scoreboard.bHasFadeIn = false;
+/*	@Handepsilon : Code commented out because apparently my idea to circumvent alpha anim was too vintage 				*/
+//	Rx_HUD(myHUD).Scoreboard.FadeMC.GotoAndPlay("FadeIn");
+//	Rx_HUD(myHUD).Scoreboard.bHasFadeIn = false;
+	Rx_HUD(myHUD).SetFadeToBlack(0.1,true);
+
+	
+
 }
 
 function FadeOutScoreboard() {
@@ -5153,13 +5243,65 @@ function FadeOutScoreboard() {
 	if (Rx_HUD(myHUD).Scoreboard == none) {
 		return;
 	}
+
+
 	if (!Rx_HUD(myHUD).Scoreboard.bHasFadeIn) {
 		//Scoreboard.SetVisible(true);
 		//ServerName.SetVisible(true);
-		Rx_HUD(myHUD).Scoreboard.FadeMC.GotoAndPlay("FadeOut");
+//		Rx_HUD(myHUD).Scoreboard.FadeMC.GotoAndPlay("FadeOut");
+		Rx_HUD(myHUD).SetFadeToBlack(0.5,false);
 		Rx_HUD(myHUD).Scoreboard.bCaptureInput = true;
 		Rx_HUD(myHUD).Scoreboard.bHasFadeIn = true;
 	}
+
+	SetTimer(1.0f,false,nameof(PlayResultScreen));
+
+
+}
+
+function PlayResultScreen()
+{
+	if(WorldInfo.GRI.Winner != None && GetTeamNum() == WorldInfo.GRI.Winner.GetTeamNum())
+	{
+		PlayResultAnnouncement(true);
+		Rx_HUD(myHUD).Scoreboard.SetEndGameResult(true);
+	}
+
+	else
+	{
+		PlayResultAnnouncement(false);
+		Rx_HUD(myHUD).Scoreboard.SetEndGameResult(false);
+	}
+
+}
+
+function PlayResultAnnouncement(bool bWin)
+{
+	local class<UTVictoryMessage> VictoryMessageClass;
+
+	VictoryMessageClass = Rx_Game(WorldInfo.Game).VictoryMessageClass;
+
+	if(bWin)
+	{
+		if(GetTeamNum() == TEAM_GDI)
+			ClientPlayAnnouncement(VictoryMessageClass, 0);
+
+		else if(GetTeamNum() == TEAM_NOD)
+			ClientPlayAnnouncement(VictoryMessageClass, 1);
+	}
+	else
+	{
+		if(GetTeamNum() == TEAM_GDI)
+			ClientPlayAnnouncement(VictoryMessageClass, 2);
+
+		else if(GetTeamNum() == TEAM_NOD)
+			ClientPlayAnnouncement(VictoryMessageClass, 3);
+	}
+}
+
+function CompleteFade()
+{
+	ClientSetCameraFade(true,, vect2d(0,1), 10.f);
 }
 
 function PlayEndGameSound()
@@ -5170,9 +5312,12 @@ function PlayEndGameSound()
 	if (Rx_HUD(myHUD) != none && Rx_HUD(myHUD).JukeBox != none) {
 		Rx_HUD(myHUD).JukeBox.Stop();
 	}
-	if (GetTeamNum() == WorldInfo.GRI.Winner.GetTeamNum()) {
+	if (WorldInfo.GRI.Winner != None && GetTeamNum() == WorldInfo.GRI.Winner.GetTeamNum()) 
+	{
 		PlaySound(TeamVictorySound[GetTeamNum()]);
-	} else {
+	} 
+	else 
+	{
 		PlaySound(TeamDefeatSound[GetTeamNum()]);
 	}
 }
@@ -5231,6 +5376,7 @@ ignores SeePlayer, HearNoise, KilledBy, NotifyBump, HitWall, NotifyHeadVolumeCha
 
 			SetTimer(EndgameScoreboardDelay, false, nameof(ShowScoreboard));
 			SetTimer(3.0f, false, nameof(FadeOutScoreboard));
+			SetTimer(35.0f, false, nameof(CompleteFade));
 			//ShowScoreboard();
 			//myHUD.SetShowScores(true);
 		}
@@ -5240,37 +5386,11 @@ ignores SeePlayer, HearNoise, KilledBy, NotifyBump, HitWall, NotifyHeadVolumeCha
 
 	function ShowScoreboard()
 	{
-		local UTGameReplicationInfo GRI;
-
+		if (Rx_HUD(myHUD) != none)
+			Rx_HUD(myHUD).SetShowScores(true);
 		
-		GRI = UTGameReplicationInfo(WorldInfo.GRI);
-		if (GRI != None && GRI.bMatchIsOver && !GRI.bStoryMode)
-		{
-			//ShowMidGameMenu('ScoreTab',true);
-			// Rx_HUD(myHUD).Scoreboard.Scoreboard.SetBool("enabled", true);
-			if (Rx_HUD(myHUD).Scoreboard == none) {
-				Rx_HUD(myHUD).SetShowScores(true);
-			}
-			Rx_HUD(myHUD).Scoreboard.EndGameTime = WorldInfo.RealTimeSeconds + 45.0f;
-			Rx_HUD(myHUD).Scoreboard.Scoreboard.SetVisible(true);
-			Rx_HUD(myHUD).Scoreboard.ServerName.SetVisible(true);
-			Rx_HUD(myHUD).Scoreboard.RootMC.GotoAndStopI(10);
-		}
-		else if (myHUD != None)
-		{
-			if (Rx_HUD(myHUD).Scoreboard == none) {
-				Rx_HUD(myHUD).SetShowScores(true);
-			}
-			// Rx_HUD(myHUD).Scoreboard.Scoreboard.SetBool("enabled", true);
-			Rx_HUD(myHUD).Scoreboard.EndGameTime = WorldInfo.RealTimeSeconds + 45.0f;
-			Rx_HUD(myHUD).Scoreboard.Scoreboard.SetVisible(true);
-			Rx_HUD(myHUD).Scoreboard.ServerName.SetVisible(true);
-			Rx_HUD(myHUD).Scoreboard.RootMC.GotoAndStopI(10);
-			//myHUD.SetShowScores(true);
-			//Rx_HUD(myHUD).Scoreboard.FadeMC.GotoAndPlay("FadeIn");
-		}
 		AutoContinueToNextRound();
-	}		
+	}	
 }
 
 event GetSeamlessTravelActorList(bool bToEntry, out array<Actor> ActorList)
@@ -5527,7 +5647,7 @@ simulated function SmoothVehicleExitInMP(out vector POVLocation, vector CalcView
 	}
 	
 	if(bJustExitedVehicle && WorldInfo.NetMode == NM_Client && IsLocalPlayerController()) {
-		if(VSize(CalcViewLocationTemp-POVLocation) > 1000) {
+		if(VSizeSq(CalcViewLocationTemp-POVLocation) > 1000000) {
 			CalcViewLocation = CalcViewLocationTemp;
 			POVLocation = CalcViewLocation;		
 		} else {
@@ -6131,7 +6251,7 @@ function CheckClientpositionUpdates()
 	{	
 		Pawn.TakeDamage(15, none, Pawn.Location, vect(0,0,1), class'UTDmgType_LinkBeam');
 	}
-	else if(LastClientpositionUpdates > 8 && VSize(Pawn.Location - ClientLocTemp) > 150)
+	else if(LastClientpositionUpdates > 8 && VSizeSq(Pawn.Location - ClientLocTemp) > 22500)
 	{
 		ClientLocErrorDuration += 0.5;
 	}
@@ -7766,16 +7886,35 @@ reliable server function ServerUndeclareAFK()
 
 function CheckJumpOrDuck()
 {
+	local RxIfc_PassiveAbility PassivesPawn; 
 	//Check for abilities tied to jumping (EG, jump...boots. RIP Jumpie boots.)
-	if(bPressedJump && RxIfc_PassiveAbility(Pawn) != none)
+	
+	if(RxIfc_PassiveAbility(Pawn) != none)
+		PassivesPawn = RxIfc_PassiveAbility(Pawn);
+	if(PassivesPawn != none)
 	{
-		RxIfc_PassiveAbility(Pawn).ActivateJumpAbility(true);
-	}
+		if(bPressedJump)
+		{
+			PassivesPawn.ActivateJumpAbility(true);
+		}
+			
+		if(bJumpReleased && RxIfc_PassiveAbility(Pawn) != none)
+		{
+			PassivesPawn.ActivateJumpAbility(false);
+		}	
 		
-	if(bJumpReleased && RxIfc_PassiveAbility(Pawn) != none)
-	{
-		RxIfc_PassiveAbility(Pawn).ActivateJumpAbility(false);
-	}	
+		//Check for abilities tied to crouching 
+		if(bDuck !=0)
+		{
+			PassivesPawn.NotifyPassivesCrouched(true);
+		}
+			
+		if(bDuck == 1)
+		{
+			PassivesPawn.NotifyPassivesCrouched(false); 
+		}	
+	}
+	
 	
 	//Parachute Logic 
 	if (Rx_Pawn(Pawn)!= none && bPressedJump && Pawn.Physics == PHYS_Falling)
@@ -7824,7 +7963,7 @@ DefaultProperties
 	AchievementHandler = None	
 	bIsDev = false
 	RadarVisibility = 1 
-	bDebugging = false 
+	bDebugging = true 
 	
 	PTShortDelay = 0.3f
 	PTLongDelay = 1.5f

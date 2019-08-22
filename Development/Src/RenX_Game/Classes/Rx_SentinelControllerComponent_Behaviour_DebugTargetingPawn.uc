@@ -22,7 +22,7 @@ function bool PossiblyTarget(Pawn PotentialTarget, optional bool bOnlyFastTrace,
 		return false;
 
 	//Don't target pawns outside of range.
-	if(VSize(PotentialTarget.Location - Cannon.Location) > Cannon.GetRange())
+	if(VSizeSq(PotentialTarget.Location - Cannon.Location) > Square(Cannon.GetRange()))
 		return false;
 
 	//Always change if current target is dead or nonexistent.

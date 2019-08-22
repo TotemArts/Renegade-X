@@ -32,7 +32,7 @@ function GetRolloutNodes()
 	{
 		if(navPoint.ScriptGetTeamNum() == TeamNum && Rx_HelipadVehRolloutPendingNode(navPoint) == None)
 		{
-			Dist = VSize(navPoint.Location - Controller(Rx_Vehicle(Pawn).buyerPri.Owner).Pawn.Location);
+			Dist = VSizeSq(navPoint.Location - Controller(Rx_Vehicle(Pawn).buyerPri.Owner).Pawn.Location);
 			if(BestPoint == None || BestDist > Dist)
 			{
 				BestPoint = navPoint;
@@ -80,7 +80,7 @@ Begin:
 						break;
 					}
 					if(bParkingNodeReachable) {										
-						DistToBuyer = VSize(rolloutNodes[i].Location - Controller(Rx_Vehicle(Pawn).buyerPri.Owner).Pawn.Location);
+						DistToBuyer = VSizeSq(rolloutNodes[i].Location - Controller(Rx_Vehicle(Pawn).buyerPri.Owner).Pawn.Location);
 						if(DistToBuyerMax == 0.0 || DistToBuyer < DistToBuyerMax)
 						{
 							ScriptedMoveTarget = rolloutNodes[i];	

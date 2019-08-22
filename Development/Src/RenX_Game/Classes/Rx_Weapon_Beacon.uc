@@ -312,7 +312,7 @@ simulated function bool GetNearestSpottargetLocationIsOwnTeamBuilding()
 	
 	foreach AllActors(class'Actor',TempActor,class'RxIfc_SpotMarker') {
 		SpotMarker = RxIfc_SpotMarker(TempActor);
-		DistToSpot = VSize(TempActor.location - owner.location);
+		DistToSpot = VSizeSq(TempActor.location - owner.location);
 		if(NearestSpotDist == 0.0 || DistToSpot < NearestSpotDist) {
 			NearestSpotDist = DistToSpot;	
 			NearestSpotMarker = SpotMarker;

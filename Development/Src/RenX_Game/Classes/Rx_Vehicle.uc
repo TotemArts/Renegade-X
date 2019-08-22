@@ -636,7 +636,7 @@ function Tick( FLOAT DeltaSeconds )
 		}
 	}
 	
-	if( Rx_Vehicle_Treaded(self) != None && Steering != 0 && Throttle > 0 && VSize(Velocity) > SpeedAtWhichToApplyReducedTurningThrottle) 
+	if( Rx_Vehicle_Treaded(self) != None && Steering != 0 && Throttle > 0 && VSizeSq(Velocity) > Square(SpeedAtWhichToApplyReducedTurningThrottle))
 	{
 		Throttle = ReducedThrottleForTurning;
 	}
@@ -1159,7 +1159,7 @@ function bool TryToDrive(Pawn P)
 	}
 
 	// Does the vehicle need to be uprighted?
-	if ( bIsInverted && bMustBeUpright && !bVehicleOnGround && VSize(Velocity) <= 5.0f )
+	if ( bIsInverted && bMustBeUpright && !bVehicleOnGround && VSizeSq(Velocity) <= 25.0f )
 	{
 		if ( bCanFlip )
 		{
@@ -1718,7 +1718,7 @@ function bool RecommendLongRangedAttack()
 {
 	/** To keep bots from ramming eachother go long ranged combat if the enemy is within weaponrange */
 	if(Controller.Enemy != None 
-		&& VSize(Controller.Enemy.location - location) < Weapon.MaxRange()) {
+		&& VSizeSq(Controller.Enemy.location - location) < Square(Weapon.MaxRange())) {
 		// && Weapon.IsAimCorrect()) {
 		return true;
 	} 
@@ -1743,9 +1743,9 @@ function bool RecommendCharge(UTBot B, Pawn Enemy)
 		}
 	}
 	
-	dist = VSize(location - Enemy.location);
+	dist = VSizeSq(location - Enemy.location);
 	
-	if ( Vehicle(Enemy) == None && dist < weapon.MaxRange()) {
+	if ( Vehicle(Enemy) == None && dist < Square(weapon.MaxRange())) {
 		/** check to see if the Enemy is blocked by a vehicle. If so then dont recommend charge */
 		ForEach CollidingActors(class'Vehicle', veh, 500, Enemy.location)
 		{
@@ -1762,7 +1762,7 @@ function bool RecommendCharge(UTBot B, Pawn Enemy)
 	
 	if ( Vehicle(Enemy) == None ) {
 		/** when close and can turn in place or in front or in back then charge*/ 
-		if(dist < (500 + FRand()*200) 
+		if(dist < Square(500 + FRand()*200) 
 			&& (bTurnInPlace || (class'Rx_Utils'.static.OrientationToB(self, Enemy) > 0.7 || class'Rx_Utils'.static.OrientationToB(self, Enemy) < -0.7))) {
 			return true;    
 		}
@@ -1775,11 +1775,11 @@ function bool RecommendCharge(UTBot B, Pawn Enemy)
 		}
 	} else if(Rx_Vehicle_FlameTank(self) != None) {
 		if ( Vehicle(Enemy) == None ) {
-			return Vsize(location - Enemy.location) < 800 + FRand()*300;
+			return VsizeSq(location - Enemy.location) < Square(800 + FRand()*300);
 		}
 	} else if(Rx_Vehicle_StealthTank(self) != None) {
 		if ( Vehicle(Enemy) == None ) {
-			return Vsize(location - Enemy.location) < 1000 + FRand()*400;
+			return VsizeSq(location - Enemy.location) < Square(1000 + FRand()*400);
 		}
 	}
 	
@@ -1804,8 +1804,8 @@ function bool TooCloseToAttack(Actor Other)
 	if ( Vehicle(Other) == None ) {
 		return false;
 	}
-	dist = VSize(Location - Other.Location);
-	return (dist < (300.0 + 200*FRand()));
+	dist = VSizeSq(Location - Other.Location);
+	return (dist < Square(300.0 + 200*FRand()));
 }
 
 function bool ValidEnemyForVehicle(Pawn NewEnemy)
@@ -2428,7 +2428,7 @@ simulated event RigidBodyCollision( PrimitiveComponent HitComponent, PrimitiveCo
 	local float HisOrientationToMe;
 	local float MyOrientationToHim;
 	
-	if(OtherComponent == None || VSize(Velocity - OtherComponent.Owner.Velocity) > 250) {
+	if(OtherComponent == None || VSizeSq(Velocity - OtherComponent.Owner.Velocity) > 62500) {
 		super.RigidBodyCollision(HitComponent,OtherComponent,Collision,ContactIndex);
 	}
 	
@@ -2820,7 +2820,7 @@ simulated function ClientsideVehicleWeaponImpactEffects(vector HitLocation, int 
 	HitNormal = Normal(Location - HitLocation);
 	HitActor = FindWeaponHitNormal(NewHitLoc, HitNormal, (HitLocation - (HitNormal * 32)), HitLocation + (HitNormal * 32),HitInfo);
 
-	if ( (HitActor == None) && (VSize(Location - HitLocation) > 10000) )
+	if ( (HitActor == None) && (VSizeSq(Location - HitLocation) > 1000000000) )
 	{
 		return;
 	}
@@ -2964,7 +2964,7 @@ simulated function CheckWheelEmitters()
 	local UTPhysicalMaterialProperty PhysicalProperty;
 	local int i;
 	
-	if(VSize(Velocity) > 120 && !IsInState('Stealthed') && !IsInState('BeenShot'))
+	if(VSizeSq(Velocity) > 14400 && !IsInState('Stealthed') && !IsInState('BeenShot'))
     {
 		
 		end = Location;
@@ -3815,7 +3815,7 @@ function string GetPawnLocation (Pawn P)
 		
 	foreach WGRI.SpottingArray(TempActor) {
 		SpotMarker = RxIfc_SpotMarker(TempActor);
-		DistToSpot = VSize(TempActor.location - P.location);
+		DistToSpot = VSizeSq(TempActor.location - P.location);
 		if(NearestSpotDist == 0.0 || DistToSpot < NearestSpotDist) {
 			
 			NearestSpotDist = DistToSpot;	
@@ -4379,7 +4379,7 @@ function bool FindAutoExit(Pawn ExitingDriver)
 		}
 	}
 
-	if ( VSize(Velocity) > MinCrushSpeed )
+	if ( VSizeSq(Velocity) > Square(MinCrushSpeed) )
 	{
 		//avoid running driver over by placing in direction away from velocity
 		if ( (Velocity Dot X) < 0 )

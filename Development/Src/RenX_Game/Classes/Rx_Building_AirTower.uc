@@ -8,6 +8,27 @@ simulated function String GetHumanReadableName()
 	return "Airstrip";
 }
 
+function GetAttackPoints()
+{
+    local NavigationPoint N;
+    local Vector Dummy1,Dummy2;
+    local Rx_Building Strip;
+
+    Strip = Rx_Building_AirTower_Internals(BuildingInternals).AirstripInternals.BuildingVisuals;
+
+    foreach WorldInfo.AllNavigationPoints(class'NavigationPoint',N)
+    {
+        if(N.Trace(Dummy1,Dummy2,N.Location,Location,,,,TRACEFLAG_Bullet) != Self && N.Trace(Dummy1,Dummy2,N.Location,Strip.Location,,,,TRACEFLAG_Bullet) != Strip)
+            Continue;
+
+        ViableAttackPoints.AddItem(N);
+
+    }
+
+    if(ViableAttackPoints.length <= 0)
+        `log(GetHumanReadableName()@" : Failed to find viable attack points! Bots may find issues in pathfinding to this building!");
+}
+
 defaultproperties
 {
 	TeamID                  = TEAM_NOD

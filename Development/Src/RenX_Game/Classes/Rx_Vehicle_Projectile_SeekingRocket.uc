@@ -42,7 +42,7 @@ simulated function bool TryHeadshot(Actor Other, Vector HitLocation, Vector HitN
 	local float Scaling;
 	local ImpactInfo Impact;
 	
-	if (Instigator == None || VSize(Instigator.Velocity) < Instigator.GroundSpeed * Instigator.CrouchedPct)
+	if (Instigator == None || VSizeSq(Instigator.Velocity) < Square(Instigator.GroundSpeed * Instigator.CrouchedPct))
 	{
 		Scaling = SlowHeadshotScale;
 	}

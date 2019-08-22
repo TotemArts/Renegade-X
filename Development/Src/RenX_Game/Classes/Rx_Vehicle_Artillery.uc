@@ -55,14 +55,19 @@ function bool TooCloseToAttack(Actor Other)
         return true;
     }
     
-    dist = VSize(Location - Other.Location);
-    return (dist < (700.0 + FRand()*200));
+    dist = VSizeSq(Location - Other.Location);
+    return (dist < Square(700.0 + FRand()*200));
 }
 
 
 DefaultProperties
 {
 
+    Begin Object Name=CollisionCylinder
+    CollisionHeight=100.0
+    CollisionRadius=200.0
+    Translation=(X=0.0,Y=0.0,Z=0.0)
+    End Object
 
 //========================================================\\
 //************** Vehicle Physics Properties **************\\

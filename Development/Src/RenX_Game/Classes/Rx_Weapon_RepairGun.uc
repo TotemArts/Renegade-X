@@ -43,6 +43,19 @@ simulated state Active
 	}
 }
 
+/**
+  * Rx_Weapon (Edit to check if we can pass infantry/vehicles )
+  * returns true if should pass trace through this hitactor
+  */
+simulated static function bool PassThroughDamage(Actor HitActor)
+{
+	return (!HitActor.bBlockActors && (HitActor.IsA('Trigger') || HitActor.IsA('TriggerVolume')))
+		|| HitActor.IsA('InteractiveFoliageActor')
+		|| (default.bPierceInfantry && HitActor.isA('Rx_Pawn'))
+		|| (default.bPierceVehicles && HitActor.isA('Rx_Vehicle'));
+}
+
+
 simulated function bool IsEnemy(actor actor)
 {
 	if (Instigator.GetTeamNum() == 0 && actor.GetTeamNum() == 1)
@@ -485,7 +498,7 @@ function bool CanHeal(Actor Other)
 
 function bool CanAttack(Actor Other)
 {
-	if(VSize(Instigator.GetWeaponStartTraceLocation() - Other.Location) <= WeaponRange - 100)
+	if(VSizeSq(Instigator.GetWeaponStartTraceLocation() - Other.Location) <= Square(WeaponRange - 100))
 
 	if(Rx_Weapon_DeployedActor(Other) != None)
 		return super.CanAttack(Other);
@@ -650,7 +663,7 @@ simulated function UpdateBeam(float DeltaTime)
 		&& Rx_Weapon_DeployedC4(PrevHitActor) != None)
 	{
 		//loginternal(VSize(RealImpact.HitLocation - PrevHitActor.Location));
-		if(VSize(RealImpact.HitLocation - PrevHitActor.Location) < 20)
+		if(VSizeSq(RealImpact.HitLocation - PrevHitActor.Location) < 400)
 		{
 			RealImpact.HitActor = PrevHitActor;	
 		}

@@ -328,8 +328,8 @@ defaultproperties
 //========================================================\\
 
     Begin Object Name=CollisionCylinder
-        CollisionHeight=+200.0
-        CollisionRadius=+300.0
+        CollisionHeight=+100.0
+        CollisionRadius=+150.0
         Translation=(X=-40.0,Y=0.0,Z=40.0)
     End Object
 

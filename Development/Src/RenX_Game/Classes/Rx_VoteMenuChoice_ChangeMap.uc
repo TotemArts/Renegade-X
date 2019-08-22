@@ -12,7 +12,7 @@ function string ComposeTopString()
 
 function Execute(Rx_Game game)
 {
-	game.EndRxGame("triggered", 255);
+	game.EndGame(None, "triggered");
 }
 
 DefaultProperties

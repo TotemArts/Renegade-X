@@ -36,7 +36,7 @@ simulated function GetFireStartLocationAndRotation(out vector SocketLocation, ou
     
     if( (Rx_Bot(MyVehicle.Controller) != None) && (Rx_Bot(MyVehicle.Controller).GetFocus() != None) ) {
         if(class'Rx_Utils'.static.OrientationOfLocAndRotToB(SocketLocation,SocketRotation,Rx_Bot(MyVehicle.Controller).GetFocus()) > 0.7) {
-    		if(VSize(Rx_Bot(MyVehicle.Controller).GetFocus().location - MyVehicle.location) < CloseRangeAimAdjustRange)
+    		if(VSizeSq(Rx_Bot(MyVehicle.Controller).GetFocus().location - MyVehicle.location) < Square(CloseRangeAimAdjustRange))
     			MaxFinalAimAdjustment = 0.450;	
 			else            
             	MaxFinalAimAdjustment = 0.990;

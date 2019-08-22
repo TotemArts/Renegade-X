@@ -524,60 +524,6 @@ function TakeDamage(int Damage, Controller InstigatedBy, vector HitLocation, vec
 	return;
 }
 
-//Overriden to make HitLocation more meaningful.
-simulated function TakeRadiusDamage
-(
-	Controller			InstigatedBy,
-	float				BaseDamage,
-	float				DamageRadius,
-	class<DamageType>	DamageType,
-	float				Momentum,
-	vector				HurtOrigin,
-	bool				bFullDamage,
-	Actor               DamageCauser,
-	optional float      DamageFalloffExponent=1.f
-)
-{
-	local float		ColRadius, ColHeight;
-	local float		DamageScale, Dist;
-	local Vector	Dir;
-	local Vector	HitLocation, HitNormal;
-
-
-	GetBoundingCylinder(ColRadius, ColHeight);
-
-	Dir	= Location - HurtOrigin;
-	Dist = VSize(Dir);
-	Dir	= Normal(Dir);
-
-	if ( bFullDamage )
-	{
-		DamageScale = 1;
-	}
-	else
-	{
-		Dist = FClamp(Dist - ColRadius, 0.f, DamageRadius);
-		DamageScale = 1 - Dist/DamageRadius;
-	}
-
-	if (DamageScale > 0.f)
-	{
-		if(WorldInfo.Trace(HitLocation, HitNormal, Location, HurtOrigin, true,,, TRACEFLAG_Bullet) == none)
-		{
-			HitLocation = Location - 0.5 * (ColHeight + ColRadius) * Dir;
-		}
-
-		TakeDamage
-		(
-			DamageScale * BaseDamage,
-			InstigatedBy,
-			HitLocation,
-			(DamageScale * Momentum * Dir),
-			DamageType,,
-			DamageCauser
-		);
-	}
-}
 
 simulated function PlayTakeHitEffects()
 {
@@ -974,7 +920,7 @@ function bool FireAt(Vector Spot)
 	{
         Origin = GetPawnViewLocation();
 
-		if(VSize(Spot - Origin) <= GetRange())
+		if(VSizeSq(Spot - Origin) <= Square(GetRange()))
 		{
 			if(SWeapon.FireAt(Origin, CurrentAim, Spot))
 			{
@@ -1252,7 +1198,7 @@ simulated function Destroyed()
 
 simulated function Vector GetTargetLocation(optional Actor RequestedBy, optional bool bRequestAlternateLoc)
 {
-	return bRequestAlternateLoc ? BaseComponent.GetPosition() : WeaponComponent.GetPosition();
+	return WeaponComponent.GetPosition();
 }
 
 simulated function DisplayDebug(HUD HUD, out float out_YL, out float out_YPos)
@@ -1278,9 +1224,6 @@ simulated function DisplayDebug(HUD HUD, out float out_YL, out float out_YPos)
 	out_YPos += out_YL;
 
 	HUD.Canvas.DrawText("CurrentAim:"@CurrentAim);
-	out_YPos += out_YL;
-
-	HUD.Canvas.DrawText("BaseComponent:"@BaseComponent.Rotation);
 	out_YPos += out_YL;
 
 	HUD.Canvas.DrawText("AutoRotateYaw:"@AutoRotateYaw);

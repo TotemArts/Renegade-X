@@ -238,7 +238,7 @@ state Hunting
 		SetDestinationPosition( LastSeeingPos );
 		bEnemyInfoValid = false;
 		if ( FastTrace(Enemy.Location, ViewSpot)
-			&& VSize(Pawn.Location - GetDestinationPosition()) > Pawn.CylinderComponent.CollisionRadius )
+			&& VSizeSq(Pawn.Location - GetDestinationPosition()) > Square(Pawn.CylinderComponent.CollisionRadius) )
 			{
 				SeePlayer(Enemy);
 				return;
@@ -253,7 +253,7 @@ state Hunting
 		{
 			Dir = Pawn.Location - LastSeenPos;
 			Dir.Z = 0;
-			if ( VSize(Dir) < Pawn.GetCollisionRadius() )
+			if ( VSizeSq(Dir) < Square(Pawn.GetCollisionRadius()) )
 			{
 				GoalString = "Stakeout 3 from hunt";
 				GotoState('StakeOut');
@@ -2164,29 +2164,15 @@ function bool GoToBaughtVehicle()
 
 function FindVehicleWaitingSpot(Actor FactorySpot)
 {
-	local Actor BestPath;
+	local Vector BestPath;
 
 	//Check if previous Route Goal is already close enough
 
-	if(FactorySpot == None || (RouteGoal != None && (VSize(RouteGoal.Location - FactorySpot.Location) <= 1000 || RouteGoal == Pawn.Anchor)))
-	{
-		if(!Pawn.ReachedDestination(MoveTarget))
-		{
-			GoToState('WaitingForVehicle');
-			return;
-		}
-	}
-	else
-	{
-		class'Rx_NavUtils'.static.GatePathFindActor(pawn, FactorySpot, BestPath);
 
-		if(BestPath == None)
-		{
-			RouteGoal = Pawn.Anchor;
-		}
-		else
-			RouteGoal = FactorySpot;
-	}
+	class'Rx_NavUtils'.static.GatePathFindActor(pawn, FactorySpot, ,BestPath);
+
+	RouteGoal = FactorySpot;
+
 
 	if(Pawn.ReachedDestination(RouteGoal))
 	{	
@@ -2195,9 +2181,9 @@ function FindVehicleWaitingSpot(Actor FactorySpot)
 	}
 
 	if(NavigationHandle.ActorReachable(RouteGoal))
-		MoveTarget = RouteGoal;
+		NavMoveTarget = RouteGoal.Location;
 	else
-		MoveTarget = FindPathToward(RouteGoal,true);
+		NavMoveTarget = BestPath;
 
 	GoToState('WaitingForVehicle');
 }
@@ -2963,7 +2949,8 @@ function bool FindDestinationToPT(Actor PTPoint)
 
 function bool FindInfiltrationPath()
 {
-	local actor BestPath, InfilPoint;
+	local actor InfilPoint;
+	local vector BestPath;
 
 
 	if(CurrentBO == None)
@@ -2994,24 +2981,9 @@ function bool FindInfiltrationPath()
 	
 	NavigationHandle.SetFinalDestination(RouteGoal.Location);
 
-	class'Rx_NavUtils'.static.GatePathFindActor(pawn, RouteGoal, BestPath);
+	class'Rx_NavUtils'.static.GatePathFindActor(pawn, RouteGoal, ,BestPath);
 
-	if(BestPath == None)
-	{
-		BestPath = FindRandomDest();
-		if(BestPath != None)
-			BestPath = RouteCache[0];
-
-		if(BestPath == None)
-		{
-			GoalString = "ERROR FINDING PATH TO INFILTRATION POINT";
-			DoRandomJumps();
-			return false;
-		}
-		else		
-	}
-
-	MoveTarget = BestPath;
+	NavMoveTarget = BestPath;
 
 	SetAttractionState();
 	return true;
@@ -3020,8 +2992,8 @@ function bool FindInfiltrationPath()
 
 function bool FindVehicleAssaultPath()
 {
-	local actor BestPath, BuildingPoint;
-	local vector Dummy1,Dummy2;
+	local vector BestPath;
+	local Actor BuildingPoint;
 
 
 	if(CurrentBO == None)
@@ -3049,44 +3021,16 @@ function bool FindVehicleAssaultPath()
 	}
 
 
-	BuildingPoint = CurrentBO;
+	BuildingPoint = CurrentBO.myBuilding;
 
-	if(RouteGoal == BuildingPoint && MoveTarget != None && !Pawn.ReachedDestination(MoveTarget))
-	{
-		SetAttractionState();
-		return true;
-	}
-
-	if(RouteGoal == BuildingPoint && MoveTarget != None && !Pawn.ReachedDestination(MoveTarget))
-	{
-		SetAttractionState();
-		return true;
-	}
-
-	if(RouteGoal != BuildingPoint || VSize(Rx_BuildingObjective(BuildingPoint).myBuilding.Location - BuildingPoint.Location) > 200 || (RouteGoal != BuildingPoint && Trace(Dummy1, Dummy2, CurrentBO.myBuilding.location, RouteGoal.location) == None))
+	if(RouteGoal != BuildingPoint)
 		RouteGoal = BuildingPoint;
 
 	NavigationHandle.SetFinalDestination(RouteGoal.Location);
 	
-	class'Rx_NavUtils'.static.GatePathFindActor(pawn, RouteGoal, BestPath);
+	class'Rx_NavUtils'.static.GatePathFindActor(pawn, RouteGoal, ,BestPath);
 
-	if(BestPath == None)
-	{
-		BestPath = FindRandomDest();
-
-
-		if(BestPath == None)
-		{
-			GoalString = "ERROR FINDING PATH TO INFILTRATION POINT";
-			DoRandomJumps();
-			SetAttractionState();
-			return false;
-		}
-		else
-			BestPath = RouteCache[0];		
-	}
-
-	MoveTarget = BestPath;
+	NavMoveTarget = BestPath;
 
 	SetAttractionState();
 	return true;
@@ -3145,7 +3089,7 @@ Moving:
 		}
 	}
 
-	MoveTo(MoveTarget.Location,FaceActor(1),GetDesiredOffset());
+	MoveTo(NavMoveTarget,FaceActor(1),GetDesiredOffset());
 
 	if(HasABeacon() && VSize(CurrentBO.myBuilding.Location - Pawn.Location) < 300)
 	{
@@ -3201,7 +3145,7 @@ Moving:
 
 	WaitForLanding();
 
-	MoveTo(MoveTarget.Location,FaceActor(1),GetDesiredOffset());
+	MoveTo(NavMoveTarget,FaceActor(1),GetDesiredOffset());
 
 
 	if(CanAttack(CurrentBO.myBuilding.GetMCT()) && (Enemy == None || Rx_Weapon_TimedC4(Pawn.Weapon) != None))
@@ -3276,7 +3220,8 @@ Moving:
 		ChooseAttackMode();
 	}
 
-	MoveTo(MoveTarget.Location,FaceActor(1),GetDesiredOffset());
+	if(!CanAttack(CurrentBO.myBuilding)) 
+		MoveTo(NavMoveTarget,FaceActor(1),GetDesiredOffset());
 
 	if((Enemy == None || VSize(Enemy.Location - Pawn.Location) > 500) && HasABeacon() && VSize(CurrentBO.myBuilding.Location - Pawn.Location) < 300)
 	{
@@ -3345,7 +3290,8 @@ Moving:
 		}
 	}
 
-	MoveTo(MoveTarget.Location,FaceActor(1),GetDesiredOffset());
+	if(!CanAttack(CurrentBO.myBuilding)) 
+		MoveTo(NavMoveTarget,FaceActor(1),GetDesiredOffset());
 
 
 	if(CanAttack(CurrentBO.myBuilding) && (Enemy == None || !CanAttack(Enemy)))

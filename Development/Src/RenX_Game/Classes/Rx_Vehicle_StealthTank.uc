@@ -866,6 +866,12 @@ simulated function ChangeStealthVisibilityParam(bool ForOnFoot, optional float P
 
 DefaultProperties
 {
+    Begin Object Name=CollisionCylinder
+    CollisionHeight=100.0
+    CollisionRadius=200.0
+    Translation=(X=0.0,Y=0.0,Z=0.0)
+    End Object
+
    	TimeStealthDelay = 4.0f    //  seconds we need to stay without action to get stealthed
    	LowHpMult = 0.15f           //  HealthMax * LowHpMult is the value for LowHP (damaged) use
 

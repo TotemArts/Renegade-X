@@ -866,8 +866,8 @@ function float SuggestAttackStyle()
 	if (Instigator.Controller.Enemy != None)
 	{
 		// recommend backing off if target is too close
-		EnemyDist = VSize(Instigator.Controller.Enemy.Location - Owner.Location);
-		if ( EnemyDist < GetOptimalRangeFor(Instigator.Controller.Enemy) )
+		EnemyDist = VSizeSq(Instigator.Controller.Enemy.Location - Owner.Location);
+		if ( EnemyDist < Square(GetOptimalRangeFor(Instigator.Controller.Enemy) ))
 		{
 			return -1.5;
 		} 
@@ -1028,7 +1028,7 @@ function CheckTargetLock()
         // only try locking onto bot's target
         if ( (BotController.Focus != None) && CanLockOnTo(BotController.Focus) )
         {
-        	if(VSize(BotController.Focus.Velocity) < 150) {
+        	if(VSizeSq(BotController.Focus.Velocity) < 22500) {
 				BestTarget = BotController.Focus;
 			} else {
 				if(Rx_Bot(BotController) != None) {
@@ -1239,7 +1239,7 @@ simulated function bool TryHeadshot(byte FiringMode, ImpactInfo Impact)
 	//scripttrace();	
 	if(WeaponFireTypes[FiringMode] == EWFT_InstantHit)
 	{
-		if (Instigator == None || VSize(Instigator.Velocity) < Instigator.GroundSpeed * Instigator.CrouchedPct)
+		if (Instigator == None || VSizeSq(Instigator.Velocity) < Square(Instigator.GroundSpeed * Instigator.CrouchedPct))
 		{
 			Scaling = SlowHeadshotScale;
 		}
@@ -1391,7 +1391,7 @@ reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, T
 	{
 		return;  
 	}
-	if (Target != none && VSize(Target.Location - HitLocation) > 250 )
+	if (Target != none && VSizeSq(Target.Location - HitLocation) > 62500 )
 	{
 		return;
 	}
@@ -1536,12 +1536,12 @@ reliable server function ServerALHit(Actor Target, vector HitLocation, TraceHitI
 	}
 	if (Target != none)
 	{
-		HitDistDiff = VSize(Target.Location - HitLocation);
+		HitDistDiff = VSizeSq(Target.Location - HitLocation);
 		if(Rx_Building(Target) != None) {
-			if(HitDistDiff > 3000) {
+			if(HitDistDiff > 9000000) {
 				return;
 			}
-		} else if(HitDistDiff > 800) {
+		} else if(HitDistDiff > 640000) {
 			return;
 		}
 	}
@@ -1596,7 +1596,7 @@ reliable server function ServerALRadiusDamage(Actor Target, vector HurtOrigin, b
 		return;  
 	}
 	/** Useless lines ??
-	if (Target != none && VSize(Target.Location - HurtOrigin) > 400 )
+	if (Target != none && VSizeSq(Target.Location - HurtOrigin) > 160000 )
 	{
 		return;
 	}

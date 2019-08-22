@@ -60,7 +60,7 @@ function KeyPress(byte T)
 	else if (CurrentTier == 2)
 	{
 			// accept 1 - 9 if cheater bots are enabled
-		if(`RxGameObject.CheckCheatBot())
+		if(IsCheatBotEnabled())
 		{
 			if (T >= 1 && T <= 9)
 			{
@@ -206,7 +206,6 @@ function AdjustSkill(UTBot B)
 {
 	B.Skill = Skill;
 	B.ResetSkill();
-	Rx_PRI(B.PlayerReplicationInfo).BotSkill = Skill;
 }
 
 DefaultProperties

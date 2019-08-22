@@ -431,7 +431,7 @@ function bool FindNewEnemyFor(UTBot B, bool bSeeEnemy)
 			}
 			else if ( Enemies[i] != BestEnemy )
 			{
-				if ( VSize(Enemies[i].Location - B.Pawn.Location) < 1500 )
+				if ( VSizeSq(Enemies[i].Location - B.Pawn.Location) < 2250000 )
 					bSeeNew = B.LineOfSightTo(Enemies[i]);
 				else
 					bSeeNew = B.CanSee(Enemies[i]);	// only if looking at him
@@ -454,6 +454,85 @@ function bool FindNewEnemyFor(UTBot B, bool bSeeEnemy)
 		return true;
 	}
 	return false;
+}
+
+function float AssessThreat( UTBot B, Pawn NewThreat, bool bThreatVisible )
+{
+	local float ThreatValue, Dist, BuildingDist;
+	local bool bCloseThreat;
+	local class<Rx_FamilyInfo> FI;
+
+	ThreatValue = 0.5;
+
+	Dist = VSizeSq(NewThreat.Location - B.Pawn.Location);
+
+	if(GetOrders() == 'DEFEND')
+	{
+		BuildingDist = VSizeSq(NewThreat.Location - Rx_BuildingObjective(SquadObjective).myBuilding.location);
+		Dist = FMax(Dist,BuildingDist);
+	}
+	
+	if ( Dist < 6250000 )
+	{
+		bCloseThreat = true;
+		ThreatValue += (6250000 - Dist)/6250000;
+	}
+
+	if (Rx_Pawn(NewThreat) != None)
+	{
+		FI = class<Rx_FamilyInfo>(Rx_Pawn(NewThreat).CurrCharClassInfo);
+		ThreatValue += FI.static.Cost(Rx_PRI(NewThreat.PlayerReplicationInfo)) / 1000.0;
+	}
+
+	else if (Rx_Vehicle(NewThreat) != None && Rx_Bot(B).IdealToAttack(NewThreat))
+	{
+		if(Rx_Vehicle_Harvester(NewThreat) != None)
+			ThreatValue += 3;
+		else
+			ThreatValue += Rx_Vehicle(NewThreat).BasePurchaseCost / 1000.0;
+	}
+
+	// prefer enemies bot is good at killing
+	if ( (B.Pawn != None) && (B.Pawn.Weapon != None) )
+	{
+		ThreatValue += UTWeapon(B.Pawn.Weapon).RelativeStrengthVersus(NewThreat, Dist);
+	}
+
+	if (Rx_Pawn_SBH(NewThreat) != None || Rx_Vehicle_StealthTank(NewThreat) != None)
+		ThreatValue += 0.25;
+
+	if ( bThreatVisible )
+		ThreatValue += 1;
+
+	if ( (UTVehicle(NewThreat) != None) && UTVehicle(NewThreat).bKeyVehicle )
+	{
+		ThreatValue += 0.25;
+	}
+
+	if ( NewThreat == B.Enemy )
+	{
+		if ( bThreatVisible && bCloseThreat )
+		{
+			ThreatValue += 0.1 * FMax(0, 5 - B.Skill);
+		}
+	}
+	else if ( B.Enemy != None )
+	{
+		if ( !bThreatVisible )
+			ThreatValue -= 5;
+		else if ( WorldInfo.TimeSeconds - B.LastSeenTime > 2 )
+		{
+			ThreatValue += 1;
+		}
+		if ( Dist > 0.49 * VSizeSq(B.Enemy.Location - B.Pawn.Location) )
+			ThreatValue -= 0.25;
+		ThreatValue -= 0.2;
+	}
+
+	ThreatValue = ModifyThreat(ThreatValue,NewThreat,bThreatVisible,B);
+
+	//`log(B.GetHumanReadableName()$" assess threat "$ThreatValue$" for "$NewThreat.GetHumanReadableName());
+	return ThreatValue;
 }
 
 function bool MustKeepEnemy(Pawn E)
@@ -550,7 +629,7 @@ function bool CheckDeployablePriority(Rx_Bot B, Rx_Weapon_DeployedActor D)
 
 	DA = B.DetectedDeployable;
 
-	if(Rx_Weapon_DeployedBeacon(DA) != None && VSize(DA.location - Rx_BuildingObjective(SquadObjective).myBuilding.location) < 1000)
+	if(Rx_Weapon_DeployedBeacon(DA) != None && VSizeSq(DA.location - Rx_BuildingObjective(SquadObjective).myBuilding.location) < 1000000)
 	{
 		bCurrentIsImportant = true;
 	}
@@ -559,7 +638,7 @@ function bool CheckDeployablePriority(Rx_Bot B, Rx_Weapon_DeployedActor D)
 		bCurrentIsImportant = true;
 	}
 
-	if(Rx_Weapon_DeployedBeacon(D) != None && VSize(D.location - Rx_BuildingObjective(SquadObjective).myBuilding.location) < 1000)
+	if(Rx_Weapon_DeployedBeacon(D) != None && VSizeSq(D.location - Rx_BuildingObjective(SquadObjective).myBuilding.location) < 1000000)
 	{
 		bSelectedIsImportant = true;
 	}

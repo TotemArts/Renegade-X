@@ -184,7 +184,7 @@ function byte BestMode()
 	{
 		foreach Remotes(D)
 		{
-			if(VSize(Instigator.Location - D.Location) <= 400 && RemoteDetonationFailure < 3)
+			if(VSizeSq(Instigator.Location - D.Location) <= 160000 && RemoteDetonationFailure < 3)
 			{
 				RemoteDetonationFailure++;
 				return 0;

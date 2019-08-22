@@ -117,7 +117,7 @@ function NavigationPoint GetNextPathnodeForPawnToRoamTo(Pawn P)
 		}
 		else
 		{
-			bOkStrafeSpot = !P.Anchor.bBlocked && VSize(P.Anchor.Location - self.location) < BaseRadius;
+			bOkStrafeSpot = !P.Anchor.bBlocked && VSizeSq(P.Anchor.Location - self.location) < Square(BaseRadius);
 			if(bOkStrafeSpot && bLineOfSightArea) {
 				bOkStrafeSpot = FastTrace(self.Location, P.Anchor.Location);
 			}
@@ -155,7 +155,7 @@ function NavigationPoint GetNextPathnodeForPawnToRoamTo(Pawn P)
 				Nav = P.Anchor.PathList[i].GetEnd();
 				if (Nav != self && !Nav.bSpecialMove)
 				{
-					bOkStrafeSpot = !Nav.bBlocked && VSize(Nav.Location - self.location) < BaseRadius;
+					bOkStrafeSpot = !Nav.bBlocked && VSizeSq(Nav.Location - self.location) < Square(BaseRadius);
 					if(bOkStrafeSpot && bLineOfSightArea) {
 						bOkStrafeSpot = FastTrace(self.Location, Nav.Location);
 					}
@@ -223,7 +223,7 @@ function bool NavCanBeHitByAO(Rx_Bot B, Navigationpoint Nav)
 function bool NearObjective(Pawn P)
 {
 	local bool bIsNear;
-	bIsNear = VSize(Location - P.Location) < BaseRadius;
+	bIsNear = VSizeSq(Location - P.Location) < Square(BaseRadius);
 	if(bIsNear && bLineOfSightArea) {	
 		bIsNear = FastTrace(self.location,P.location);
 	}

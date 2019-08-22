@@ -370,7 +370,12 @@ function UTGameObjective GetAllInRushObjectiveFor(UTSquadAI AnAttackSquad, Contr
 
 	}
 
-	if(TowerBO != None)
+	if(EnemyBO.Length <= 0)
+	{
+		`warn(Self@" : Enemy team has no buildings or is missing Rx_BuildingObjective! Unable to resolve AllIn attack!");
+	}
+
+	if(Vehicle(InController.Pawn) == None && TowerBO != None)
 	{
 		if(PPBO != None)
 			PickedObjective = PPBO;
@@ -845,7 +850,17 @@ function RequestDisarm(Rx_Controller Requester, Rx_Weapon_DeployedActor D)
 
 function CriticalObjectiveWarning(UTGameObjective G, Pawn NewEnemy)
 {
-	Squads.CheckSquadObjectives(Squads.SquadMembers);
+	local UTSquadAI S;
+
+	for (S = Squads; S != None; S = S.NextSquad)
+	{
+		if(S.GetOrders() != 'DEFEND')
+			continue;
+
+
+		S.CheckSquadObjectives(S.SquadMembers);
+		S.AddEnemy(NewEnemy);
+	}
 }
 
 function OnBuildingDefenseRequest(Rx_Controller C,Rx_Building B)

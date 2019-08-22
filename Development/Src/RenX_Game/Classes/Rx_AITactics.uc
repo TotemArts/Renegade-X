@@ -62,6 +62,8 @@ function bool PurchaseMaterial(Rx_Bot B)
 	local int Choice, InfantryCost, VehicleCost; 
 
 	local String TempString;
+	local int i;
+	local bool bOverridingPurchase;
 
 	if(WorldInfo == None)
 		WorldInfo = class'WorldInfo'.static.GetWorldInfo();
@@ -104,13 +106,27 @@ function bool PurchaseMaterial(Rx_Bot B)
 
 		TempString = FilteredFI[Choice].static.BotPTString();
 
-		if(B.PTTask != "" && B.PTTask != "Refill")
-			B.PTQueue.AddItem(TempString);
+		if(B.PTTask != "" && B.PTTask != "Refill" && Left(B.PTTask,8) != "Buy Char" && B.PTTask != "Rebuy Char")
+		{
+			for (i = 0; i < B.PTQueue.Length; i++)
+			{
+				if( Left(B.PTQueue[i],8) == "Buy Char" || B.PTQueue[i] == "Rebuy Char")
+				{
+					bOverridingPurchase = true;
+					B.PTQueue[i] = TempString;
+					break;
+				}
+			}	
+
+			if(!bOverridingPurchase) 
+				B.PTQueue.AddItem(TempString);
+		}
 		else
 			B.PTTask = TempString;
 
 		B.TacticsPTTask = TempString;
 
+		bOverridingPurchase = false;
 
 		if(FilteredV.length > 0)	
 		{
@@ -119,8 +135,23 @@ function bool PurchaseMaterial(Rx_Bot B)
 
 			TempString = FilteredV[Choice].static.BotPTString();
 
-			if(B.PTTask != "")
+			if(B.PTTask != "" && B.PTTask != "Random Buy Vehicle" && Left(B.PTTask, 11) != "Buy Vehicle")
+			{
+				for (i = 0; i < B.PTQueue.Length; i++)
+				{
+					if( Left(B.PTTask, 11) == "Buy Vehicle" || B.PTQueue[i] == "Random Buy Vehicle")
+					{
+						bOverridingPurchase = true;
+						B.PTQueue[i] = TempString;
+						break;
+					}
+				}
+
+				if(!bOverridingPurchase) 
 				B.PTQueue.AddItem(TempString);
+			}	
+
+	
 			else
 				B.PTTask = TempString;
 		}
@@ -135,9 +166,25 @@ function bool PurchaseMaterial(Rx_Bot B)
 
 			TempString = FilteredV[Choice].static.BotPTString();
 
+			bOverridingPurchase = false;
 
-			if(B.PTTask != "")
-				B.PTQueue.AddItem(TempString);
+			if(B.PTTask != "" && B.PTTask != "Random Buy Vehicle" && Left(B.PTTask, 11) != "Buy Vehicle")
+			{
+				for (i = 0; i < B.PTQueue.Length; i++)
+				{
+					if( Left(B.PTTask, 11) == "Buy Vehicle" || B.PTQueue[i] == "Random Buy Vehicle")
+					{
+						bOverridingPurchase = true;
+						B.PTQueue[i] = TempString;
+						break;
+					}
+				}
+
+				if(!bOverridingPurchase) 
+					B.PTQueue.AddItem(TempString);
+			}	
+
+
 			else
 				B.PTTask = TempString;
 
@@ -152,9 +199,23 @@ function bool PurchaseMaterial(Rx_Bot B)
 
 			TempString = FilteredFI[Choice].static.BotPTString();
 
+			bOverridingPurchase = false;
 		
-			if(B.PTTask != "" && B.PTTask != "Refill")
-				B.PTQueue.AddItem(TempString);
+			if(B.PTTask != "" && B.PTTask != "Refill" && Left(B.PTTask,8) != "Buy Char" && B.PTTask != "Rebuy Char")
+			{
+				for (i = 0; i < B.PTQueue.Length; i++)
+				{
+					if( Left(B.PTQueue[i],8) == "Buy Char" || B.PTQueue[i] == "Rebuy Char")
+					{
+						bOverridingPurchase = true;
+						B.PTQueue[i] = TempString;
+						break;
+					}
+				}	
+
+				if(!bOverridingPurchase) 
+					B.PTQueue.AddItem(TempString);
+			}
 			else
 				B.PTTask = TempString;
 

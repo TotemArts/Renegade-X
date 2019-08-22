@@ -155,6 +155,11 @@ function vector GetVelocity()
 DefaultProperties
 {
 
+    Begin Object Name=CollisionCylinder
+    CollisionHeight=160.0
+    CollisionRadius=200.0
+    Translation=(X=0.0,Y=0.0,Z=0.0)
+    End Object
 
 //========================================================\\
 //************** Vehicle Physics Properties **************\\

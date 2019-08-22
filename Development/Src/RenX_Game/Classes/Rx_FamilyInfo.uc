@@ -83,6 +83,7 @@ var const Texture2D PT_Icon;
 //Passive abilities of this class 
 var class<Rx_PassiveAbility> PassiveAbilities[3] ; //Hold passive abilities 
 var bool bHasParachute; //Generally yes
+var float FallspeedModifier; //How much faster can we fall before taking fall damage (*X)
 
 // Purchasing
 static function Purchase(Rx_PRI Context) {
@@ -321,6 +322,7 @@ DefaultProperties
 	Role = ROLE_Offense
 	SpeedMultiplier=1.0
 	JumpMultiplier=1.0
+	FallspeedModifier = 1.0
 	DamagePointsMultiplier=0.05 /*Stock, 1 point/credit per 20 damage. That puts a Rifle soldier at giving away 10 points total without a death bonus*/
 	
 	bHasParachute = true //True for basically every class

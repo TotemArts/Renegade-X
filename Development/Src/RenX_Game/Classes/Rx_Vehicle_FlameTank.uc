@@ -60,7 +60,7 @@ function bool ValidEnemyForVehicle(Pawn NewEnemy)
 		//loginternal("1");
 		return false;	
 	} 
-	if(VSize(location - NewEnemy.location) < Weapon.MaxRange()) {
+	if(VSizeSq(location - NewEnemy.location) < Square(Weapon.MaxRange())) {
 		//loginternal("2");
 		return true;	
 	}
@@ -82,7 +82,11 @@ simulated function SetHeroicMuzzleFlash(bool SetTrue)
 DefaultProperties
 {
 
-
+    Begin Object Name=CollisionCylinder
+    CollisionHeight=100.0
+    CollisionRadius=200.0
+    Translation=(X=0.0,Y=0.0,Z=0.0)
+    End Object
 
 //========================================================\\
 //************** Vehicle Physics Properties **************\\

@@ -258,6 +258,9 @@ simulated function ProcessTouch(Actor Other, Vector HitLocation, Vector HitNorma
 	//Don't double dip on pierced actor
 	if(PiercedActors.Find(Other) > -1)
 		return;
+
+	if (Rx_Weapon_DeployedTimedC4(Other) != None)
+		Other = Rx_Weapon_DeployedTimedC4(Other).ImpactedActor;
 	
 	VAdjustedDamage=Damage*GetDamageModifier(VRank, InstigatorController); //*Vet_DamageIncrease[VRank];
 	
@@ -294,7 +297,11 @@ simulated function ProcessTouch(Actor Other, Vector HitLocation, Vector HitNorma
 						&& !isAirstrikeProjectile()) {
 				if(Pawn(Other) != None && Pawn(Other).Health > 0 && UTPlayerController(Instigator.Controller) != None && Pawn(Other).GetTeamNum() != Instigator.GetTeamNum()) {
 					Rx_Hud(UTPlayerController(Instigator.Controller).myHud).ShowHitMarker();
-					if(Rx_Pawn(Other) != None) Rx_Controller(Instigator.Controller).AddHit() ;
+					if(Rx_Pawn(Other) != None)
+					{
+						Rx_Controller(Instigator.Controller).AddHit() ;
+						Rx_Controller(Instigator.Controller).PlayHitMarkerSound();
+					}
 				}
 				if(FracturedStaticMeshActor(Other) != None || DObj != None)
 					Other.TakeDamage(VAdjustedDamage,InstigatorController,HitLocation,MomentumTransfer * Normal(Velocity), MyDamageType,, self);	
@@ -352,7 +359,7 @@ simulated function bool TryHeadshot(Actor Other, Vector HitLocation, Vector HitN
     local float Scaling;
     local ImpactInfo Impact;
     
-    if (Instigator == None || VSize(Instigator.Velocity) < Instigator.GroundSpeed * Instigator.CrouchedPct)
+    if (Instigator == None || VSizeSq(Instigator.Velocity) < Square(Instigator.GroundSpeed * Instigator.CrouchedPct))
     {
         Scaling = SlowHeadshotScale;
     }
@@ -500,11 +507,11 @@ simulated function SpawnExplosionEffects(vector HitLocation, vector HitNormal)
 		{
 			foreach LocalPlayerControllers(class'PlayerController', PC)
 			{
-				Distance = VSize(PC.ViewTarget.Location - HitLocation);
+				Distance = VSizeSq(PC.ViewTarget.Location - HitLocation);
 				 
 				// dont spawn explosion effect if far away and no direct line of sight or if behind and relatively far away 
 				//EDIT: Yosh: Fairly certain the line-of-sight is already checked for! 
-				if (ROLE < ROLE_Authority && ( PC.ViewTarget != None && Distance > 12000))
+				if (ROLE < ROLE_Authority && ( PC.ViewTarget != None && Distance > 144000000))
 				{
 					if (ExplosionSound != None && !bSuppressSounds)
 					{

@@ -332,14 +332,14 @@ function Explosion()
 	{
 		bBuildingHit = false;
 
-		if (VSize(B.Location-Location) <= BuildingDmgRadius)
+		if (VSizeSq(B.Location-Location) <= Square(BuildingDmgRadius))
 			bBuildingHit=true;
 		else if (B.BuildingInternals.Trace2dTargets.Length > 0)
 		{
 			foreach B.BuildingInternals.Trace2dTargets(BuildingLocation)
 			{
 				FlatLocation.Z = BuildingLocation.Z;
-				if (VSize(BuildingLocation-FlatLocation) <= BuildingDmgRadius)
+				if (VSizeSq(BuildingLocation-FlatLocation) <= Square(BuildingDmgRadius))
 					bBuildingHit=true;
 				else
 				{
@@ -347,7 +347,7 @@ function Explosion()
 					{  
 						if (tracedB == B)
 						{
-							if (VSize(HitLoc-FlatLocation) <= BuildingDmgRadius)
+							if (VSizeSq(HitLoc-FlatLocation) <= Square(BuildingDmgRadius))
 								bBuildingHit = true;
 							break;
 						}
@@ -363,7 +363,7 @@ function Explosion()
 			BuildingLocation = B.Location;
 			foreach TraceActors(class'Rx_Building', tracedB, HitLoc, HitNorm, BuildingLocation, Location)
 			{  
-				if (tracedB == B && VSize(HitLoc-Location) <= BuildingDmgRadius)
+				if (tracedB == B && VSizeSq(HitLoc-Location) <= Square(BuildingDmgRadius))
 					bBuildingHit = true;
 				break;
 			}
@@ -472,24 +472,20 @@ simulated function PlayCamerashakeAnim()
 	
    local UTPlayerController UTPC;
    local float Dist;
-   local float MinViewDist;
    local float ExplosionShakeScale;
-   
-   MinViewDist = 10000.0;
-   
+
    foreach LocalPlayerControllers(class'UTPlayerController', UTPC)
    {
-      Dist = VSize(Location - UTPC.ViewTarget.Location);
+      Dist = VSizeSq(Location - UTPC.ViewTarget.Location);
 
-      MinViewDist = FMin(Dist, MinViewDist);
-      if (Dist < OuterExplosionShakeRadius)
+      if (Dist < Square(OuterExplosionShakeRadius))
       {
          if (ExplosionShake != None)
          {
             ExplosionShakeScale = 1.5;
-            if (Dist > InnerExplosionShakeRadius)
+            if (Dist > Square(InnerExplosionShakeRadius))
             {
-               ExplosionShakeScale -= (Dist - InnerExplosionShakeRadius) / (OuterExplosionShakeRadius - InnerExplosionShakeRadius);
+               ExplosionShakeScale -= (Sqrt(Dist) - InnerExplosionShakeRadius) / (OuterExplosionShakeRadius - InnerExplosionShakeRadius);
             }
             UTPC.PlayCameraAnim(ExplosionShake, ExplosionShakeScale);
          }
@@ -511,7 +507,7 @@ function string GetSpotMarkerName()
 	
 	foreach WGRI.SpottingArray(TempActor)
 	{
-		DistToSpot = VSize(TempActor.location - Location);
+		DistToSpot = VSizeSq(TempActor.location - Location);
 		if (NearestSpotDist == 0.0 || DistToSpot < NearestSpotDist)
 		{
 			NearestSpotDist = DistToSpot;

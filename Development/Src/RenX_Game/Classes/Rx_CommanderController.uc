@@ -360,7 +360,7 @@ simulated function string GetSpottargetLocationInfo(Vector WaypointTarget)
 	//`log("STarted looking for nearest spot marker");
 	foreach WGRI.SpottingArray(TempActor) {
 		SpotMarker = RxIfc_SpotMarker(TempActor);
-		DistToSpot = VSize(TempActor.location - WaypointTarget);
+		DistToSpot = VSizeSq(TempActor.location - WaypointTarget);
 		if(NearestSpotDist == 0.0 || DistToSpot < NearestSpotDist) {
 			NearestSpotDist = DistToSpot;	
 			NearestSpotMarker = SpotMarker;

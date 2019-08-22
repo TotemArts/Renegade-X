@@ -125,7 +125,7 @@ simulated state Homing
 			bDontLock = false;	
 		
 		if(!bDontLock) {
-			if(RxIfc_SeekableTarget(SeekTarget) != none && VSize(SeekTarget.Velocity) > 150 && RxIfc_SeekableTarget(SeekTarget).GetAimAheadModifier() > 0.0) { 
+			if(RxIfc_SeekableTarget(SeekTarget) != none && VSizeSq(SeekTarget.Velocity) > 22500 && RxIfc_SeekableTarget(SeekTarget).GetAimAheadModifier() > 0.0) { 
 				TargetLocation = TargetLocation + Normal(SeekTarget.Velocity) * RxIfc_SeekableTarget(SeekTarget).GetAimAheadModifier();
 			}
 			if(RxIfc_SeekableTarget(SeekTarget) != none && RxIfc_SeekableTarget(SeekTarget).GetAccelrateModifier() > 0.0) { 
@@ -234,7 +234,7 @@ simulated function bool TryHeadshot(Actor Other, Vector HitLocation, Vector HitN
 	
 	//`log("Rocket rey "); 
 	
-    if (Instigator == None || VSize(Instigator.Velocity) < Instigator.GroundSpeed * Instigator.CrouchedPct)
+    if (Instigator == None || VSizeSq(Instigator.Velocity) < Square(Instigator.GroundSpeed * Instigator.CrouchedPct))
     {
         Scaling = SlowHeadshotScale;
     }
@@ -310,11 +310,11 @@ simulated function SpawnExplosionEffects(vector HitLocation, vector HitNormal)
 	{
 		foreach LocalPlayerControllers(class'PlayerController', PC)
 		{
-			Distance = VSize(PC.ViewTarget.Location - HitLocation);
+			Distance = VSizeSq(PC.ViewTarget.Location - HitLocation);
 			 
 			// dont spawn explosion effect if far away and no direct line of sight or if behind and relativly far away   
-			if ( ( PC.ViewTarget != None && Distance > 9000 && !FastTrace(PC.ViewTarget.Location, HitLocation) ) 
-			 		|| ( vector(PC.Rotation) dot (HitLocation - PC.ViewTarget.Location) < 0.0 && Distance > 5000 && !FastTrace(PC.ViewTarget.Location, HitLocation)) )
+			if ( ( PC.ViewTarget != None && Distance > 81000000 && !FastTrace(PC.ViewTarget.Location, HitLocation) ) 
+			 		|| ( vector(PC.Rotation) dot (HitLocation - PC.ViewTarget.Location) < 0.0 && Distance > 25000000 && !FastTrace(PC.ViewTarget.Location, HitLocation)) )
 			{
 				
 				if (ExplosionSound != None && !bSuppressSounds)

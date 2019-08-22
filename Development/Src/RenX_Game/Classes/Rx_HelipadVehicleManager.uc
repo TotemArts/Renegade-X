@@ -61,14 +61,14 @@ function Rx_Building_VehicleFactory GetAirNearestProduction(Rx_PRI Buyer, out Ve
 		{
 			if(BestFactory == None)
 			{
-				BestDist = VSize(Controller(Buyer.Owner).Pawn.Location - GDIHelipad[i].location);
+				BestDist = VSizeSq(Controller(Buyer.Owner).Pawn.Location - GDIHelipad[i].location);
 				BestFactory = GDIHelipad[i];
 				if(!GDIHelipad[i].IsDestroyed())
 					bActiveBuildingAvailable = true;
 			}
 			else if ((bActiveBuildingAvailable && !GDIHelipad[i].IsDestroyed()) || (!bActiveBuildingAvailable))
 			{
-				CurDist = VSize(Controller(Buyer.Owner).Pawn.Location - GDIHelipad[i].location);
+				CurDist = VSizeSq(Controller(Buyer.Owner).Pawn.Location - GDIHelipad[i].location);
 				if(BestDist > CurDist)
 				{
 					BestDist = CurDist;
@@ -86,14 +86,14 @@ function Rx_Building_VehicleFactory GetAirNearestProduction(Rx_PRI Buyer, out Ve
 		{
 			if(BestFactory == None)
 			{
-				BestDist = VSize(Controller(Buyer.Owner).Pawn.Location - NodHelipad[i].location);
+				BestDist = VSizeSq(Controller(Buyer.Owner).Pawn.Location - NodHelipad[i].location);
 				BestFactory = NodHelipad[i];
 				if(!NodHelipad[i].IsDestroyed())
 					bActiveBuildingAvailable = true;			
 			}
 			else if ((bActiveBuildingAvailable && !NodHelipad[i].IsDestroyed()) || (!bActiveBuildingAvailable))
 			{
-				CurDist = VSize(Controller(Buyer.Owner).Pawn.Location - NodHelipad[i].location);
+				CurDist = VSizeSq(Controller(Buyer.Owner).Pawn.Location - NodHelipad[i].location);
 				if(BestDist > CurDist) 
 				{
 					BestDist = CurDist;

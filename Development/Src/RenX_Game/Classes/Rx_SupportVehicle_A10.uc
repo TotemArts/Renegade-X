@@ -77,7 +77,7 @@ simulated function Tick(float DeltaTime)
 	
 	if(ROLE == ROLE_Authority)
 	{
-		if(VSize(NavCourse[CurrentNav] - location) <= NavPointProximity && bNavCourseInitialized && !bTargetReached) GotoNextNav();
+		if(VSizeSq(NavCourse[CurrentNav] - location) <= Square(NavPointProximity) && bNavCourseInitialized && !bTargetReached) GotoNextNav();
 	}		
 	super.Tick(DeltaTime);
 }

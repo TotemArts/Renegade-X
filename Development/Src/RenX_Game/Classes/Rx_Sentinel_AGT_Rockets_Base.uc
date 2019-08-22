@@ -24,7 +24,7 @@ simulated function Tick(float DeltaTime)
  */
 function bool IsOutsideMinimalDistToOwner(Pawn possibleTarget)
 {
-	return (VSize(possibleTarget.Location - AgtLocation) > MinimumRange);
+	return (VSizeSq(possibleTarget.Location - AgtLocation) > Square(MinimumRange));
 }
 
 simulated function DoRotation()

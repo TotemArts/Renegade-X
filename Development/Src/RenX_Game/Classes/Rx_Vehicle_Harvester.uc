@@ -180,8 +180,8 @@ event RanInto( Actor Other )
 	if( Pawn(Other) == none || Vehicle(Other) != none || Other == Instigator || Other.Role != ROLE_Authority || WorldInfo.GRI.OnSameTeam(self, Other) )
 		return;
 	
-	Speed = VSize(Velocity);
-	if (Speed > MinRunOverSpeed)
+	Speed = VSizeSq(Velocity);
+	if (Speed > Square(MinRunOverSpeed))
 	{
 		bEnemyIsInfrontOfMe = class'Rx_Utils'.static.OrientationOfLocAndRotToBLocation(Location,rotation,Other.location) > 220;
 		if(!bEnemyIsInfrontOfMe)
@@ -300,12 +300,12 @@ simulated function bool ForceVisible()
 DefaultProperties
 {
 
-	/*Begin Object Name=CollisionCylinder
-	CollisionHeight=100.0   //half of vehicle height (This needs to be half as the collisioncylinder starts in the center (half way up) the pawn.)
-	CollisionRadius=254.0   //half of vehicle extent (use the longest of the width or length)
-	End Object
+    Begin Object Name=CollisionCylinder
+    CollisionHeight=100.0
+    CollisionRadius=240.0
+    Translation=(X=0.0,Y=0.0,Z=64.0)
+    End Object
 
-	CylinderComponent=CollisionCylinder*/
 
 //========================================================\\
 //************** Vehicle Physics Properties **************\\

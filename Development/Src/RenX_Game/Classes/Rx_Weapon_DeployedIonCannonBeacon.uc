@@ -104,24 +104,20 @@ simulated function PlayCamerashakeAnim()
 {
    local UTPlayerController UTPC;
    local float Dist;
-   local float MinViewDist;
    local float ExplosionShakeScale;
-   
-   MinViewDist = 10000.0;
-   
+      
    foreach LocalPlayerControllers(class'UTPlayerController', UTPC)
    {
-      Dist = VSize(Location - UTPC.ViewTarget.Location);
+      Dist = VSizeSq(Location - UTPC.ViewTarget.Location);
 
-      MinViewDist = FMin(Dist, MinViewDist);
-      if (Dist < OuterExplosionShakeRadius)
+      if (Dist < Square(OuterExplosionShakeRadius))
       {
          if (ExplosionShake != None)
          {
             ExplosionShakeScale = 1.5;
-            if (Dist > InnerExplosionShakeRadius)
+            if (Dist > Square(InnerExplosionShakeRadius))
             {
-               ExplosionShakeScale -= (Dist - InnerExplosionShakeRadius) / (OuterExplosionShakeRadius - InnerExplosionShakeRadius);
+               ExplosionShakeScale -= (Sqrt(Dist) - InnerExplosionShakeRadius) / (OuterExplosionShakeRadius - InnerExplosionShakeRadius);
             }
             UTPC.PlayCameraAnim(ExplosionShake, ExplosionShakeScale);
          }

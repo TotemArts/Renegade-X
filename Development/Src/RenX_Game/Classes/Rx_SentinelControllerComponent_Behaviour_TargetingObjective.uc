@@ -114,7 +114,7 @@ function bool IsValidObjective(UTGameObjective PotentialObjective)
 	{
 		bResult = false;
 	}*/
-	else if(VSize(PotentialObjective.Location - Cannon.Location) > Cannon.GetRange())
+	else if(VSizeSq(PotentialObjective.Location - Cannon.Location) > Square(Cannon.GetRange()))
 	{
 		bResult = false;
 	}

@@ -369,7 +369,7 @@ event bool CanDeploy(optional bool bShowMessage = true)
 	local int i;
 
 	// Check current speed
-	if (VSize(Velocity) > MaxDeploySpeed)
+	if (VSizeSq(Velocity) > Square(MaxDeploySpeed))
 	{
 
 		return false;

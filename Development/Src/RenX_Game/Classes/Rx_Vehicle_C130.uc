@@ -19,6 +19,11 @@ class Rx_Vehicle_C130 extends Rx_Vehicle_Air_Jet
 DefaultProperties
 {
 
+    Begin Object Name=CollisionCylinder
+    CollisionHeight=1000.0
+    CollisionRadius=2000.0
+    Translation=(X=0.0,Y=0.0,Z=256.0)
+    End Object
 //========================================================\\
 //************** Vehicle Physics Properties **************\\
 //========================================================\\
@@ -127,14 +132,6 @@ DefaultProperties
 //========================================================\\
 //*************** Vehicle Visual Properties **************\\
 //========================================================\\
-
-
-    Begin Object Name=CollisionCylinder
-      CollisionHeight=400.0
-      CollisionRadius=800.0
-      Translation=(X=0.0,Y=0.0,Z=0.0)
-      End Object
-    CylinderComponent=CollisionCylinder
     
     Begin Object name=SVehicleMesh
         SkeletalMesh=SkeletalMesh'RX_VH_C-130.Mesh.SK_C-130'

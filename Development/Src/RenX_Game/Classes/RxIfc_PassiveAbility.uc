@@ -5,3 +5,13 @@ simulated function bool ActivateJumpAbility(bool Toggle) ; //(Usually Tied to 'S
 simulated function bool ActivateAbility0(bool Toggle); // (Usually tied to 'X')Returns if the ability was successfully activated 
 
 simulated function bool ActivateAbility1(bool Toggle); //(Usually Tied to 'G') Returns if the ability was successfully activated 
+
+//Notifies 
+
+simulated function NotifyPassivesLanded();
+
+simulated function NotifyPassivesDodged(int Dir); 
+
+simulated function NotifyPassivesCrouched(bool Toggle); //Called when crouch is PRESSED.
+
+simulated function NotifyPassivesSprint(bool Toggle);

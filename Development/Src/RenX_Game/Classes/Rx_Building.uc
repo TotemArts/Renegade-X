@@ -46,6 +46,9 @@ var() StaticMeshComponent StaticInterior;
 var() StaticMeshComponent StaticInteriorComplex;
 var() StaticMeshComponent PTScreens;
 
+
+var() Array<NavigationPoint> ViableAttackPoints;
+
 replication
 {
 	//if( bNetInitial && Role == ROLE_Authority )
@@ -110,7 +113,9 @@ function PostBeginPlay()
 	if ( BuildingInternals != none && (WorldInfo.NetMode == NM_StandAlone || WorldInfo.NetMode == NM_DedicatedServer || WorldInfo.NetMode == NM_ListenServer))
 	{
 		BuildingInternals.Init(self,bBuildingDebug);
-	} 
+	}
+
+	
 
 	
 	/**
@@ -285,6 +290,108 @@ function RemoveMyMines(Rx_Controller Control)
 	{
 		if(Proxies.Base == self && Proxies.GetTeamNum() == TeamByte ) Proxies.TakeDamage(500, Control, vect(0,0,0), vect(0,0,0), class'Rx_DmgType_EMP') ; 
 	}
+}
+
+function GetAttackPoints()
+{
+	local NavigationPoint N;
+	local Vector Dummy1,Dummy2;
+
+	foreach WorldInfo.AllNavigationPoints(class'NavigationPoint',N)
+	{
+		if(N.Trace(Dummy1,Dummy2,Location,N.Location,,,,TRACEFLAG_Bullet) != Self)
+			Continue;
+
+		ViableAttackPoints.AddItem(N);
+
+	}
+
+	if(ViableAttackPoints.length <= 0)
+		`log(GetHumanReadableName()@" : Failed to find viable attack points! Bots may find issues in pathfinding to this building!");
+}
+
+function NavigationPoint FindAttackPointsFor(UTBot B)
+{
+	local float Dist, BestDist;
+	local Vector DistanceMark;
+	local NavigationPoint N, BestN;
+	local bool bBotIsTransport;
+
+	if(ViableAttackPoints.length <= 0)
+	{
+		`log(GetHumanReadableName()@" : This building lacks any attack point!");
+		return none;
+	}
+
+	if(Vehicle(B.Pawn) != None && (Rx_Vehicle_Weapon(B.Pawn.Weapon) == None || !Rx_Vehicle_Weapon(B.Pawn.Weapon).bOkAgainstBuildings))
+	{
+		bBotIsTransport = true;
+		DistanceMark = Location;
+	}
+	else
+	{
+		DistanceMark = B.Pawn.Location;
+	}
+
+	foreach ViableAttackPoints(N)
+	{
+		if(Vehicle(B.Pawn) != None && N.bBlockedForVehicles)
+			continue;
+		Dist = VSizeSq(N.Location - DistanceMark);
+
+		if(!bBotIsTransport && VSizeSq(N.Location - Location) > Square(B.Pawn.Weapon.GetTraceRange()))		// can't possibly attack from here if the spot is unreachable
+			continue;
+
+		if(BestN == None || BestDist > Dist)
+		{
+			BestN = N;
+			BestDist = Dist;
+		}
+	}
+
+	if(BestN != None)
+	{
+		return BestN;
+	}
+
+	else
+	{
+		`log(B.GetHumanReadableName()@" : Failed to get my attack spot, have you setup the map's navigation points correctly?");
+		return none;
+	}
+}
+
+simulated function Rx_BuildingObjective GetObjective()
+{
+	return myObjective;
+}
+
+function OnToggle(SeqAct_Toggle Action)
+{
+	local Rx_Building_Team_Internals TeamInternals;
+	local bool bNewPowerStatus;
+
+	if(Rx_Building_Team_Internals(BuildingInternals) != None)
+		TeamInternals = Rx_Building_Team_Internals(BuildingInternals);
+
+	else
+		return;
+
+	if(Action.InputLinks[0].bHasImpulse)
+		bNewPowerStatus = true;
+
+	else if (Action.InputLinks[1].bHasImpulse)
+		bNewPowerStatus = false;
+
+	else
+		bNewPowerStatus = TeamInternals.bNoPower;
+
+
+	if(bNewPowerStatus)
+		TeamInternals.PowerRestore();
+	else
+		TeamInternals.PowerLost(true);
+	
 }
 
 defaultproperties

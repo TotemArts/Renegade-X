@@ -219,6 +219,8 @@ function DrawPlayerNames()
 	// For each Rx_Pawn in the game
    	foreach RenxHud.WorldInfo.AllPawns(class'Rx_Pawn', OtherPawn)
 	{
+		if (Rx_Bot_Scripted(OtherPawn.Controller) != None)
+			continue;
 		if (OtherPawn == None || OtherPawn.PlayerReplicationInfo == None || OtherPawn.Health <= 0)
 			continue;
 		if ((OtherPawn == ourPawn && !RenxHud.ShowOwnName) || OtherPawn.DrivenVehicle != None)

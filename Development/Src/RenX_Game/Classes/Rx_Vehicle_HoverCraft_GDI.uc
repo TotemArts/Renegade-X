@@ -378,7 +378,7 @@ event bool CanDeploy(optional bool bShowMessage = true)
 	local int i;
 
 	// Check current speed
-	if (VSize(Velocity) > MaxDeploySpeed)
+	if (VSizeSq(Velocity) > Square(MaxDeploySpeed))
 	{
 
 		return false;
@@ -663,6 +663,12 @@ simulated function int GetBarrelIndex(int SeatIndex)
 
 DefaultProperties
 {
+
+	Begin Object Name=CollisionCylinder
+    CollisionHeight=500.0
+    CollisionRadius=1000.0
+    Translation=(X=0.0,Y=0.0,Z=324.0)
+    End Object
 
 
 //========================================================\\

@@ -77,7 +77,7 @@ function bool FindPathToObjective(UTBot B, Actor O)
 
 	if (UTVehicle(B.Pawn) != None && MustCompleteOnFoot(O, B.Pawn))
 	{
-		if (VSize(O.Location - B.Pawn.Location) <= B.Pawn.GetCollisionRadius())
+		if (VSizeSq(O.Location - B.Pawn.Location) <= Square(B.Pawn.GetCollisionRadius()))
 		{
 			// too close, vehicle is covering the objective, back up
 			N = NavigationPoint(O);
@@ -413,7 +413,7 @@ function bool CheckSquadObjectivesRx(Rx_Bot_Mesh B)
 		} else {
 			DesiredLocation = DesiredPosition.location;
 		} 
-		bInPosition = ( VSize(DesiredLocation - B.Pawn.Location) < RX_NEAROBJECTIVEDIST &&
+		bInPosition = ( VSizeSq(DesiredLocation - B.Pawn.Location) < Square(RX_NEAROBJECTIVEDIST) &&
 				(B.LineOfSightTo(Rx_BuildingObjective(RxObjective).GetShootTarget(B)) || (RxObjective.bHasAlternateTargetLocation && B.LineOfSightTo(Rx_BuildingObjective(RxObjective).GetShootTarget(B),, true))) );
 	}
 
@@ -426,12 +426,12 @@ function bool CheckSquadObjectivesRx(Rx_Bot_Mesh B)
 			if ( B.LineOfSightTo(B.Enemy) || (WorldInfo.TimeSeconds - B.LastSeenTime < 3 && (SquadObjective == None || !UTGameObjective(SquadObjective).TeamLink(Team.TeamIndex))) 
 				&& (UTVehicle(B.Pawn) == None || !UTVehicle(B.Pawn).bKeyVehicle) )
 			{
-				Dist = VSize(B.location - B.Enemy.location);
+				Dist = VSizeSq(B.location - B.Enemy.location);
 				if(!B.HasRepairGun()) {
 					B.FightEnemy(BotsEnemyIsCloserToObjective(B), 0); 
 					`log("(" $ b.pawn.GetHumanReadableName() @ b.pawn.Name $ ")" @ "Rx_SquadAI:CheckSquadObjectivesRx: Returning TRUE after enemy is NOT none, and is better to attack enemy then get objective.",,'DevAI');
 					return true;	
-				} else if(Dist < 2600 && (SquadObjective == None || Rx_BuildingObjective(SquadObjective) == None 
+				} else if(Dist < 6760000 && (SquadObjective == None || Rx_BuildingObjective(SquadObjective) == None 
 							|| !Rx_BuildingObjective(SquadObjective).NeedsHealing() 
 							|| Rx_BuildingObjective(SquadObjective).KillEnemyFirstBeforeHealing(B))) {
 					B.FightEnemy(false, 0);
@@ -513,7 +513,7 @@ function bool CheckSquadObjectivesRx(Rx_Bot_Mesh B)
 	if ( (B.DefensePoint != None) && (DesiredPosition == B.DefensePoint) )
 	{
 		B.FreePoint();
-		if ( (RxObjective != None) && (VSize(B.Pawn.Location - RxObjective.Location) > 1200) )
+		if ( (RxObjective != None) && (VSizeSq(B.Pawn.Location - RxObjective.Location) > 1440000) )
 		{
 			B.FindBestPathToward(RxObjective,false,true);
 			if ( B.StartMoveToward(RxObjective) )
@@ -527,8 +527,8 @@ function bool CheckSquadObjectivesRx(Rx_Bot_Mesh B)
 
 function bool BotsEnemyIsCloserToObjective(UTBot B) {
 	if(SquadObjective != None 
-		&& VSize(B.location - Rx_BuildingObjective(SquadObjective).GetShootTarget(B).location) 
-			> VSize(B.Enemy.location - Rx_BuildingObjective(SquadObjective).GetShootTarget(B).location)) {
+		&& VSizeSq(B.location - Rx_BuildingObjective(SquadObjective).GetShootTarget(B).location) 
+			> VSizeSq(B.Enemy.location - Rx_BuildingObjective(SquadObjective).GetShootTarget(B).location)) {
 		return true;
 	}
 	return false;
@@ -547,16 +547,16 @@ function bool CloseToLeader(Pawn P)
 		return false;
 	} 
 	
-	dist = VSize(P.Location - SquadLeader.Pawn.Location);
-	if ( dist > FormationSize ) {
-		if(dist <= VehicleFormationSize) {
+	dist = VSizeSq(P.Location - SquadLeader.Pawn.Location);
+	if ( dist > Square(FormationSize) ) {
+		if(dist <= Square(VehicleFormationSize)) {
 			return true;
 		} else { // then its not the distance so check the other stuff again
 			if ( PhysicsVolume.bWaterVolume ) { // check if leader is moving away
-				if ( VSize(SquadLeader.Pawn.Velocity) > 0 )
+				if ( VSizeSq(SquadLeader.Pawn.Velocity) > 0 )
 					return false;
 			}
-			else if ( VSize(SquadLeader.Pawn.Velocity) > SquadLeader.Pawn.WalkingPct * SquadLeader.Pawn.GroundSpeed ) {
+			else if ( VSizeSq(SquadLeader.Pawn.Velocity) > Square(SquadLeader.Pawn.WalkingPct * SquadLeader.Pawn.GroundSpeed) ) {
 				return false;
 			}
 		
@@ -727,7 +727,7 @@ function bool CheckVehicle(UTBot B)
 		}
 		//If Bot is not in a vehicle, but has a route to a vehicle and isn't stuck?
 		if ( (Vehicle(B.Pawn) == None) && (Vehicle(B.RouteGoal) != None) && (NavigationPoint(B.Movetarget) != None) ) {
-			if ( VSize(B.Pawn.Location - B.RouteGoal.Location) < B.Pawn.GetCollisionRadius() + Vehicle(B.RouteGoal).GetCollisionRadius() + B.Pawn.VehicleCheckRadius * 1.5 ) {
+			if ( VSizeSq(B.Pawn.Location - B.RouteGoal.Location) < Square(B.Pawn.GetCollisionRadius() + Vehicle(B.RouteGoal).GetCollisionRadius() + B.Pawn.VehicleCheckRadius * 1.5) ) {
 				`log("Rx_SquadAI_Waypoints: RouteGoal!"); 
 				B.MoveTarget = B.RouteGoal;
 			}
@@ -778,7 +778,7 @@ function bool CheckVehicle(UTBot B)
 					BaseRadius = V.GetVehicleBase().GetCollisionRadius();
 				else
 					BaseRadius = V.GetCollisionRadius();
-				if ( VSize(B.Pawn.Location - V.Location) < B.Pawn.GetCollisionRadius() + BaseRadius + B.Pawn.VehicleCheckRadius ||
+				if ( VSizeSq(B.Pawn.Location - V.Location) < Square(B.Pawn.GetCollisionRadius() + BaseRadius + B.Pawn.VehicleCheckRadius) ||
 					(V.bHasCustomEntryRadius && V.InCustomEntryRadius(B.Pawn)) ||
 					B.Pawn.ReachedDestination(V) )
 				{
@@ -842,7 +842,7 @@ function bool CheckVehicle(UTBot B)
 
 		// check squadleader vehicle
 		V = UTVehicle(SquadLeader.Pawn);
-		if ( V != None && VSize(V.Location - B.Pawn.Location) < 4000.0 && V.OpenPositionFor(B.Pawn) &&
+		if ( V != None && VSizeSq(V.Location - B.Pawn.Location) < 16000000.0 && V.OpenPositionFor(B.Pawn) &&
 			(V.NoPassengerObjective == None || V.NoPassengerObjective != SquadObjective) &&
 			(V.bCanCarryFlag || !UTPlayerReplicationInfo(B.PlayerReplicationInfo).bHasFlag) )
 		{
@@ -858,7 +858,7 @@ function bool CheckVehicle(UTBot B)
 		if ( SquadVehicle == None ) {
 			for ( S=SquadMembers; S!=None; S=S.NextSquadMember ) {
 				V = UTVehicle(S.Pawn);
-				if ( V != None && VSize(V.Location - B.Pawn.Location) < BestDist && V.OpenPositionFor(B.Pawn) &&
+				if ( V != None && VSizeSq(V.Location - B.Pawn.Location) < Square(BestDist) && V.OpenPositionFor(B.Pawn) &&
 					(V.NoPassengerObjective == None || V.NoPassengerObjective != SquadObjective) &&
 					(V.bCanCarryFlag || !UTPlayerReplicationInfo(B.PlayerReplicationInfo).bHasFlag) )
 				{
@@ -871,7 +871,7 @@ function bool CheckVehicle(UTBot B)
 		// check vehicle squad leader is heading towards
 		if (SquadVehicle == None) {
 			V = UTVehicle(SquadLeader.RouteGoal);
-			if ( V != None && !V.Occupied() && VSize(V.Location - B.Pawn.Location) < BestDist && V.OpenPositionFor(B.Pawn) &&
+			if ( V != None && !V.Occupied() && VSizeSq(V.Location - B.Pawn.Location) < Square(BestDist) && V.OpenPositionFor(B.Pawn) &&
 				(V.NoPassengerObjective == None || V.NoPassengerObjective != SquadObjective) &&
 				(V.bCanCarryFlag || !UTPlayerReplicationInfo(B.PlayerReplicationInfo).bHasFlag) )
 			{
@@ -882,7 +882,7 @@ function bool CheckVehicle(UTBot B)
 		// check if bot is already heading towards a vehicle
 		if (SquadVehicle == None) {
 			V = UTVehicle(B.RouteGoal);
-			if (V != None && !V.Occupied() && VSize(V.Location - B.Pawn.Location) < BestDist * 1.2 && VehicleDesireability(V, B) > 0.0)
+			if (V != None && !V.Occupied() && VSizeSq(V.Location - B.Pawn.Location) < Square(BestDist * 1.2) && VehicleDesireability(V, B) > 0.0)
 			{
 				SquadVehicle = V;
 			}
@@ -897,7 +897,7 @@ function bool CheckVehicle(UTBot B)
 				{
 					V = UTVehicle(Squad.SquadLeader.Pawn);
 					if ( V != None && V.bKeyVehicle && V.NoPassengerObjective != Squad.SquadObjective &&
-						VSize(V.Location - B.Pawn.Location) < 4000.0 &&
+						VSizeSq(V.Location - B.Pawn.Location) < 16000000.0 &&
 						(Squad.GetOrders() == GetOrders() || PlayerController(Squad.SquadLeader) != None) &&
 						V.OpenPositionFor(B.Pawn) && V.NumPassengers() < Team.Size / 2 )
 					{
@@ -927,7 +927,7 @@ function bool CheckVehicle(UTBot B)
 				if(Rx_Defence(V) != None)
 					continue;
 
-				NewDist = VSize(B.Pawn.Location - V.Location);
+				NewDist = VSizeSq(B.Pawn.Location - V.Location);
 				if (NewDist < BestDist) 
 				{
 					bVisible = V.FastTrace(V.Location, B.Pawn.Location + B.Pawn.GetCollisionHeight() * vect(0,0,1));
@@ -944,7 +944,7 @@ function bool CheckVehicle(UTBot B)
 							NewRating += BestDist / NewDist * 0.01;
 							if ( NewRating > BestRating &&
 								( V.bTeamLocked || V.bKeyVehicle || bVisible ||
-									(V.ParentFactory != None && VSize(V.Location - V.ParentFactory.Location) < V.GetCollisionRadius()) ) )
+									(V.ParentFactory != None && VSizeSq(V.Location - V.ParentFactory.Location) < Square(V.GetCollisionRadius())) ) )
 							{
 								SquadVehicle = V;
 								BestRating = NewRating;
@@ -1041,7 +1041,7 @@ function bool GotoVehicle(UTVehicle SquadVehicle, UTBot B)
 		return true;
 	}
 
-	if ( (VSize(BestEntry.Location - B.Pawn.Location) < 1200)
+	if ( (VSizeSq(BestEntry.Location - B.Pawn.Location) < 1440000)
 		&& B.LineOfSightTo(BestEntry) )
 	{
 		if (Vehicle(B.Pawn) != None)
@@ -1106,10 +1106,10 @@ function float AssessThreat( UTBot B, Pawn NewThreat, bool bThreatVisible )
 	// TODO: when getting out of range bot should still have some kind of threat value to spy
 	if (Rx_Pawn(NewThreat) != none && Rx_Pawn(NewThreat).isSpy())
 	{
-		Dist = VSize(NewThreat.Location - B.Pawn.Location);
-		if (Dist <= class'Rx_Hud_PlayerNames'.default.EnemyDisplayNamesRadius && bThreatVisible)
+		Dist = VSizeSq(NewThreat.Location - B.Pawn.Location);
+		if (Dist <= Square(class'Rx_Hud_PlayerNames'.default.EnemyDisplayNamesRadius) && bThreatVisible)
 		{
-			ret += (class'Rx_Hud_PlayerNames'.default.EnemyDisplayNamesRadius - Dist) / class'Rx_Hud_PlayerNames'.default.EnemyDisplayNamesRadius;
+			ret += (Square(class'Rx_Hud_PlayerNames'.default.EnemyDisplayNamesRadius) - Dist) / Square(class'Rx_Hud_PlayerNames'.default.EnemyDisplayNamesRadius);
 		}
 		else
 		{
@@ -1134,7 +1134,7 @@ function bool ValidEnemy(Pawn NewEnemy)
 		// TODO: if player spots spy, bots should add spy as enemy too
 		for	( M = SquadMembers; M != None; M = M.NextSquadMember )
 		{
-			if (VSize(NewEnemy.Location - M.Pawn.Location) <= class'Rx_Hud_PlayerNames'.default.EnemyDisplayNamesRadius)
+			if (VSizeSq(NewEnemy.Location - M.Pawn.Location) <= Square(class'Rx_Hud_PlayerNames'.default.EnemyDisplayNamesRadius))
 			{
 				return true;
 			}
@@ -1209,7 +1209,7 @@ function bool TellBotToFollow(UTBot B, Controller C)
 				if ( !O.bIsDisabled && O.Shootable()
 					&& ((Best == None) || (Best.DefensePriority < O.DefensePriority)) )
 				{
-					NewDist = VSize(B.Pawn.Location - O.Location);
+					NewDist = VSizeSq(B.Pawn.Location - O.Location);
 					if ( ((Best == None) || (NewDist < BestDist)) && B.LineOfSightTo(O) )
 					{
 						Best = O;

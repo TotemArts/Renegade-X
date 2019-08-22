@@ -15,6 +15,7 @@
 class Rx_Bot_Waypoints extends Rx_Bot;
 
 
+var float LastObjectiveReconsideration, NextVehicleAssaultPathRecalc;
 
 
 /*
@@ -61,7 +62,7 @@ protected event ExecuteWhatToDoNext()
 	if ( (StartleActor != None) && !StartleActor.bDeleteMe )
 	{
 		StartleActor.GetBoundingCylinder(StartleRadius, StartleHeight);
-		if ( VSize(StartleActor.Location - Pawn.Location) < StartleRadius  )
+		if ( VSizeSq(StartleActor.Location - Pawn.Location) < Square(StartleRadius)  )
 		{
 			Startle(StartleActor);
 			return;
@@ -265,7 +266,7 @@ function bool ShouldFireAgain()
 		}
 		if(RxWeap.RecoilSpreadIncreasePerShot != 0.0) 
 		{
-			if(Enemy != None && RxWeap.Recoilspread > 0.0 && VSize(Enemy.location - Pawn.location) > 200) 
+			if(Enemy != None && RxWeap.Recoilspread > 0.0 && VSizeSq(Enemy.location - Pawn.location) > 40000) 
 			{
 				Rand = FRand();
 				if(Rand < 0.1 || (Rand > 0.6 && RxWeap.CurrentSpread >= RxWeap.MaxSpread)) 
@@ -283,6 +284,9 @@ function bool ShouldFireAgain()
 			StopFiring();
 		return false;	
 	}
+	else if(Rx_Weapon_RepairGun(Pawn.Weapon) != None && (Focus.GetTeamNum() == GetTeamNum() || Focus == DetectedDeployable))
+		return true;
+
 	return super.ShouldFireAgain();
 }
 
@@ -350,7 +354,7 @@ state RangedAttack
 				|| (Pawn.Acceleration == vect(0,0,0) 
 					&& Rx_Vehicle_Weapon_Reloadable(Pawn.Weapon) != None
 					&& !Rx_Vehicle_Weapon_Reloadable(Pawn.Weapon).CurrentlyReloading 
-					&& VSize(pawn.Velocity) < 5.0 
+					&& VSizeSq(pawn.Velocity) < 25.0 
 					&& MoveTimer < 23))) 
 		{
 			if (FindStrafeDest())
@@ -496,8 +500,8 @@ state RangedAttack
 			}
 			else
 			{
-				Dist = VSize(Pawn.Anchor.Location - Focus.Location);
-				bOkStrafeSpot = Dist <= MaxRange;
+				Dist = VSizeSq(Pawn.Anchor.Location - Focus.Location);
+				bOkStrafeSpot = Dist <= Square(MaxRange);
 				if(bOkStrafeSpot) {
 					bOkStrafeSpot = FastTrace(Focus.Location, Pawn.Anchor.Location);
 				}
@@ -524,7 +528,7 @@ state RangedAttack
 		
 		if (Pawn.Anchor.PathList.length > 0)
 		{
-			TargetDist = VSize(Focus.Location - Pawn.Location);
+			TargetDist = VSizeSq(Focus.Location - Pawn.Location);
 			// consider backstep opposed to always charging if enemy objective, depending on combat style and weapon
 			if (!WorldInfo.GRI.OnSameTeam(Focus, self))
 			{
@@ -544,7 +548,7 @@ state RangedAttack
 					{
 						// allow points within range, that aren't significantly backtracking unless allowed,
 						// and that we can still hit target from
-						Dist = VSize(Nav.Location - Focus.Location);
+						Dist = VSizeSq(Nav.Location - Focus.Location);
 						
 						//======================
 						bOkStrafeSpot = FastTrace(Focus.Location, Nav.Location);
@@ -560,7 +564,7 @@ state RangedAttack
 								bOkStrafeSpot = NavBlockedByVeh(Nav);
 							}
 						}
-						if ( (Dist <= MaxRange || Dist < TargetDist) && (bAllowBackwards || Dist <= TargetDist + 100.0) &&
+						if ( (Dist <= Square(MaxRange) || Dist < TargetDist) && (bAllowBackwards || Dist <= TargetDist + 10000.0) &&
 							bOkStrafeSpot )
 						{
 							if(Pawn.Anchor != Nav)
@@ -656,30 +660,6 @@ function bool IsInRushState()
 	return (IsInState('Rush') || IsInState('RushEnemy') || IsInState('VehicleRush') || IsInState('VehicleRushEnemy'));
 }
 
-function bool DoEmergencyRepair()
-{
-	local class<Rx_FamilyInfo> FI;
-
-	if(Skill > 3)
-		return false;
-
-	FI = class<Rx_FamilyInfo>(Rx_Pawn(Pawn).CurrCharClassInfo);
-
-	// Check if we've bought something too valuable to get back
-	if((!HasRepairGun() && GetCredits() < FI.static.Cost(Rx_PRI(PlayerReplicationInfo)) * 1.5) || BaughtVehicle != None)
-		return false;
-
-	if(HasRepairGun(true))
-	{
-		bIsEmergencyRepairer = true;
-
-		OurTeamAI.PutOnDefense(Self);
-		GoToState('Defending');
-		return true;
-	}
-	return false;
-}
-
 function EmergencyRepairStopped()
 {
 	local class<Rx_FamilyInfo> FI;
@@ -712,7 +692,7 @@ function MoveAwayFrom(Controller C)
 
 function MoveToDefensePoint()
 {	
-	if(DetectedDeployable != None || DefendedBuildingNeedsHealing())
+	if(GetNearbyDeployables(false) != None || DefendedBuildingNeedsHealing())
 		GotoState('Defending', 'Begin');
 	else
 		GoToState('Patrolling','Begin');
@@ -813,10 +793,8 @@ Begin:
 	SwitchToBestWeapon();
 	// Report problem!!
 
-	if(GetNearbyDeployables(false) != None)
+	if(GetNearbyDeployables(true) != None)
 	{
-		Focus = DetectedDeployable;
-
 		if(!CanHeal(DetectedDeployable))
 			FindPathToBeacon();
 		else
@@ -850,27 +828,13 @@ Begin:
 
 MoveToHeal:
 
-
-	MoveToward(MoveTarget,Focus,,ShouldStrafeTo(MoveTarget));
-
-	if(DetectedDeployable != None && CanAttack(DetectedDeployable))
-	{
-		Focus = DetectedDeployable;
-		FireWeaponAt(Focus);
-	}
-
-	else if (CurrentBO.myBuilding != None && CanAttack(CurrentBO.myBuilding))
-	{
-		Focus = CurrentBO.myBuilding.GetMCT();
-		FireWeaponAt(Focus);
-	}
-	
+	MoveToward(MoveTarget,Focus,GetDesiredOffset(),ShouldStrafeTo(MoveTarget));
 
 	GoalString = "Moving to healing point";
 
 	LatentWhatToDoNext();
 
-	if(HasRepairGun() && Focus != None && CanHeal(Focus) && VSize(Focus.Location - Pawn.Location) <= 400)
+	if(HasRepairGun() && Focus != None && CanHeal(Focus) && VSizeSq(Focus.Location - Pawn.Location) <= 160000)
 	{
 Healing:
 	
@@ -880,12 +844,13 @@ Healing:
 
 		GoalString @= "- Repairing....";
 
-		While((Focus == CurrentBO.myBuilding.GetMCT() && DefendedBuildingNeedsHealing()) || (DetectedDeployable != None && Focus == DetectedDeployable))
+		While((Focus == CurrentBO.myBuilding.GetMCT() && DefendedBuildingNeedsHealing()) || (GetNearbyDeployables(false) != None && Focus == DetectedDeployable))
 		{
-			if(Enemy != None && LineOfSightTo(Enemy))
+
+			if(Enemy != None && Vehicle(Enemy) == None && LineOfSightTo(Enemy))
 			{
-				DoTacticalMove();
-				break;
+				if(CanAttack(Focus))
+					DoTacticalMove();
 			}
 
 			FireWeaponAt(Focus);
@@ -896,11 +861,7 @@ Healing:
 		}
 	}
 DoneHealing:	
-	if(bIsEmergencyRepairer && !DefendedBuildingNeedsHealing())
-	{
-		OurTeamAI.PutOnOffense(self);
-		EmergencyRepairStopped();
-	}
+
 
 	Sleep(1.5);
 	LatentWhatToDoNext();
@@ -993,6 +954,10 @@ Begin:
 		LatentWhatToDoNext();
 	}
 
+	if(!HasRepairGun() && Enemy != None && LineOfSightTo(Enemy))
+	{
+		ChooseAttackMode();
+	}
 
 	if(!Pawn.ReachedDestination(RouteGoal)) 
 	{
@@ -1031,11 +996,8 @@ Pausing:
 	StopMovement();
 	Pawn.bWantsToCrouch = IsSniping() && !WorldInfo.bUseConsoleInput;
 
-	if(!HasRepairGun() && Enemy != None && LineOfSightTo(Enemy))
-	{
-		ChooseAttackMode();
-	}
-	else if ( DefensePoint != None)
+
+	if ( DefensePoint != None)
 	{
 		if ( Pawn.ReachedDestination(DefensePoint) )
 		{
@@ -1090,7 +1052,13 @@ function FindVehicleWaitingSpot(Actor FactorySpot)
 
 	//Check if previous Route Goal is already close enough
 
-	if(FactorySpot == None || (RouteGoal != None && (VSize(RouteGoal.Location - FactorySpot.Location) <= 1000 || RouteGoal == Pawn.Anchor)))
+	if(Enemy != None && CanAttack(Enemy))
+	{
+		ChooseAttackMode();
+		return;
+	}
+
+	if(FactorySpot == None || (RouteGoal != None && (VSizeSq(RouteGoal.Location - FactorySpot.Location) <= 1000000 || RouteGoal == Pawn.Anchor)))
 	{
 		if(!Pawn.ReachedDestination(MoveTarget))
 		{
@@ -1196,11 +1164,11 @@ function bool RepairCloseVehicles()
 				continue;
 			}
 			if(bDefending 
-				&& VSize(V.location - CurrentBO.GetShootTarget(self).location) > 2500 ) {
+				&& VSizeSq(V.location - CurrentBO.GetShootTarget(self).location) > 6250000 ) {
 				continue;
 			}
 			
-			NewDist = VSize(Pawn.Location - V.Location);
+			NewDist = VSizeSq(Pawn.Location - V.Location);
 			if (BestDist == 0.0 || NewDist < BestDist 
 				|| (Rx_Vehicle_Harvester(VehToHeal) != None && Rx_Vehicle_Harvester(V) == None) )
 			{
@@ -1323,7 +1291,7 @@ function LookarroundWhileWaitingInAreaTimer()
 			i = Rand(out_NavList.length);
 			Foreach out_NavList(Nav) {
 				if(j++ >= i) {
-					if(VSize(Nav.location - Pawn.location) >= 800 && FastTrace(Nav.location, Pawn.location)
+					if(VSizeSq(Nav.location - Pawn.location) >= 640000 && FastTrace(Nav.location, Pawn.location)
 							&& class'Rx_Utils'.static.OrientationOfLocAndRotToB(Pawn.location,rotator(Nav.location-Pawn.location),ObservePoint) > 0.3) {
 						//DrawDebugLine(Pawn.location,Nav.location,0,0,255,true);
 						//loginternal(class'Rx_Utils'.static.OrientationOfLocAndRotToB(Pawn.location,rotator(Nav.location-Pawn.location),ObservePoint));
@@ -1337,7 +1305,7 @@ function LookarroundWhileWaitingInAreaTimer()
 				j = 0;
 				Foreach out_NavList(Nav) {
 					if(j++ < i) {
-						if(VSize(Nav.location - Pawn.location) >= 800 && FastTrace(Nav.location, Pawn.location)
+						if(VSizeSq(Nav.location - Pawn.location) >= 640000 && FastTrace(Nav.location, Pawn.location)
 								&& class'Rx_Utils'.static.OrientationOfLocAndRotToB(Pawn.location,rotator(Nav.location-Pawn.location),ObservePoint) > 0.3) {
 							PickedFocusNav = Nav;
 							//DrawDebugLine(Pawn.location,Nav.location,0,0,255,true);
@@ -1391,13 +1359,13 @@ function bool FindDestinationToPT(Actor PTPoint)
 		if(IsInBuilding(B) && B.GetTeamNum() == GetTeamNum() && B.myObjective != None && B.myObjective.IsCritical())
 			return false;
 
-		if(DetectedDeployable != None)
+		if(GetNearbyDeployables(false) != None)
 			return false;
 	}
 
 	if(PTTask == "" || PTTask == "Refill")
 	{
-		if(!RetreatToPTNecessary() || (bInfiltrating && RouteGoal != None && VSize(PTPoint.Location-Pawn.Location)*2 > VSize(RouteGoal.Location-Pawn.Location)))
+		if(!RetreatToPTNecessary() || (bInfiltrating && RouteGoal != None && VSizeSq(PTPoint.Location-Pawn.Location)*2 > VSizeSq(RouteGoal.Location-Pawn.Location)))
 		{
 			PTTask = "";
 			return false;
@@ -1502,10 +1470,13 @@ function bool FindInfiltrationPath()
 	}
 	else if(RouteGoal != InfilPoint)
 		RouteGoal = InfilPoint;
+
+	if(HasRepairGun() || Rx_Pawn_SBH(Pawn) != None)
+		SetInfantryAvoidedPath();
 	
 	BestPath = FindPathToward(InfilPoint,true);
 
-	if (VSize(CurrentBO.myBuilding.GetMCT().location - Pawn.location) < 500
+	if (VSizeSq(CurrentBO.myBuilding.GetMCT().location - Pawn.location) < 250000
 		&&  Trace(Dummy1, Dummy2, CurrentBO.myBuilding.GetMCT().location, Pawn.location) == CurrentBO.myBuilding.GetMCT())
 	{
 		BestPath = CurrentBO.myBuilding.GetMCT();
@@ -1540,7 +1511,6 @@ function bool FindVehicleAssaultPath()
 	local actor BestPath, BuildingPoint;
 	local vector Dummy1,Dummy2;
 
-
 	if(CurrentBO == None)
 	{
 		GoalString @= "- Building Objective not found";
@@ -1566,7 +1536,15 @@ function bool FindVehicleAssaultPath()
 	}
 
 
-	BuildingPoint = CurrentBO;
+	if(NextVehicleAssaultPathRecalc < WorldInfo.TimeSeconds)
+	{
+		NextVehicleAssaultPathRecalc = WorldInfo.TimeSeconds + 20.0; 
+		BuildingPoint = CurrentBO.myBuilding.FindAttackPointsFor(Self);
+	}
+	else
+	{
+		BuildingPoint = RouteGoal;
+	}
 
 	if(RouteGoal == BuildingPoint && MoveTarget != None && !Pawn.ReachedDestination(MoveTarget))
 	{
@@ -1574,10 +1552,15 @@ function bool FindVehicleAssaultPath()
 		return true;
 	}
 
-	if(RouteGoal != BuildingPoint || VSize(Rx_BuildingObjective(BuildingPoint).myBuilding.Location - BuildingPoint.Location) > 200 || (RouteGoal != BuildingPoint && Trace(Dummy1, Dummy2, CurrentBO.myBuilding.location, RouteGoal.location) == None))
-		RouteGoal = BuildingPoint;
+	RouteGoal = BuildingPoint;
 	
-	BestPath = FindPathToward(BuildingPoint,true);
+	if(Rx_Pawn(Enemy) != None && (VSizeSq(Pawn.Location - BuildingPoint.Location) <= 4000000 || CanAttack(CurrentBO.myBuilding)) && Trace(Dummy1, Dummy2, CurrentBO.myBuilding.location, Enemy.location) == CurrentBO.myBuilding)
+	{
+		RouteGoal = Enemy;
+		BestPath = FindPathToward(Enemy,true);		
+	}
+	else
+		BestPath = FindPathToward(BuildingPoint,true,,true);
 
 	if (BestPath == None && Trace(Dummy1, Dummy2, CurrentBO.myBuilding.location, Pawn.location) == CurrentBO.myBuilding)
 	{
@@ -1702,13 +1685,13 @@ function FightEnemy(bool bCanCharge, float EnemyStrength)
 
 	bOldForcedCharge = bMustCharge;
 	bMustCharge = false;
-	enemyDist = VSize(Pawn.Location - Enemy.Location);
+	enemyDist = VSizeSq(Pawn.Location - Enemy.Location);
 	AdjustedCombatStyle = CombatStyle + UTWeapon(Pawn.Weapon).SuggestAttackStyle();
 	Aggression = 1.5 * FRand() - 0.8 + 2 * AdjustedCombatStyle - 0.5 * EnemyStrength
 				+ FRand() * (Normal(Enemy.Velocity - Pawn.Velocity) Dot Normal(Enemy.Location - Pawn.Location));
 	if ( UTWeapon(Enemy.Weapon) != None )
 		Aggression += 2 * UTWeapon(Enemy.Weapon).SuggestDefenseStyle();
-	if ( enemyDist > MAXSTAKEOUTDIST )
+	if ( enemyDist > Square(MAXSTAKEOUTDIST) )
 		Aggression += 0.5;
 	if (Squad != None)
 	{
@@ -1718,7 +1701,7 @@ function FightEnemy(bool bCanCharge, float EnemyStrength)
 	{
 		if (Pawn.Location.Z > Enemy.Location.Z + TACTICALHEIGHTADVANTAGE)
 			Aggression = FMax(0.0, Aggression - 1.0 + AdjustedCombatStyle);
-		else if ( (Skill < 4) && (enemyDist > 0.65 * MAXSTAKEOUTDIST) )
+		else if ( (Skill < 4) && (enemyDist > Square(0.65 * MAXSTAKEOUTDIST)) )
 		{
 			bFarAway = true;
 			Aggression += 0.5;
@@ -1755,7 +1738,7 @@ function FightEnemy(bool bCanCharge, float EnemyStrength)
 			GoalString = "Stake Out2";
 			DoStakeOut();
 		}
-		else if ( Skill + Tactics >= 3.5 + FRand() && !LostContact(1) && VSize(Enemy.Location - Pawn.Location) < MAXSTAKEOUTDIST &&
+		else if ( Skill + Tactics >= 3.5 + FRand() && !LostContact(1) && VSizeSq(Enemy.Location - Pawn.Location) < Square(MAXSTAKEOUTDIST) &&
 			Pawn.Weapon != None && Pawn.Weapon.AIRating > 0.5 && !Pawn.Weapon.bMeleeWeapon &&
 			FRand() < 0.75 && !LineOfSightTo(Enemy) && !Enemy.LineOfSightTo(Pawn) &&
 			(Squad == None || !UTSquadAI(Squad).HasOtherVisibleEnemy(self)) )
@@ -1833,7 +1816,10 @@ function FightEnemy(bool bCanCharge, float EnemyStrength)
 	DoTacticalMove();
 }
 
-
+function bool DefendMelee(float Dist)
+{
+	return ( (Enemy.Weapon != None) && Enemy.Weapon.bMeleeWeapon && (Dist < 1000) );
+}
 
 function VehicleFightEnemy(bool bCanCharge, float EnemyStrength)
 {
@@ -1916,7 +1902,7 @@ function VehicleFightEnemy(bool bCanCharge, float EnemyStrength)
 		return;
 	}
 
-	if ( Pawn.bCanFly && !Enemy.bCanFly && (Pawn.Weapon == None || VSize(Pawn.Location - Enemy.Location) < Pawn.Weapon.MaxRange()) &&
+	if ( Pawn.bCanFly && !Enemy.bCanFly && (Pawn.Weapon == None || VSizeSq(Pawn.Location - Enemy.Location) < Square(Pawn.Weapon.MaxRange())) &&
 		(FRand() < 0.17 * (skill + Tactics - 1)) )
 	{
 		GoalString = "Do tactical move";
@@ -1966,7 +1952,7 @@ Begin:
 	{
 		GoalString = "Going towards Purchase Terminal";
 
-		if(Vehicle(Pawn) != None && Enemy == None && VSize(RouteGoal.Location - Pawn.Location) <= 750)
+		if(Vehicle(Pawn) != None && Enemy == None && VSizeSq(RouteGoal.Location - Pawn.Location) <= 562500)
 			LeaveVehicle(true);
 	}
 
@@ -2039,7 +2025,7 @@ State Fallback
 
 		if (PTTask == "" && (RouteCache.Length > 0) && !WorldInfo.GRI.OnSameTeam(self,P.Controller) && (MoveTarget == RouteCache[0]) && (RouteCache.Length > 1) && P.ReachedDestination(MoveTarget) )
 		{
-			MoveTimer = VSize(RouteCache[1].Location - Pawn.Location)/(Pawn.GroundSpeed * Pawn.DesiredSpeed) + 1;
+			MoveTimer = VSize(RouteCache[1].Location - Pawn.Location) / Pawn.GroundSpeed * Pawn.DesiredSpeed + 1;
 			MoveTarget = RouteCache[1];
 		}
 
@@ -2110,7 +2096,10 @@ Moving:
 			}
 		}
 		else
+		{
+			Focus = CurrentBO.myBuilding.GetMCT();
 			AssaultMCT();
+		}
 	}
 	else if (CurrentBO != None && !CanAttack(CurrentBO.myBuilding.GetMCT()))
 	{
@@ -2118,11 +2107,18 @@ Moving:
 		{
 			Rx_SquadAI(Squad).GoToVehicle(LastVehicle,Self);
 		}
+		else if(Rx_Weapon(Pawn.Weapon).bOkAgainstBuildings && CanAttack(CurrentBO.myBuilding))
+		{
+			Focus = CurrentBO.myBuilding;
+			FireWeaponAt(CurrentBO.myBuilding);
+		}
 	}
 
 	MoveToward(MoveTarget,FaceActor(1),GetDesiredOffset(),ShouldStrafeTo(MoveTarget));
 
-	if(HasABeacon() && VSize(CurrentBO.myBuilding.Location - Pawn.Location) < 300)
+
+
+	if(HasABeacon() && VSizeSq(CurrentBO.myBuilding.Location - Pawn.Location) < 90000)
 	{
 //		`log(GetHumanReadableName()@"is attempting to plant a Beacon");
 		GoToState('DeployingBeacon');
@@ -2187,6 +2183,11 @@ Moving:
 		Focus = Enemy;
 		ChooseAttackMode();
 	} 
+	else if(Rx_Weapon(Pawn.Weapon).bOkAgainstBuildings && CanAttack(CurrentBO.myBuilding))
+	{
+		Focus = CurrentBO.myBuilding;
+		FireWeaponAt(CurrentBO.myBuilding);
+	}
 	else
 	{
 		StopFiring();
@@ -2237,22 +2238,26 @@ Moving:
 		GoToState('Infiltrating');
 		LatentWhatToDoNext();
 	}
+	if(Rx_Vehicle(Pawn).bOkAgainstBuildings && LastObjectiveReconsideration < WorldInfo.TimeSeconds - 20.0)
+		VehicleReconsiderObjective();
 
-	if(CanAttack(CurrentBO.myBuilding) && (Enemy == None || !CanAttack(Enemy)))
+
+	if(!CanAttack(CurrentBO.myBuilding)) 
+		MoveToward(MoveTarget,FaceActor(1),GetDesiredOffset(),ShouldStrafeTo(MoveTarget));
+	else if(CanAttack(CurrentBO.myBuilding) && (Enemy == None || !CanAttack(Enemy)))
 	{
 		if(IsRushing() && Rx_SquadAI(Squad).bTacticsCommenced)
 			FireWeaponAt(CurrentBO.myBuilding);
 		else
 			DoRangedAttackOn(CurrentBO.MyBuilding);
 	}	
-	else if (Enemy != None && VehicleShouldAttackEnemyInRush())
+	if (Enemy != None && VehicleShouldAttackEnemyInRush())
 	{
 		sleep(0.1);
 		ChooseAttackMode();
 	}
-	MoveToward(MoveTarget,FaceActor(1),GetDesiredOffset(),ShouldStrafeTo(MoveTarget));
 
-	if((Enemy == None || VSize(Enemy.Location - Pawn.Location) > 500) && HasABeacon() && VSize(CurrentBO.myBuilding.Location - Pawn.Location) < 300)
+	if((Enemy == None || VSizeSq(Enemy.Location - Pawn.Location) > 250000) && HasABeacon() && VSizeSq(CurrentBO.myBuilding.Location - Pawn.Location) < 90000)
 	{
 //		`log(GetHumanReadableName()@"is attempting to plant a Beacon");
 		GoToState('DeployingBeacon');
@@ -2349,8 +2354,61 @@ Moving:
 	LatentWhatToDoNext();
 }
 
+function VehicleReconsiderObjective()
+{
+	local Rx_Building B;
+	local UTGameObjective O;
+
+	LastObjectiveReconsideration = WorldInfo.TimeSeconds;
+
+	for (O = OurTeamAI.Objectives; O != None; O = O.NextObjective)
+	{
+		if(Rx_BuildingObjective(O) != None)
+		{
+			B = Rx_BuildingObjective(O).myBuilding;
+			if(B.GetTeamNum() != GetTeamNum() && CanAttack(B))
+			{
+				OurTeamAI.PutOnOffenseAttackO(Self,O);
+				CurrentBO = Rx_BuildingObjective(O);
+				return;
+			}
+		}
+	}
+}
+
 State TacticalMove
 {
+
+	function Timer()
+	{
+		if (HasRepairGun() && GetNearbyDeployables(true) != None && CanAttack(DetectedDeployable))
+		{	
+			if(Enemy != None && CanAttack(Enemy) && VSizeSq(DetectedDeployable.Location - Enemy.Location) <= 160000)
+			{
+				Focus = Enemy;
+			}
+			else
+				Focus = DetectedDeployable;
+
+		}			
+		else if (HasRepairGun() && DefendedBuildingNeedsHealing() && CanAttack(CurrentBO.myBuilding.GetMCT()))
+		{
+			if(Enemy != None && CanAttack(Enemy) && Enemy.Controller.LineOfSightTo(CurrentBO.myBuilding.GetMCT()))
+			{
+				Focus = Enemy;
+			}
+			else
+				Focus = CurrentBO.myBuilding.GetMCT();
+		}
+		if (Enemy != None && Focus == Enemy && !bNotifyApex )
+			TimedFireWeaponAtEnemy();
+		
+		else if (Focus != None)
+			TimedFireWeaponAtFocus();
+
+		else
+			SetCombatTimer();
+	}
 
 TacticalTick:
 	Sleep(0.02);
@@ -2362,26 +2420,24 @@ Begin:
 	}
 	if (Pawn.Physics == PHYS_Falling)
 	{
-		//If the bot is an engineer and have more pressing duty....
 
-		if (HasRepairGun() && GetNearbyDeployables(true) != None && CanAttack(DetectedDeployable))
-		{	
-			SwitchToBestWeapon();
-			FireWeaponAt(DetectedDeployable);
-		}			
-		else if (HasRepairGun() && DefendedBuildingNeedsHealing() && CanAttack(CurrentBO.myBuilding))
-		{
-			SwitchToBestWeapon();
-			Focus = CurrentBO.myBuilding.GetMCT();
-		}
-		else		
-			Focus = Enemy;
 			
 		SetDestinationPosition( Enemy.Location );
 		WaitForLanding();
 	}
+
+
+
+
+	//If the bot is an engineer and have more pressing duty....
+
+
+
+	SwitchToBestWeapon();
+
 	if ( Enemy == None )
 		Goto('FinishedStrafe');
+
 	PickDestination();
 
 DoMove:
@@ -2395,8 +2451,12 @@ DoMove:
 	else
 	{
 DoStrafeMove:
-		MoveTo(GetDestinationPosition(), Enemy);
+
+			MoveTo(GetDestinationPosition(), Focus);
 	}
+
+	FireWeaponAt(Focus);
+
 	if (Rx_Weapon_RepairGun(Pawn.Weapon) == None && bForcedDirection && (WorldInfo.TimeSeconds - StartTacticalTime < 0.2) )
 	{
 		if ( !Pawn.HasRangedAttack() || Skill > 2 + 3 * FRand() )
@@ -2497,8 +2557,8 @@ state GetOutOfBuilding
 		local float Dist;	
 		class'NavigationPoint'.static.GetAllNavInRadius(Pawn,Pawn.location,200,out_NavList);
 		Foreach out_NavList(Nav) {
-			Dist = VSize(Nav.location - Pawn.location);
-			if(Dist > 30 && FastTrace(Nav.location - Pawn.location) && ActorReachable(Nav)) {
+			Dist = VSizeSq(Nav.location - Pawn.location);
+			if(Dist > 900 && FastTrace(Nav.location - Pawn.location) && ActorReachable(Nav)) {
 				return Nav;
 			} 
 //			
@@ -2537,6 +2597,37 @@ state RoundEnded
 {
 
 }
+
+/* Path Cost Modifier functions*/
+
+function SetInfantryAvoidedPath()
+{
+	local Pawn E;
+	local NavigationPoint N;
+	local ReachSpec R;
+	local Float Distance;
+
+	if(Pawn.Anchor == None || Pawn.Anchor.PathList.Length <= 0)
+		return;
+
+	foreach WorldInfo.AllPawns(class'Pawn', E, Pawn.Location, 5000)
+	{
+		if(E.GetTeamNum() == GetTeamNum() || E.GetTeamNum() == 255) //ignore allies/neutrals
+			continue;
+
+		foreach Pawn.Anchor.PathList(R)
+		{
+			N = R.GetEnd();
+
+			Distance = VSizeSq(N.Location - E.Location);
+
+			if(Distance <= 4000000 && FastTrace(N.Location, E.Location))
+				N.TransientCost = 8000000 - (Distance * 2);
+		}
+	}
+}
+
+/* End Path Cost Modifier functions*/
 
 DefaultProperties
 {

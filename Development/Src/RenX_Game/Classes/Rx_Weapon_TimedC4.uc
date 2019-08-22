@@ -45,7 +45,7 @@ function bool CanAttack(Actor Other)
 	local Vector Dummy1, Dummy2;
 
 
-	if((Other.IsA('Vehicle') || Other.IsA('Rx_BuildingAttachment')) && VSize(Other.location - Instigator.GetWeaponStartTraceLocation()) <= 200 && Rx_Bot(Instigator.Controller).LineOfSightTo(Other)
+	if((Other.IsA('Vehicle') || Other.IsA('Rx_BuildingAttachment')) && VSizeSq(Other.location - Instigator.GetWeaponStartTraceLocation()) <= 40000 && Rx_Bot(Instigator.Controller).LineOfSightTo(Other)
 		&& Trace(Dummy1,Dummy2,Other.Location,Instigator.Location,,,,TRACEFLAG_Bullet) == Other)
 		return true;
 	else

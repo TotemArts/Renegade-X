@@ -194,7 +194,7 @@ function bool PossiblyTarget(Pawn PotentialTarget, optional bool bOnlyFastTrace,
 		return false;
 
 	//Don't target pawns outside of range (particularly important for Grenade Launcher).
-	if(VSize(PotentialTarget.Location - Cannon.Location) > Cannon.GetRange())
+	if(VSizeSq(PotentialTarget.Location - Cannon.Location) > Square(Cannon.GetRange()))
 	{
 		return false;	
 	}

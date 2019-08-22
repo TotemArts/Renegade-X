@@ -298,14 +298,14 @@ function Rx_Building_VehicleFactory GetNearestProduction(Rx_PRI Buyer, out Vecto
 			{
 				if(BestFactory == None)
 				{
-					BestDist = VSize(GDITibPoint.Location - WeaponsFactory[i].location);
+					BestDist = VSizeSq(GDITibPoint.Location - WeaponsFactory[i].location);
 					BestFactory = WeaponsFactory[i];
 					if(!WeaponsFactory[i].IsDestroyed())
 						bActiveBuildingAvailable = true;
 				}
 				else if ((bActiveBuildingAvailable && !WeaponsFactory[i].IsDestroyed()) || (!bActiveBuildingAvailable))
 				{
-					CurDist = VSize(GDITibPoint.Location - WeaponsFactory[i].location);
+					CurDist = VSizeSq(GDITibPoint.Location - WeaponsFactory[i].location);
 					if(BestDist > CurDist)
 					{
 						BestDist = CurDist;
@@ -323,14 +323,14 @@ function Rx_Building_VehicleFactory GetNearestProduction(Rx_PRI Buyer, out Vecto
 			{
 				if(BestFactory == None)
 				{
-					BestDist = VSize(NodTibPoint.Location - Airstrip[i].location);
+					BestDist = VSizeSq(NodTibPoint.Location - Airstrip[i].location);
 					BestFactory = Airstrip[i];
 					if(!AirStrip[i].IsDestroyed())
 						bActiveBuildingAvailable = true;			
 				}
 				else if ((bActiveBuildingAvailable && !AirStrip[i].IsDestroyed()) || (!bActiveBuildingAvailable))
 				{
-					CurDist = VSize(NodTibPoint.Location - Airstrip[i].location);
+					CurDist = VSizeSq(NodTibPoint.Location - Airstrip[i].location);
 					if(BestDist > CurDist)
 					{
 						BestDist = CurDist;
@@ -350,14 +350,14 @@ function Rx_Building_VehicleFactory GetNearestProduction(Rx_PRI Buyer, out Vecto
 		{
 			if(BestFactory == None)
 			{
-				BestDist = VSize(Controller(Buyer.Owner).Pawn.Location - WeaponsFactory[i].location);
+				BestDist = VSizeSq(Controller(Buyer.Owner).Pawn.Location - WeaponsFactory[i].location);
 				BestFactory = WeaponsFactory[i];
 				if(!WeaponsFactory[i].IsDestroyed())
 					bActiveBuildingAvailable = true;
 			}
 			else if ((bActiveBuildingAvailable && !WeaponsFactory[i].IsDestroyed()) || (!bActiveBuildingAvailable))
 			{
-				CurDist = VSize(Controller(Buyer.Owner).Pawn.Location - WeaponsFactory[i].location);
+				CurDist = VSizeSq(Controller(Buyer.Owner).Pawn.Location - WeaponsFactory[i].location);
 				if(BestDist > CurDist)
 				{
 					BestDist = CurDist;
@@ -375,14 +375,14 @@ function Rx_Building_VehicleFactory GetNearestProduction(Rx_PRI Buyer, out Vecto
 		{
 			if(BestFactory == None)
 			{
-				BestDist = VSize(Controller(Buyer.Owner).Pawn.Location - Airstrip[i].location);
+				BestDist = VSizeSq(Controller(Buyer.Owner).Pawn.Location - Airstrip[i].location);
 				BestFactory = Airstrip[i];
 				if(!AirStrip[i].IsDestroyed())
 					bActiveBuildingAvailable = true;			
 			}
 			else if ((bActiveBuildingAvailable && !AirStrip[i].IsDestroyed()) || (!bActiveBuildingAvailable))
 			{
-				CurDist = VSize(Controller(Buyer.Owner).Pawn.Location - Airstrip[i].location);
+				CurDist = VSizeSq(Controller(Buyer.Owner).Pawn.Location - Airstrip[i].location);
 				if(BestDist > CurDist) 
 				{
 					BestDist = CurDist;

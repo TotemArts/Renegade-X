@@ -13,50 +13,15 @@ function bool AssignSquadResponsibility(UTBot B)
 
 function bool CheckSquadObjectives(UTBot B)
 {
-	local Rx_ScriptedObj_PatrolPoint PatrolObj;
-	local Actor N, BestN;
-	local int i, BestI;
-	local float Dist,BestDist;
+	local Rx_ScriptedObj ScriptedObj;
 	local Rx_Bot_Scripted ScriptB;
 
 	ScriptB = Rx_Bot_Scripted(B);
 
-	PatrolObj = Rx_ScriptedObj_PatrolPoint(SquadObjective);
-
-	if(PatrolObj != None)
+	ScriptedObj = Rx_ScriptedObj(SquadObjective);
+	if(ScriptedObj != None)
 	{
-		if(ScriptB.PatrolTask == PatrolObj)
-		{
-			return ScriptB.StartPatrol();
-		}
-		
-		ScriptB.PatrolTask = PatrolObj;
-
-		if(PatrolObj.bUseSpecificStart)
-		{
-			ScriptB.RouteGoal = PatrolObj.PatrolPoints[PatrolObj.StartNum];
-			ScriptB.PatrolNumber = PatrolObj.StartNum; 
-			return ScriptB.StartPatrol();
-		}
-
-		for(i = 0; i < PatrolObj.PatrolPoints.length; i++)
-		{
-			N = PatrolObj.PatrolPoints[i];
-			Dist = VSize(B.Pawn.Location - PatrolObj.PatrolPoints[i].Location);
-
-			if(BestN == None || Dist < BestDist)
-			{
-				BestN = N;
-				BestDist = Dist;
-				BestI = i;
-			}
-
-		}
-
-		ScriptB.RouteGoal = BestN;
-		ScriptB.PatrolNumber = BestI;
-
-		return ScriptB.StartPatrol();
+		return ScriptedObj.DoTaskFor(ScriptB);
 	}
 
 	return false;

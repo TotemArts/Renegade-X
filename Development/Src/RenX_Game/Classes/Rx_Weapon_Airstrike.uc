@@ -153,7 +153,7 @@ simulated function bool CanSetAirstrike()
 	}
 	
 	foreach DynamicActors(class'Rx_Weapon_DeployedBeacon', beacon) {
-		if(VSize(beacon.location - hitloc) < 4000) {
+		if(VSizeSq(beacon.location - hitloc) < 16000000) {
 			Rx_Controller(Instigator.Controller).ClientMessage("Area not safe: This location is too close to a beacon!");
 			return false;   
 		}

@@ -47,7 +47,7 @@ simulated state Homing
 			bDontLock = false;	
 		
 		if(!bDontLock) {
-			if(RxIfc_SeekableTarget(SeekTarget) != none && VSize(SeekTarget.Velocity) > 150 && RxIfc_SeekableTarget(SeekTarget).GetAimAheadModifier() > 0.0) { 
+			if(RxIfc_SeekableTarget(SeekTarget) != none && VSizeSq(SeekTarget.Velocity) > 22500 && RxIfc_SeekableTarget(SeekTarget).GetAimAheadModifier() > 0.0) { 
 				TargetLocation = TargetLocation + Normal(SeekTarget.Velocity) * RxIfc_SeekableTarget(SeekTarget).GetAimAheadModifier();
 			}
 			if(RxIfc_SeekableTarget(SeekTarget) != none && RxIfc_SeekableTarget(SeekTarget).GetAccelrateModifier() > 0.0) { 

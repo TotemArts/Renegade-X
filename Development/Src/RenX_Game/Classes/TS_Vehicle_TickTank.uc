@@ -27,7 +27,13 @@ state Deployed
 
 DefaultProperties
 {
-	TakeDamageMultiplier = 0.65;
+    Begin Object Name=CollisionCylinder
+    CollisionHeight=100.0
+    CollisionRadius=200.0
+    Translation=(X=0.0,Y=0.0,Z=0.0)
+    End Object
+
+    TakeDamageMultiplier = 0.65;
 
 //========================================================\\
 //************** Vehicle Physics Properties **************\\

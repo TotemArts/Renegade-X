@@ -83,6 +83,11 @@ simulated function VehicleWeaponStoppedFiring(bool bViaReplication, int SeatInde
 DefaultProperties
 {
 
+    Begin Object Name=CollisionCylinder
+    CollisionHeight=80.0
+    CollisionRadius=160.0
+    Translation=(X=-32.0,Y=0.0,Z=0.0)
+    End Object
 
 //========================================================\\
 //************** Vehicle Physics Properties **************\\

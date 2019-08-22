@@ -863,6 +863,7 @@ simulated function InstantFire()
 	local Array<ImpactInfo>	ImpactList;
 	local ImpactInfo RealImpact;
 	local int i;
+	local bool Headshot;
 	
 	local vector			HitLocation, HitNormal;
 	local TraceHitInfo		HitInfo;	
@@ -902,7 +903,8 @@ simulated function InstantFire()
 	
 	for (i = 0; i < ImpactList.length; i++)
 	{
-		if(WorldInfo.NetMode != NM_DedicatedServer && Instigator.Controller.IsLocalPlayerController()) {
+		if(WorldInfo.NetMode != NM_DedicatedServer && Instigator.Controller.IsLocalPlayerController()) 
+		{
 			
 			if(WorldInfo.NetMode == NM_Client && FracturedStaticMeshActor(RealImpact.HitActor) != None) {
 				ProcessInstantHit(CurrentFireMode, ImpactList[i]);
@@ -910,7 +912,10 @@ simulated function InstantFire()
 			
 			if(Pawn(ImpactList[i].HitActor) != None && Pawn(ImpactList[i].HitActor).Health > 0 && Pawn(ImpactList[i].HitActor).GetTeamNum() != Instigator.GetTeamNum()) {
 				Rx_Hud(Rx_Controller(Instigator.Controller).myHud).ShowHitMarker();
-				if(Rx_Pawn(Pawn(ImpactList[i].HitActor)) != None) Rx_Controller(Instigator.Controller).AddHit() ;
+				if(Rx_Pawn(Pawn(ImpactList[i].HitActor)) != None)
+				{
+					Rx_Controller(Instigator.Controller).AddHit();
+				}
 			}
 			if(!TryHeadshot(CurrentFireMode,ImpactList[i])) {
 				ServerALInstanthitHit(CurrentFireMode, ImpactList[i], RealImpact.HitLocation);
@@ -945,7 +950,7 @@ simulated function bool TryHeadshot(byte FiringMode, ImpactInfo Impact)
     	
 	if(WeaponFireTypes[FiringMode] == EWFT_InstantHit)
 	{
-		if (Instigator == None || VSize(Instigator.Velocity) < Instigator.GroundSpeed * Instigator.CrouchedPct)
+		if (Instigator == None || VSizeSq(Instigator.Velocity) < Square(Instigator.GroundSpeed * Instigator.CrouchedPct))
 		{
 			Scaling = SlowHeadshotScale;
 		}
@@ -998,7 +1003,8 @@ simulated function ProcessInstantHit( byte FiringMode, ImpactInfo Impact, option
 				&& PhysicsVolume(Impact.HitActor) == None )
 			{
 				if(Rx_Pawn(Instigator) != None)
-					Rx_Pawn(Instigator).HitEnemyForDemoRec++;	
+					Rx_Pawn(Instigator).HitEnemyForDemoRec++;
+				
 				HitEnemy++;
 				LastHitEnemyTime = WorldInfo.TimeSeconds;
 			}
@@ -1268,7 +1274,7 @@ simulated function byte GetInventoryMovieGroup() {
 	return InventoryMovieGroup;
 }
 
-/** Modified version of super.CanAttack() because Rx_BuildingObjective´s need special treatment */
+/** Modified version of super.CanAttack() because Rx_BuildingObjectiveÂ´s need special treatment */
 function bool CanAttack(Actor Other)
 {
 	local float Dist;
@@ -1286,8 +1292,8 @@ function bool CanAttack(Actor Other)
 	RealTarget = Other;
 	CachedMaxRangeTemp = CachedMaxRange;
 	// check that target is within range
-	Dist = VSize(Instigator.Location - Other.Location);
-	if (Dist > MaxRange())
+	Dist = VSizeSq(Instigator.Location - Other.Location);
+	if (Dist > Square(MaxRange()))
 	{
 		if(Rx_Building(Other) != None || Rx_BuildingObjective(Other) != None || Rx_BuildingAttachment(Other) != None) 
 		{
@@ -1297,8 +1303,8 @@ function bool CanAttack(Actor Other)
 			if(RealTarget != Trace( out_HitLocation, out_HitNormal, RealTarget.GetTargetLocation(), Instigator.GetWeaponStartTraceLocation(),,,,TRACEFLAG_Bullet)) {
 				return false;
 			}
-			Dist = VSize(Instigator.Location - out_HitLocation);
-			if(Dist <= MaxRange() - 50) 
+			Dist = VSizeSq(Instigator.Location - out_HitLocation);
+			if(Dist <= Square(MaxRange() - 50))
 			{
 				CachedMaxRange = 20000;		
 			} 
@@ -1337,8 +1343,8 @@ function bool CanAttackFromPosition(vector TestLocation, Actor Other)
 	RealTarget = Other;
 	CachedMaxRangeTemp = CachedMaxRange;
 	// check that target is within range
-	Dist = VSize(TestLocation - Other.Location);
-	if (Dist > MaxRange())
+	Dist = VSizeSq(TestLocation - Other.Location);
+	if (Dist > Square(MaxRange()))
 	{
 		if(Rx_Building(Other) != None || Rx_BuildingObjective(Other) != None) {
 			if(Rx_BuildingObjective(Other) != None) {
@@ -1347,8 +1353,8 @@ function bool CanAttackFromPosition(vector TestLocation, Actor Other)
 			if(RealTarget != Trace( out_HitLocation, out_HitNormal, Other.location, TestLocation,,,,TRACEFLAG_Bullet)) {
 				return false;
 			}
-			Dist = VSize(TestLocation - out_HitLocation);
-			if(Dist <= MaxRange() - 50) {
+			Dist = VSizeSq(TestLocation - out_HitLocation);
+			if(Dist <= Square(MaxRange() - 50)) {
 				//CachedMaxRange = VSize(TestLocation - Other.Location);		
 				CachedMaxRange = 20000;		
 			} else {
@@ -1633,7 +1639,7 @@ reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, T
 	{
 		return;  
 	}
-	if (Target != none && VSize(Target.Location - HitLocation) > 250 )
+	if (Target != none && VSizeSq(Target.Location - HitLocation) > 62500 )
 	{
 		return;
 	}
@@ -1759,14 +1765,14 @@ reliable server function ServerALHit(Actor Target, vector HitLocation, TraceHitI
 	{
 		return;  
 	}
-	HitDistDiff = VSize(Target.Location - HitLocation);
+	HitDistDiff = VSizeSq(Target.Location - HitLocation);
 	if (Target != none && !default.bIgnoreHitDist)
 	{
 		if(Rx_Building(Target) != None) {
-			if(HitDistDiff > 3000) {
+			if(HitDistDiff > 9000000) {
 				return;
 			}
-		} else if(HitDistDiff > 250 ) {
+		} else if(HitDistDiff > 62500 ) {
 			return;
 		}
 	}
@@ -1820,7 +1826,7 @@ reliable server function ServerALRadiusDamage(Actor Target, vector HurtOrigin, b
 		return;  
 	}
 	/** Pointless ?
-	if (Target != none && VSize(Target.Location - HurtOrigin) > 400 )
+	if (Target != none && VSizeSq(Target.Location - HurtOrigin) > 160000 )
 	{
 		return;
 	}*/
@@ -1969,7 +1975,10 @@ function InstantFireHurtRadius(byte FiringMode, vector HurtOrigin, Actor Impacte
 		}
 	}
 	if (bShowHit)
+	{
 		Rx_Hud(Rx_Controller(Instigator.Controller).myHud).ShowHitMarker();
+		Rx_Controller(Instigator.Controller).PlayHitMarkerSound();
+	}
 
 	bHurtEntry = false;
 }
@@ -2234,7 +2243,7 @@ simulated event float GetTraceRange()
 
 unreliable server function ServerSendLocSync(vector ClientLoc)
 {
-if(VSize(Instigator.location-ClientLoc) >= 750) `LogRx("PLAYER" `s "LocationDesync;" `s `PlayerLog(Instigator.PlayerReplicationInfo));	
+if(VSizeSq(Instigator.location-ClientLoc) >= 562500) `LogRx("PLAYER" `s "LocationDesync;" `s `PlayerLog(Instigator.PlayerReplicationInfo));	
 } 
 
 //Not vehicles, so don't have to worry about harv/defence controllers
@@ -2359,7 +2368,7 @@ simulated function ImpactInfo CalcWeaponFire(vector StartTrace, vector EndTrace,
 	
 	if(default.MaximumPiercingAbility > 0)
 	{
-		if(HitActor == None)
+	if(HitActor == None)
 		CurrentPiercingPower = 0; //Blocked 
 	else if(HitActor.IsA('Rx_Pawn') && CurrentPiercingPower > 0) 
 		CurrentPiercingPower-=1;
@@ -2434,7 +2443,7 @@ simulated function ImpactInfo CalcWeaponFire(vector StartTrace, vector EndTrace,
 simulated static function bool PassThroughDamage(Actor HitActor)
 {
 	return (!HitActor.bBlockActors && (HitActor.IsA('Trigger') || HitActor.IsA('TriggerVolume')))
-		|| HitActor.IsA('InteractiveFoliageActor')
+		|| HitActor.IsA('InteractiveFoliageActor') || HitActor.IsA('Rx_Weapon_DeployedTimedC4')
 		|| (default.bPierceInfantry && HitActor.isA('Rx_Pawn'))
 		|| (default.bPierceVehicles && HitActor.isA('Rx_Vehicle'));
 }

@@ -57,7 +57,7 @@ function RepairPadTick()
 
 	ForEach `WorldInfoObject.AllActors(class'UTVehicle', thisVehicle) //thisVehicle, RepairDistance, thisLocation, IgnoreHiddenCollidingActors)
 	{
-		if (!IsValidVehicle(thisVehicle) || VSize(thisVehicle.Location - thisLocation) > RepairDistance) continue;
+		if (!IsValidVehicle(thisVehicle) || VSizeSq(thisVehicle.Location - thisLocation) > Square(RepairDistance)) continue;
 
 		if (thisVehicle.Health < thisVehicle.HealthMax)
 		{

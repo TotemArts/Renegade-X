@@ -208,7 +208,7 @@ function bool CanAttack(Actor Other)
 	{
 		return false;
 	}
-	if (VSize(Instigator.Location - Other.Location) > MaxRange())
+	if (VSizeSq(Instigator.Location - Other.Location) > Square(MaxRange()))
 	{
 		return false;
 	}

@@ -159,10 +159,7 @@ simulated function PostBeginPlay()
 	{
 		bNeedRelevancyInfo = (!Rx_Game(WorldInfo.Game).bInfantryAlwaysRelevant || !Rx_Game(WorldInfo.Game).bVehiclesAlwaysRelevant);
 		bUseLegacyScoreSystem = Rx_Game(WorldInfo.Game).bUseLegacyScoreSystem; 
-	}
-	if(Rx_Bot(Owner) != None)
-		BotSkill = GetBotSkill();
-		
+	}		
 }
 
 simulated function UpdateCharClassInfo()
@@ -252,12 +249,14 @@ function SetChar(class<Rx_FamilyInfo> newFamily, Pawn pawn, optional bool isFree
 	}
 	if(Rx_Bot(Owner) != None)
 	{
-		UTPawn(pawn).NotifyTeamChanged();
+		Rx_Pawn(pawn).SetCharacterClassFromInfo(newFamily);
+//		Rx_Pawn(pawn).ChangeCharacterClass();
 	}
 	else if((WorldInfo.NetMode == NM_ListenServer && RemoteRole == ROLE_SimulatedProxy) || WorldInfo.NetMode == NM_Standalone )
 	{
 		UpdateCharClassInfo();
-	} else if(newFamily != None) {
+	} 
+	else if(newFamily != None) {
 		//`log("setting pawn " @ pawn @ "Character info to" @ newFamily); 
 		Rx_Pawn(pawn).SetCharacterClassFromInfo(newFamily);
 	}
@@ -495,14 +494,6 @@ simulated function int GetVetRank()
 simulated function int GetVehicleKills()
 {
 	return Total_Vehicle_Kills;
-}
-
-reliable server function int GetBotSkill()
-{
-	if(UTBot(Owner) != none)
-		return int(UTBot(Owner).Skill);
-
-	return 0;
 }
 
 simulated function String GetHumanReadableName()
@@ -1087,7 +1078,7 @@ function UpdateDefensiveScore()
 
 function UpdateSupportScore()
 {
-	 Score_Support=((Vehicle_Repairs/150.0) + (Infantry_Repairs/50.0) + (Beacon_Damage/10.0) + (Tech_Captures*15.0) + (Mines_Disarmed) + (Vehicle_EMPs*3.0)) ;
+	 Score_Support=((Vehicle_Repairs/100.0) + (Infantry_Repairs/50.0) + (Beacon_Damage/10.0) + (Tech_Captures*15.0) + (Mines_Disarmed) + (Vehicle_EMPs*3.0)) ;
 }
 
 function UpdateAllScores(optional out float Difference)
@@ -1116,7 +1107,8 @@ function InitVP(int AvgVeterancy, int VP1, int VP2, int VP3)
 	
 	//`log("-------GRI =" @ WorldInfo.GRI @ "-----------------");
 	//`log("Init VP"); 
-	if(Veterancy_Points == 0) AddVP(AvgVeterancy);
+	if(Veterancy_Points == 0) 
+		AddVP(AvgVeterancy);
 }
 
 simulated function setLastFreeCharacter(int fClass)

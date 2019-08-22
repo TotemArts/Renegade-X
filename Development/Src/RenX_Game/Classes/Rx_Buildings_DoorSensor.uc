@@ -15,9 +15,9 @@ simulated event Touch( Actor Other, PrimitiveComponent OtherComp, vector HitLoca
 {
 	if( Door != none )
 	{
-		if(Pawn(Other) != None && Rx_Bot(Pawn(Other).Controller) != None) {
-			Rx_Bot(Pawn(Other).Controller).setStrafingDisabled(true);
-		}		
+//		if(Pawn(Other) != None && Rx_Bot(Pawn(Other).Controller) != None) {
+//			Rx_Bot(Pawn(Other).Controller).setStrafingDisabled(true);
+//		}		
 		Door.SensorTouch(Other);
 	}
 }
@@ -26,10 +26,10 @@ simulated event UnTouch( Actor Other )
 {	
 	if ( Door != none )
 	{
-		if(Pawn(Other) != None && Rx_Bot(Pawn(Other).Controller) != None
-				&& !Rx_Bot(Pawn(Other).Controller).IsInBuilding()) {
-			Rx_Bot(Pawn(Other).Controller).setStrafingDisabled(false);
-		}
+//		if(Pawn(Other) != None && Rx_Bot(Pawn(Other).Controller) != None
+//				&& !Rx_Bot(Pawn(Other).Controller).IsInBuilding()) {
+//			Rx_Bot(Pawn(Other).Controller).setStrafingDisabled(false);
+//		}
 		Door.SensorUnTouch(Other);
 	}	
 }
