@@ -4410,6 +4410,12 @@ function bool FindAutoExit(Pawn ExitingDriver)
 	return false;
 }
 
+
+simulated function bool CanBeBaseForPawn(Pawn APawn)
+{
+	return super.CanBeBaseForPawn(APawn) && Rx_Vehicle_Walker(APawn) == None;
+}
+
 DefaultProperties
 {
 	//nBab

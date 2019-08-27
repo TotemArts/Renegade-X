@@ -3,13 +3,12 @@ class Rx_ScriptedObj_PatrolPoint extends Rx_ScriptedObj
 
 var(ScriptedPatrol) Rx_ScriptedObj_PatrolPoint NextPatrolPoint;
 var(ScriptedPatrol) bool bWalkingPatrol;
-var(ScriptedPatrol) int StartNum;
 var(ScriptedPatrol) bool bGroupPatrol;
 
 function bool DoTaskFor(Rx_Bot_Scripted B)
 {
-	if(!B.Pawn.ReachedDestination(Self) || (bGroupPatrol && !AreAllBotsInHere(B)))
-		return B.FindPatrolPathTowards(Self);
+	if((!bGroupPatrol && !B.Pawn.ReachedDestination(Self)) || (bGroupPatrol && !AreAllBotsInHere(B)))
+		return FindPatrolPathTowards(Self, B);
 
 	else if(NextPatrolPoint != None)
 	{
@@ -23,6 +22,34 @@ function bool DoTaskFor(Rx_Bot_Scripted B)
 	return false;
 }
 
+function bool FindPatrolPathTowards(Actor PatrolPoint, Rx_Bot_Scripted B)
+{
+	local Actor BestPath;
+
+	if(B.RouteGoal == PatrolPoint && !B.Pawn.ReachedDestination(B.MoveTarget))
+	{
+		B.GoToState('Patrolling');
+		return true;
+	}
+	else
+	{
+		B.RouteGoal = PatrolPoint;
+	}
+
+	BestPath = B.FindPathToward(PatrolPoint);
+
+	if(BestPath == None)
+		BestPath = PatrolPoint;
+
+	B.MoveTarget = BestPath;
+	B.GoToState('Patrolling');
+
+	return true;
+
+
+
+}
+
 function bool AreAllBotsInHere(Rx_Bot_Scripted B)
 {
 	local Rx_Bot_Scripted Bots;
@@ -34,9 +61,6 @@ function bool AreAllBotsInHere(Rx_Bot_Scripted B)
 	{
 		foreach B.MySpawner.MyBots(Bots)
 		{
-			if(Bots == B)
-				continue;
-
 			if(Bots.RouteGoal == Self && Bots.Pawn.ReachedDestination(Self))
 				return false;
 		}

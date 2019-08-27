@@ -325,6 +325,9 @@ var bool bUpdate3rdPersonEyeHeightBob;
 var float DodgeBlendTime; 
 var AnimNodeSequence DodgeGroupNode; //Holds a reference to the forward dodge node to signal the 'Dive' group to play
 
+var vector DodgeCameraOffset; 
+var float  DodgeCameraZOffset;
+
 //-----------------------------------------------------------------------------
 // Pawn control
 //-----------------------------------------------------------------------------
@@ -2998,6 +3001,7 @@ function DoDodge(eDoubleClickDir DoubleClickMove)
 	SetTimer(DodgeDuration,false,'UnDodge'); //time until the dodge is done
 	
 	//calcDodgeAnim(DoubleClickMove);
+	//SetCamOffset(DodgeCameraOffset);
 	playDodgeAnimation();	
 
 }
@@ -3081,7 +3085,8 @@ function UnDodge()
 	GroundSpeed = default.GroundSpeed * GetSpeedModifier() ;//(SpeedUpgradeMultiplier+GetRxFamilyInfo().default.Vet_SprintSpeedMod[VRank]) ;
 	AirSpeed = default.AirSpeed*GetSpeedModifier();//SpeedUpgradeMultiplier * (SpeedUpgradeMultiplier+GetRxFamilyInfo().default.Vet_SprintSpeedMod[VRank]) ;
 	
-	DodgeNode.SetActiveChild(0,DodgeBlendTime);
+	DodgeNode.SetActiveChild(0,0.5);
+	//SetCamOffset(default.CamOffset); 
 	
 	//DodgeAnim = '';
 	if(WasInFirstPersonBeforeDodge) {
@@ -3106,7 +3111,7 @@ function playDodgeAnimation()
 	ReloadAnim = ''; // to notify remote clients (with repnotify) that they should stop reloadanimation if they play it
 	BoltReloadAnim = '';
 	DodgeGroupNode.PlayAnim(false, 1.0, 0.0);
-	DodgeNode.SetActiveChild(1,DodgeBlendTime);
+	DodgeNode.SetActiveChild(1,0.2);
 	//FullBodyAnimSlot.PlayCustomAnimByDuration( DodgeAnim, DodgeDuration + 0.2, 0.2, 0.2);
 }
 
@@ -3971,7 +3976,7 @@ simulated function bool CalcThirdPersonCam( float fDeltaTime, out vector out_Cam
 	DesiredCamStart.Z += CameraSmoothZOffset;
 	if(bUpdate3rdPersonEyeHeightBob)
 	    DesiredCamStart.Z += Eyeheight - BaseEyeheight;
-
+	
 	if ( bWinnerCam )
 	{
 		// use "hero" cam
@@ -3985,8 +3990,11 @@ simulated function bool CalcThirdPersonCam( float fDeltaTime, out vector out_Cam
 		
 		if (GetRxFamilyInfo() != none)
 			DesiredCameraZOffset += GetRxFamilyInfo().default.CameraHeightModifier;
+		
+		if(bDodging)
+			DesiredCameraZOffset += DodgeCameraZOffset; 
 
-		CameraZOffset = (CameraZOffset >= CamStartCrouchZHeight && CameraZOffset <= CamStartZHeight) ? Lerp(CameraZOffset,DesiredCameraZOffset,FClamp(fDeltaTime * 10.0f,0,1)) : DesiredCameraZOffset;
+		CameraZOffset = Lerp(CameraZOffset,DesiredCameraZOffset,FClamp(fDeltaTime * 10.0f,0,1)) ;//(CameraZOffset >= CamStartCrouchZHeight && CameraZOffset <= CamStartZHeight) ? Lerp(CameraZOffset,DesiredCameraZOffset,FClamp(fDeltaTime * 10.0f,0,1)) : DesiredCameraZOffset;
 		if ( Health <= 0 )
 		{
 			CurrentCamOffset = vect(0,0,0);
@@ -4090,6 +4098,10 @@ simulated function bool CalcThirdPersonCam( float fDeltaTime, out vector out_Cam
 	}
 	lastRxPawnOutCamLoc = out_CamLoc;
 	return true;
+}
+
+simulated function SetCamOffset(vector Offset){
+	CamOffset = Offset;
 }
 
 simulated function vector GetSmoothedCamStart(vector DesiredStart)
@@ -6055,6 +6067,8 @@ DefaultProperties
 	CameraSmoothingFactor = 3
 	CameraLag = 0.05
 
+	DodgeCameraOffset = (X=130.0,Y=5.0,Z=-60.0)
+	
 	CamLowAngleStart=6000
 	CamLowOffsetMax=30
 	CamHighAngleStart=61000
@@ -6251,7 +6265,7 @@ DefaultProperties
 	//Dodge......BAAAAAALL!!!!!
 	DodgeNodeName		= "Dive1"
 	DodgeBlendTime = 0.5f
-	DodgeSpeed=420
+	DodgeSpeed=500 //420
 	DodgeSpeedZ=300.0
 	DodgeDuration=1.0	// 1.0
 	bDodgeCapable=false //true;  Not this patch yet... till we figure something out. Yosh
@@ -6298,4 +6312,6 @@ DefaultProperties
 	PassiveAbilities(0) = none 
 	PassiveAbilities(1) = none 
 	PassiveAbilities(2) = none 
+	
+	DodgeCameraZOffset = -40
 }

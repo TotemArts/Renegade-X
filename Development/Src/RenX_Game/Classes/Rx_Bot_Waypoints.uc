@@ -834,7 +834,7 @@ MoveToHeal:
 
 	LatentWhatToDoNext();
 
-	if(HasRepairGun() && Focus != None && CanHeal(Focus) && VSizeSq(Focus.Location - Pawn.Location) <= 160000)
+	if(HasRepairGun() && Focus != None && CanHeal(Focus))
 	{
 Healing:
 	
@@ -2381,24 +2381,27 @@ State TacticalMove
 
 	function Timer()
 	{
-		if (HasRepairGun() && GetNearbyDeployables(true) != None && CanAttack(DetectedDeployable))
-		{	
-			if(Enemy != None && CanAttack(Enemy) && VSizeSq(DetectedDeployable.Location - Enemy.Location) <= 160000)
-			{
-				Focus = Enemy;
-			}
-			else
-				Focus = DetectedDeployable;
-
-		}			
-		else if (HasRepairGun() && DefendedBuildingNeedsHealing() && CanAttack(CurrentBO.myBuilding.GetMCT()))
+		if (GetOrders() == 'DEFEND' && HasRepairGun())
 		{
-			if(Enemy != None && CanAttack(Enemy) && Enemy.Controller.LineOfSightTo(CurrentBO.myBuilding.GetMCT()))
+			if(GetNearbyDeployables(true) != None && CanAttack(DetectedDeployable))
+			{	
+				if(Enemy != None && CanAttack(Enemy) && VSizeSq(DetectedDeployable.Location - Enemy.Location) <= 160000)
+				{
+					Focus = Enemy;
+				}
+				else
+					Focus = DetectedDeployable;
+
+			}			
+			else if (DefendedBuildingNeedsHealing() && CanAttack(CurrentBO.myBuilding.GetMCT()))
 			{
-				Focus = Enemy;
+				if(Enemy != None && CanAttack(Enemy) && Enemy.Controller.LineOfSightTo(CurrentBO.myBuilding.GetMCT()))
+				{
+					Focus = Enemy;
+				}
+				else
+					Focus = CurrentBO.myBuilding.GetMCT();
 			}
-			else
-				Focus = CurrentBO.myBuilding.GetMCT();
 		}
 		if (Enemy != None && Focus == Enemy && !bNotifyApex )
 			TimedFireWeaponAtEnemy();
@@ -2498,7 +2501,9 @@ RecoverEnemy:
 	else if (Rx_Weapon_RepairGun(Pawn.Weapon) != None)
 	{
 		if(GetNearbyDeployables(true) != None && CanAttack(DetectedDeployable))
+		{
 			FireWeaponAt(DetectedDeployable);
+		}
 		else if (DefendedBuildingNeedsHealing() && CanAttack(CurrentBO.myBuilding))
 		{
 			Focus = CurrentBO.myBuilding.GetMCT();

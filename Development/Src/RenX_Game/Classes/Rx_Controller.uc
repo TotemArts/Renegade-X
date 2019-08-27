@@ -624,32 +624,52 @@ exec function Donate(string PlayerName, int Credits)
 
 reliable server function ServerDonateCredits(int playerID, float amount)
 {
-	local int i;
+	local Rx_PRI target;
 
+	// Verify donations are allowed
 	if(Worldinfo.GRI.ElapsedTime < Rx_Game(Worldinfo.Game).DonationsDisabledTime)
 	{
 		ClientMessage("Donations are disallowed for the first " $ Rx_Game(Worldinfo.Game).DonationsDisabledTime $ " seconds.");	
 		return;
 	}
 
-	if (amount < 0 || Rx_PRI(PlayerReplicationInfo).GetCredits() < amount) return; // not enough money
-	else if (amount == 0) amount = Rx_PRI(PlayerReplicationInfo).GetCredits();
-
-	for (i = 0; i < WorldInfo.GRI.PRIArray.Length; i++)
-	{
-		if (WorldInfo.GRI.PRIArray[i].PlayerID == playerID)
-		{
-			Rx_PRI(WorldInfo.GRI.PRIArray[i]).AddCredits(amount);
-			Rx_PRI(PlayerReplicationInfo).RemoveCredits(amount);
-			`LogRxPub("GAME" `s "Donated;" `s amount `s "to" `s `PlayerLog(WorldInfo.GRI.PRIArray[i]) `s "by" `s `PlayerLog(PlayerReplicationInfo));
-			if (Rx_Controller(WorldInfo.GRI.PRIArray[i].Owner) != none)
-			{
-				Rx_Controller(WorldInfo.GRI.PRIArray[i].Owner).ClientMessage(PlayerReplicationInfo.PlayerName $ " donated you " $ amount $" credits.");
-			}
-
-			return;
-		}
+	// Verify amount
+	if (amount < 0 || Rx_PRI(PlayerReplicationInfo).GetCredits() < amount) {
+		ClientMessage("Error: You cannot donate more money than you actually have! You also can't steal.");
+		return; // not enough money
 	}
+	else if (amount == 0) {
+		// Treat zero as all credits
+		amount = Rx_PRI(PlayerReplicationInfo).GetCredits();
+	}
+
+	target = Rx_PRI(Rx_Game(WorldInfo.Game).FindPlayerByID(playerID));
+	if (target == None) {
+		// Should only happen if ServerDonateCredits is illegally called or if the player leaves before this method is fired off or maybe if the player isn't human
+		ClientMessage("Error: Couldn't find player (did they leave?)");
+		return;
+	}
+
+	// Block donations to enemies
+	if (target.GetTeamNum() != GetTeamNum()) {
+		ClientMessage("Error: You cannot donate to the enemy!");
+		return;
+	}
+
+	// Block donations to non-Rx_Controllers (i.e: bots)
+	if (Rx_Controller(target.Owner) == None) {
+		ClientMessage("Error: You can only donate to human players!");
+		return;
+	}
+
+	// Transfer credits
+	target.AddCredits(amount);
+	Rx_PRI(PlayerReplicationInfo).RemoveCredits(amount);
+
+	// Fire off notifications
+	`LogRxPub("GAME" `s "Donated;" `s amount `s "to" `s `PlayerLog(target) `s "by" `s `PlayerLog(PlayerReplicationInfo));
+	Rx_Controller(target.Owner).ClientMessage(PlayerReplicationInfo.PlayerName $ " donated you " $ amount $" credits.");
+	ClientMessage("You've donated " $ amount $ " credits to " $ PlayerReplicationInfo.PlayerName);
 }
 
 exec function TeamDonate(int Credits)

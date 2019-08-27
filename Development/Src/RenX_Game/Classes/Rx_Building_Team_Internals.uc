@@ -149,7 +149,7 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 	local int TempDmg;
 	local float Scr;
 	local int dmgLodLevel;
-	local Rx_Controller PC,StarPC; //Let's rub it in their faces, gents!
+	local Rx_Controller StarPC; //Let's rub it in their faces, gents!
 	local int InstigatorIndex;
 	local Attacker TempAttacker;
 	local Attacker PRII;
@@ -349,27 +349,13 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 			Destroyed_Score=0; 
 		}
 			
-		/*Show message where people will actually see it -Yosh (Remember the outrage when destruction and beacon messages were moved to the middle left? Yeah.. neither do the people that ranted about it.)*/
-		foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
-		{
-			if (StarPC == none)
-				PC.CTextMessage(Caps("The"@BuildingVisuals.GetHumanReadableName()@ "was destroyed!"),'Red', 180);
-			else if (PC.GetTeamNum() == StarPC.GetTeamNum())
-				{
-					PC.CTextMessage(Caps("The"@BuildingVisuals.GetHumanReadableName()@ "was destroyed!"),'Green',180);
-					PC.DisseminateVPString("[Team Building Kill Bonus]&" $ class'Rx_VeterancyModifiers'.default.Ev_BuildingDestroyed*Rx_Game(WorldInfo.Game).CurrentBuildingVPModifier $ "&");
-				}
-			else
-			{
-				PC.CTextMessage(Caps("The"@BuildingVisuals.GetHumanReadableName()@ "was destroyed!"),'Red',180);
-			}
-		}
-		//End show message where people will actually look at it.
+		//Handepsilon : Moved the building destruction broadcast to Rx_Game. 
+		//  	Seriously, why does the building handle the announcement itself?? This is a gameplay thing!
 
 		Rx_Game(WorldInfo.Game).LogBuildingDestroyed(Destroyer, self, BuildingVisuals, DamageType);
 
 		PlayDestructionAnimation();
-		Rx_Game(WorldInfo.Game).CheckBuildingsDestroyed(BuildingVisuals);
+		Rx_Game(WorldInfo.Game).CheckBuildingsDestroyed(BuildingVisuals, StarPC);
 	}
 	else if (DamageAmount > 0) 
 	{

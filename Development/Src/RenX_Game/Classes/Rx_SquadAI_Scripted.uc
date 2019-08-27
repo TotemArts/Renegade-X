@@ -57,10 +57,4 @@ function RemoveBot (UTBot B)
 	}
 	if ( SquadLeader == B )
 		PickNewLeader();
-
-	if(Spawner != None)
-	{
-		Spawner.BotRemaining -= 1;
-		Spawner.NotifyPawnDeath();
-	}
 }

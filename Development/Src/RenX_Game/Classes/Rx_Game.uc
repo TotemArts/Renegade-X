@@ -2341,11 +2341,29 @@ function bool TooManyBots(Controller botToRemove)
 	return false;
 }
 
-function CheckBuildingsDestroyed(Actor destroyedBuilding)
+function CheckBuildingsDestroyed(Actor destroyedBuilding, Rx_Controller StarPC)
 {
 	local BuildingCheck Check;
 	local PlayerReplicationInfo pri;
+	local Rx_Controller PC;
 	
+	/*Show message where people will actually see it -Yosh (Remember the outrage when destruction and beacon messages were moved to the middle left? Yeah.. neither do the people that ranted about it.)*/
+	foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
+	{
+		if (StarPC == none)
+			PC.CTextMessage(Caps("The"@destroyedBuilding.GetHumanReadableName()@ "was destroyed!"),'Red', 180);
+		else if (PC.GetTeamNum() == StarPC.GetTeamNum())
+		{
+			PC.CTextMessage(Caps("The"@destroyedBuilding.GetHumanReadableName()@ "was destroyed!"),'Green',180);
+			PC.DisseminateVPString("[Team Building Kill Bonus]&" $ class'Rx_VeterancyModifiers'.default.Ev_BuildingDestroyed*Rx_Game(WorldInfo.Game).CurrentBuildingVPModifier $ "&");
+		}
+		else
+		{
+			PC.CTextMessage(Caps("The"@destroyedBuilding.GetHumanReadableName()@ "was destroyed!"),'Red',180);
+		}
+	}
+	//End show message where people will actually look at it.
+
 	if (Role == ROLE_Authority)
 	{
 		CurrentBuildingVPModifier +=0.5;

@@ -214,46 +214,6 @@ function bool AssignSquadResponsibility ()
 
 }
 
-function bool StartPatrol()
-{
-	if(FindPatrolPathTowards(RouteGoal))
-	{
-		GoToState('Patrolling');
-		return true;
-	}
-
-	return false;
-
-}
-
-function bool FindPatrolPathTowards(Actor PatrolPoint)
-{
-	local Actor BestPath;
-
-	if(RouteGoal == PatrolPoint && !Pawn.ReachedDestination(MoveTarget))
-	{
-		GoToState('Patrolling');
-		return true;
-	}
-	else
-	{
-		RouteGoal = PatrolPoint;
-	}
-
-	BestPath = FindPathToward(RouteGoal);
-
-	if(BestPath == None)
-		BestPath = FindRandomDest();
-
-	MoveTarget = BestPath;
-	GoToState('Patrolling');
-
-	return true;
-
-
-
-}
-
 state Patrolling
 {
 
@@ -300,6 +260,13 @@ state Dead
 {
 	function BeginState(Name PreviousStateName)
 	{
+		if(MySpawner != None)
+		{
+			MySpawner.BotRemaining -= 1;
+			MySpawner.NotifyPawnDeath(Self);
+		}
+
+
 		Destroy();
 	}
 }

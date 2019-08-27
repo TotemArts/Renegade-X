@@ -810,12 +810,11 @@ function array<class<Rx_FamilyInfo> > DefensiveClasses()
 
 function bool CanHeal(Actor Other)
 {
-	local Vector Dummy1, Dummy2;
 
-	if(Pawn == None || Other.GetTeamNum() != GetTeamNum())
+	if(Pawn == None || (Pawn(Other) != None && Other.GetTeamNum() != GetTeamNum()))
 		return false;
 
-	if(VSizeSq(Other.Location - Pawn.Location) <= 202500 && Trace(Dummy1,Dummy2,Other.Location,Pawn.GetWeaponStartTraceLocation(),,,,TRACEFLAG_Bullet) == Other)
+	if(Rx_Weapon_RepairGun(Pawn.Weapon) != None && CanAttack(Other))
 		return true;	
 
 	return false;
@@ -899,7 +898,8 @@ function Rx_Weapon_DeployedActor GetNearbyDeployables(bool bOverrideFocus)
 			Focus = DetectedDeployable;
 		return DetectedDeployable;
 	}
-		DetectedDeployable = None;
+	
+	DetectedDeployable = None;
 
 	CheckRadius = Skill / 3.0 * 600.0;
 
@@ -912,7 +912,7 @@ function Rx_Weapon_DeployedActor GetNearbyDeployables(bool bOverrideFocus)
 		{
 			if(Rx_Weapon_DeployedC4(B) != None && (Rx_Weapon_DeployedProxyC4(B) == None && GetOrders() != 'ATTACK')) 
 			{
-				if(Rx_Vehicle(B.Base) != None || Rx_Building(B.Base) != None)
+				if(Rx_Vehicle(B.Base) != None || Rx_Building(B.Base) != None || Rx_BuildingAttachment(B.Base) != None)
 				{
 					DetectedDeployable = B;
 
@@ -1767,8 +1767,8 @@ function bool BotBuyChar(string CharID)
 function bool ProcessCharacterChange(class<Rx_FamilyInfo> PickedClass)
 {	
 	local int BuyCost;
-//	local ETickingGroup LastTG;
-//	local bool bWasPostAsync;
+	local ETickingGroup LastTG;
+	local bool bWasPreAsync;
 
 	if(Rx_PRI(PlayerReplicationInfo).CharClassInfo == PickedClass)
 	{
@@ -1784,24 +1784,24 @@ function bool ProcessCharacterChange(class<Rx_FamilyInfo> PickedClass)
 
 	Rx_PRI(PlayerReplicationInfo).CharClassInfo = PickedClass;
 
-/*
-	if(Pawn.Mesh.TickGroup != TG_PostAsyncWork)
+
+	if(Pawn.Mesh.TickGroup != TG_PreAsyncWork)
 	{
 		LastTG = Pawn.Mesh.TickGroup;
-		Pawn.Mesh.SetTickGroup(TG_PostAsyncWork);
-		`log(GetHumanReadableName()@" : temporarily changing to PostAsyncWork");
+		Pawn.Mesh.SetTickGroup(TG_PreAsyncWork);
+//		`log(GetHumanReadableName()@" : temporarily changing to PreAsyncWork");
 	}
 	else
-		bWasPostAsync = true;
-*/
+		bWasPreAsync = true;
+
 	Rx_PRI(PlayerReplicationInfo).SetChar(PickedClass, Pawn, BuyCost <= 0);
-/*
-	if(!bWasPostAsync)
+
+	if(!bWasPreAsync)
 	{
 		Pawn.Mesh.SetTickGroup(LastTG);
-		`log(GetHumanReadableName()@" : returning tick group back to previous state");
+//		`log(GetHumanReadableName()@" : returning tick group back to previous state");
 	}
-*/
+
 	return true;
 
 //	Rx_Pri(PlayerReplicationInfo).SetChar(PickedClass,Pawn,false);

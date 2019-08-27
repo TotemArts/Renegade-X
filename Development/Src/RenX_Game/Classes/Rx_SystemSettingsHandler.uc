@@ -1625,13 +1625,6 @@ final function SetAntiAliasing(string AAType)
 			PC.ConsoleCommand("SCALE SET MaxMultiSamples "$ AAValue);
 			SetAAType(0);
 			break;
-		case "MSAA 16x":
-			SetbAllowPostprocessMLAA(false);
-			AAValue = 16;
-			MaxMultiSamples = AAValue;
-			PC.ConsoleCommand("SCALE SET MaxMultiSamples "$ AAValue);
-			SetAAType(0);
-			break;
 		case "Nvidia FXAA 1":
 			SetbAllowPostprocessMLAA(false);
 			AAValue = 2;

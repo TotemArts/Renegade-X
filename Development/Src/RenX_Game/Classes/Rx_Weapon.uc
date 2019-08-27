@@ -863,7 +863,6 @@ simulated function InstantFire()
 	local Array<ImpactInfo>	ImpactList;
 	local ImpactInfo RealImpact;
 	local int i;
-	local bool Headshot;
 	
 	local vector			HitLocation, HitNormal;
 	local TraceHitInfo		HitInfo;	

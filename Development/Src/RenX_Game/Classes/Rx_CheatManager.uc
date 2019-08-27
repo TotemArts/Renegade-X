@@ -80,7 +80,7 @@ exec function DestroyBuilding(String building, TEAM team)
 	Rx_Building_Team_Internals(b.BuildingInternals).Health = 0;	
 	Rx_Building_Team_Internals(b.BuildingInternals).bDestroyed = true;
 	Rx_Building_Team_Internals(b.BuildingInternals).PlayDestructionAnimation();
-	Rx_Game(WorldInfo.Game).CheckBuildingsDestroyed(Rx_Building_Team_Internals(b.BuildingInternals).BuildingVisuals);
+	Rx_Game(WorldInfo.Game).CheckBuildingsDestroyed(Rx_Building_Team_Internals(b.BuildingInternals).BuildingVisuals, Rx_Controller(Owner));
 
 	dmgLodLevel = Rx_Building_Team_Internals(b.BuildingInternals).GetBuildingHealthLod();
 	if(dmgLodLevel != Rx_Building_Team_Internals(b.BuildingInternals).DamageLodLevel)
