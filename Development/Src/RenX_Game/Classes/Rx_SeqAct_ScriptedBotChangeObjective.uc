@@ -10,5 +10,4 @@ defaultproperties
 	VariableLinks(1)=(ExpectedType=class'SeqVar_Object',LinkDesc="New Objective",bWriteable=false)
 
 	HandlerName = "OnChangeObjective"
-	bEnabled=true
 }

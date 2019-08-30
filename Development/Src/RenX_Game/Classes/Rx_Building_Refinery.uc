@@ -100,13 +100,16 @@ simulated function HarvesterDocked(Rx_Vehicle_HarvesterController HarvesterContr
 		bDocking = true;
 		DockedHarvester = HarvesterController;
 		StartHarvesterUnloading();
+
 	}
+
 }
 
 simulated function StartHarvesterUnloading()
 {
 	CreditsToDump = HarvesterCreditDump;
 	StartCreditsFlowSound();
+	TriggerEventClass(Class'Rx_SeqEvent_RefineryEvent',DockedHarvester,0);
 }
 
 simulated function HarvesterFinishedUnloading()
@@ -114,7 +117,12 @@ simulated function HarvesterFinishedUnloading()
 	bDocking = false;
 	StopCreditsFlowSound();
 	if (DockedHarvester != none)
+	{
+		TriggerEventClass(Class'Rx_SeqEvent_RefineryEvent',DockedHarvester,1);
 		DockedHarvester.GotoTib();
+	}
+	else
+		TriggerEventClass(Class'Rx_SeqEvent_RefineryEvent',None,1);
 	DockedHarvester = none;
 }
 
@@ -350,4 +358,6 @@ defaultproperties
 	GarageDoorMesh = GarageMesh
 
 	*/
+
+	SupportedEvents.Add(class'Rx_SeqEvent_RefineryEvent')
 }

@@ -56,10 +56,17 @@ function PostBeginPlay()
 	
 	SetTimer(3,true,'DefensiveStrategyTimer');
 
-	SetTimer(1.0, false, 'CheckForAreaObjective');
+//	SetTimer(1.0, false, 'CheckForAreaObjective');
 	AssessPTLocations();
 
 	bCanGetCheatBot = bCheetozBotzEnabled;
+
+}
+
+function SetObjectiveLists()
+{
+
+	Objectives = Rx_Game(WorldInfo.Game).FirstObjective;
 
 }
 
@@ -228,13 +235,63 @@ function ReAssessDefendedObjective()
 	}
 }
 
+function UTGameObjective GetLeastDefendedObjective(Controller InController)
+{
+	local UTGameObjective O, Best;
+	local bool bCheckDistance;
+	local float BestDistSq, NewDistSq;
+
+	bCheckDistance = (InController != None) && (InController.Pawn != None);
+	for ( O=Objectives; O!=None; O=O.NextObjective )
+	{
+
+		if ( (O.DefenderTeamIndex == Team.TeamIndex) && !O.bIsDisabled )
+		{
+			if ( (Best == None) || (Best.DefensePriority < O.DefensePriority) )
+			{
+				Best = O;
+				if (bCheckDistance)
+				{
+					BestDistSq = VSizeSq(Best.Location - InController.Pawn.Location);
+				}
+			}
+			else if ( Best.DefensePriority == O.DefensePriority )
+			{
+				// prioritize less defended or closer nodes
+				if (Best.GetNumDefenders() > O.GetNumDefenders())
+				{
+					Best = O;
+					if (bCheckDistance)
+					{
+						BestDistSq = VSizeSq(Best.Location - InController.Pawn.Location);
+					}
+				}
+				else if (bCheckDistance)
+				{
+					NewDistSq = VSizeSq(Best.Location - InController.Pawn.Location);
+					if (NewDistSq < BestDistSq)
+					{
+						Best = O;
+						BestDistSq = NewDistSq;
+					}
+				}
+			}
+		}
+	}
+	return Best;
+}
+
 function bool PutOnDefense(UTBot B)
 {
 	local UTGameObjective O;
 	local UTGameObjective CurrentObjective;
 	local Rx_Building Building;
 
-	if(Vehicle(B.Pawn) != None) {
+	if(Rx_Bot_Scripted(B) != None)
+		return false;
+
+	if(Vehicle(B.Pawn) != None) 
+	{
 		PutOnOffense(B);		
 		return true;	
 	}
@@ -275,7 +332,7 @@ function PutOnDefenseExplicit(UTBot B, UTGameObjective O)
 		O.DefenseSquad.AddBot(B);
 }
 
-function UTGameObjective GetLeastDefendedObjective(Controller InController)
+function UTGameObjective VehicleSpawnerManagersDefendedObjective(Controller InController)
 {
 	local UTGameObjective O, Best;
 	local float BestDefensePriority, CurrentDefensePriority;
@@ -740,6 +797,8 @@ function PutOnOffense(UTBot B)
 {
 	local UTGameObjective O;
 
+	if(Rx_Bot_Scripted(B) != None)
+		return;
 	
 	O = GetPriorityAttackObjectiveFor(None, B);
 

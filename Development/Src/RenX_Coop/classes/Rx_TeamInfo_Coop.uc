@@ -1,0 +1,1 @@
+class Rx_TeamInfo_Coop extends Rx_TeamInfo;

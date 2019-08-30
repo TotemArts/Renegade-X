@@ -12,12 +12,27 @@ var(Coop) bool bFailCompletion;
 var(Coop) int BonusVP;
 Var(Coop) int TeamBonusVP;
 
-simulated event PostBeginPlay()
+simulated function PostBeginPlay()
 {
-	super.PostBeginPlay();
+	SetDefenderTeam();
 
 	if(bOptional && bFinalGoal)		//Make up your mind! You can't be an optional objective AND final goal at once!
 		bFinalGoal = false;
+
+	super.PostBeginPlay();
+}
+
+function SetDefenderTeam()
+{
+	local byte PlayerIndex;
+
+	if(Rx_MapInfo_Cooperative(WorldInfo.GetMapInfo()) != None)
+		PlayerIndex = Rx_MapInfo_Cooperative(WorldInfo.GetMapInfo()).PlayerTeam;
+
+	else
+		PlayerIndex = 0;
+
+	DefenderTeamIndex = PlayerIndex;
 }
 
 function OnCompleteObjective(Rx_SeqAct_CompleteObjective Action)

@@ -262,7 +262,9 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 			else
 				Scr = Armor * ADamagePointsScale + (DamageAmount - Armor) * HDamagePointsScale;
 			
-			Health = Max(Health - (DamageAmount - Armor), 0);	 
+			Health = Max(Health - (DamageAmount - Armor), 0);
+
+			BuildingVisuals.TriggerEventClass(Class'Rx_SeqEvent_BuildingEvent',EventInstigator,3); 
 		}	
 		else // Damaging only armor
 		{
@@ -318,8 +320,9 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 		Rx_PRI(EventInstigator.PlayerReplicationInfo).AddScoreToPlayerAndTeam(Scr);
 		Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingDamagePoints(Min(DamageAmount, StartHealth+StartArmor ));
 	}
-		
 
+	BuildingVisuals.TriggerEventClass(Class'Rx_SeqEvent_BuildingEvent',EventInstigator,2); 
+		
 	if (Health <= 0) 
 	{
 		bDestroyed = True;
@@ -356,6 +359,8 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 
 		PlayDestructionAnimation();
 		Rx_Game(WorldInfo.Game).CheckBuildingsDestroyed(BuildingVisuals, StarPC);
+
+		BuildingVisuals.TriggerEventClass(Class'Rx_SeqEvent_BuildingEvent',EventInstigator,0); 
 	}
 	else if (DamageAmount > 0) 
 	{
@@ -459,6 +464,7 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
 				LastBuildingRepairedMessageTime = WorldInfo.TimeSeconds;
 			}
 			bCanPlayRepaired = false;
+			BuildingVisuals.TriggerEventClass(Class'Rx_SeqEvent_BuildingEvent',Healer,4); 
 		}
 
 		dmgLodLevel = GetBuildingHealthLod();
@@ -467,6 +473,8 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
 			ChangeDamageLodLevel(dmgLodLevel);
 		}
 		//bForceNetUpdate = True;
+
+		BuildingVisuals.TriggerEventClass(Class'Rx_SeqEvent_BuildingEvent',Healer,1); 
 
 		return True;
 	}

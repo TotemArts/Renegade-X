@@ -13,10 +13,11 @@ function bool TellBotHowToHeal(UTBot B)
 	return myBuildingObjective.TellBotHowToHeal(B);
 }
 
-function bool IsDisabled()
+function SetDefenderTeam()
 {
-	return myBuildingObjective.IsDisabled();
+	DefenderTeamIndex = myBuildingObjective.myBuilding.ScriptGetTeamNum();
 }
+
 
 DefaultProperties
 {

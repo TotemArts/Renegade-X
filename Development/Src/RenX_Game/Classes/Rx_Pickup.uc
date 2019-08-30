@@ -13,7 +13,7 @@ auto state Pickup
 
    function bool ValidTouch( Pawn Other )
    {
-      return Other.IsA('Rx_Pawn') && Other.Health > 0;
+      return (Rx_Pawn(Other) != None && Other.Controller != None && Rx_Bot_Scripted(Other.Controller) == None && Other.Health > 0);
    }
 }
 

@@ -74,6 +74,11 @@ protected event ExecuteWhatToDoNext()
 		// pawn got destroyed between WhatToDoNext() and now - abort
 		return;
 	}
+	if(MySpawner != None)
+	{
+		bGodMode = MySpawner.bInvulnerableBots;
+	}
+
 	bHasFired = false;
 	GoalString = "WhatToDoNext at "$WorldInfo.TimeSeconds;
 	// if we don't have a squad, try to find one
@@ -234,6 +239,7 @@ Begin:
 
 	MoveToward(MoveTarget,FaceActor(1),GetDesiredOffset(),ShouldStrafeTo(MoveTarget));
 
+	sleep(0.1);
 	LatentWhatToDoNext();
 }
 

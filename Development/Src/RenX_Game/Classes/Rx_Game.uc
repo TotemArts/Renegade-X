@@ -279,6 +279,7 @@ var int Defence_IDs; //Hold and create the ID's for Rx_Defences so they can stop
 
 //Score System 
 var config bool		bUseLegacyScoreSystem;  
+var Rx_GameObjective	FirstObjective, PrevO;	//I know it doesn't make sense to put PrevO here, but if I put it on local, it'll give warning :/
 
 delegate NotifyServerListUpdate();
 
@@ -514,6 +515,8 @@ function PostBeginPlay()
 	local class<Rx_ScoreEvent> Event;
 	//local Rx_MatchInfo m;
 
+	SetupObjectives();
+
 	if(Rx_MapInfo(WorldInfo.GetMapInfo()).bIsDeathmatchMap) // if deathmatch map, switch to UT's team AI
 	{
 		TeamAIType[0] = class'UTTeamAI';
@@ -590,6 +593,30 @@ function PostBeginPlay()
 	
 	if (VehicleManager != None)
 		VehicleManager.CheckVehicleSpawn();
+}
+
+function SetupObjectives()
+{
+	local Rx_GameObjective O;
+
+	foreach AllActors(class'Rx_GameObjective',O)
+	{
+		if(Rx_ScriptedObj(O) == None)	// skip scripted objective as they are not supposed to be used by anything else than the Rx_Bot_Scripted
+		{
+			if(O == FirstObjective)
+				break;
+
+			if(FirstObjective == None)
+				FirstObjective = O;
+
+			if(PrevO != None)
+			{
+				PrevO.NextObjective = O;
+			}
+
+			PrevO = O;
+		}
+	}
 }
 
 function GameUpdate()

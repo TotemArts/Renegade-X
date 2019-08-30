@@ -276,7 +276,7 @@ simulated function String GetSpotName()
 
 simulated function vector GetTargetLocation(optional actor RequestedBy, optional bool bRequestAlternateLoc) 
 {
-	return super.GetTargetLocation(RequestedBy,bRequestAlternateLoc) + 200 * vect(0,0,1);
+	return super.GetTargetLocation(RequestedBy,bRequestAlternateLoc) + vect(0,0,200);
 }
 
 function RemoveMyMines(Rx_Controller Control)
@@ -875,5 +875,7 @@ defaultproperties
 		PreviewOuterCone            = DrawOuterCone0
 		PreviewLightSourceRadius    = DrawLightSourceRadius0
 	End Object
+
+	SupportedEvents.Add(class'Rx_SeqEvent_BuildingEvent')
 
 }

@@ -135,8 +135,10 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
 		
 		if(Health <= 1) {
 			Health = 1;	
-			if(GetTeamNum() != TEAM_NOD && GetTeamNum() != TEAM_GDI) {
-				if(Healer.GetTeamNum() == TEAM_NOD) {	
+			if(GetTeamNum() != TEAM_NOD && GetTeamNum() != TEAM_GDI) 
+			{
+				if(Healer.GetTeamNum() == TEAM_NOD) 
+				{	
 					`LogRx("GAME"`s "Captured;"`s class'Rx_Game'.static.GetTeamName(TeamID)$","$self.class `s "id" `s GetRightMost(self) `s "by" `s `PlayerLog(Healer.PlayerReplicationInfo) );
 					BroadcastLocalizedMessage(MessageClass,NOD_CAPTURED,Healer.PlayerReplicationInfo,,self);
 					if(LastCaptureTime == 0 || (WorldInfo.TimeSeconds - LastCaptureTime) >= 30) 
@@ -146,7 +148,9 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
 						Rx_PRI(Healer.PlayerReplicationInfo).AddTechBuildingCapture(); 
 					}
 					ChangeTeamReplicate(TEAM_NOD,true);
-				} else {
+				} 
+				else 
+				{
 					`LogRx("GAME"`s "Captured;"`s class'Rx_Game'.static.GetTeamName(TeamID)$","$self.class `s "id" `s GetRightMost(self) `s "by" `s `PlayerLog(Healer.PlayerReplicationInfo) );
 					BroadcastLocalizedMessage(MessageClass,GDI_CAPTURED,Healer.PlayerReplicationInfo,,self);
 					if(LastCaptureTime == 0 || (WorldInfo.TimeSeconds - LastCaptureTime) >= 30) 
@@ -157,7 +161,13 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
 					}
 					ChangeTeamReplicate(TEAM_GDI,true);
 				}
-			} else {
+
+				 // TriggerEventClass will trigger out any event node of this type. We set the instigator to healer and set the output to 0. This is the Captured event
+            	BuildingVisuals.TriggerEventClass(Class'Rx_SeqEvent_TechCapture',Healer,0);
+
+			} 
+			else 
+			{
 				if (TeamID == TEAM_NOD)
 					BroadcastLocalizedMessage(MessageClass,NOD_LOST,Healer.PlayerReplicationInfo,,self);
 				else if (TeamID == TEAM_GDI)
@@ -165,10 +175,17 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
 				`LogRx("GAME"`s "Neutralized;"`s class'Rx_Game'.static.GetTeamName(TeamID)$","$self.class `s "id" `s GetRightMost(self) `s "by" `s `PlayerLog(Healer.PlayerReplicationInfo) );
 				ChangeTeamReplicate(255,true);
 				Health = BuildingVisuals.HealthMax;
+
+            // Another trigger event with input set to 1. This is the Neutralized event
+            BuildingVisuals.TriggerEventClass(Class'Rx_SeqEvent_TechCapture',Healer,1);
+
 			}
 		}
 		else if (Amount < 0)
+		{
+			BuildingVisuals.TriggerEventClass(Class'Rx_SeqEvent_TechCapture',Healer,2);
 			TriggerUnderAttack();
+		}
 		return True;
 	}
 

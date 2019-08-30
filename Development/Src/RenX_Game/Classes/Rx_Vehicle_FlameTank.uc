@@ -79,6 +79,11 @@ simulated function SetHeroicMuzzleFlash(bool SetTrue)
 	FlameAmbient.SoundCue=FlameAmbient.default.SoundCue; 
  }
 
+function bool RecommendLongRangedAttack()
+{
+    return false;   // we do want the bots to ram against enemy with flame tanks
+}
+
 DefaultProperties
 {
 

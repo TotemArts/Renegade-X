@@ -42,9 +42,6 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
                ChangeTeamReplicate(TEAM_GDI,true);
             }
 
-                                // TriggerEventClass will trigger out any event node of this type. We set the instigator to healer and set the output to 0. This is the Captured event
-            BuildingVisuals.TriggerEventClass(Class'Rx_SeqEvent_TechCapture',Healer,0);
-                                //
 
          } else {
             if (TeamID == TEAM_NOD)
@@ -54,10 +51,6 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
             `LogRx("GAME"`s "Neutralized;"`s class'Rx_Game'.static.GetTeamName(TeamID)$","$self.class `s "id" `s GetRightMost(self) `s "by" `s `PlayerLog(Healer.PlayerReplicationInfo) );
             ChangeTeamReplicate(255,true);
             Health = BuildingVisuals.HealthMax;
-
-                                // Another trigger event with input set to 1. This is the Neutralized event
-            BuildingVisuals.TriggerEventClass(Class'Rx_SeqEvent_TechCapture',Healer,1);
-                                //
 
          }
       }

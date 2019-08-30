@@ -1893,6 +1893,57 @@ simulated function StopFire(byte FireModeNum)
 	ClientPendingFire[FireModeNum]=false; 
 }
 
+function bool CanAttack(Actor Other)
+{
+	local float Dist;
+	local vector out_HitLocation;
+	local vector out_HitNormal;
+	local float CachedMaxRangeTemp;
+	local bool ret;
+	local Actor RealTarget;
+	
+	if (Instigator == None || Instigator.Controller == None)
+	{
+		return false;
+	}	
+	
+	RealTarget = Other;
+	CachedMaxRangeTemp = CachedMaxRange;
+	// check that target is within range
+	Dist = VSizeSq(Instigator.Location - Other.Location);
+	if (Dist > Square(MaxRange()))
+	{
+		if(Rx_Building(Other) != None || Rx_BuildingObjective(Other) != None || Rx_BuildingAttachment(Other) != None) 
+		{
+			if(Rx_BuildingObjective(Other) != None) 
+				RealTarget = Rx_BuildingObjective(Other).myBuilding;
+
+			if(RealTarget != Trace( out_HitLocation, out_HitNormal, RealTarget.GetTargetLocation(), Instigator.GetWeaponStartTraceLocation(),,,,TRACEFLAG_Bullet)) {
+				return false;
+			}
+			Dist = VSizeSq(Instigator.GetWeaponStartTraceLocation() - out_HitLocation);
+			if(Dist <= Square(MaxRange() - 50))
+			{
+				CachedMaxRange = 20000;		
+			} 
+			else 
+			{
+	            //DrawDebugLine(Instigator.Location,Other.location,0,0,255,true);
+	            //DrawDebugLine(Instigator.Location,out_HitLocation,0,255,0,true);
+            	//DebugFreezeGame();   
+				return false;
+			} 
+		} 
+		else 
+		{
+			return false;
+		}
+	}
+	ret = Super.CanAttack(RealTarget);
+	CachedMaxRange = CachedMaxRangeTemp;
+	return ret;
+}
+
 function PromoteWeapon(byte rank) /*Covers most of what needs to be done(Damage,ROF,ClipSize,etc.) Special things obviously need to be added for special weapons*/
 {
 	VRank = rank; 

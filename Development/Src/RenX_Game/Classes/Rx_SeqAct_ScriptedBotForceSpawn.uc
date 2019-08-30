@@ -10,5 +10,4 @@ defaultproperties
 	VariableLinks(0)=(ExpectedType=class'SeqVar_Object',LinkDesc="SpawnerObject")
 
 	HandlerName = "OnForceSpawn"
-	bEnabled=true
 }

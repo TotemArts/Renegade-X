@@ -218,7 +218,31 @@ function bool TellBotHowToDisable(UTBot B)
 	}
 	else if(Vehicle(B.Pawn) != None)
 	{
-		return Rx_Bot(B).FindVehicleAssaultPath();
+		if(B.CanAttack(myBuilding))
+		{
+			if(B.Enemy == None || KillEnemyFirstBeforeAttacking(B))
+			{
+				B.DoRangedAttackOn(myBuilding);
+			}
+			
+			else
+			{
+
+				return false;
+			}
+			
+			return true;
+		}
+		else
+		{
+			if(B.Enemy != None)
+			{
+				if(!KillEnemyFirstBeforeAttacking(B))
+					return Rx_Bot(B).FindVehicleAssaultPath();
+				else
+					return false;
+			}
+		}
 	}
 
 	else if ( !B.Pawn.bStationary && B.Pawn.Weapon != None && B.Pawn.TooCloseToAttack(GetShootTarget(B)) )
@@ -535,27 +559,33 @@ function bool KillEnemyFirstBeforeHealing(UTBot B)
 {
 	//local float Dist;
 	
-	if(B.Enemy == None || UTVehicle(B.Enemy) != None || !B.Pawn.CanAttack(B.Enemy)) {
+	if(B.Enemy == None || !B.Pawn.CanAttack(B.Enemy)) 
+	{
 		return false;
 	}
 	
 	//Dist = VSize(B.Enemy.Location - B.Location);
 	
 	if( B.Enemy.Controller != None && !bUnderAttack 
-			&& myBuilding.GetArmor() > DamageCapacity * 0.7) {
-		if(Rx_Weapon_RepairGun(B.Pawn.Weapon) != None) { 
+			&& myBuilding.GetArmor() > DamageCapacity * 0.7) 
+	{
+		if(Rx_Weapon_RepairGun(B.Pawn.Weapon) != None) 
+		{ 
 			B.SwitchToBestWeapon(true);
 		}
 		return true;	
 	}
 	
-	if ( myBuilding.GetArmor() < myBuilding.GetMaxArmor() * 0.5 ) {
+	if ( myBuilding.GetArmor() < myBuilding.GetMaxArmor() * 0.5 ) 
+	{
 		return false;
 	}
 	else if (B.Enemy.Controller != None 
 				&& ((B.Enemy.Controller.Focus == B.Pawn) || (B.LastUnderFire > WorldInfo.TimeSeconds - 1.5))
-				&& B.Enemy.CanAttack(B.Pawn) ) {
-		if(Rx_Weapon_RepairGun(B.Pawn.Weapon) != None) { 
+				&& B.Enemy.CanAttack(B.Pawn) ) 
+	{
+		if(Rx_Weapon_RepairGun(B.Pawn.Weapon) != None) 
+		{ 
 			B.SwitchToBestWeapon(true);
 		}
 		return true;
@@ -568,26 +598,49 @@ function bool KillEnemyFirstBeforeAttacking(UTBot B)
 {
 	
 	//use bUnderAttack aswell ?
-	
-	if(Rx_Vehicle(B.Pawn) != None) {
-		if(!Rx_Vehicle(B.Pawn).bOkAgainstBuildings) {
-			return true;
+	if(B.Enemy.Health <= 0 || !B.CanAttack(B.Enemy))
+		return false;
+
+	if(Rx_Vehicle(B.Pawn) != None) 
+	{
+		if(!Rx_Vehicle(B.Pawn).bOkAgainstBuildings) 
+		{
+			return (B.CanAttack(B.Enemy));
 		}
-	} else if(!Rx_Weapon(B.Pawn.Weapon).bOkAgainstBuildings || Rx_Weapon(B.Pawn.Weapon).IsA('Rx_Weapon_Deployable')) {
+		else if(B.CanAttack(myBuilding))
+		{
+			if(myBuilding.GetArmor() < myBuilding.GetMaxArmor() * 0.4 && myBuilding.GetHealth() < myBuilding.GetMaxHealth() * 0.25)
+				return false;
+
+			else if(Vehicle(B.Enemy) != None)
+			{
+				if(B.Enemy.Weapon != None && Rx_Vehicle_Weapon(B.Enemy.Weapon).bOkAgainstArmoredVehicles)
+					return true;
+			}
+			else if(Rx_Weapon(B.Enemy.Weapon) != None && Rx_Weapon(B.Enemy.Weapon).bOkAgainstVehicles)
+				return true;
+
+		}
+
+		return false;
+	} 
+	else if(!Rx_Weapon(B.Pawn.Weapon).bOkAgainstBuildings || Rx_Weapon(B.Pawn.Weapon).IsA('Rx_Weapon_Deployable')) 
+	{
 		return true;
 	}
 	
-	if ( myBuilding.GetArmor() < myBuilding.GetMaxArmor() * 0.4  && UTVehicle(B.Pawn) != None)
+	else if (B.Enemy != None && B.Enemy.Controller != None) 
 	{
-		return false;
-	}
-	else if (B.Enemy != None && B.Enemy.Controller != None) {
-		if(((B.Enemy.Controller.Focus == B.Pawn) || (B.LastUnderFire > WorldInfo.TimeSeconds - 1.5)) && B.Enemy.CanAttack(B.Pawn) ) {
-			if(Rx_Weapon_RepairGun(B.Pawn.Weapon) != None) { 
+		if(((B.Enemy.Controller.Focus == B.Pawn) || (B.LastUnderFire > WorldInfo.TimeSeconds - 1.5)) && B.Enemy.CanAttack(B.Pawn) ) 
+		{
+			if(Rx_Weapon_RepairGun(B.Pawn.Weapon) != None) 
+			{ 
 				B.SwitchToBestWeapon(true);
 			}		
 			return true;
-		} else if(Rx_Weapon_RepairGun(B.Enemy.Weapon) != None && B.CanAttack(B.Enemy)) {
+		} 
+		else if(Rx_Weapon_RepairGun(B.Enemy.Weapon) != None && B.CanAttack(B.Enemy)) 
+		{
 			return true;	
 		}
 	}

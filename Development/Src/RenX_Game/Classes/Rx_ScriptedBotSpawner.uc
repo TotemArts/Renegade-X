@@ -13,6 +13,7 @@ var(Spawner) float SpawnInterval;						// How often the spawn occurs
 var(Spawner) string SquadID;
 var(Spawner) Rx_ScriptedObj SquadObjective;
 var(Spawner) bool bCheckPlayerLOS;
+var(Spawner) bool bInvulnerableBots;						// Is the bot in God Mode?
 
 
 var bool bActive;
@@ -79,20 +80,38 @@ function StartSpawning (optional bool bForced)
 
 	if(BestSpawn != None)		// if failed, postpone the spawn cycle
 	{
-		P = Spawn(class'Rx_Pawn_Scripted',,,BestSpawn.location,BestSpawn.rotation);
+		if(VI >= 0)
+			V = Spawn(VehicleTypes[VI],,,BestSpawn.location,BestSpawn.rotation);
+	
+
+		if(V != None)
+			P = Spawn(class'Rx_Pawn_Scripted',,,BestSpawn.location + vect(0,0,100000),BestSpawn.rotation);
+		else
+			P = Spawn(class'Rx_Pawn_Scripted',,,BestSpawn.location,BestSpawn.rotation);
 		B = Spawn(class'Rx_Bot_Scripted');
 		B.Possess(P,false);
 		MyBots.AddItem(B);
 		B.MySpawner = Self;
 
+		I = Rand(CharTypes.Length);
+
+		if(CharTypes[I].static.Cost(Rx_PRI(B.PlayerReplicationInfo)) <= 0)
+			Rx_PRI(B.PlayerReplicationInfo).SetChar(CharTypes[I], B.Pawn, true);
+		else
+			Rx_PRI(B.PlayerReplicationInfo).SetChar(CharTypes[I], B.Pawn, false);
+
+
+		if(V != None)
+		{
+			V.DriverEnter(P);
+			V.DropToGround();
+
+			if (V.Mesh != none)
+				V.Mesh.WakeRigidBody();
+		}
+
 		Rx_Game(WorldInfo.Game).SetTeam(B, Rx_Game(WorldInfo.Game).Teams[TeamIndex], false);
 
-		if(VI >= 0)
-		{
-			V = Spawn(VehicleTypes[VI],,,BestSpawn.location,BestSpawn.rotation);
-			V.DriverEnter(P);
-		}
-	
 
 		if(AffiliatedSquad == None)
 		{
@@ -106,18 +125,11 @@ function StartSpawning (optional bool bForced)
 		if((SquadID != "" && B.Squad.SquadObjective != SquadObjective) || B.MyObjective != SquadObjective)
 			B.ForceAssignObjective(SquadObjective);
 
-		I = Rand(CharTypes.Length);
-
-		if(CharTypes[I].static.Cost(Rx_PRI(B.PlayerReplicationInfo)) <= 0)
-			Rx_PRI(B.PlayerReplicationInfo).SetChar(CharTypes[I], B.Pawn, true);
-		else
-			Rx_PRI(B.PlayerReplicationInfo).SetChar(CharTypes[I], B.Pawn, false);
-
-
-
 		SpawnedBotNumber += 1;
 		BotRemaining += 1;
 	}
+
+	TriggerEventClass(Class'Rx_SeqEvent_ScriptedSpawnerEvent',B,0);
 
 	if(SpawnNumber > 0 && SpawnedBotNumber >= SpawnNumber)
 		StopSpawning();
@@ -185,26 +197,31 @@ function Actor RateBestSpawn(class<Pawn> PawnClass)
 
 function StopSpawning ()
 {
+	TriggerEventClass(Class'Rx_SeqEvent_ScriptedSpawnerEvent',None,1);
 	ClearTimer('StartSpawning');
 }
 
 function NotifyPawnDeath (Rx_Bot_Scripted B)
 {
 
-	if(MaxSpawn <= 0 || (MaxSpawn > SpawnedBotNumber && SpawnNumber > 0))
+	if(SpawnNumber <= 0 || (SpawnNumber > SpawnedBotNumber && SpawnNumber > 0))
 	{	
-		if(MaxSpawn > BotRemaining) 
-			RestartSpawning();
+		RestartSpawning();
+	}
+	else if(BotRemaining <= 0)
+	{
+		TriggerEventClass(Class'Rx_SeqEvent_ScriptedSpawnerEvent',None,3);
 	}
 
+	TriggerEventClass(Class'Rx_SeqEvent_ScriptedSpawnerEvent',None,2);
 }
 
 function RestartSpawning ()
 {
-	if(!bActive)
+	if(!bActive || IsTimerActive('StartSpawning'))
 		return;
 
-	if(MaxSpawn <= 0 || MaxSpawn > SpawnedBotNumber)
+	if(MaxSpawn <= 0 || MaxSpawn > BotRemaining)
 	{
 		if(SpawnInterval > 0)
 			SetTimer(SpawnInterval,true,'StartSpawning');
@@ -325,4 +342,6 @@ DefaultProperties
 		SpriteCategoryName="Pawns"
 	End Object
 	Components.Add(Sprite)
+
+	SupportedEvents.Add(class'Rx_SeqEvent_ScriptedSpawnerEvent')
 }

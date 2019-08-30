@@ -93,6 +93,8 @@ function bool PowerLost(optional bool bFromKismet)
 	local int i;
 	if(!super.PowerLost() && !bFromKismet)
 		return false;
+
+	BuildingVisuals.TriggerEventClass(Class'Rx_SeqEvent_DefenseEvent',None,0);
 	
 	if(rocketTurret  == none) return true; 
 	for(i = 0; i < 4; i++)
@@ -112,6 +114,8 @@ function bool PowerRestore()
 {
 	if(super.PowerRestore())
 	{
+		BuildingVisuals.TriggerEventClass(Class'Rx_SeqEvent_DefenseEvent',None,1);
+
 		SetupDefences();
 		return true;
 	}

@@ -14,4 +14,5 @@ DefaultProperties
 {
 	myBuildingType=BT_Def
 	Range_Multiplier = 1.0
+	SupportedEvents.Add(class'Rx_SeqEvent_DefenseEvent')
 }

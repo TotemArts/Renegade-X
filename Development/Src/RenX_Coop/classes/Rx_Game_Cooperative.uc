@@ -38,6 +38,18 @@ function PreBeginPlay()
 	}
 }
 
+function int GetPlayerTeam()
+{
+	if (Rx_MapInfo_Cooperative(WorldInfo.GetMapInfo()) == None)
+	{
+		return 0;
+	}
+	else
+	{
+		return Rx_MapInfo_Cooperative(WorldInfo.GetMapInfo()).PlayerTeam;
+	}	
+}
+
 event PostLogin( PlayerController NewPlayer )
 {
 	local string SteamID, ID;
@@ -51,20 +63,9 @@ event PostLogin( PlayerController NewPlayer )
 	if (ID == `BlankSteamID || ID == "")
 		ID = NewPlayer.PlayerReplicationInfo.PlayerName;
 
-
-	if (Rx_MapInfo_Cooperative(WorldInfo.GetMapInfo()) == None)
-	{
-		`warn("Invalid Map Info! Set Map info to Rx_MapInfo_Cooperative!");
-		SetTeam(NewPlayer, Teams[TEAM_GDI], false);
-		index = PlayersArray.Find('PlayersID',ID);
-	}
-	else
-	{
-		SetTeam(NewPlayer, Teams[Rx_MapInfo_Cooperative(WorldInfo.GetMapInfo()).PlayerTeam], false);
-
-		index = PlayersArray.Find('PlayersID',ID);
-
-	}
+	`warn("Invalid Map Info! Set Map info to Rx_MapInfo_Cooperative!");
+	SetTeam(NewPlayer, Teams[GetPlayerTeam()], false);
+	index = PlayersArray.Find('PlayersID',ID);
 
 	if (index >= 0)
 		Rx_Pri(NewPlayer.PlayerReplicationInfo).OldRenScore = PlayersArray[index].PlayerAggregateScore;
@@ -169,9 +170,7 @@ event PostLogin( PlayerController NewPlayer )
 function bool ChangeTeam(Controller Other, int num, bool bNewTeam)
 {
 	if (Rx_MapInfo_Cooperative(WorldInfo.GetMapInfo()) != None)
-		return super.ChangeTeam(Other, Rx_MapInfo_Cooperative(WorldInfo.GetMapInfo()).PlayerTeam, bNewTeam);
-	else
-		return super.ChangeTeam(Other, 0, bNewTeam);
+		return super.ChangeTeam(Other, GetPlayerTeam(), bNewTeam);
 }
 
 function UTBot AddBot(optional string BotName, optional bool bUseTeamIndex, optional int TeamIndex)
@@ -180,13 +179,9 @@ function UTBot AddBot(optional string BotName, optional bool bUseTeamIndex, opti
 	if(bBotsDisabled || (NumPlayers+NumBots >= MaxPlayers))
 		return None;
 		
-	if(Rx_MapInfo_Cooperative(WorldInfo.GetMapInfo()) != None)
-		return OnAddBot(super(UTTeamGame).AddBot(BotName, true, Rx_MapInfo_Cooperative(WorldInfo.GetMapInfo()).PlayerTeam));
-	else
-	{
-		`warn("Invalid Map Info! Set Map info to Rx_MapInfo_Cooperative!");
-		return OnAddBot(super(UTTeamGame).AddBot(BotName, true, 0));
-	}
+
+	return OnAddBot(super(UTTeamGame).AddBot(BotName, true, GetPlayerTeam()));
+
 
 }
 
@@ -249,9 +244,9 @@ function AnnounceObjectiveCompletion(Controller InstigatingPlayer, Rx_CoopObject
 	foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
 	{
 		if(O.bFailCompletion)
-			PC.CTextMessage(ActualMessage,'Red',180);
+			PC.CTextMessage(ActualMessage,'Red',180,,false,true);
 		else
-			PC.CTextMessage(ActualMessage,'Green',180);
+			PC.CTextMessage(ActualMessage,'Green',180,,false,true);
 	}
 }	
 
@@ -395,4 +390,8 @@ DefaultProperties
 {
 	PurchaseSystemClass        = class'Rx_PurchaseSystem_Coop'
 	VehicleManagerClass        = class'Rx_VehicleManager_Coop'
+
+	TeamInfoClass			   = class'Rx_TeamInfo_Coop'
+	TeamAIType(0)              = class'Rx_TeamAI_Coop'
+	TeamAIType(1)              = class'Rx_TeamAI_Coop'
 }

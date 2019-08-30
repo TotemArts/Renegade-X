@@ -823,7 +823,6 @@ function bool CanHeal(Actor Other)
 function bool CanAttack(Actor Other)
 {
 	local bool ret;
-	local Rx_Vehicle V;
 
 	if(Pawn == None)
 		return false;
@@ -840,8 +839,7 @@ function bool CanAttack(Actor Other)
 	}
 	else if (Rx_Vehicle(Pawn) != None)
 	{
-		V = Rx_Vehicle(Pawn);
-		if(Rx_Building(Other) != None && !Rx_Vehicle_Weapon(V.Weapon).bOkAgainstBuildings)
+		if(Rx_Building(Other) != None && !Rx_Vehicle_Weapon(Pawn.Weapon).bOkAgainstBuildings)
 			return false;
 
 
@@ -2358,7 +2356,7 @@ function bool WeaponFireAgain(bool bFinishedFire)
 	{
 		if ( !Pawn.IsFiring() )
 		{
-			if ( (Pawn.Weapon != None && (Pawn.Weapon.bMeleeWeapon || (Rx_WeaponAbility(Pawn.Weapon) != None && Rx_WeaponAbility(Pawn.Weapon).bReadyToFire()))) || Rx_Weapon_RepairGun(Pawn.Weapon) != None || (!Pawn.NeedToTurn(GetFocalPoint()) && CanAttack(Focus)) )
+			if (ShouldFire())
 			{
 				LastCanAttackCheckTime = WorldInfo.TimeSeconds;
 				bCanFire = true;
@@ -2385,6 +2383,20 @@ function bool WeaponFireAgain(bool bFinishedFire)
 	}
 	StopFiring();
 	return false;
+}
+
+function bool ShouldFire()
+{
+	if(Pawn.Weapon == None)
+		return false;
+
+	if(Rx_WeaponAbility(Pawn.Weapon) != None)
+		return true;
+
+	if((!Pawn.NeedToTurn(GetFocalPoint()) && CanAttack(Focus)))
+	{
+		return true;
+	}
 }
 
 function StopMovement()

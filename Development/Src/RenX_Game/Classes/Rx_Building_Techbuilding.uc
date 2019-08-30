@@ -27,4 +27,7 @@ defaultproperties
 {
 	myBuildingType=BT_Neutral
 	HealthMax				= 400
+
+	SupportedEvents.Empty
+	SupportedEvents.Add(class'Rx_SeqEvent_TechCapture')
 }

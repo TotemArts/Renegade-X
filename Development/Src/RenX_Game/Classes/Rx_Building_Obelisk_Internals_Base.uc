@@ -78,8 +78,12 @@ function bool PowerLost(optional bool bFromKismet)
 		laserSentinel.SController.Cannon.Destroy();
 		laserSentinel.Destroy();
 
+		BuildingVisuals.TriggerEventClass(Class'Rx_SeqEvent_DefenseEvent',None,0);
+
 		return true;
 	}
+
+
 
 	return false;
 }
@@ -89,6 +93,8 @@ function bool PowerRestore()
 {
 	if(super.PowerRestore())
 	{
+		BuildingVisuals.TriggerEventClass(Class'Rx_SeqEvent_DefenseEvent',None,1);
+
 		SetupLaser();
 		return true;
 	}

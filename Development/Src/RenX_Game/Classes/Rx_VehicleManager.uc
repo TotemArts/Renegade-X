@@ -455,6 +455,9 @@ function bool QueueVehicle(class<Rx_Vehicle> inVehicleClass, Rx_PRI Buyer, int V
 		}		
 		ConstructionWarn(1);		
 	}
+
+	if(NewQueueElement.Factory != None)
+		NewQueueElement.Factory.TriggerEventClass(Class'Rx_SeqEvent_FactoryEvent',NewQueueElement.Buyer.Owner,0);
 	
 	
 	return true;
@@ -562,7 +565,13 @@ function Actor SpawnVehicle(VQueueElement VehToSpawn, optional byte TeamNum = -1
 			`LogRxPub("GAME" `s "Spawn;" `s "vehicle" `s class'Rx_Game'.static.GetTeamName(TeamNum) $ "," $ VehToSpawn.VehClass.name);
      
 		InitVehicle(Veh,TeamNum,VehToSpawn.Buyer,VehToSpawn.VehicleID,SpawnLocation);
-		return Veh;
+
+		if(VehToSpawn.Buyer != None)
+			VehToSpawn.Factory.TriggerEventClass(Class'Rx_SeqEvent_FactoryEvent',VehToSpawn.Buyer.Owner,1);
+		else
+			VehToSpawn.Factory.TriggerEventClass(Class'Rx_SeqEvent_FactoryEvent',Veh,1);
+		
+			return Veh;
 	}
 	else if (Veh != none && Rx_Vehicle_Harvester(Veh) != None) 
 	{
@@ -618,6 +627,7 @@ function InitVehicle(Rx_Vehicle Veh, byte TeamNum, Rx_Pri Buyer, int VehId, vect
 			Rx_Bot(Veh.buyerPri.owner).BaughtVehicle = Veh;
 		}	
 	}
+
 	BroadcastLocalizedTeamMessage(TeamNum,MessageClass,VehId,Buyer,,RxPS);
 }
 
