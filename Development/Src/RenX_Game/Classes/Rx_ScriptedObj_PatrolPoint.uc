@@ -1,22 +1,20 @@
 class Rx_ScriptedObj_PatrolPoint extends Rx_ScriptedObj
 	placeable;
 
-var(ScriptedPatrol) Rx_ScriptedObj_PatrolPoint NextPatrolPoint;
-var(ScriptedPatrol) bool bWalkingPatrol;
-var(ScriptedPatrol) bool bGroupPatrol;
+var(ScriptedObjective) bool bWalkingPatrol;
+var(ScriptedObjective) bool bGroupPatrol;
 
 function bool DoTaskFor(Rx_Bot_Scripted B)
 {
 	if((!bGroupPatrol && !B.Pawn.ReachedDestination(Self)) || (bGroupPatrol && !AreAllBotsInHere(B)))
 		return FindPatrolPathTowards(Self, B);
 
-	else if(NextPatrolPoint != None)
+	else if(NextScriptedObj != None)
 	{
-		`log(B.GetHumanReadableName()@" : Change objective to"@NextPatrolPoint);
+		`log(B.GetHumanReadableName()@" : Change objective to"@NextScriptedObj);
 
+		return DoNextObjectiveFor(B);
 
-		B.MyObjective = NextPatrolPoint;
-		return NextPatrolPoint.DoTaskFor(B);
 	}
 
 	return false;

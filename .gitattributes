@@ -3,6 +3,7 @@
 
 # Unrealscript
 *.uc diff=astextplain
+*.ini diff=astextplain
 
 # Custom for Visual Studio
 *.cs     diff=csharp

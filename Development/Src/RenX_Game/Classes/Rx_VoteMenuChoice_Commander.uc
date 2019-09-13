@@ -8,6 +8,7 @@ var Rx_Controller ComC;
 var string HR_Teamname;
 var int CurrentTier;
 var bool VotingIn;
+var bool bForceConcluded;
 
 function Init()
 {
@@ -124,7 +125,7 @@ function DeserializeParam(string param)
 	local int i;
 	//Fancy work with strings stolen from AddBots
 	
-
+ 
 	i = InStr(param, "\n");
 	//`log(ComID);
 	ComID = int(Left(param, i));
@@ -168,8 +169,8 @@ function Finish()
 		Handler.Terminate();
 		return;
 	}
-	
 	Handler.PlayerOwner.SendVote(self.Class, SerializeParam(), ToTeam);
+
 	Handler.Terminate();
 }
 
@@ -206,32 +207,93 @@ for (i=0;i < LGRI.PRIArray.Length;i++)
 function string ComposeTopString()
 {
 
-//Is it for GDI or Nod?
-if(ToTeam == 0) HR_Teamname ="GDI";
+	//Is it for GDI or Nod?
+	if(ToTeam == 0) 
+		HR_Teamname ="GDI";
 	else
-	HR_Teamname ="Nod" ;
+		HR_Teamname ="Nod" ;
 	
 //`log("0112121121221212 Composing Top string 11111111");
-if(VotingIn) return super.ComposeTopString() $ " wants to vote " $ ComC.PlayerReplicationInfo.PlayerName $ " for " $ HR_Teamname @ "Commander" ;
-else
-return super.ComposeTopString() $ " wants to vote  OUT" @ HR_Teamname $"'s" @ "Commander" ;	
+	if(VotingIn) 
+	{
+		if(ComC == VoteInstigator)	
+			return super.ComposeTopString() $ " volunteers to be " $ HR_Teamname$"'s Commander" ;
+		else
+			return super.ComposeTopString() $ " wants to vote " $ ComC.PlayerReplicationInfo.PlayerName $ " for " $ HR_Teamname $ "'s Commander" ;
+	}
+
+	else
+		return super.ComposeTopString() $ " wants to vote  OUT" @ HR_Teamname $"'s" @ "Commander" ;	
+
 }
 
-function ServerSecondTick(Rx_Game game)
+function UpdatePlayers(WorldInfo wi)
 {
-	if(VotingIn)
-		{
-	if (ComC == none) 
-		{
-			//`log("Commander Controller not set to anything, destroying vote.");
-			game.DestroyVote(self);
-	
-		}
+	local Rx_Controller rxc;
 
-	else super.ServerSecondTick(game);
+	if (bPendingDelete) 
+		return;
+
+	foreach wi.AllActors(class'Rx_Controller', rxc)
+	{
+		if(rxc.PlayerReplicationInfo.Team == none) 
+			continue;
+		
+		if (rxc.PlayerReplicationInfo.Team.TeamIndex == ToTeam)
+		{
+			if(VotingIn && rxc == ComC && TopString != "")
+				rxc.VoteTopString = TopString $ ". Vote 'No' twice to decline";
+
+			else if(!VotingIn && Rx_PRI(rxc.PlayerReplicationInfo).bIsCommander && TopString != "")
+				rxc.VoteTopString = TopString $ ". Vote 'Yes' twice to abdicate";
+
+			else
+				rxc.VoteTopString = TopString;
+
+			rxc.VoteTimeLeft = TimeLeft;
+			rxc.VotesYes = PlayerCount(Yes);
+			rxc.VotesNo = PlayerCount(No);
+			rxc.YesVotesNeeded = GetNeededYesVotes(Rx_Game(wi.Game));
+			rxc.VotersTotal = GetTotalVoters(Rx_Game(wi.Game));
 		}
-		else
-	super.ServerSecondTick(game);
+	}
+}
+
+function ServerInit(Rx_Controller instigator, string param, int t)
+{
+	local string params;
+	 
+	ToTeam = t;
+	VoteInstigator = instigator;
+	DeserializeParam(param);
+
+	if(!VotingIn && Rx_PRI(VoteInstigator.PlayerReplicationInfo).bIsCommander)
+	{
+		Execute(Rx_Game(VoteInstigator.WorldInfo.Game));
+		Rx_Game(VoteInstigator.WorldInfo.Game).DestroyVote(self);
+		return;
+	}
+
+	TopString = ComposeTopString();
+	EndTime = instigator.WorldInfo.TimeSeconds + TimeLeft;
+	
+	// Log vote called.
+	params = ParametersLogString();
+	if (params != "")
+		Rx_Game(instigator.WorldInfo.Game).RxLog("VOTE"`s "Called;" `s TeamTypeToString(t) `s class `s "by" `s `PlayerLog(instigator.PlayerReplicationInfo) `s params);
+	else
+		Rx_Game(instigator.WorldInfo.Game).RxLog("VOTE"`s "Called;" `s TeamTypeToString(t) `s class `s "by" `s `PlayerLog(instigator.PlayerReplicationInfo) );
+
+/*
+	if (`RxGameObject.NumPlayers == 1) {
+		`RxGameObject.RxLog("VOTE" `s "Results;" `s TeamTypeToString(ToTeam) `s class `s "pass" `s "Yes=1" `s "No=0");
+		Execute(`RxGameObject);
+		`RxGameObject.DestroyVote(self);
+	}
+*/
+
+	// update on players
+	UpdatePlayers(instigator.WorldInfo);
 }
 
 
@@ -250,12 +312,90 @@ function Execute(Rx_Game game)
 		game.ChangeCommander(ToTeam, Rx_PRI(ComC.PlayerReplicationInfo));
 	}
 	else
+	{
+		if(Rx_PRI(VoteInstigator.PlayerReplicationInfo).bIsCommander)
+			game.CTextBroadcast(ToTeam,VoteInstigator.PlayerReplicationInfo.PlayerName@"has abdicated their Commander role",'Red');
+
 		game.RemoveCommander(ToTeam);	
+	}
 }
 
 static function bool bIsAvailable(Rx_Controller MyHandler)
 {
 	return Rx_GRI(MyHandler.WorldInfo.GRI).bEnableCommanders;
+}
+
+function PlayerVoteNo(Rx_Controller p)
+{
+	if(ComC == p && CanConcludeVote(p))
+	{
+		ConcludeVote();
+		return;
+	}
+
+	super.PlayerVoteNo(p);
+
+}
+
+function PlayerVoteYes(Rx_Controller p)
+{
+	if(p.PlayerReplicationInfo.Team.TeamIndex == ToTeam && Rx_PRI(p.PlayerReplicationInfo).bIsCommander && CanConcludeVote(p))
+	{
+		ConcludeVote();
+		return;
+	}	
+
+	super.PlayerVoteYes(p);
+}
+
+function bool CanConcludeVote(Rx_Controller p)
+{
+	local int i;
+
+	if(VotingIn)
+	{
+		for (i = 0; i < No.Length; i++)
+		{
+			if (No[i] == p)
+			{
+				return true;
+			}
+		}
+	}
+	else
+	{
+		for (i = 0; i < Yes.Length; i++)
+		{
+			if (Yes[i] == p)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+function ConcludeVote()
+{
+	local Rx_Game G;
+
+	G = `RxGameObject;
+
+	if(VotingIn)
+	{
+		G.RxLog("VOTE" `s "Results;" `s TeamTypeToString(ToTeam) `s class `s "fail" `s "Cancelled by candidate" );
+		G.CTextBroadcast(ComC.GetTeamNum(),"-Vote Cancelled :"@ComC.PlayerReplicationInfo.PlayerName@"declined to be the Commander-",'Red');
+	}
+	else
+	{
+		G.RxLog("VOTE" `s "Results;" `s TeamTypeToString(ToTeam) `s class `s "pass" `s "approved by Commander" );
+		G.CTextBroadcast(ComC.GetTeamNum(),"-"$ComC.PlayerReplicationInfo.PlayerName@"abdicated willingly-");
+		Execute(G);
+	}
+
+	G.DestroyVote(self);
+
 }
 
 DefaultProperties

@@ -42,7 +42,8 @@ struct native MaterialImpactEffect
 	var float DecalWidth;
 	var float DecalHeight;
 	var ParticleSystem ParticleTemplate;
-
+	var color			ImpactSmokeColour;
+	
 	StructDefaultProperties
 	{
 		DurationOfDecal=24.0

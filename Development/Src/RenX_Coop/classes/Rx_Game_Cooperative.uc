@@ -12,18 +12,13 @@ var Array<PlayerAccount> PlayersArray;
 var Array<Rx_CoopObjective> CoopObjectives;
 
 
-function AddSpawnerManager(Rx_VehicleSpawnerManager VSM)
-{
-	VehicleSpawnerManagers.AddItem(VSM);
-}
-
-function SpawnVehicleFor(byte VTeam)
+function SpawnVehicleFor(byte VTeam, Rx_VehicleSpawner Spawner)
 {
 	if(VTeam == 0)
-		VehicleManager.queueWork_GDI();
+		Rx_VehicleManager_Coop(VehicleManager).SpawnGDIVehicle(Spawner);
 
 	else
-		VehicleManager.queueWork_NOD();
+		Rx_VehicleManager_Coop(VehicleManager).SpawnNodVehicle(Spawner);
 }
 
 function PreBeginPlay()
@@ -32,7 +27,7 @@ function PreBeginPlay()
 
 	super.PreBeginPlay();
 
-	foreach WorldInfo.AllNavigationPoints(class'Rx_CoopObjective', O)
+	foreach WorldInfo.AllActors(class'Rx_CoopObjective', O)
 	{
 		CoopObjectives.AddItem(O);
 	}
@@ -63,7 +58,6 @@ event PostLogin( PlayerController NewPlayer )
 	if (ID == `BlankSteamID || ID == "")
 		ID = NewPlayer.PlayerReplicationInfo.PlayerName;
 
-	`warn("Invalid Map Info! Set Map info to Rx_MapInfo_Cooperative!");
 	SetTeam(NewPlayer, Teams[GetPlayerTeam()], false);
 	index = PlayersArray.Find('PlayersID',ID);
 
@@ -246,7 +240,7 @@ function AnnounceObjectiveCompletion(Controller InstigatingPlayer, Rx_CoopObject
 		if(O.bFailCompletion)
 			PC.CTextMessage(ActualMessage,'Red',180,,false,true);
 		else
-			PC.CTextMessage(ActualMessage,'Green',180,,false,true);
+			PC.CTextMessage(ActualMessage,'Green',180,);
 	}
 }	
 
@@ -388,10 +382,13 @@ function bool CanPlayBuildingUnderAttackMessage(byte TeamNum)
 
 DefaultProperties
 {
+	PlayerControllerClass	   = class'Rx_Controller_Coop'
+	HudClass                   = class'Rx_HUD_Coop'
 	PurchaseSystemClass        = class'Rx_PurchaseSystem_Coop'
 	VehicleManagerClass        = class'Rx_VehicleManager_Coop'
 
 	TeamInfoClass			   = class'Rx_TeamInfo_Coop'
 	TeamAIType(0)              = class'Rx_TeamAI_Coop'
 	TeamAIType(1)              = class'Rx_TeamAI_Coop'
+
 }

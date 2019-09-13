@@ -2,19 +2,21 @@ class Rx_ScriptedBotSpawner extends Actor
 	ClassGroup(Scripted)	
 	placeable;
 
-var(Spawner) bool bActivateOnStart;
-var(Spawner) Array<Actor> SpawnPoints;					// Places where bots can spawn
-var(Spawner) int SpawnNumber;							// The number of spawn until spawner is disabled. set to 0 or lower for infinite
-var(Spawner) int MaxSpawn;								// Maximum amount of existing bots. Set to 0 for indefinite amount
-var(Spawner) Array<class<Rx_FamilyInfo> > CharTypes;	// Type of squad to spawn
-var(Spawner) Array<class<Rx_Vehicle> > VehicleTypes;		// Type of Vehicles the squad will spawn with
-var(Spawner) int TeamIndex;								// Which side the bots belong to
-var(Spawner) float SpawnInterval;						// How often the spawn occurs
-var(Spawner) string SquadID;
-var(Spawner) Rx_ScriptedObj SquadObjective;
-var(Spawner) bool bCheckPlayerLOS;
-var(Spawner) bool bInvulnerableBots;						// Is the bot in God Mode?
-
+var(Spawn) bool bActivateOnStart;
+var(Spawn) Array<Actor> SpawnPoints;					// Places where bots can spawn
+var(Spawn) int SpawnNumber;							// The number of spawn until spawner is disabled. set to 0 or lower for infinite
+var(Spawn) int MaxSpawn;								// Maximum amount of existing bots. Set to 0 for indefinite amount
+var(Spawn) Array<class<Rx_FamilyInfo> > CharTypes;	// Type of squad to spawn
+var(Spawn) Array<class<Rx_Vehicle> > VehicleTypes;		// Type of Vehicles the squad will spawn with
+var(Spawn) int TeamIndex;								// Which side the bots belong to
+var(Spawn) float SpawnInterval;						// How often the spawn occurs
+var(Spawn) string SquadID;
+var(Objective) Rx_ScriptedObj SquadObjective;
+var(Spawn) bool bCheckPlayerLOS;
+var(Combat) float Skill;
+var(Combat) bool bInvulnerableBots;						// Is the bot in God Mode?
+var(Combat) float DamageDealtModifier;					// Determines the multiplier of this bot's damage
+var(Combat) float DamageTakenModifier;					// Determines the multiplier of the damage this bot takes from others
 
 var bool bActive;
 var int SpawnedBotNumber, BotRemaining;
@@ -41,8 +43,7 @@ event PostBeginPlay()
 		if(SpawnInterval > 0)
 			SetTimer(SpawnInterval,true,'StartSpawning');
 
-		else
-			StartSpawning();
+		StartSpawning();
 	}
 
 }
@@ -84,11 +85,12 @@ function StartSpawning (optional bool bForced)
 			V = Spawn(VehicleTypes[VI],,,BestSpawn.location,BestSpawn.rotation);
 	
 
+		B = Spawn(class'Rx_Bot_Scripted');
+		Rx_Game(WorldInfo.Game).SetTeam(B, Rx_Game(WorldInfo.Game).Teams[TeamIndex], false);
 		if(V != None)
-			P = Spawn(class'Rx_Pawn_Scripted',,,BestSpawn.location + vect(0,0,100000),BestSpawn.rotation);
+			P = Spawn(class'Rx_Pawn_Scripted',,,WorldInfo.Game.FindPlayerStart(B,TeamIndex).location,BestSpawn.rotation,,true);
 		else
 			P = Spawn(class'Rx_Pawn_Scripted',,,BestSpawn.location,BestSpawn.rotation);
-		B = Spawn(class'Rx_Bot_Scripted');
 		B.Possess(P,false);
 		MyBots.AddItem(B);
 		B.MySpawner = Self;
@@ -100,19 +102,6 @@ function StartSpawning (optional bool bForced)
 		else
 			Rx_PRI(B.PlayerReplicationInfo).SetChar(CharTypes[I], B.Pawn, false);
 
-
-		if(V != None)
-		{
-			V.DriverEnter(P);
-			V.DropToGround();
-
-			if (V.Mesh != none)
-				V.Mesh.WakeRigidBody();
-		}
-
-		Rx_Game(WorldInfo.Game).SetTeam(B, Rx_Game(WorldInfo.Game).Teams[TeamIndex], false);
-
-
 		if(AffiliatedSquad == None)
 		{
 			AffiliatedSquad = Rx_SquadAI_Scripted(TeamAI.AddSquadWithLeader(B,SquadObjective));
@@ -122,14 +111,33 @@ function StartSpawning (optional bool bForced)
 
 		AffiliatedSquad.Spawner = self;
 
+		if(V != None)
+		{
+			V.DropToGround();
+
+			if (V.Mesh != none)
+				V.Mesh.WakeRigidBody();
+
+			B.BoundVehicle = V;
+		}
+
 		if((SquadID != "" && B.Squad.SquadObjective != SquadObjective) || B.MyObjective != SquadObjective)
 			B.ForceAssignObjective(SquadObjective);
 
+		B.Skill = Skill;
+		B.ResetSkill();
+
 		SpawnedBotNumber += 1;
 		BotRemaining += 1;
-	}
 
-	TriggerEventClass(Class'Rx_SeqEvent_ScriptedSpawnerEvent',B,0);
+		TriggerEventClass(Class'Rx_SeqEvent_ScriptedSpawnerEvent',B,0);
+
+	}
+	else if (SpawnInterval <= 0)
+	{
+		SetTimer(0.1,false,'StartSpawning'); // Add grace time to avoid loop
+		return;
+	}
 
 	if(SpawnNumber > 0 && SpawnedBotNumber >= SpawnNumber)
 		StopSpawning();
@@ -137,7 +145,7 @@ function StartSpawning (optional bool bForced)
 	else if(MaxSpawn > 0 && BotRemaining >= MaxSpawn)
 		StopSpawning();
 
-	else if(SpawnInterval < 0)
+	else if(SpawnInterval <= 0)
 		StartSpawning();
 
 }
@@ -146,7 +154,7 @@ function Actor RateBestSpawn(class<Pawn> PawnClass)
 {
 	local float CurrentRate,BestRate;
 	local Actor CurrentSpawn,BestSpawn;
-	local Controller Others;
+	local Pawn Others;
 
 	if(CurrentRate < 0)
 		return None;
@@ -155,19 +163,19 @@ function Actor RateBestSpawn(class<Pawn> PawnClass)
 	{
 		CurrentRate = (FRand() + 5.f);
 
-		ForEach WorldInfo.AllControllers(class'Controller', Others)
+		ForEach WorldInfo.AllPawns(class'Pawn', Others)
 		{
-			if(Others.Pawn == None)	// no point in checking controller that has no pawn, continue
+			if(Others.Health <= 0)
 				continue;
 
-			if ((Abs(CurrentSpawn.Location.Z - Others.Pawn.Location.Z) < PawnClass.Default.CylinderComponent.CollisionHeight + Others.Pawn.CylinderComponent.CollisionHeight) 
-					&& (VSize2D(CurrentSpawn.Location - Others.Pawn.Location) < PawnClass.Default.CylinderComponent.CollisionRadius + Others.Pawn.CylinderComponent.CollisionRadius))
+			if ((Abs(CurrentSpawn.Location.Z - Others.Location.Z) < PawnClass.Default.CylinderComponent.CollisionHeight + Others.CylinderComponent.CollisionHeight) 
+					&& (VSize2D(CurrentSpawn.Location - Others.Location) < PawnClass.Default.CylinderComponent.CollisionRadius + Others.CylinderComponent.CollisionRadius))
 			{
 				CurrentRate = -10.f;
 				Break;
 			}
 
-			if( Rx_Controller(Others) != None && Others.CanSeeByPoints(Others.Pawn.Location, CurrentSpawn.Location, Others.Pawn.Rotation))
+			if( Rx_Controller(Others.Controller) != None && Others.Controller.CanSeeByPoints(Others.Location, CurrentSpawn.Location, Others.Rotation))
 			{
 				if(bCheckPlayerLOS)
 				{
@@ -304,6 +312,12 @@ function OnModifySpawner (Rx_SeqAct_ScriptedBotModifySpawnValues Action)
 
 	SpawnInterval = Action.SpawnInterval;
 	bCheckPlayerLOS = Action.bCheckPlayerLOS;
+	bInvulnerableBots = Action.bInvulnerableBots;
+
+	Skill = Action.Skill;
+
+	DamageDealtModifier = Action.DamageDealtModifier;
+	DamageTakenModifier = Action.DamageTakenModifier;
 }
 
 
@@ -344,4 +358,8 @@ DefaultProperties
 	Components.Add(Sprite)
 
 	SupportedEvents.Add(class'Rx_SeqEvent_ScriptedSpawnerEvent')
+
+	DamageDealtModifier = 1.f
+	DamageTakenModifier = 1.f
+	Skill = 5.f
 }

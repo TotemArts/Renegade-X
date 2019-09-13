@@ -84,6 +84,7 @@ var config int                          DonationsDisabledTime;
 
 var config bool                         bReserveVehiclesToBuyer;
 var config bool							bAllowPowerUpDrop;
+var config bool 						bUsePedestal;
 var int									RTC_DisableTime; //Amount of time changing teams [sans admin forcing team changes] is disabled. 0 is never ADD TO CONFIG
 
 //Surrender Specific Variables
@@ -280,6 +281,9 @@ var int Defence_IDs; //Hold and create the ID's for Rx_Defences so they can stop
 //Score System 
 var config bool		bUseLegacyScoreSystem;  
 var Rx_GameObjective	FirstObjective, PrevO;	//I know it doesn't make sense to put PrevO here, but if I put it on local, it'll give warning :/
+
+var bool bPedestalDetonated;
+var byte PedestalDetonator;
 
 delegate NotifyServerListUpdate();
 
@@ -826,13 +830,16 @@ function bool ChangeTeam(Controller Other, int num, bool bNewTeam)
 		}
 		if (Rx_PRI(Other.PlayerReplicationInfo) != None )
 		{
-			if(Rx_PRI(Other.PlayerReplicationInfo) == Commander_PRI[AntiTeamByte]) RemoveCommander(AntiTeamByte);  
+			if(Rx_PRI(Other.PlayerReplicationInfo) == Commander_PRI[AntiTeamByte]) 
+				RemoveCommander(AntiTeamByte);  
 			
-			if(Commander_PRI[AntiTeamByte] != none) Rx_PRI(Other.PlayerReplicationInfo).SetCommander(Commander_PRI[AntiTeamByte]);
+			if(Commander_PRI[AntiTeamByte] != none) 
+				Rx_PRI(Other.PlayerReplicationInfo).SetCommander(Commander_PRI[AntiTeamByte]);
 			else
-			Rx_PRI(Other.PlayerReplicationInfo).RemoveCommander(AntiTeamByte);
+				Rx_PRI(Other.PlayerReplicationInfo).RemoveCommander(AntiTeamByte);
 			
-			if(WorldInfo.NetMode == NM_StandAlone && Rx_Controller(Other) != none) ChangeCommander(num, Rx_PRI(Other.PlayerReplicationInfo)) ;
+			if(WorldInfo.NetMode == NM_StandAlone && Rx_Controller(Other) != none) 
+				ChangeCommander(num, Rx_PRI(Other.PlayerReplicationInfo)) ;
 			
 			Rx_PRI(Other.PlayerReplicationInfo).DestroyATMines();
 			Rx_PRI(Other.PlayerReplicationInfo).DestroyRemoteC4();
@@ -1357,9 +1364,12 @@ event PostLogin( PlayerController NewPlayer )
 	{
 
 	//Set Commander if they exist
-	if(Rx_PRI(NewPlayer.PlayerReplicationInfo).GetTeamNum() == 0 && Commander_PRI[0] != none) Rx_PRI(NewPlayer.PlayerReplicationInfo).SetCommander(Commander_PRI[0]) ;
-	else
-	if(Rx_PRI(NewPlayer.PlayerReplicationInfo).GetTeamNum() == 1 && Commander_PRI[1] != none) Rx_PRI(NewPlayer.PlayerReplicationInfo).SetCommander(Commander_PRI[1]) ;
+	if(Rx_PRI(NewPlayer.PlayerReplicationInfo).GetTeamNum() == 0 && Commander_PRI[0] != none) 
+		Rx_PRI(NewPlayer.PlayerReplicationInfo).SetCommander(Commander_PRI[0]) ;
+	else if(Rx_PRI(NewPlayer.PlayerReplicationInfo).GetTeamNum() == 1 && Commander_PRI[1] != none) {
+		Rx_PRI(NewPlayer.PlayerReplicationInfo).SetCommander(Commander_PRI[1]) ;
+	}
+		
 
 		foreach GameReplicationInfo.PRIArray(PRI) 
 		{			
@@ -1412,7 +1422,11 @@ function Logout( Controller Exiting )
 		
 		for(i=0;i<2;i++)
 		{
-			if(Exiting.PlayerReplicationInfo == Commander_PRI[i]) RemoveCommander(i); 
+			if(Exiting.PlayerReplicationInfo == Commander_PRI[i] && !bGameEnded) 
+			{
+				CTextBroadcast(Exiting.GetTeamNum(), Caps("!!!Our Commander has left the game!!!")); 
+				RemoveCommander(i);
+			} 
 		}
 		
 		Rx_PRI(Exiting.PlayerReplicationInfo).DestroyATMines();
@@ -2355,17 +2369,59 @@ function bool TooManyBots(Controller botToRemove)
 {
 	if(NumPlayers+NumBots > 64) // if exceeding player limit, there's *way* too many
 		return true;
-
-	if(!bFillSpaceWithBots)
+/*
+	if(bFillSpaceWithBots)
 		return false;
 
 	if ((Rx_Bot(botToRemove).GetTeamNum() == TEAM_GDI && Teams[TEAM_GDI].Size > Teams[TEAM_NOD].Size)
 			|| (Rx_Bot(botToRemove).GetTeamNum() == TEAM_NOD && Teams[TEAM_NOD].Size > Teams[TEAM_GDI].Size))
 	{
-			return Super.TooManyBots(botToRemove);
+			return true;
+	}
+*/
+	return false;
+}
+
+function DetonatePedestal(Rx_Weapon_DeployedBeacon Beacon)
+{
+	local Rx_Building_Team_Internals B;
+	local Rx_Controller PC;
+	local String LostTeamName;
+
+	bPedestalDetonated = true;
+	PedestalDetonator = Beacon.GetTeamNum();
+	if(PedestalDetonator == TEAM_GDI)
+		LostTeamName = "Nod";
+	else
+		LostTeamName = "GDI";
+
+	foreach AllActors(class'Rx_Building_Team_Internals', B)
+	{
+		if(B.GetTeamNum() == Beacon.GetTeamNum())
+		{
+			B.HealthLocked = true;
+		}
 	}
 
-	return false;
+	foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
+	{
+		if (PC.GetTeamNum() == PedestalDetonator)
+		{
+			PC.CTextMessage(Caps(LostTeamName@"base has been eradicated!"),'Green',180);
+		}
+		else
+		{
+			PC.CTextMessage(Caps(LostTeamName@"base has been eradicated!"),'Red',180);
+		}
+	}
+
+	ResetGameSpeed();
+	SetTimer(4, false, 'PedestalEndGame');
+}
+
+function PedestalEndGame ()
+{
+	EndRxGame("Buildings",PedestalDetonator);
 }
 
 function CheckBuildingsDestroyed(Actor destroyedBuilding, Rx_Controller StarPC)
@@ -2377,14 +2433,16 @@ function CheckBuildingsDestroyed(Actor destroyedBuilding, Rx_Controller StarPC)
 	/*Show message where people will actually see it -Yosh (Remember the outrage when destruction and beacon messages were moved to the middle left? Yeah.. neither do the people that ranted about it.)*/
 	foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
 	{
-		if (StarPC == none)
+		if (StarPC == none && !bPedestalDetonated)
 			PC.CTextMessage(Caps("The"@destroyedBuilding.GetHumanReadableName()@ "was destroyed!"),'Red', 180);
 		else if (PC.GetTeamNum() == StarPC.GetTeamNum())
 		{
-			PC.CTextMessage(Caps("The"@destroyedBuilding.GetHumanReadableName()@ "was destroyed!"),'Green',180);
+			if(!bPedestalDetonated)
+				PC.CTextMessage(Caps("The"@destroyedBuilding.GetHumanReadableName()@ "was destroyed!"),'Green',180);
+			
 			PC.DisseminateVPString("[Team Building Kill Bonus]&" $ class'Rx_VeterancyModifiers'.default.Ev_BuildingDestroyed*Rx_Game(WorldInfo.Game).CurrentBuildingVPModifier $ "&");
 		}
-		else
+		else if (!bPedestalDetonated)
 		{
 			PC.CTextMessage(Caps("The"@destroyedBuilding.GetHumanReadableName()@ "was destroyed!"),'Red',180);
 		}
@@ -2394,15 +2452,18 @@ function CheckBuildingsDestroyed(Actor destroyedBuilding, Rx_Controller StarPC)
 	if (Role == ROLE_Authority)
 	{
 		CurrentBuildingVPModifier +=0.5;
-		Check = CheckBuildings();
-		if (Check == BC_GDIDestroyed || Check == BC_NodDestroyed || Check == BC_TeamsHaveNoBuildings)
+		if(!bPedestalDetonated)
 		{
-			if(Check == BC_GDIDestroyed)
-				EndRxGame("Buildings",TEAM_NOD);
-			else if(Check == BC_NodDestroyed)
-				EndRxGame("Buildings",TEAM_GDI); 	
-			else 
-				EndRxGame("Buildings",255);
+			Check = CheckBuildings();
+			if (Check == BC_GDIDestroyed || Check == BC_NodDestroyed || Check == BC_TeamsHaveNoBuildings)
+			{
+				if(Check == BC_GDIDestroyed)
+					EndRxGame("Buildings",TEAM_NOD);
+				else if(Check == BC_NodDestroyed)
+					EndRxGame("Buildings",TEAM_GDI); 	
+				else 
+					EndRxGame("Buildings",255);
+			}
 		}
 		
 		if (Rx_Building_Nod_VehicleFactory(destroyedBuilding) != None || Rx_Building_AirTower(destroyedBuilding) != none && Rx_Building_Helipad_Nod(destroyedBuilding) == None)
@@ -3337,7 +3398,15 @@ function Rx_VehicleManager GetVehicleManager()
 function ReduceDamage(out int Damage, pawn injured, Controller instigatedBy, vector HitLocation, out vector Momentum, class<DamageType> DamageType, Actor DamageCauser)
 {
 	local float TempDifficulty;
+
+	// if scripted bot is involved, further modify the damage
 	
+	if(Rx_Bot_Scripted(injured.Controller) != None && Rx_Bot_Scripted(injured.Controller).MySpawner != None)
+		Damage = Damage * Rx_Bot_Scripted(injured.Controller).MySpawner.DamageTakenModifier;
+
+	if(Rx_Bot_Scripted(instigatedBy) != None && Rx_Bot_Scripted(instigatedBy).MySpawner != None)
+		Damage = Damage * Rx_Bot_Scripted(instigatedBy).MySpawner.DamageDealtModifier;
+
 	TempDifficulty = WorldInfo.Game.GameDifficulty;
 	WorldInfo.Game.GameDifficulty = 5.0;
 	super.ReduceDamage(Damage,injured,instigatedBy,HitLocation,Momentum,DamageType,DamageCauser);
@@ -3624,6 +3693,10 @@ function Actor GetAGT()
 function RestartPlayer(Controller NewPlayer)
 {
 	local Rx_Hud RxHUD;
+
+	if(bPedestalDetonated)
+		return;
+
 	super.RestartPlayer(NewPlayer);
 
 	if(Rx_Bot(NewPlayer) != None) {
@@ -4349,7 +4422,7 @@ function CTextBroadcast(byte TeamByte,string TEXT, optional name Colour = 'Light
 	{
 	foreach WorldInfo.AllControllers(class'Rx_Controller', P)
 		{
-			P.CTextMessage(TEXT,Colour,TIME, Size) ;
+			P.CTextMessage(TEXT,Colour,TIME, Size,,bWarning) ;
 		}
 	}
 }
@@ -4384,7 +4457,8 @@ function ChangeCommander(byte ToTeam, Rx_PRI RxPRI, optional bool bIsInitialSett
 {
 	local Rx_PRI PRIi;
 	
-	if(!bEnableCommanders) return; 
+	if(!bEnableCommanders) 
+		return; 
 	
 	RemoveCommander(ToTeam);
 	

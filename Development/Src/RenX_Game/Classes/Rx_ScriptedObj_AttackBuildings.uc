@@ -1,7 +1,7 @@
 class Rx_ScriptedObj_AttackBuildings extends Rx_ScriptedObj
 	placeable;
 
-var() Array<Rx_BuildingObjective> MyBuildingObjectives;
+var(ScriptedObjective) Array<Rx_BuildingObjective> MyBuildingObjectives;
 
 simulated event PostBeginPlay()
 {
@@ -33,7 +33,10 @@ function bool DoTaskFor(Rx_Bot_Scripted B)
 			MyBuildingObjectives.RemoveItem(BO);
 	}
 
-	if(Rx_BuildingObjective(B.Squad.SquadObjective) == None || Rx_BuildingObjective(B.Squad.SquadObjective).myBuilding.IsDestroyed())
+	if(MyBuildingObjectives.Length <= 0)
+		return DoNextObjectiveFor(B);
+
+	else if(Rx_BuildingObjective(B.Squad.SquadObjective) == None || Rx_BuildingObjective(B.Squad.SquadObjective).myBuilding.IsDestroyed())
 	{
 		i = Rand(MyBuildingObjectives.Length);
 		B.CurrentBO = MyBuildingObjectives[i];
@@ -43,5 +46,5 @@ function bool DoTaskFor(Rx_Bot_Scripted B)
 	return B.CurrentBO.TellBotHowToDisable(B);
 
 
-	return true;
+	
 }

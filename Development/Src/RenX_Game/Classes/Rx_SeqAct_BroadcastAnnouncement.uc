@@ -20,19 +20,12 @@ enum AnnounceColor
 	MSG_Orange
 };
 
-var(Broadcast) AnnounceColor AnnouncementColor;	//What color should this text be?
-var(Broadcast) bool bTeamOnly;
+var(Broadcast) AnnounceColor AnnouncementColor;	//What color should this text be
 var(Broadcast) byte TeamNum;
 
 event Activated()
 {
-	local Rx_Controller P;
-
-	foreach GetWorldInfo().AllControllers(class'Rx_Controller', P)
-	{
-		if((bTeamOnly && P.GetTeamNum() == TeamNum) || !bTeamOnly)
-			P.CTextMessage(Announcement,GetColor(),Time, 1.0,false,bIsWarning) ;
-	}
+	Rx_Game(GetWorldInfo().Game).CTextBroadcast(TeamNum,Announcement,GetColor(),Time, 1.0,bIsWarning);
 }
 
 function name GetColor()
@@ -79,4 +72,5 @@ defaultproperties
 
    Announcement = "My awesomely obnoxious announcement is here"
    Time = 30.0
+   TeamNum = 255
 }

@@ -43,7 +43,6 @@ var bool bMoveForwardButtonPressed;
 var bool bCanOneClickDodge;
 var bool bDodgeDirectionButtonPressed;
 var DodgeDirections pressedDodgeDirection;
-var bool bisAFK;			// HANDEPSILON - This indicates whether or not the player is AFK at the moment
 
 //--------------Radio commands
 var localized array<string> RadioCommandsText;
@@ -297,7 +296,7 @@ replication
 {
 	// Things the server should send to the client.
 	if ( bNetOwner && Role == ROLE_Authority && bNetDirty )
-		ReplicatedHitIndicator, bDisableBotOrdering, bIsAFK;
+		ReplicatedHitIndicator, bDisableBotOrdering;
 
 	if (bNetDirty)
 		VoteTopString, VotesYes, VotesNo, VoteTimeLeft, VotersTotal, bSuspect, YesVotesNeeded, bIsDev, bCanThrowSF_Flag, RefillCooldownTime, RadarVisibility,
@@ -469,7 +468,7 @@ simulated function PostBeginPlay()
 	*/
 	
 	if(Worldinfo.NetMode != NM_Standalone)
-		ResetAFKTimer();
+		Rx_PRI(PlayerReplicationInfo).ResetAFKTimer();
 	
 	UpdateDiscordPresence(0);
 }
@@ -1541,7 +1540,7 @@ exec function PlayerList()
 	ClientMessage("PlayerID  Name  Team  Ping");
 	foreach DynamicActors(class'Rx_PRI', PRI)
 	{
-		if(Rx_Bot_Scripted(PRI.Owner) != None)		//Handepilon - Don't count the scripted bots
+		if(PRI.bIsScripted)		//Handepilon - Don't count the scripted bots
 			continue;
 
 		Msg = PRI.PlayerID$"  "$PRI.PlayerName $"  "$ class'Rx_Game'.static.GetTeamName(PRI.Team.TeamIndex) $"  ";
@@ -2468,7 +2467,7 @@ state Dead
 				WF.NotifyLocalPlayerDead(self);
 		}
 
-		if (Role == ROLE_Authority && UTGame(WorldInfo.Game) != None && UTGame(WorldInfo.Game).ForceRespawn())
+		if (Role == ROLE_Authority && !Rx_Game(WorldInfo.Game).bPedestalDetonated && UTGame(WorldInfo.Game) != None && UTGame(WorldInfo.Game).ForceRespawn())
 		{
 			SetTimer(MinRespawnDelay, true, 'DoForcedRespawn');
 		}
@@ -3104,7 +3103,12 @@ exec function ReportSpotted()
 				if(bCommandSpotting || bPlayerIsCommander()) 
 					SetPlayerCommandSpotted(Rx_DefencePRI(Rx_Vehicle_Harvester(PrimarySpot).PlayerReplicationInfo).Defence_ID);				
 				}
-				if(bFocusSpotting) SetPlayerFocused(Rx_DefencePRI(Rx_Vehicle_Harvester(PrimarySpot).PlayerReplicationInfo).Defence_ID) ;
+				if(bFocusSpotting) {
+					SetPlayerFocused(Rx_DefencePRI(Rx_Vehicle_Harvester(PrimarySpot).PlayerReplicationInfo).Defence_ID) ;
+					if(bPlayerIsCommander())
+						SetPlayerCommandSpotted(Rx_DefencePRI(Rx_Vehicle_Harvester(PrimarySpot).PlayerReplicationInfo).Defence_ID);
+				}
+					
 				bFocusSpotting = false; 
 				}
 					
@@ -3548,7 +3552,7 @@ function BroadcastEnemySpotMessages()
 			if(SpottedList.length <= 0)
 			{
 				CurrentSpot.SpottedName = SpotTarget.GetHumanReadableName();
-				CurrentSpot.Amount += 1;
+				CurrentSpot.Amount = 1;
 				CurrentSpot.Team = SpotTarget.GetTeamNum();
 				CurrentSpot.bSpy = Rx_Vehicle(SpotTarget).IsVehicleStolen();	
 				if(CurrentSpot.bSpy)
@@ -3573,7 +3577,7 @@ function BroadcastEnemySpotMessages()
 				if(!bItemFound)
 				{
 					CurrentSpot.SpottedName = SpotTarget.GetHumanReadableName();
-					CurrentSpot.Amount += 1;
+					CurrentSpot.Amount = 1;
 					CurrentSpot.Team = SpotTarget.GetTeamNum();
 					CurrentSpot.bSpy = Rx_Vehicle(SpotTarget).IsVehicleStolen();	
 					if(CurrentSpot.bSpy)
@@ -3962,7 +3966,14 @@ function BroadcastEnemySpotMessages()
 	{
 		BroadCastSpotMessage(3, "FOCUS FIRE:"@SpottingMsg@LocationInfo);
 		if(Rx_PRI(Rx_Vehicle(FirstSpotTarget).PlayerReplicationInfo) != none) 
+		{
 			SetPlayerFocused(Rx_PRI(Rx_Vehicle(FirstSpotTarget).PlayerReplicationInfo).PlayerID);
+			
+			if(bPlayerIsCommander()) 
+				SetPlayerCommandSpotted(Rx_PRI(Rx_Vehicle(FirstSpotTarget).PlayerReplicationInfo).PlayerID);
+				
+		}
+			
 
 		TellNearbyBotsToFocusFire(Pawn(FirstSpotTarget));
 	}
@@ -3970,7 +3981,13 @@ function BroadcastEnemySpotMessages()
 	{
 		BroadCastSpotMessage(19, "FOCUS FIRE:"@SpottingMsg@LocationInfo);
 		if(Rx_PRI(Rx_Pawn(FirstSpotTarget).PlayerReplicationInfo) != none) 
+		{
 			SetPlayerFocused(Rx_PRI(Rx_Pawn(FirstSpotTarget).PlayerReplicationInfo).PlayerID);
+			
+			if(bPlayerIsCommander()) 
+				SetPlayerCommandSpotted(Rx_PRI(Rx_Pawn(FirstSpotTarget).PlayerReplicationInfo).PlayerID);
+		}
+			
 	
 		TellNearbyBotsToFocusFire(Pawn(FirstSpotTarget));
 	}	
@@ -4043,9 +4060,14 @@ function string GetSpottargetLocationInfo(Actor FirstSpotTarget)
 	
 	WGRI = Rx_GRI(WorldInfo.GRI);
 	
-	if(WGRI == none) return "";
+	if(WGRI == none) 
+		return "";
 	
-	foreach WGRI.SpottingArray(TempActor) {
+	if(Rx_Weapon_DeployedBeacon(FirstSpotTarget) != None && Rx_BuildingAttachment_BeaconPedestal(FirstSpotTarget.Base) != None && FirstSpotTarget.GetTeamNum() != FirstSpotTarget.Base.GetTeamNum())
+		return "on >> PEDESTAL <<";
+
+	foreach WGRI.SpottingArray(TempActor) 
+	{
 		SpotMarker = RxIfc_SpotMarker(TempActor);
 		DistToSpot = VSizeSq(TempActor.location - FirstSpotTarget.location);
 		if(NearestSpotDist == 0.0 || DistToSpot < NearestSpotDist) {
@@ -4550,7 +4572,6 @@ function SetPlayerSpotted( int playerID )
 
 function SetPlayerFocused(int PlayerID)
 {
-loginternal("client focused"$playerID);
 	ServerSetPlayerFocused(playerID);		
 }
 
@@ -4847,6 +4868,10 @@ function bool AttemptOpenPT()
 {
 	local Rx_BuildingAttachment_PT PT;
 	
+	// do not access PT if pawn is in vehicle
+	if(Vehicle(Pawn) != None)
+		return false;
+
 	//Kill Context menus when trying to open a PT 
 	if(Vet_Menu != none)
 		{
@@ -5261,11 +5286,17 @@ function FadeInScoreboard()
 function FadeOutScoreboard() {
 	//`log("################################ -( RxController:FadeOutScoreboard() )-");
 	if (Rx_HUD(myHUD).Scoreboard == none) {
-		return;
+		Rx_HUD(myHUD).SetFadeToBlack(0.5,false);
+		Rx_HUD(myHUD).SetShowScores(true);
+		Rx_HUD(myHUD).Scoreboard.Scoreboard.SetVisible(false);
+		Rx_HUD(myHUD).Scoreboard.EndGameScoreboard.SetVisible(false);
+		Rx_HUD(myHUD).Scoreboard.ServerName.SetVisible(false);
+		Rx_HUD(myHUD).Scoreboard.bCaptureInput = true;
+		Rx_HUD(myHUD).Scoreboard.bHasFadeIn = true;
 	}
 
 
-	if (!Rx_HUD(myHUD).Scoreboard.bHasFadeIn) {
+	else if (!Rx_HUD(myHUD).Scoreboard.bHasFadeIn) {
 		//Scoreboard.SetVisible(true);
 		//ServerName.SetVisible(true);
 //		Rx_HUD(myHUD).Scoreboard.FadeMC.GotoAndPlay("FadeOut");
@@ -5295,7 +5326,7 @@ function PlayResultScreen()
 
 }
 
-function PlayResultAnnouncement(bool bWin)
+unreliable server function PlayResultAnnouncement(bool bWin)
 {
 	local class<UTVictoryMessage> VictoryMessageClass;
 
@@ -5344,7 +5375,7 @@ function PlayEndGameSound()
 
 state RoundEnded
 {
-ignores SeePlayer, HearNoise, KilledBy, NotifyBump, HitWall, NotifyHeadVolumeChange, NotifyPhysicsVolumeChange, Falling, TakeDamage, Suicide, DrawHud;
+ignores SeePlayer, HearNoise, KilledBy, NotifyBump, HitWall, NotifyHeadVolumeChange, NotifyPhysicsVolumeChange, Falling, TakeDamage, Suicide, DrawHud, ServerRestartPlayer;
 	
 	function BeginState(Name PreviousStateName)
 	{
@@ -5407,10 +5438,20 @@ ignores SeePlayer, HearNoise, KilledBy, NotifyBump, HitWall, NotifyHeadVolumeCha
 	function ShowScoreboard()
 	{
 		if (Rx_HUD(myHUD) != none)
+		{
 			Rx_HUD(myHUD).SetShowScores(true);
+		}
 		
 		AutoContinueToNextRound();
 	}	
+
+	function EndState(name NextStateName)
+	{
+		Super(UDKPlayerController).EndState(NextStateName);
+		SetBehindView(false);
+		StopViewShaking();
+		StopCameraAnim(true);
+	}
 }
 
 event GetSeamlessTravelActorList(bool bToEntry, out array<Actor> ActorList)
@@ -7876,34 +7917,6 @@ reliable client function ClientSetLocationAndKeepRotation( vector NewLocation )
 		Pawn.SetLocation( NewLocation );
 }
 
-function ResetAFKTimer ()
-{
-	if(bIsAFK)
-		UndeclareAFK();
-
-	SetTimer(180.0,false,'DeclareAFK');
-}
-
-function DeclareAFK ()
-{
-	ServerDeclareAFK();
-}
-
-reliable server function ServerDeclareAFK()
-{
-	bIsAFK = true;
-}
-
-function UndeclareAFK ()
-{
-	ServerUndeclareAFK();
-}
-
-reliable server function ServerUndeclareAFK()
-{
-	bIsAFK = false;
-}
-
 function CheckJumpOrDuck()
 {
 	local RxIfc_PassiveAbility PassivesPawn; 
@@ -7967,6 +7980,21 @@ function SetTeamHarvesterStopped()
 }
 
 /** Properties */
+
+exec function UpdateLocationTolerance(float Multi){
+	ServerSetLocationTolerance(Multi); 
+}
+
+reliable server function ServerSetLocationTolerance(float Multi){
+	
+	local UDKPawn P; 
+	
+	if(UDKPawn(Pawn) != none){
+		P = UDKPawn(Pawn);
+		P.MaxSmoothNetUpdateDist = P.default.MaxSmoothNetUpdateDist*Multi; 
+		P.NoSmoothNetUpdateDist = P.default.NoSmoothNetUpdateDist*Multi; 
+	}
+}
 
 DefaultProperties
 {
@@ -8094,5 +8122,7 @@ DefaultProperties
 	bLockRotationToViewTarget   = true
 	
 	DamageCameraAnim = CameraAnim'RX_FX_Munitions2.Camera_FX.DamageViewShake'
+	
+	bUseDoubleClickDodge = false
 }
 

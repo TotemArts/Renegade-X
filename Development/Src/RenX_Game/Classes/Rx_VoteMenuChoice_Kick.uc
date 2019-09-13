@@ -26,13 +26,13 @@ function ServerInit(Rx_Controller instigator, string param, int t)
 		Rx_Game(instigator.WorldInfo.Game).RxLog("VOTE"`s "Called;" `s TeamTypeToString(t) `s class `s "by" `s `PlayerLog(instigator.PlayerReplicationInfo) `s params);
 	else
 		Rx_Game(instigator.WorldInfo.Game).RxLog("VOTE"`s "Called;" `s TeamTypeToString(t) `s class `s "by" `s `PlayerLog(instigator.PlayerReplicationInfo) );
-
-	if (KickC != None && KickC.bIsAFK) {
+/*
+	if (KickC != None && Rx_PRI(KickC.PlayerReplicationInfo).bIsAFK) {
 		`RxGameObject.RxLog("VOTE" `s "Results;" `s TeamTypeToString(ToTeam) `s class `s "pass" `s "Yes=1" `s "No=0");
 		Execute(`RxGameObject);
 		`RxGameObject.DestroyVote(self);
 	}
-
+*/
 	// update on players
 	UpdatePlayers(instigator.WorldInfo);
 }

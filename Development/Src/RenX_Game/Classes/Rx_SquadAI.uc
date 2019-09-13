@@ -117,6 +117,12 @@ function ChooseTactics()
 	if(PlayerController(SquadLeader) != None || GetOrders() == 'DEFEND')
 		return;
 
+	if(Rx_BuildingObjective(SquadObjective) != None && Rx_Building_TechBuilding(Rx_BuildingObjective(SquadObjective).myBuilding) != None)
+	{
+		SetTimer((BaseTacticsDelay),false, 'ChooseTactics');
+		return;
+	}
+
 	ReassignLeader();
 
 	if(GetTeamNum() == 0)

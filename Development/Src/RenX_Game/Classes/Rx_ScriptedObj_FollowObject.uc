@@ -1,7 +1,7 @@
 class Rx_ScriptedObj_FollowObject extends Rx_ScriptedObj
 	placeable;
 
-var(ScriptedFollow) Actor ObjectToFollow;
+var(ScriptedObjective) Actor ObjectToFollow;
 
 function bool DoTaskFor(Rx_Bot_Scripted B)
 {		

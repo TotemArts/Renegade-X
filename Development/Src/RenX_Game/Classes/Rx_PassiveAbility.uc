@@ -30,7 +30,6 @@ var SoundCue SC_AbilityDeactivate;
 var AudioComponent AbilityAudioComponent;  
 
 //Slot number used by this weapon. Replicated to client so that they can interact client-side and not have to rely on serverwith laggy weapon switches  
-var repnotify byte AssignedSlot;
 
 var int	FlashMovieIconNumber; 
 
@@ -38,21 +37,36 @@ var int	FlashMovieIconNumber;
 var byte VRank; 
 var float Vet_RechargeSpeedMult[4];
 
-/**
+var repnotify byte  AssignedSlot; //ID replicated to owner so they can find this ability client side 
+
+replication {
+	if(bNetDirty && bNetOwner)
+		AssignedSlot;
+}
+
 simulated event ReplicatedEvent(name VarName)
 {
-	if (VarName == 'AssignedSlot')
+	if(VarName == 'AssignedSlot')
 	{
-		//Add yourself if you don't exist already 
-		if(Rx_InventoryManager(Instigator.InvManager).AbilityWeapons.find(self) == -1 )
-			Rx_InventoryManager(Instigator.InvManager).AbilityWeapons.InsertItem(AssignedSlot, self);
+		`log("Replicate Assigned Slot"); 
+		if(RxIfc_PassiveAbility(Owner) != none){
+			RxIfc_PassiveAbility(Owner).ReplicatePassiveAbility(AssignedSlot, self); 
+			UsingPawn = Pawn(Owner); 
+			Init(UsingPawn, AssignedSlot); 
+		}
+				
 	}
+	else
+		super.ReplicatedEvent(VarName); 
+}
 
-    else 
-    {
-    	super.ReplicatedEvent(VarName);
-    } 
-}*/
+simulated event PostBeginPlay()
+{
+	if(ROLE < ROLE_Authority)
+		
+	
+	super.PostBeginPlay();
+}
 
 simulated function bool bReadyToFire()
 {
@@ -126,10 +140,16 @@ simulated function int GetFlashIconInt()
 	return FlashMovieIconNumber;
 }
 
-simulated function Init(Pawn InitiatingPawn)
+//Initialize and return an ID to replicate
+simulated function Init(Pawn InitiatingPawn, byte SlotNum)
 {
-	UsingPawn = InitiatingPawn; 
-	`log("Initialize Passive Ability" @ self @ "with Pawn " @ UsingPawn);
+	if(ROLE == ROLE_Authority)
+	{
+		UsingPawn = InitiatingPawn; 
+		`log("Initialize Passive Ability" @ self @ "with Pawn " @ UsingPawn);
+		`log("AbilityNum:" @ SlotNum);
+		AssignedSlot = SlotNum; 
+	}
 } 
 
 function RemoveUser()
@@ -149,9 +169,17 @@ simulated function ActivateAbility()
 	`log("Activate"); 
 } 
 
+reliable server function ServerActivateAbility(){
+	`log("Server Activate"); 
+}
+
 simulated function DeactivateAbility(bool bForce)
 {
 	`log("Deactivate"); 
+}
+
+reliable server function ServerDeactivateAbility(bool bForce){
+	`log("Server DeactivateAbility"); 
 }
 
 simulated function NotifyLanded(); //Called when our pawn lands 
@@ -174,14 +202,15 @@ simulated function float GetConsumptionRate(){
 
 simulated function bool GetRespondingToCrouch(); //Returns if this ability is currently responding to crouch being pressed 
 
+simulated function NotifyMeshChanged(); //Called after our Pawn mesh is changed (Useful if this ability needs socket locations specific to meshes)
 
 
 DefaultProperties
 {
+	RemoteRole=ROLE_SimulatedProxy
 	bSingleCharge = true
 	ConsumptionRate = 0.5
 	
-	AssignedSlot=255 //255 by default, so even switching to 0 is replicated without the need for math
 	
 	Vet_RechargeSpeedMult(0) = 1.0 
 	Vet_RechargeSpeedMult(1) = 1.0

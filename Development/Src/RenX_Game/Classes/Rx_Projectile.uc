@@ -21,6 +21,8 @@ var TraceHitInfo HitInfo;
 var bool bDoWaitingForVelocityAndInstigatorTimer;
 
 var array<MaterialImpactEffect> ImpactEffects;
+var ParticleSystem				AirburstExplosionTemplate; 
+var Color						ExplosionSmokeColour; 
 
 // If non-zero, the hurt origin for the projectile is translated by this value on the Z-axis, on top of the existing normal translation.
 var float AddedZTranslate;
@@ -258,9 +260,6 @@ simulated function ProcessTouch(Actor Other, Vector HitLocation, Vector HitNorma
 	//Don't double dip on pierced actor
 	if(PiercedActors.Find(Other) > -1)
 		return;
-
-	if (Rx_Weapon_DeployedTimedC4(Other) != None)
-		Other = Rx_Weapon_DeployedTimedC4(Other).ImpactedActor;
 	
 	VAdjustedDamage=Damage*GetDamageModifier(VRank, InstigatorController); //*Vet_DamageIncrease[VRank];
 	
@@ -297,11 +296,7 @@ simulated function ProcessTouch(Actor Other, Vector HitLocation, Vector HitNorma
 						&& !isAirstrikeProjectile()) {
 				if(Pawn(Other) != None && Pawn(Other).Health > 0 && UTPlayerController(Instigator.Controller) != None && Pawn(Other).GetTeamNum() != Instigator.GetTeamNum()) {
 					Rx_Hud(UTPlayerController(Instigator.Controller).myHud).ShowHitMarker();
-					if(Rx_Pawn(Other) != None)
-					{
-						Rx_Controller(Instigator.Controller).AddHit() ;
-						Rx_Controller(Instigator.Controller).PlayHitMarkerSound();
-					}
+					if(Rx_Pawn(Other) != None) Rx_Controller(Instigator.Controller).AddHit() ;
 				}
 				if(FracturedStaticMeshActor(Other) != None || DObj != None)
 					Other.TakeDamage(VAdjustedDamage,InstigatorController,HitLocation,MomentumTransfer * Normal(Velocity), MyDamageType,, self);	
@@ -530,10 +525,16 @@ simulated function SpawnExplosionEffects(vector HitLocation, vector HitNormal)
 		} else if(ImpactedActor != None && ImpactedActor.isA('Rx_Pawn')){
 			ProjExplosionTemplate = ImpactEffects[8].ParticleTemplate;
 			ExplosionSound = ImpactEffects[8].Sound;
-		} else {
+			ExplosionSmokeColour = ImpactEffects[8].ImpactSmokeColour; 
+		} else if(bShuttingDown && AirburstExplosionTemplate != none){
+			ProjExplosionTemplate = AirburstExplosionTemplate;
+			//ExplosionSound = ImpactEffects[8].Sound;
+		}
+		else {
 			Trace(NewHitLoc, HitNormal, (HitLocation - (HitNormal * 32)), HitLocation + (HitNormal * 32), true,, HitInfo, TRACEFLAG_Bullet);
 			ImpactEffect = GetImpactEffect(HitInfo.PhysMaterial);
 			ProjExplosionTemplate = ImpactEffect.ParticleTemplate;
+			ExplosionSmokeColour = ImpactEffect.ImpactSmokeColour; 
 			ExplosionSound = ImpactEffect.Sound;
 		}
 	}
@@ -545,6 +546,8 @@ simulated function SetExplosionEffectParameters(ParticleSystemComponent ProjExpl
     Super.SetExplosionEffectParameters(ProjExplosion);
 
     ProjExplosion.SetScale(ProjExplosionScale);
+	
+	ProjExplosion.SetColorParameter('SurfaceImpactColour', ExplosionSmokeColour);
 }
 
 simulated function bool HurtRadius( float DamageAmount,
@@ -664,6 +667,7 @@ simulated static function float GetDamageModifier(byte Rank, Controller RxC)
 DefaultProperties
 {    
     ImpactSound=SoundCue'RX_SoundEffects.Bullet_Impact.SC_BulletImpact_Flesh'
+	
     HeadShotDamageMult=5.0 
     SlowHeadshotScale=1.75
     RunningHeadshotScale=1.5

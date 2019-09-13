@@ -89,50 +89,6 @@ simulated function string GetTargetedDescription(PlayerController PlayerPerspect
 		return "";
 }
 
-function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)
-{
-	
-	//super.TakeDamage(DamageAmount,EventInstigator,HitLocation,Momentum,DamageType,HitInfo,DamageCauser);
-	if (!CanDisarmMe(DamageCauser))
-	{
-		ImpactedActor.TakeDamage(DamageAmount, EventInstigator, HitLocation, Momentum, DamageType, HitInfo, DamageCauser);
-		return;
-	}
-	
-	super(Actor).TakeDamage(DamageAmount,EventInstigator,HitLocation,Momentum,DamageType,HitInfo,DamageCauser);
-
-	if (DamageAmount <= 0 || HP <= 0 || bDisarmed )
-      return;
-
-	HP -= DamageAmount;
-
-	if (HP <= 0)
-	{
-		BroadcastDisarmed(EventInstigator);
-		if (WorldInfo.NetMode == NM_DedicatedServer || WorldInfo.NetMode == NM_ListenServer) // trigger client replication
-			bDisarmed = true;
-		if (WorldInfo.NetMode != NM_DedicatedServer)
-			PlayDisarmedEffect();      
-			ClearTimer('Explosion');
-
-		
-		if (EventInstigator.PlayerReplicationInfo != none && EventInstigator.PlayerReplicationInfo.GetTeamNum() != TeamNum)
-		{
-			Rx_Controller(EventInstigator).DisseminateVPString( "[C4 Disarmed]&" $ class'Rx_VeterancyModifiers'.default.Ev_C4Disarmed $ "&");
-			Rx_Pri(EventInstigator.PlayerReplicationInfo).AddScoreToPlayerAndTeam(DisarmScoreReward,true);
-			Rx_PRI(EventInstigator.PlayerReplicationInfo).AddMineDisarm();
-		}
-		
-		SetTimer(0.1, false, 'DestroyMe'); // delay it a bit so disappearing blends a littlebit better with the disarmed effects
-	}
-	
-	if (!CanDisarmMe(DamageCauser))
-	{
-		if(ImpactedActor != None)
-			ImpactedActor.TakeDamage(DamageAmount,EventInstigator,HitLocation,Momentum,DamageType,HitInfo,DamageCauser);
-		return;
-	}
-}
 
 defaultproperties
 {

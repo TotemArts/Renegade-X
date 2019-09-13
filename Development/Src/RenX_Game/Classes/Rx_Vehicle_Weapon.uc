@@ -1896,7 +1896,7 @@ simulated function StopFire(byte FireModeNum)
 function bool CanAttack(Actor Other)
 {
 	local float Dist;
-	local vector out_HitLocation;
+	local vector out_HitLocation, projStart;
 	local vector out_HitNormal;
 	local float CachedMaxRangeTemp;
 	local bool ret;
@@ -1906,6 +1906,8 @@ function bool CanAttack(Actor Other)
 	{
 		return false;
 	}	
+
+	projStart = bInstantHit ? InstantFireStartTrace() : GetPhysicalFireStartLoc();
 	
 	RealTarget = Other;
 	CachedMaxRangeTemp = CachedMaxRange;
@@ -1915,10 +1917,10 @@ function bool CanAttack(Actor Other)
 	{
 		if(Rx_Building(Other) != None || Rx_BuildingObjective(Other) != None || Rx_BuildingAttachment(Other) != None) 
 		{
-			if(Rx_BuildingObjective(Other) != None) 
+			if(Rx_BuildingObjective(Other) != None && Rx_BuildingObjective(Other).myBuilding != None) 
 				RealTarget = Rx_BuildingObjective(Other).myBuilding;
 
-			if(RealTarget != Trace( out_HitLocation, out_HitNormal, RealTarget.GetTargetLocation(), Instigator.GetWeaponStartTraceLocation(),,,,TRACEFLAG_Bullet)) {
+			if(RealTarget != Trace( out_HitLocation, out_HitNormal, RealTarget.GetTargetLocation(), projStart,TRUE,,,TRACEFLAG_Bullet)) {
 				return false;
 			}
 			Dist = VSizeSq(Instigator.GetWeaponStartTraceLocation() - out_HitLocation);

@@ -245,6 +245,9 @@ function UTGameObjective GetLeastDefendedObjective(Controller InController)
 	for ( O=Objectives; O!=None; O=O.NextObjective )
 	{
 
+		if(Rx_BuildingObjective(O) != None && Rx_Building_Techbuilding(Rx_BuildingObjective(O).myBuilding) != None)
+			continue;
+
 		if ( (O.DefenderTeamIndex == Team.TeamIndex) && !O.bIsDisabled )
 		{
 			if ( (Best == None) || (Best.DefensePriority < O.DefensePriority) )
@@ -402,16 +405,21 @@ function UTGameObjective GetAllInRushObjectiveFor(UTSquadAI AnAttackSquad, Contr
 	local Array<UTGameObjective> EnemyBO;
 	local int R;
 
-	if(InController != None)
-		Rx_Bot(InController).ReviewTactics();
+	if(Rx_Game(WorldInfo.Game).bPedestalDetonated)
+		return None;
 
 	for (O = Objectives; O != None; O = O.NextObjective)
 	{
 		if(Rx_BuildingObjective(O) != None && O.DefenderTeamIndex != Team.TeamIndex && !Rx_BuildingObjective(O).myBuilding.IsDestroyed())
 		{
-			if(Rx_BuildingObjective(O).myBuilding.IsA('Rx_Building_Techbuilding') && !Rx_Bot(InController).HasRepairGun() 
-				&& Rx_BuildingObjective(O).myBuilding.GetTeamNum() == InController.GetTeamNum() && Rx_BuildingObjective(O).myBuilding.GetHealth() >= Rx_BuildingObjective(O).myBuilding.GetMaxHealth())
-				continue;
+			if(Rx_BuildingObjective(O).myBuilding.IsA('Rx_Building_Techbuilding'))
+			{
+				if((AnAttackSquad != None && AnAttackSquad.Size > 2) || (Rx_BuildingObjective(O).myBuilding.GetTeamNum() == InController.GetTeamNum() && Rx_BuildingObjective(O).myBuilding.GetHealth() >= Rx_BuildingObjective(O).myBuilding.GetMaxHealth()))
+					continue;
+
+				else if (FRand() > 0.6 && Rx_Bot(InController).HasRepairGun(true))
+					return O;
+			}
 
 			if(Rx_BuildingObjective(O).myBuilding.IsA('Rx_Building_Obelisk') || Rx_BuildingObjective(O).myBuilding.IsA('Rx_Building_AdvancedGuardTower'))
 			{
@@ -427,7 +435,7 @@ function UTGameObjective GetAllInRushObjectiveFor(UTSquadAI AnAttackSquad, Contr
 
 	}
 
-	if(EnemyBO.Length <= 0)
+	if(EnemyBO.Length <= 0 && !Rx_Game(WorldInfo.Game).bPedestalDetonated)
 	{
 		`warn(Self@" : Enemy team has no buildings or is missing Rx_BuildingObjective! Unable to resolve AllIn attack!");
 	}

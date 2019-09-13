@@ -71,7 +71,7 @@ simulated function float GetObjectiveProgress()
 {
 	if ( bIsDisabled )
 		return 0;
-	return myBuilding.GetHealth()/myBuilding.GetMaxHealth();
+	return myBuilding.GetHealth()/myBuilding.GetTrueMaxHealth();
 }
 
 /* Reset()
@@ -79,7 +79,7 @@ reset actor to initial state - used when restarting level without reloading.
 */
 function Reset()
 {
-	myBuilding.Health = myBuilding.GetMaxHealth();
+	myBuilding.Health = myBuilding.GetTrueMaxHealth();
 	super.Reset();
 }
 
@@ -183,7 +183,7 @@ function bool TellBotHowToDisable(UTBot B)
 	{	
 		if (myBuilding.GetTeamNum() == B.GetTeamNum() && myBuilding.GetHealth() >= myBuilding.GetMaxHealth())
 		{
-			UTTeamGame(WorldInfo.Game).FindNewObjectives(self);
+			Rx_Bot(B).OurTeamAI.FindNewObjectives(self);
 			return false;
 		}
 		else 
@@ -285,6 +285,22 @@ function bool TellBotHowToHeal(UTBot B)
 {
 	local UTVehicle OldVehicle;
 
+	if(Rx_Building_Techbuilding(myBuilding) != None && Rx_Bot(B).HasRepairGun(true))
+	{
+		if(myBuilding.GetTeamNum() == B.GetTeamNum() && myBuilding.GetHealth() >= myBuilding.GetMaxHealth())
+		{
+			Rx_Bot(B).OurTeamAI.FindNewObjectives(self);
+			return false;
+		}
+
+		if(KillEnemyFirstBeforeHealing(B))
+			return false;
+
+		Rx_Bot(B).GoToState('Defending');
+
+		return true;
+	}
+
 	if (DefenderTeamIndex != B.GetTeamNum() || !NeedsHealing())
 	{
 		return false;
@@ -295,7 +311,7 @@ function bool TellBotHowToHeal(UTBot B)
 
 	if (Rx_Bot(B).IsHealing(False) && (B.Focus == myBuilding.GetMCT() || Rx_Weapon_Deployable(B.Focus) != None))
 	{
-		Rx_Bot(B).GoToState('Defending','Healing');
+		Rx_Bot(B).GoToState('Defending');
 		return true;
 	}
 
@@ -321,15 +337,6 @@ function bool TellBotHowToHeal(UTBot B)
 		{
 			OldVehicle = None;
 		}
-	}
-
-	if(Rx_Building_Techbuilding(myBuilding) != None && Rx_Bot(B).HasRepairGun())
-	{
-		B.SwitchToBestWeapon();
-		if(B.CanAttack(myBuilding.GetMCT()))
-			B.DoRangedAttackOn(myBuilding.GetMCT());
-
-		return true;
 	}
 
 
@@ -518,7 +525,7 @@ function float CalcDefensePriority(Controller C)
 	if(myBuilding.GetMaxArmor() > myBuilding.GetArmor())
 		return (ArmorMod + DistanceMod + DefendersMod) * (DefensePriority + 1) / 5;
 
-	if(myBuilding.GetHealth() <= myBuilding.GetMaxHealth())
+	if(myBuilding.GetHealth() <= myBuilding.GetTrueMaxHealth())
 		return (DistanceMod + DefendersMod) * (DefensePriority + 1) / 5;
 
 	HealthMod = 3000 / GetObjectiveProgress();
@@ -609,12 +616,14 @@ function bool KillEnemyFirstBeforeAttacking(UTBot B)
 		}
 		else if(B.CanAttack(myBuilding))
 		{
-			if(myBuilding.GetArmor() < myBuilding.GetMaxArmor() * 0.4 && myBuilding.GetHealth() < myBuilding.GetMaxHealth() * 0.25)
+			if(myBuilding.GetArmor() < myBuilding.GetMaxArmor() * 0.4 && myBuilding.GetHealth() < myBuilding.GetTrueMaxHealth() * 0.25)
 				return false;
 
 			else if(Vehicle(B.Enemy) != None)
 			{
-				if(B.Enemy.Weapon != None && Rx_Vehicle_Weapon(B.Enemy.Weapon).bOkAgainstArmoredVehicles)
+				if(Rx_Defence(B.Enemy) != None)
+					return true;
+				else if(B.Enemy.Weapon != None && Rx_Vehicle_Weapon(B.Enemy.Weapon).bOkAgainstArmoredVehicles)
 					return true;
 			}
 			else if(Rx_Weapon(B.Enemy.Weapon) != None && Rx_Weapon(B.Enemy.Weapon).bOkAgainstVehicles)

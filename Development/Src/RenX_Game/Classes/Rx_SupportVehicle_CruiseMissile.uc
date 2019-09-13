@@ -1,6 +1,7 @@
 class Rx_SupportVehicle_CruiseMissile extends Rx_SupportVehicle_Air; 
 
 var	ParticleSystemComponent		TrailEffects; 
+var	ParticleSystem				AirburstExplosionTemplate;
 
 var array<vector>						NavCourse; //Use to set waypoints (in relation to the parent beacon)
 var int									CurrentNav;
@@ -180,7 +181,7 @@ simulated function SpawnExplosionEmitter(vector SpawnLocation, rotator SpawnRota
 			MyExplosionEmitter.SetVectorParameter('HitNormal',normthing);
 	  }
 		else
-			MyExplosionEmitter = WorldInfo.MyEmitterPool.SpawnEmitter(ExplosionEffect, SpawnLocation, SpawnRotation);
+			MyExplosionEmitter = WorldInfo.MyEmitterPool.SpawnEmitter(AirburstExplosionTemplate, SpawnLocation, SpawnRotation);
 	
 		SetExplosionEffectParams(MyExplosionEmitter);
 }  
@@ -235,6 +236,7 @@ DefaultProperties
 	 
 	ExplosionSound=SoundCue'RX_SoundEffects.Explosions.SC_Explosion_CruiseMissile' //SoundCue'RX_SoundEffects.Vehicle.SC_Vehicle_Explode'
 	ExplosionEffect=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_AirStrike_Dirt'
+	AirburstExplosionTemplate = ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Vehicle_Air'
 	ExplosionScale = 2.0f
 	InnerExplosionShakeRadius=2000.0
 	OuterExplosionShakeRadius=5000.0

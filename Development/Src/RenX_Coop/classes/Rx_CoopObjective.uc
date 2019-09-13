@@ -11,6 +11,9 @@ var(Coop) string CompletionMessage;
 var(Coop) bool bFailCompletion;
 var(Coop) int BonusVP;
 Var(Coop) int TeamBonusVP;
+var(Coop) string VisualText;
+var(Coob) bool bShowObjective;
+var(Coop) Actor VisualIndicatedActor;
 
 simulated function PostBeginPlay()
 {
@@ -22,7 +25,27 @@ simulated function PostBeginPlay()
 	super.PostBeginPlay();
 }
 
-function SetDefenderTeam()
+simulated function Vector GetWaypointLocation()
+{
+	if(VisualIndicatedActor != None)
+		return VisualIndicatedActor.Location;
+
+	return Location;
+}
+
+simulated function Color GetIndicatorColor()
+{
+	local Color myColor;
+
+	MyColor.R = 255;
+	MyColor.G = 255;
+	MyColor.B = 255;
+	MyColor.A = 0;	// ignore this
+
+	return myColor;
+}
+
+simulated function SetDefenderTeam()
 {
 	local byte PlayerIndex;
 
@@ -35,7 +58,7 @@ function SetDefenderTeam()
 	DefenderTeamIndex = PlayerIndex;
 }
 
-function OnCompleteObjective(Rx_SeqAct_CompleteObjective Action)
+simulated function OnCompleteObjective(Rx_SeqAct_CompleteObjective Action)
 {
 	local SeqVar_Object ObjVar;
 	local Controller InstigatingPlayer;
@@ -54,7 +77,7 @@ function OnCompleteObjective(Rx_SeqAct_CompleteObjective Action)
 	FinishObjective(None);
 }
 
-function OnModifyObjective(Rx_SeqAct_ModifyObjective Action)
+simulated function OnModifyObjective(Rx_SeqAct_ModifyObjective Action)
 {
 
 	if(!Action.bOptional || !Action.bFinalGoal)
@@ -72,7 +95,7 @@ function OnModifyObjective(Rx_SeqAct_ModifyObjective Action)
 	TeamBonusVP = Action.TeamBonusVP;
 }
 
-function FinishObjective(Controller InstigatingPlayer)
+simulated function FinishObjective(Controller InstigatingPlayer)
 {
 	local Rx_Controller PC;
 
@@ -100,12 +123,14 @@ function FinishObjective(Controller InstigatingPlayer)
 	}
 }
 
-function bool IsDisabled()
+simulated function bool IsDisabled()
 {
 	return bIsDisabled;
 }
 
 DefaultProperties
 {
+	RemoteRole=ROLE_SimulatedProxy
+	bAlwaysRelevant = true
 	CompletionMessage = "Objective has been completed!"
 }

@@ -16,7 +16,7 @@ replication
 
 simulated function string GetTooltip(Rx_Controller PC)
 {
-	if (PC.GetTeamNum() == GetTeamNum() && class'Rx_Utils'.static.OrientationToB(self, PC.Pawn) > 0.1)
+	if (Rx_Pawn(PC.Pawn) != None && PC.GetTeamNum() == GetTeamNum() && class'Rx_Utils'.static.OrientationToB(self, PC.Pawn) > 0.1)
 		return Repl(tooltip, "{GBA_USE}", Caps(UDKPlayerInput(PC.PlayerInput).GetUDKBindNameFromCommand("GBA_Use")), true);
 	return "";
 }

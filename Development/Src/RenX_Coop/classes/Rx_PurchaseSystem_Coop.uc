@@ -2,15 +2,27 @@ class Rx_PurchaseSystem_Coop extends Rx_PurchaseSystem;
 
 var array<Rx_VehicleSpawnerManager> VehicleSpawnerManagers;
 
-simulated event PostBeginPlay()
+simulated function bool GetVehicleSpawners()
 {
 	local Rx_VehicleSpawnerManager VSM;
-	super.PostBeginPlay();
 
-	foreach WorldInfo.AllActors(class'Rx_VehicleSpawnerManager',VSM)
+	foreach WorldInfo.AllActors(class 'Rx_VehicleSpawnerManager', VSM)
 	{
-		VehicleSpawnerManagers.AddItem(VSM);
+		AddSpawnerManager(VSM);
 	}
+
+	if(VehicleSpawnerManagers.length <= 0)
+		return false;
+
+	return true;
+}
+
+simulated function AddSpawnerManager(Rx_VehicleSpawnerManager VSM)
+{
+	VehicleSpawnerManagers.AddItem(VSM);
+
+	if(VehicleManager != None)
+		Rx_VehicleManager_Coop(VehicleManager).VehicleSpawnerManagers.AddItem(VSM);
 }
 
 simulated function string GetFactoryDescription(byte teamID, string menuName, Rx_Controller rxPC) 
@@ -19,12 +31,11 @@ simulated function string GetFactoryDescription(byte teamID, string menuName, Rx
 	local string factoryStatus;
 	local string outputText;
 	
-	
 	if (menuName == "VEHICLES") 
 	{
 		factoryName = "VEHICLE REINFORCEMENT";
 
-		if (VehicleSpawnerManagers.length <= 0)
+		if (VehicleSpawnerManagers.length <= 0 && !GetVehicleSpawners())
 		{
 			factoryStatus = "STATUS : UNAVAILABLE"; 
 		}
@@ -116,3 +127,14 @@ simulated function bool AreHighTierPayClassesDisabled( byte teamID )
 {
 	return false;
 }
+
+function bool PurchaseVehicle(Rx_PRI Buyer, int TeamID, int VehicleID )
+{
+
+	if(VehicleSpawnerManagers.length <= 0 && !GetVehicleSpawners())
+		return false;
+
+	Super.PurchaseVehicle(Buyer,TeamID,VehicleID);
+
+}
+

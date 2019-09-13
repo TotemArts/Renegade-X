@@ -206,7 +206,7 @@ function int GetNeededYesVotes(Rx_Game game)
 	if (ToTeam == -1)
 		return int(float(game.NumPlayers) * PercentYesToPass) + PlayerCount(No) + 1;
 	else
-		return int(float(game.NumPlayers) * PercentYesToPass * 0.5) + PlayerCount(No) + 1;
+		return int(float(Rx_TeamInfo(game.Teams[ToTeam]).PlayerSize) * PercentYesToPass) + PlayerCount(No) + 1;
 }
 
 // execute vote

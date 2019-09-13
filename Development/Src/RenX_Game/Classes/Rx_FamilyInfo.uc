@@ -313,7 +313,7 @@ DefaultProperties
 	BloodEffects[2]=(Template=ParticleSystem'RX_CH_Gibs.Effects.P_BloodExplode',MinDistance=0.0)
 
 	DefaultMeshScale=1.075
-	DrivingDrawScale=0.8
+	DrivingDrawScale=1.0
 	BaseTranslationOffset=14.0
 
 	MaxHealth = 100

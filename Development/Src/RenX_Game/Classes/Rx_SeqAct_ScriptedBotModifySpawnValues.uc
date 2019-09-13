@@ -8,6 +8,11 @@ var(Spawner) Array<class<Rx_FamilyInfo> > CharTypes;	// Type of squad to spawn
 var(Spawner) Array<class<Rx_Vehicle> > VehicleTypes;		// Type of Vehicles the squad will spawn with
 var(Spawner) float SpawnInterval;						// How often the spawn occurs
 var(Spawner) bool bCheckPlayerLOS;
+var(Combat) bool bInvulnerableBots;
+var(Combat) float DamageDealtModifier;					// Determines the multiplier of this bot's damage
+var(Combat) float DamageTakenModifier;					// Determines the multiplier of the damage this bot takes from others
+var(Combat) float Skill;
+
 
 defaultproperties
 {
@@ -18,4 +23,8 @@ defaultproperties
 	VariableLinks(0)=(ExpectedType=class'SeqVar_Object',LinkDesc="Spawner Object")
 
 	HandlerName = "OnModifySpawn"
+
+	DamageDealtModifier = 1.f
+	DamageTakenModifier = 1.f
+	Skill = 5.f
 }

@@ -132,9 +132,13 @@ var float       IntendedGroundSpeed;
 var repnotify float       SpeedUpgradeMultiplier;
 var float		SpeedUpgradeMultiplier_NonReplicated; //Used Explicitly for 
 var float 		JumpHeightMultiplier; 
+var float			SprintDodgeSpeed;
 
-var string 		DodgeNodeName;
-var AnimNodeBlendList DodgeNode; //Should be named 'Dive', because we're special  
+//Dodging
+var string 				DodgeNodeName;
+var AnimNodeBlendList 	DodgeNode; //Should be named 'Dive', because we're special  
+var SoundCue			Snd_DodgeCue; //Dodge sound cue 
+var float				DodgeCoolDownTime; //Time between dodges  
 
 var name 		WeaponAimedToRestAnim;
 var name 		WeaponSprintAnim;
@@ -216,7 +220,7 @@ var	vector DodgeVelocity;
 var	float DodgeDuration;
 var	float TimeInDodge;
 var	float LastVelZInDodge;
-var repnotify name DodgeAnim;
+var repnotify bool bDoingDodge;
 var repnotify name ReloadAnim;
 var repnotify name BoltReloadAnim;
 var repnotify bool bBeaconDeployAnimating;
@@ -324,6 +328,7 @@ var bool bUpdate3rdPersonEyeHeightBob;
 
 var float DodgeBlendTime; 
 var AnimNodeSequence DodgeGroupNode; //Holds a reference to the forward dodge node to signal the 'Dive' group to play
+var bool bWasSprintingBeforeDodge; //Were we sprinting before we started dodging?
 
 var vector DodgeCameraOffset; 
 var float  DodgeCameraZOffset;
@@ -337,7 +342,7 @@ replication
 	if ( bNetDirty)
 		Armor, ArmorMax, CurrentBackWeapons, AirstrikeLocation, SpeedUpgradeMultiplier, Armor_Type, JumpHeightMultiplier, bIsTarget, VRank, RadarVisibility, bSpotted, bFocused, ReplicatedVoice; 
 	if ( bNetDirty && (!bNetOwner || bDemoRecording))
-		DodgeAnim, ReloadAnim, BoltReloadAnim, ParachuteDeployed, bRepairing, bBeaconDeployAnimating, UISymbol, bSprintingServer; //bBlinkingName
+		bDoingDodge, ReloadAnim, BoltReloadAnim, ParachuteDeployed, bRepairing, bBeaconDeployAnimating, UISymbol, bSprintingServer; //bBlinkingName
 	// Only replicate if our current weapon is a shotgun. Otherwise this is irrelivant.
 	if ( bNetDirty && (!bNetOwner || bDemoRecording) && RemoteRole == ROLE_SimulatedProxy && Rx_Weapon_Shotgun(Weapon) != none)
 		ShotgunPelletHitLocations;
@@ -479,15 +484,15 @@ simulated event ReplicatedEvent(name VarName)
 {
 	local int i;
 	
-	if ( VarName == 'DodgeAnim' ) 
+	if ( VarName == 'bDoingDodge' ) 
 	{
-		if(DodgeAnim != '') {
-			SetHandIKEnabled(false);
-			FullBodyAnimSlot.PlayCustomAnimByDuration( DodgeAnim, DodgeDuration + 0.4, 0.4, 0.4);
+		if(bDoingDodge) {
+			DodgeGroupNode.PlayAnim(false, 1.0, 0.0);
+			DodgeNode.SetActiveChild(1,0.2);
 		} 
 		else 
 		{
-			SetHandIKEnabled(true);
+			DodgeNode.SetActiveChild(0,0.5);
 		}
 	} 
 	else if (VarName == 'bBeaconDeployAnimating')
@@ -865,6 +870,7 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 	if(Rx_Controller(EventInstigator) != None && GetTeamNum() != EventInstigator.GetTeamNum()) {
 		if(Rx_Projectile_Rocket(DamageCauser) != None && Rx_Controller(EventInstigator) != None && GetTeamNum() != EventInstigator.GetTeamNum()) { 
 			Rx_Controller(EventInstigator).IncReplicatedHitIndicator();
+			
 		}
 	}
 	
@@ -1796,7 +1802,6 @@ simulated function TakeRadiusDamage
 					&& InstigatedBy != None && InstigatedBy.Pawn != none && (Rx_Weapon(ProjectileWeaponOwner) != None || Rx_Vehicle_Weapon(ProjectileWeaponOwner) != None)) {	
 			if(Health > 0 && self.GetTeamNum() != InstigatedBy.GetTeamNum() && UTPlayerController(InstigatedBy) != None) {
 				Rx_Hud(UTPlayerController(InstigatedBy).myHud).ShowHitMarker();
-				Rx_Controller(InstigatedBy).PlayHitMarkerSound();
 			}
 
 			if (InstigatedBy != None && InstigatedBy.Pawn != none && Rx_Weapon_VoltAutoRifle(ProjectileWeaponOwner) != None)
@@ -2014,7 +2019,7 @@ function StartSprint()
 		
 		//Tell weapons we began sprinting 
 		if(Rx_weapon(Weapon) != none) 
-			Rx_Weapon(Weapon).OnSprintStart(); 
+			Rx_Weapon(Weapon).OnActionStart(); 
 	}
 }
 
@@ -2082,7 +2087,7 @@ function StopSprintSelf()
 	bSprinting = false;
 	
 	//Notify Weapon 
-	Rx_Weapon(weapon).OnSprintStop(); 
+	Rx_Weapon(weapon).OnActionStop(); 
 	/** // Go back into ironsight after sprint
 	if(bWasInIronsightBeforeAction && Rx_Controller(Controller) != None) {
 		Rx_Weapon(Weapon).StartZoom(UTPlayercontroller(Controller));	
@@ -2478,7 +2483,7 @@ simulated event PostInitAnimTree(SkeletalMeshComponent SkelComp)
 		DodgeNode.SetActiveChild(0,1.0);
 		
 		DodgeGroupNode = AnimNodeSequence( mesh.FindAnimNode('DodgeAnimNode') );//Only need Fwd.. The rest are linked to it
-		`log(DodgeGroupNode);
+		//`log(DodgeGroupNode);
 	
 		// IF the Aimnode doesnt exist in the tree dont set WeaponAimNode equal to it
 		if( AimNode != none )
@@ -2536,12 +2541,15 @@ simulated function SetAnimSet( AnimSet NewAnimSet, name ProfileName)
 /** we dont need to set any other mats so make sure we dont override old */
 simulated function SetCharacterMeshInfo(SkeletalMesh SkelMesh, MaterialInterface HeadMaterial, MaterialInterface BodyMaterial)
 {
+	//`log("-----SET CHARACTER MESH INFO----");
    Mesh.SetSkeletalMesh(SkelMesh);
 	if (WorldInfo.NetMode != NM_DedicatedServer)
 	{
 		if (!VerifyBodyMaterialInstance())
 			`logd("VerifyBodyMaterialInstance failed on pawn"@self);
 	}
+	
+	NotifyPassivesMeshChanged(); 
 }
 
 simulated function ResetRelaxStance(optional bool RestartTimer)
@@ -2825,8 +2833,7 @@ simulated function bool TakeHeadShot(const out ImpactInfo Impact, class<DamageTy
 			if(Health > 0 && self.GetTeamNum() != InstigatingController.GetTeamNum() && UTPlayerController(InstigatingController) != None)
 			{
 				Rx_Hud(UTPlayerController(InstigatingController).myHud).ShowHitMarker(true);
-				Rx_Controller(InstigatingController).AddHSHit(); 
-				Rx_Controller(InstigatingController).PlayHitMarkerSound(true);	
+				Rx_Controller(InstigatingController).AddHSHit()  ; 	
 			}	
 			
 			Rx_Weapon(WeaponToCall).ServerALHeadshotHit(self,Impact.HitLocation,Impact.HitInfo);
@@ -2836,7 +2843,7 @@ simulated function bool TakeHeadShot(const out ImpactInfo Impact, class<DamageTy
 			if(Health > 0 && self.GetTeamNum() != InstigatingController.GetTeamNum() && UTPlayerController(InstigatingController) != None)
 				{
 					Rx_Hud(UTPlayerController(InstigatingController).myHud).ShowHitMarker(true);
-					Rx_Controller(InstigatingController).AddHSHit(); 	
+					Rx_Controller(InstigatingController).AddHSHit()  ; 	
 				}
 			//`log("Weapon was " @ Rx_Vehicle_Weapon(InstigatingController.Pawn.Weapon) @ InstigatingController.Pawn.Weapon);
 			Rx_Vehicle_Weapon(WeaponToCall).ServerALHeadshotHit(self,Impact.HitLocation,Impact.HitInfo);
@@ -2922,14 +2929,15 @@ function SetMoveDirection(EMoveDir dir)
 }
 
 function bool Dodge(eDoubleClickDir DoubleClickMove)
-{
-	if (!bDodging && bDodgeCapable && Physics == Phys_Walking) {
+{ 
+	if (!bDodging && bDodgeCapable && !IsTimerActive('DodgeCoolDownTimer') && Physics == Phys_Walking) {
 		StopFiring();
 		if (DeductStamina(DodgeStaminaCost))
 		{
-			bDodging = true;
+			
 			if(bSprinting) {
 				StopSprinting();
+				bWasSprintingBeforeDodge = true; /*Client may overrite this on the server by calling (stopsprinting). For servers this is passed in the actual server call */
 			}
 			if(Rx_Weapon(Weapon).bIronsightActivated) {
 				bWasInIronsightBeforeAction = true;
@@ -2938,6 +2946,12 @@ function bool Dodge(eDoubleClickDir DoubleClickMove)
 				bWasInIronsightBeforeAction = false;
 			}
 			DoDodge(DoubleClickMove);
+			
+			if(WorldInfo.NetMode == NM_Client)
+			{
+				ServerDoDodge(DoubleClickMove, bWasSprintingBeforeDodge); 
+			}
+			
 			return true;
 		}
 	}
@@ -2948,39 +2962,54 @@ function DoDodge(eDoubleClickDir DoubleClickMove)
 {
 	local vector X,Y,Z;
 	
+	bDoingDodge = true;
+	bDodging = true;
+	
 	WasInFirstPersonBeforeDodge = false;
-	if(Rx_Controller(Controller) != None && !Rx_Controller(Controller).bBehindView && WorldInfo.NetMode != NM_DedicatedServer) 
+	
+		if(Rx_Controller(Controller) != None && !Rx_Controller(Controller).bBehindView) 
+		{
+			Rx_Controller(Controller).SetBehindView(true);
+			WasInFirstPersonBeforeDodge = true;
+		}
+		
+		//PlaySound(Snd_DodgeCue, false, true,,, true);
+	
+	if(Rx_weapon(Weapon) != none)
 	{
-		Rx_Controller(Controller).SetBehindView(true);
-		WasInFirstPersonBeforeDodge = true;
-	}
+		Rx_Weapon(Weapon).OnActionStart(); 
+	}		
+			
+	
 	SetHandIKEnabled(false);
 	
 	// finds global axes of pawn
 	GetAxes(Rotation, X, Y, Z);
 
 	// temporarily raise speeds
-	AirSpeed = DodgeSpeed;
-	GroundSpeed = DodgeSpeed;
+	AirSpeed = bWasSprintingBeforeDodge ? SprintDodgeSpeed : DodgeSpeed;
+	GroundSpeed = bWasSprintingBeforeDodge ? SprintDodgeSpeed : DodgeSpeed;
 	Velocity.Z = -default.GroundSpeed;
 
+	`log("bWasSprinting:" @ bWasSprintingBeforeDodge @ AirSpeed @ GroundSpeed @ DoubleClickMove); 
+	
 	switch ( DoubleClickMove )
 	{
 		// dodge left
 		case DClick_Left:
-			DodgeVelocity = -DodgeSpeed*Normal(Y);
+			DodgeVelocity = bWasSprintingBeforeDodge ? -SprintDodgeSpeed*Normal(Y) : -DodgeSpeed*Normal(Y);
 			break;
 		// dodge right
 		case DClick_Right:
-			DodgeVelocity = DodgeSpeed*Normal(Y);
+			DodgeVelocity = bWasSprintingBeforeDodge ? SprintDodgeSpeed*Normal(Y) : DodgeSpeed*Normal(Y);
 			break;
 		// dodge forward
 		case DCLICK_Forward:
-			DodgeVelocity = DodgeSpeed*Normal(X);
+			DodgeVelocity = bWasSprintingBeforeDodge ? SprintDodgeSpeed*Normal(X) : DodgeSpeed*Normal(X);
 			break;
 		// dodge backward
 		case DCLICK_Back:
-			DodgeVelocity = -DodgeSpeed*Normal(X);
+			DodgeVelocity = bWasSprintingBeforeDodge ? -SprintDodgeSpeed*Normal(X) : -DodgeSpeed*Normal(X);
 			break;
 		// in case there is an error
 		default:
@@ -2990,6 +3019,7 @@ function DoDodge(eDoubleClickDir DoubleClickMove)
 
 	Velocity.X = DodgeVelocity.X;
 	Velocity.Y = DodgeVelocity.Y;
+	
 //	LastVelZInDodge = 0.f;
 
 //	SetPhysics(Phys_Flying); // gives the right physics
@@ -3002,9 +3032,26 @@ function DoDodge(eDoubleClickDir DoubleClickMove)
 	
 	//calcDodgeAnim(DoubleClickMove);
 	//SetCamOffset(DodgeCameraOffset);
+	SetTimer(DodgeCoolDownTime, false, 'DodgeCoolDownTimer');
 	playDodgeAnimation();	
-
 }
+
+reliable server function ServerDoDodge(eDoubleClickDir DoubleClickMove, bool bWithSprint)
+{ 
+	//Was trying sprint dodge? (Override if cleint already made us stop sprinting)
+	bWasSprintingBeforeDodge = bWithSprint; 
+	Dodge(DoubleClickMove);
+}
+
+reliable server function ServerUnDodge()
+{
+	UnDodge();
+}
+
+simulated function DodgeCoolDownTimer()
+{
+	//Do nothing
+}; 
 
 /**
  * The following function makes the Pawn follow the slope of stairs if he dodges down them
@@ -3017,9 +3064,12 @@ function Dodging(float DeltaTime)
 	local float  AirSpeedTemp;	
 	local float  GroundSpeedTemp;	
 
+	`log("DOOOOOOOOOOODGE!!!!!");
 	if( !bDodging ) {
 		return;	
 	}
+	
+	
 	TimeInDodge += DeltaTime;
 	
 	//all traces start slightly offset from center of pawn
@@ -3075,14 +3125,29 @@ function Dodging(float DeltaTime)
 }
 
 function UnDodge()
-{
+{	
+
 	SetPhysics(Phys_Falling); //use falling instead of walking in case we are mid-air after the dodge
 	bDodgeCapable = true;
 	bDodging = false;
+	
+	if(Rx_weapon(Weapon) != none){
+		Rx_Weapon(Weapon).OnActionStop(); 
+	}	
+	
 	if(Controller != None && PlayerController(Controller) != None) {
 		PlayerController(Controller).IgnoreMoveInput(false);
 	}
-	GroundSpeed = default.GroundSpeed * GetSpeedModifier() ;//(SpeedUpgradeMultiplier+GetRxFamilyInfo().default.Vet_SprintSpeedMod[VRank]) ;
+	
+	if(bWasSprintingBeforeDodge && WorldInfo.NetMode != NM_DedicatedServer){
+		GroundSpeed = default.GroundSpeed * GetSpeedModifier() ;//(SpeedUpgradeMultiplier+GetRxFamilyInfo().default.Vet_SprintSpeedMod[VRank]) ;
+		StartSprint();
+	}
+	else
+	{
+		GroundSpeed = default.GroundSpeed * GetSpeedModifier() ;//(SpeedUpgradeMultiplier+GetRxFamilyInfo().default.Vet_SprintSpeedMod[VRank]) ;
+	}
+	
 	AirSpeed = default.AirSpeed*GetSpeedModifier();//SpeedUpgradeMultiplier * (SpeedUpgradeMultiplier+GetRxFamilyInfo().default.Vet_SprintSpeedMod[VRank]) ;
 	
 	DodgeNode.SetActiveChild(0,0.5);
@@ -3098,8 +3163,13 @@ function UnDodge()
 	if(bWasInIronsightBeforeAction && Rx_Weapon(Weapon) != None) {
 		Rx_Weapon(Weapon).StartZoom(UTPlayercontroller(Controller));
 	}
-		
+	
+	bWasSprintingBeforeDodge = false;
 	SetTimer( 0.2, false, 'ReEnableHandIKAfterDodge' );
+	
+	/**if(ROLE < Role_Authority)
+		ServerUnDodge();*/ 
+	bDoingDodge = false;
 }
 
 function ReEnableHandIKAfterDodge() {
@@ -5231,9 +5301,10 @@ simulated function PlayVoiceSound(name VoiceOverType, bool bOverrideSound, optio
 	
 	if(SoundToPlay == none) return;
 	//SoundToPlay = SoundNodeWave'RX_CharSnd_Generic.gdi_male.S_Soldier_GDI_AreaSecured_02';
-	if(SoundToPlay.Duration > 2.5) SoundDuration=SoundToPlay.Duration; 
+	if(SoundToPlay.Duration > 2.5) 
+		SoundDuration=SoundToPlay.Duration; 
 	else
-	SoundDuration=2.5; 
+		SoundDuration=2.5; 
 	
 	if((WorldInfo.Netmode == NM_Client || WorldInfo.NetMode == NM_Standalone) && Rx_Controller(Controller) !=none) //Your own voice may need to be slightly lower
 	{
@@ -5892,7 +5963,7 @@ function float GetInventoryWeight(){
 	
 }
 
-simulated function GivePassiveAbility(byte AbilityNum, class<Rx_PassiveAbility> PassiveAbility)
+function GivePassiveAbility(byte AbilityNum, class<Rx_PassiveAbility> PassiveAbility)
 {
 	if(PassiveAbility == none)
 	{
@@ -5901,8 +5972,18 @@ simulated function GivePassiveAbility(byte AbilityNum, class<Rx_PassiveAbility> 
 	
 	PassiveAbilities[AbilityNum] = Spawn(PassiveAbility, self);
 	
-	PassiveAbilities[AbilityNum].Init(self); 
+	//`log("AbilityNum: " @ AbilityNum); 
+	PassiveAbilities[AbilityNum].Init(self, AbilityNum); 
+	//Handle client replication with the ability itself 
+	/**if(WorldInfo.NetMode == NM_DedicatedServer)
+		ClientGivePassiveAbility(AbilityNum, PassivesID);*/
 }
+
+//Called on the client. Passes an actual instance of an ability class 
+simulated function ReplicatePassiveAbility (byte AbilityNum, Rx_PassiveAbility PassiveAbility){
+	//`log("Set Passive ability: " @ AbilityNum @ PassiveAbility);
+	PassiveAbilities[AbilityNum] = PassiveAbility;
+} 
 
 simulated function ClearPassiveAbilities()
 {
@@ -5980,6 +6061,16 @@ simulated function NotifyPassivesLanded(){
 	for(i=0;i<3;i++){
 		if(PassiveAbilities[i] != none)
 			PassiveAbilities[i].NotifyLanded(); 
+	}
+}
+
+simulated function NotifyPassivesMeshChanged()
+{
+	local int i; 
+	
+	for(i=0;i<3;i++){
+		if(PassiveAbilities[i] != none)
+			PassiveAbilities[i].NotifyMeshChanged(); 
 	}
 }
 
@@ -6265,10 +6356,12 @@ DefaultProperties
 	//Dodge......BAAAAAALL!!!!!
 	DodgeNodeName		= "Dive1"
 	DodgeBlendTime = 0.5f
-	DodgeSpeed=500 //420
+	DodgeSpeed=420 //420
+	SprintDodgeSpeed=550
 	DodgeSpeedZ=300.0
 	DodgeDuration=1.0	// 1.0
-	bDodgeCapable=false //true;  Not this patch yet... till we figure something out. Yosh
+	bDodgeCapable=false //true //true;  Not this patch yet... till we figure something out. Yosh
+	Snd_DodgeCue = SoundCue'RX_CharacterSounds.Male.SC_Male_Dodge_Grunt'
 	
 	WeaponAimedToRestAnim = WeaponAimedToRest
 	WeaponSprintAnim = WeaponSprint
@@ -6314,4 +6407,13 @@ DefaultProperties
 	PassiveAbilities(2) = none 
 	
 	DodgeCameraZOffset = -40
+	DodgeCoolDownTime = 1.5
+	
+	//bSmoothNetUpdates = 
+
+	//MaxSmoothNetUpdateDist;
+
+	//NoSmoothNetUpdateDist;
+
+	//SmoothNetUpdateTime;
 }

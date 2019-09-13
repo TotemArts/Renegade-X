@@ -781,7 +781,7 @@ defaultproperties
                 bSeatVisible=true,
                 SeatBone=b_DriverLocation,
                 SeatSocket=DriverSocket,
-                SeatOffset=(X=0,Y=0,Z=0),
+                SeatOffset=(X=0,Y=0,Z=-5.0),
                 SeatRotation=(Pitch=0,Yaw=0),
                 MuzzleFlashLightClass=class'RenX_Game.Rx_Light_Tank_MuzzleFlash'
 		)}

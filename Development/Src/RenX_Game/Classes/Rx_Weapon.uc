@@ -217,8 +217,8 @@ var bool bIgnoreHitDist; //Ignore the distance from which you hit a target (Used
 //Weapon speed modifier for Pawns carrying it (Unused currently)
 var float WeaponSpeedModifier; 
 
-var float SprintToReadyTime; //Time (if any) that this weapon becomes fire-able/reloadable after finished sprinting
-var bool  bRecoveringFromSprint; 
+var float ActionToReadyTime; //Time (if any) that this weapon becomes fire-able/reloadable after finished an action (Sprinting/Dodging/Vaulting)
+var bool  bRecoveringFromAction; 
 
 replication
 {
@@ -902,8 +902,7 @@ simulated function InstantFire()
 	
 	for (i = 0; i < ImpactList.length; i++)
 	{
-		if(WorldInfo.NetMode != NM_DedicatedServer && Instigator.Controller.IsLocalPlayerController()) 
-		{
+		if(WorldInfo.NetMode != NM_DedicatedServer && Instigator.Controller.IsLocalPlayerController()) {
 			
 			if(WorldInfo.NetMode == NM_Client && FracturedStaticMeshActor(RealImpact.HitActor) != None) {
 				ProcessInstantHit(CurrentFireMode, ImpactList[i]);
@@ -911,10 +910,7 @@ simulated function InstantFire()
 			
 			if(Pawn(ImpactList[i].HitActor) != None && Pawn(ImpactList[i].HitActor).Health > 0 && Pawn(ImpactList[i].HitActor).GetTeamNum() != Instigator.GetTeamNum()) {
 				Rx_Hud(Rx_Controller(Instigator.Controller).myHud).ShowHitMarker();
-				if(Rx_Pawn(Pawn(ImpactList[i].HitActor)) != None)
-				{
-					Rx_Controller(Instigator.Controller).AddHit();
-				}
+				if(Rx_Pawn(Pawn(ImpactList[i].HitActor)) != None) Rx_Controller(Instigator.Controller).AddHit() ;
 			}
 			if(!TryHeadshot(CurrentFireMode,ImpactList[i])) {
 				ServerALInstanthitHit(CurrentFireMode, ImpactList[i], RealImpact.HitLocation);
@@ -1002,8 +998,7 @@ simulated function ProcessInstantHit( byte FiringMode, ImpactInfo Impact, option
 				&& PhysicsVolume(Impact.HitActor) == None )
 			{
 				if(Rx_Pawn(Instigator) != None)
-					Rx_Pawn(Instigator).HitEnemyForDemoRec++;
-				
+					Rx_Pawn(Instigator).HitEnemyForDemoRec++;	
 				HitEnemy++;
 				LastHitEnemyTime = WorldInfo.TimeSeconds;
 			}
@@ -1273,20 +1268,23 @@ simulated function byte GetInventoryMovieGroup() {
 	return InventoryMovieGroup;
 }
 
-/** Modified version of super.CanAttack() because Rx_BuildingObjectiveÂ´s need special treatment */
+/** Modified version of super.CanAttack() because Rx_BuildingObjective´s need special treatment */
 function bool CanAttack(Actor Other)
 {
 	local float Dist;
 	local vector out_HitLocation;
 	local vector out_HitNormal;
+	local vector projStart;
 	local float CachedMaxRangeTemp;
 	local bool ret;
 	local Actor RealTarget;
-	
+
 	if (Instigator == None || Instigator.Controller == None)
 	{
 		return false;
 	}	
+
+	projStart = bInstantHit ? InstantFireStartTrace() : GetPhysicalFireStartLoc();
 	
 	RealTarget = Other;
 	CachedMaxRangeTemp = CachedMaxRange;
@@ -1296,10 +1294,10 @@ function bool CanAttack(Actor Other)
 	{
 		if(Rx_Building(Other) != None || Rx_BuildingObjective(Other) != None || Rx_BuildingAttachment(Other) != None) 
 		{
-			if(Rx_BuildingObjective(Other) != None) 
+			if(Rx_BuildingObjective(Other) != None && Rx_BuildingObjective(Other).myBuilding != None) 
 				RealTarget = Rx_BuildingObjective(Other).myBuilding;
 
-			if(RealTarget != Trace( out_HitLocation, out_HitNormal, RealTarget.GetTargetLocation(), Instigator.GetWeaponStartTraceLocation(),,,,TRACEFLAG_Bullet)) {
+			if(RealTarget != Trace( out_HitLocation, out_HitNormal, RealTarget.GetTargetLocation(), projStart,TRUE,,,TRACEFLAG_Bullet)) {
 				return false;
 			}
 			Dist = VSizeSq(Instigator.Location - out_HitLocation);
@@ -1974,10 +1972,7 @@ function InstantFireHurtRadius(byte FiringMode, vector HurtOrigin, Actor Impacte
 		}
 	}
 	if (bShowHit)
-	{
 		Rx_Hud(Rx_Controller(Instigator.Controller).myHud).ShowHitMarker();
-		Rx_Controller(Instigator.Controller).PlayHitMarkerSound();
-	}
 
 	bHurtEntry = false;
 }
@@ -2088,7 +2083,7 @@ simulated function StartFire(byte FireModeNum)
 		
 		ClientPendingFire[FireModeNum]=true; 
 		
-		if(bReadyToFire() && !bRecoveringFromSprint && (Role < Role_Authority || WorldInfo.NetMode == NM_StandAlone || WorldInfo.NetMode == NM_ListenServer))
+		if(bReadyToFire() && !bRecoveringFromAction && (Role < Role_Authority || WorldInfo.NetMode == NM_StandAlone || WorldInfo.NetMode == NM_ListenServer))
 		{
 			// if we're a client, synchronize server
 			//`log("Sending Fire Request"); 
@@ -2367,7 +2362,7 @@ simulated function ImpactInfo CalcWeaponFire(vector StartTrace, vector EndTrace,
 	
 	if(default.MaximumPiercingAbility > 0)
 	{
-	if(HitActor == None)
+		if(HitActor == None)
 		CurrentPiercingPower = 0; //Blocked 
 	else if(HitActor.IsA('Rx_Pawn') && CurrentPiercingPower > 0) 
 		CurrentPiercingPower-=1;
@@ -2442,7 +2437,7 @@ simulated function ImpactInfo CalcWeaponFire(vector StartTrace, vector EndTrace,
 simulated static function bool PassThroughDamage(Actor HitActor)
 {
 	return (!HitActor.bBlockActors && (HitActor.IsA('Trigger') || HitActor.IsA('TriggerVolume')))
-		|| HitActor.IsA('InteractiveFoliageActor') || HitActor.IsA('Rx_Weapon_DeployedTimedC4')
+		|| HitActor.IsA('InteractiveFoliageActor')
 		|| (default.bPierceInfantry && HitActor.isA('Rx_Pawn'))
 		|| (default.bPierceVehicles && HitActor.isA('Rx_Vehicle'));
 }
@@ -2471,29 +2466,29 @@ simulated function bool GetHolderCanSprint()
 	return  !bIronsightActivated || GetZoomedState() == ZST_NotZoomed;
 }
 
-//Any particular logic to be played when our Owner begins/ends sprinting. (Mostly just stop firing)
-simulated function OnSprintStart()
+//Any particular logic to be played when our Owner begins/ends an action
+simulated function OnActionStart()
 {
 	StopFire(0);
 	StopFire(1);
 	StopFire(2);
 	
-	ClearTimer('RecoverFromSprintTimer');
+	ClearTimer('RecoverFromActionTimer');
 	//bDisplayCrosshair = false; 
 }
 
-simulated function OnSprintStop()
+simulated function OnActionStop()
 {
-	if(default.SprintToReadyTime > 0.0){
-		bRecoveringFromSprint = true; 
-		SetTimer(default.SprintToReadyTime, false, 'RecoverFromSprintTimer');
+	if(default.ActionToReadyTime > 0.0){
+		bRecoveringFromAction = true; 
+		SetTimer(default.ActionToReadyTime, false, 'RecoverFromActionTimer');
 	}
 	
 	//bDisplayCrosshair = true; 
 }
 
-simulated function RecoverFromSprintTimer(){
-	bRecoveringFromSprint = false;
+simulated function RecoverFromActionTimer(){
+	bRecoveringFromAction = false;
 	
 	//Start fire if we had the button held down 
 	if((ClientPendingFire[0] && CurrentFireMode == 0) || (ClientPendingFire[1] && CurrentFireMode == 1))

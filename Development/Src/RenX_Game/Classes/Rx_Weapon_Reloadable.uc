@@ -476,10 +476,10 @@ simulated state Reloading
 	}
 	
 	//Handle our infantry just having started to sprint 
-	simulated function OnSprintStart()
+	simulated function OnActionStart()
 	{
 		if(bCanReloadWhileSprinting){
-			super.OnSprintStart();
+			super.OnActionStart();
 			return; 
 		}
 		
@@ -496,7 +496,7 @@ simulated state Reloading
 			ReloadWeaponTimer();
 		}
 		
-		global.OnSprintStart();
+		global.OnActionStart();
 		GoToState('Active');
 	}
 	
@@ -1069,10 +1069,10 @@ simulated state BoltActionReloading
 		super.PutDownWeapon();
 	}
 	
-	simulated function OnSprintStart()
+	simulated function OnActionStart()
 	{
 		if(bCanReloadWhileSprinting){
-			super.OnSprintStart();
+			super.OnActionStart();
 			return; 
 		}
 		
@@ -1081,7 +1081,7 @@ simulated state BoltActionReloading
 				//Kill off the reload animation on the owning pawn  
 		Rx_Pawn(Owner).TopHalfAnimSlot.StopCustomAnim(0.15);
 		//Finished the last reload... Let the weapon just be reloaded		
-		global.OnSprintStart();
+		global.OnActionStart();
 		GoToState('Active');
 	}
 	
@@ -1485,8 +1485,8 @@ simulated function BuildPartialReloadFromAnimation()
 	}
 }
 
-simulated function RecoverFromSprintTimer(){
-	bRecoveringFromSprint = false;
+simulated function RecoverFromActionTimer(){
+	bRecoveringFromAction = false;
 	
 	if( CurrentAmmoInClip <= 0 && HasAnyAmmoOfType(CurrentFireMode) )
 		{

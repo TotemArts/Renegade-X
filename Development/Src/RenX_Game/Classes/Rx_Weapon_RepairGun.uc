@@ -43,19 +43,6 @@ simulated state Active
 	}
 }
 
-/**
-  * Rx_Weapon (Edit to check if we can pass infantry/vehicles )
-  * returns true if should pass trace through this hitactor
-  */
-simulated static function bool PassThroughDamage(Actor HitActor)
-{
-	return (!HitActor.bBlockActors && (HitActor.IsA('Trigger') || HitActor.IsA('TriggerVolume')))
-		|| HitActor.IsA('InteractiveFoliageActor')
-		|| (default.bPierceInfantry && HitActor.isA('Rx_Pawn'))
-		|| (default.bPierceVehicles && HitActor.isA('Rx_Vehicle'));
-}
-
-
 simulated function bool IsEnemy(actor actor)
 {
 	if (Instigator.GetTeamNum() == 0 && actor.GetTeamNum() == 1)

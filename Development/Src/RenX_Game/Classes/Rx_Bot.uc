@@ -106,6 +106,8 @@ struct ActiveModifier
 var array<ActiveModifier> ActiveModifications; 
 var RX_TeamAI OurTeamAI;
 
+var class<Rx_FamilyInfo> DefaultClass[2];
+
 function RxInitialize(float InSkill, const out CharacterInfo BotInfo, UTTeamInfo BotTeam)
 {
 	local UTPlayerReplicationInfo PRI;
@@ -197,6 +199,10 @@ function bool AssignSquadResponsibility()
 		//loginternal("LoseEnemy");
 		Enemy = None;
 		//LoseEnemy();
+	}
+	if(Rx_Game(WorldInfo.Game).bPedestalDetonated)
+	{
+		return false;
 	}
 
 	if(DetectedDeployable != None || GetNearbyDeployables(false) != None)	
@@ -487,6 +493,12 @@ function bool FindInfiltrationPath()
 {
 	return false;
 }
+
+function bool FindCapturePath()
+{
+	return false;
+}
+
 function bool FindVehicleAssaultPath()
 {
 	return false;
@@ -1326,6 +1338,10 @@ function ConsiderStartSprintTimer()
 		StopSprinting();
 		return;
 	}
+	if(Pawn.bIsWalking)
+	{
+		StopSprinting();
+	}
 	if(Pawn(Focus) != None)
 	{
 		StopSprinting();
@@ -1913,11 +1929,11 @@ function class<UTFamilyInfo> BotBuy(Rx_Bot Bot, bool bJustRespawned, optional st
 	{
 		if(Bot.GetTeamNum() == 0)
 		{
-			return class'Rx_FamilyInfo_GDI_Soldier';
+			return DefaultClass[0];
 		}
 		else
 		{
-			return class'Rx_FamilyInfo_Nod_Soldier';
+			return DefaultClass[1];
 		}
 	}
 
@@ -2393,10 +2409,12 @@ function bool ShouldFire()
 	if(Rx_WeaponAbility(Pawn.Weapon) != None)
 		return true;
 
-	if((!Pawn.NeedToTurn(GetFocalPoint()) && CanAttack(Focus)))
+	if(!Pawn.NeedToTurn(GetFocalPoint()))
 	{
 		return true;
 	}
+
+	return false;
 }
 
 function StopMovement()
@@ -3572,4 +3590,7 @@ DefaultProperties
 	ArmourColor         = "#05DAFD"
 
 	bCanTalk = true
+
+	DefaultClass[0] = class'Rx_FamilyInfo_GDI_Soldier'
+	DefaultClass[1] = class'Rx_FamilyInfo_Nod_Soldier'
 }

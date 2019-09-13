@@ -134,7 +134,7 @@ simulated function VehicleWeaponStoppedFiring( bool bViaReplication, int SeatInd
         }
 
     }
-		if(Weapon.CurrentFireMode == 1)
+		if(Weapon != none && Weapon.CurrentFireMode == 1)
 		{
 			PlaySound(FiringStopSound, TRUE, FALSE, FALSE, Location, FALSE);
 			FiringAmbient.Stop();

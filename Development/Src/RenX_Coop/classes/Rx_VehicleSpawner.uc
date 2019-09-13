@@ -4,16 +4,30 @@ class Rx_VehicleSpawner extends Actor
 
 var Rx_VehicleSpawnerManager Manager;
 var bool bReadyToSpawn;
-var(Display) SkeletalMeshComponent Mesh;
+var(Spawner) float CooldownAfterSpawn;
+
+replication
+{
+	//if( bNetInitial && Role == ROLE_Authority )
+	if( bNetDirty && Role == ROLE_Authority )
+		bReadyToSpawn, Manager;
+}
 
 function ProcessQueue()
 {
 	SetTimer(3.0, false, 'SpawnVehicle');
+	bReadyToSpawn = false;
 }
 
 function SpawnVehicle()
 {
-	Manager.SpawnVehicleAtSpawnPoint();
+	Manager.SpawnVehicleAtSpawnPoint(Self);
+	SetTimer(CooldownAfterSpawn, false, 'SetToReady');
+}
+
+function SetToReady()
+{
+	bReadyToSpawn = true;
 }
 
 defaultproperties
@@ -23,20 +37,14 @@ defaultproperties
 	End Object
 	Components.Add(MyLightEnvironment)
 
-	Begin Object Class=SkeletalMeshComponent Name=SVehicleMesh
-		CollideActors=false
-		AlwaysLoadOnClient=false
-		AlwaysLoadOnServer=false
-		bUpdateSkelWhenNotRendered=false
-        LightEnvironment=MyLightEnvironment
-		SkeletalMesh=SkeletalMesh'RX_VH_MammothTank.Mesh.SK_VH_Mammoth'
-		Translation=(X=-40.0,Y=0.0,Z=-70.0)
-	End Object
-	Components.Add(SVehicleMesh)
-	Mesh = SVehicleMesh
-
 	bHidden = true
 
 	bReadyToSpawn = true
+
+	RemoteRole            = ROLE_SimulatedProxy
+	bGameRelevant       = True
+	bOnlyDirtyReplication = True
+	
+	NetUpdateFrequency=10.0
 
 }

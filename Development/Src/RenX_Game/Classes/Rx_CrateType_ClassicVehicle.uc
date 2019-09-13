@@ -58,4 +58,5 @@ DefaultProperties
 	PickupSound = SoundCue'Rx_Pickups.Sounds.SC_Crate_VehicleDrop'
 
 	Vehicles.Add(class'Rx_Vehicle_M2Bradley');
+	Vehicles.Add(class'Rx_Vehicle_ReconBike');
 }

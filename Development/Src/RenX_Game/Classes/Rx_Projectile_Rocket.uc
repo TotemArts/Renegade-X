@@ -26,6 +26,8 @@ var float Vet_DamageIncrease[4];
 //Weapon who fired me
 var Weapon MyWeaponInstigator;  
 
+var ParticleSystem				AirburstExplosionTemplate; 
+
 simulated function PostBeginPlay()
 {
 	super.PostBeginPlay();
@@ -333,7 +335,11 @@ simulated function SpawnExplosionEffects(vector HitLocation, vector HitNormal)
 		} else if(ImpactedActor != None && ImpactedActor.isA('Rx_Pawn')){
 			ProjExplosionTemplate = ImpactEffects[8].ParticleTemplate;
 			ExplosionSound = ImpactEffects[8].Sound;
-		} else {
+		} else if(bShuttingDown && AirburstExplosionTemplate != none){
+			ProjExplosionTemplate = AirburstExplosionTemplate;
+			//ExplosionSound = ImpactEffects[8].Sound;
+		}
+		else {
 			Trace(NewHitLoc, HitNormal, (HitLocation - (HitNormal * 32)), HitLocation + (HitNormal * 32), true,, HitInfo, TRACEFLAG_Bullet);
 			ImpactEffect = GetImpactEffect(HitInfo.PhysMaterial);
 			ProjExplosionTemplate = ImpactEffect.ParticleTemplate;

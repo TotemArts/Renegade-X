@@ -57,14 +57,14 @@ simulated function class<Rx_Vehicle> GetVehicleClass()
 {
 	if (TeamNum == TEAM_GDI)
 	{
-		if (VehicleID == 7)
+		if (VehicleID == 254)
 			return class<Rx_Game>(WorldInfo.GetGameClass()).default.VehicleManagerClass.default.GDIHarvesterClass;
 		else
 			return class<Rx_Game>(WorldInfo.GetGameClass()).default.PurchaseSystemClass.default.GDIVehicleClasses[VehicleID].default.VehicleClass;
 	}
 	else
 	{
-		if (VehicleID == 8)
+		if (VehicleID == 255)
 			return class<Rx_Game>(WorldInfo.GetGameClass()).default.VehicleManagerClass.default.NodHarvesterClass;
 		else
 			return class<Rx_Game>(WorldInfo.GetGameClass()).default.PurchaseSystemClass.default.NodVehicleClasses[VehicleID].default.VehicleClass;

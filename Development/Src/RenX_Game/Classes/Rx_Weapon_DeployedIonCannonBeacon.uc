@@ -8,6 +8,8 @@ class Rx_Weapon_DeployedIonCannonBeacon extends Rx_Weapon_DeployedBeacon;
 var() ParticleSystem          SecondaryExplosionEffect;
 var() ParticleSystem          AftermathCloudsEffect;
 var() ParticleSystem          IonBeamEmitterEffect;
+var() ParticleSystem          IonBeamPedestalEmitterEffect;
+var() ParticleSystem          ExplosionPedestalEffect;
 var() ParticleSystem          GroundUpSuckEffect;
 var repnotify bool 		      bPlayGroundUpSuckEffect;
 var repnotify bool 		      bPlayIonBeamEffect;
@@ -64,11 +66,33 @@ function IonBeamEffect() {
 }
 
 simulated function PlayGroundUpSuckEffect() {
-   WorldInfo.MyEmitterPool.SpawnEmitter(GroundUpSuckEffect, Location, emitterRotation);
+
+   local Vector ExplodeLocation;
+
+   if(bOnPedestal)
+      ExplodeLocation = GetPedestalExplosionPoint();
+
+   else
+      ExplodeLocation = Location;
+
+   WorldInfo.MyEmitterPool.SpawnEmitter(GroundUpSuckEffect, ExplodeLocation, emitterRotation);
 }
 
 simulated function PlayIonBeamEmitterEffect() {
-   WorldInfo.MyEmitterPool.SpawnEmitter(IonBeamEmitterEffect, Location, emitterRotation);
+
+   local Vector ExplodeLocation;
+
+   if(bOnPedestal)
+      ExplodeLocation = GetPedestalExplosionPoint();
+
+   else
+      ExplodeLocation = Location;
+
+
+   if(bOnPedestal)
+      WorldInfo.MyEmitterPool.SpawnEmitter(IonBeamPedestalEmitterEffect, ExplodeLocation, emitterRotation);
+   else
+      WorldInfo.MyEmitterPool.SpawnEmitter(IonBeamEmitterEffect, ExplodeLocation, emitterRotation);
 }
 
 simulated function PlayExplosionEffect()
@@ -82,14 +106,24 @@ simulated function PlayExplosionEffect()
       if (ExplosionSound != none)
          PlaySound(ExplosionSound, true);
 
-      if (ExplosionSocketName != '')
+      if(bOnPedestal)
+      {
+         SpawnLocation = GetPedestalExplosionPoint();
+         SpawnRotation = Rotation;
+      }
+      else if (ExplosionSocketName != '')
          SkeletalMeshComponent(Mesh).GetSocketWorldLocationAndRotation( ExplosionSocketName, SpawnLocation, SpawnRotation );
       else
       {
          SpawnLocation = Location;
          SpawnRotation = Rotation;
       }
-      WorldInfo.MyEmitterPool.SpawnEmitter(ExplosionEffect, SpawnLocation, emitterRotation);
+      if(bOnPedestal)
+         WorldInfo.MyEmitterPool.SpawnEmitter(ExplosionPedestalEffect, SpawnLocation, emitterRotation);       
+      else
+         WorldInfo.MyEmitterPool.SpawnEmitter(ExplosionEffect, SpawnLocation, emitterRotation);
+
+
       WorldInfo.MyEmitterPool.SpawnEmitter(SecondaryExplosionEffect, SpawnLocation, emitterRotation);
       WorldInfo.MyEmitterPool.SpawnEmitter(AftermathCloudsEffect, SpawnLocation, emitterRotation);
       loc = location;
@@ -191,7 +225,9 @@ defaultproperties
    SecondaryExplosionEffect		= ParticleSystem'RX_IonCannonStrike.ParticleSystems.P_Explosion_Secondary'
    AftermathCloudsEffect		= ParticleSystem'RX_IonCannonStrike.ParticleSystems.P_AftermathClouds_New'
    ExplosionEffect				= ParticleSystem'RX_IonCannonStrike.ParticleSystems.P_Explosion'
+   ExplosionPedestalEffect            = ParticleSystem'RX_IonCannonStrike.ParticleSystems.P_Explosion_Pedestal'
    IonBeamEmitterEffect			= ParticleSystem'RX_IonCannonStrike.ParticleSystems.P_Beam'
+   IonBeamPedestalEmitterEffect       = ParticleSystem'RX_IonCannonStrike.ParticleSystems.P_Beam_Pedestal'
    GroundUpSuckEffect			= ParticleSystem'RX_IonCannonStrike.ParticleSystems.P_GroundUpSuck'
    BlinkingLight				= ParticleSystem'RX_IonCannonStrike.ParticleSystems.P_IonCannonBeacon_BlinkingLight'
 

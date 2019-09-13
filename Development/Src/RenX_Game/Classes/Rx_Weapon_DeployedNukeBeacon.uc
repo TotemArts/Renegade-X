@@ -53,15 +53,56 @@ function NukeMissile() {
 
 simulated function PlayNukeMissile()
 {
-      TempComp = WorldInfo.MyEmitterPool.SpawnEmitter(PartSysTemplate, Location, emitterRotation);
+   local Vector ExplodeLocation;
+
+   if(bOnPedestal)
+      ExplodeLocation = GetPedestalExplosionPoint();
+
+   else
+      ExplodeLocation = Location;
+
+
+      TempComp = WorldInfo.MyEmitterPool.SpawnEmitter(PartSysTemplate, ExplodeLocation, emitterRotation);
       TempComp.ActivateSystem();
+}
+
+simulated function PlayExplosionEffect()
+{
+   local vector SpawnLocation;
+   local rotator SpawnRotation;
+
+   if (WorldInfo.NetMode != NM_DedicatedServer)
+   {
+      if (ExplosionSound != none && (PlayExplosionSound || bImminentExplode))
+      {
+         PlaySound(ExplosionSound, true,,false);
+      }
+
+      if(bOnPedestal)
+      {
+         SpawnLocation = GetPedestalExplosionPoint();
+         SpawnRotation = Rotation;
+      }      
+      else if (ExplosionSocketName != '')
+         SkeletalMeshComponent(Mesh).GetSocketWorldLocationAndRotation( ExplosionSocketName, SpawnLocation, SpawnRotation );
+      else
+      {
+         SpawnLocation = Location;
+         SpawnRotation = Rotation;
+      }
+      SpawnExplosionEmitter(SpawnLocation, SpawnRotation);
+   }
 }
 
 simulated function SpawnExplosionEmitter(vector SpawnLocation, rotator SpawnRotation)
 {
    local vector loc;
+   local ParticleSystemComponent PSC;
+
    SpawnRotation.Pitch = 0;
-   WorldInfo.MyEmitterPool.SpawnEmitter(ExplosionEffect, SpawnLocation, SpawnRotation);
+   PSC = WorldInfo.MyEmitterPool.SpawnEmitter(ExplosionEffect, SpawnLocation, SpawnRotation);
+   if(bOnPedestal)
+      PSC.SetScale(4.f); 
    WorldInfo.MyEmitterPool.SpawnEmitter(SecondaryExplosionEffect, SpawnLocation, SpawnRotation);
    loc = location;
    loc.z += 1024;

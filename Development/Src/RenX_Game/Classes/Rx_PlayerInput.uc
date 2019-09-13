@@ -302,7 +302,7 @@ function bool InputKey(int ControllerId, name Key, EInputEvent Event, float Amou
 	}
 	
 	if(Worldinfo.NetMode != NM_Standalone)
-		pc.ResetAFKTimer();
+		Rx_PRI(pc.PlayerReplicationInfo).ResetAFKTimer();
 
 	return false;
 }

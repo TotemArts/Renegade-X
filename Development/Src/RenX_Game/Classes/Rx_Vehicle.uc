@@ -1118,6 +1118,13 @@ function bool TryToDrive(Pawn P)
 		return false; // Pawn has to step out of the PlayArea aswell so that he triggers the PlayArea UnTouch() event
 	}	
 
+	// disallow entering scripted bot's vehicle
+	if(Rx_Bot_Scripted(Controller) != None)
+	{
+		PC.clientmessage("This vehicle is being controlled by an NPC!");
+		return false;
+	}
+
 	if(buyerPri != none)
 	{ 
 		// Known Bug: If a player buys a vehicle then switches team, he'll be able to get in the vehicle he bought on his old team before exclusive access expires.
@@ -1686,7 +1693,12 @@ function bool Died(Controller Killer, class<DamageType> DamageType, vector HitLo
 					else
 					Rx_PRI(Seats[i].SeatPawn.Controller.PlayerReplicationInfo).SetTargetEliminated(11) ;
 				
-				Seats[i].SeatPawn.DriverLeave(true);
+				if((class<Rx_DmgType_Nuke>(DamageType) != None || class<Rx_DmgType_IonCannon>(DamageType) != None) && Rx_Game(WorldInfo.Game) != None && Rx_Game(WorldInfo.Game).bPedestalDetonated)
+				{
+					bStopDeathCamera = true;
+				}
+				else
+					Seats[i].SeatPawn.DriverLeave(true);
 			}
 		}
 	}

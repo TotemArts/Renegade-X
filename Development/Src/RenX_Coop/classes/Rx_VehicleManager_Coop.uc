@@ -10,6 +10,8 @@ struct VQueueElementCoop
 
 var array<VQueueElementCoop>    GDI_QueueCoop, NOD_QueueCoop;
 
+var Array<Rx_VehicleSpawnerManager> VehicleSpawnerManagers;
+
 function bool QueueVehicle(class<Rx_Vehicle> inVehicleClass, Rx_PRI Buyer, int VehicleID)
 {
 	local VQueueElementCoop NewQueueElement;
@@ -28,7 +30,7 @@ function bool QueueVehicle(class<Rx_Vehicle> inVehicleClass, Rx_PRI Buyer, int V
 	{
 		NOD_QueueCoop.AddItem(NewQueueElement);
 		  
-		NewQueueElement.Manager.InitializeSpawn();
+		NewQueueElement.Manager.InitializeSpawn(Self);
 
 		if( !ClassIsChildOf(inVehicleClass, class'Rx_Vehicle_Harvester') )
 		{
@@ -41,7 +43,7 @@ function bool QueueVehicle(class<Rx_Vehicle> inVehicleClass, Rx_PRI Buyer, int V
 	{
 		GDI_QueueCoop.AddItem(NewQueueElement);
   
-		NewQueueElement.Manager.InitializeSpawn();
+		NewQueueElement.Manager.InitializeSpawn(Self);
  
 		if( !ClassIsChildOf(inVehicleClass, class'Rx_Vehicle_Harvester') )
 		{
@@ -54,17 +56,16 @@ function bool QueueVehicle(class<Rx_Vehicle> inVehicleClass, Rx_PRI Buyer, int V
 	return true;
 }
 
-function queueWork_GDI()
+function SpawnGDIVehicle(Rx_VehicleSpawner Spawner)
 {
 	local Actor Veh;
 	
 	if(GDI_QueueCoop.Length > 0)
 	{
-		Veh = SpawnVehicleCoop(GDI_QueueCoop[0], TEAM_GDI);
+		Veh = SpawnVehicleCoop(GDI_QueueCoop[0], Spawner, TEAM_GDI);
 		if(Veh != None) 
 		{
 			GDI_QueueCoop.Remove(0, 1);
-			ClearTimer('queueWork_GDI');
 			if (GDI_QueueCoop.Length > 0)
 			{
 				SetTimer(GDI_QueueCoop[0].Manager.Cooldown,false,'NextGDIQueue');
@@ -76,13 +77,13 @@ function queueWork_GDI()
 }
 
 
-function queueWork_NOD()
+function SpawnNodVehicle(Rx_VehicleSpawner Spawner)
 {
 	local Actor Veh;
 	
 	if(NOD_QueueCoop.Length > 0) 
 	{
-		Veh = SpawnVehicleCoop(NOD_QueueCoop[0], TEAM_NOD);
+		Veh = SpawnVehicleCoop(NOD_QueueCoop[0], Spawner, TEAM_NOD);
 		if(Veh != None) 
 		{
 			NOD_QueueCoop.Remove(0, 1);
@@ -136,8 +137,7 @@ function Rx_VehicleSpawnerManager GetNearestProductionCoop(Rx_PRI Buyer, optiona
 	else
 		PointLoc = Controller(Buyer.Owner).Pawn.Location;
 
-
-	foreach Rx_Game_Cooperative(WorldInfo.Game).VehicleSpawnerManagers(CurFactory)
+	foreach VehicleSpawnerManagers(CurFactory)
 	{
 		if(!CurFactory.bEnabled || CurFactory.Team != TeamNum)
 			continue;
@@ -161,11 +161,12 @@ function Rx_VehicleSpawnerManager GetNearestProductionCoop(Rx_PRI Buyer, optiona
 	if(BestFactory != None)
 		return BestFactory;
 
+	`warn(Self@"Failed to find a viable manager!");
 		return None;
 
 }
 
-function Actor SpawnVehicleCoop(VQueueElementCoop VehToSpawn, optional byte TeamNum = -1)
+function Actor SpawnVehicleCoop(VQueueElementCoop VehToSpawn, Rx_VehicleSpawner Spawner, optional byte TeamNum = -1)
 {
 
 	local Rx_Vehicle Veh;
@@ -173,7 +174,7 @@ function Actor SpawnVehicleCoop(VQueueElementCoop VehToSpawn, optional byte Team
 	if (TeamNum < 0)
 		TeamNum = VehToSpawn.Buyer.GetTeamNum();
 	  
-	Veh = Spawn(VehToSpawn.VehClass,,, VehToSpawn.Manager.CurrentSpawner.Location,VehToSpawn.Manager.CurrentSpawner.Rotation,,true);
+	Veh = Spawn(VehToSpawn.VehClass,,, Spawner.Location,Spawner.Rotation,,true);
   
 	if (Veh != none )
 	{

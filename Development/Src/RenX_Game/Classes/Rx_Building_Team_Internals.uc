@@ -327,7 +327,8 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 	{
 		bDestroyed = True;
 		Destroyer = EventInstigator.PlayerReplicationInfo;
-		BroadcastLocalizedMessage(MessageClass,BuildingDestroyed,EventInstigator.PlayerReplicationInfo,,self);
+		if(Rx_Game(WorldInfo.Game) != None && !Rx_Game(WorldInfo.Game).bPedestalDetonated)
+			BroadcastLocalizedMessage(MessageClass,BuildingDestroyed,EventInstigator.PlayerReplicationInfo,,self);
 
 		`RecordTeamStringStat(BUILDING_DESTROYED,`RxGameObject.teams[self.TeamID],"Building "@BuildingName@"Destroyed");
 		
@@ -696,11 +697,14 @@ function bool PowerLost(optional bool bFromKismet)
 {
 	local Rx_Building_PowerPlant PP;
 
-	foreach AllActors(class'Rx_Building_PowerPlant', PP) 
+	if(!bFromKismet)
 	{
-		if(TeamID == PP.TeamID && !PP.IsDestroyed())
-		{	
-			return false;
+		foreach AllActors(class'Rx_Building_PowerPlant', PP) 
+		{
+			if(TeamID == PP.TeamID && !PP.IsDestroyed())
+			{	
+				return false;
+			}
 		}
 	}
 

@@ -307,7 +307,7 @@ function UpdateTargetHealthPercent ()
 	{
 		TargetHealthPercent = (Rx_DestroyableObstaclePlus(TargetedActor).GetHealth()*1.0) / max(1.0, Rx_DestroyableObstaclePlus(TargetedActor).GetMaxHealth()*1.0);
 	}
-	else if (Rx_BuildingAttachment(TargetedActor) != none && Rx_BuildingAttachment_PT(TargetedActor) == none)
+	else if (Rx_BuildingAttachment(TargetedActor) != none && Rx_BuildingAttachment_PT(TargetedActor) == none && Rx_BuildingAttachment_BeaconPedestal(TargetedActor) == none)
 	{
 		TargetHealthPercent = Rx_BuildingAttachment(TargetedActor).getBuildingHealthPct();
 		TargetHealthMaxPercent = Rx_BuildingAttachment(TargetedActor).getBuildingHealthMaxPct();		
@@ -362,7 +362,7 @@ function UpdateBoundingBox()
 	local box BBox, BBox2;
 	local int i;
 
-	if (IsBuildingComponent(TargetedActor) && !IsPTorMCT(TargetedActor))
+	if (IsBuildingComponent(TargetedActor) && !IsPTorMCT(TargetedActor) && Rx_BuildingAttachment_BeaconPedestal(TargetedActor) == None)
 	{
 		BBox2.Min.X = Canvas.SizeX * 0.4;
 		BBox2.Max.X = Canvas.SizeX * 0.6;

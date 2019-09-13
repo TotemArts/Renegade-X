@@ -12,11 +12,11 @@ var const float FriendlyVehicleDisplayNamesRadius;
 var const float FriendlyTargetedDisplayNamesRadius;
 var const float FriendlyTargetedVehicleDisplayNamesRadius;
 
-var private const Font PlayerNameFont;
-var private CanvasIcon Interact, Cover, Repair, Misc;
+var protected const Font PlayerNameFont;
+var protected CanvasIcon Interact, Cover, Repair, Misc;
 
-var private CanvasIcon TI_Attack;
-var private CanvasIcon TI_Defend;
+var protected CanvasIcon TI_Attack;
+var protected CanvasIcon TI_Defend;
 
 //var float TestNum; 
 
@@ -219,9 +219,7 @@ function DrawPlayerNames()
 	// For each Rx_Pawn in the game
    	foreach RenxHud.WorldInfo.AllPawns(class'Rx_Pawn', OtherPawn)
 	{
-		if (Rx_Bot_Scripted(OtherPawn.Controller) != None)
-			continue;
-		if (OtherPawn == None || OtherPawn.PlayerReplicationInfo == None || OtherPawn.Health <= 0)
+		if (OtherPawn == None || OtherPawn.PlayerReplicationInfo == None || OtherPawn.Health <= 0 || Rx_PRI(OtherPawn.PlayerReplicationInfo).bIsScripted)
 			continue;
 		if ((OtherPawn == ourPawn && !RenxHud.ShowOwnName) || OtherPawn.DrivenVehicle != None)
 			continue;
@@ -279,40 +277,44 @@ function DrawNameOnActor(Actor inActor, string inName, optional STANCE inStance 
 
 	ScreenLoc = Canvas.Project(inActor.Location);
 
-	Canvas.StrLen(inName, XLen, YLen);
+	if(Pawn(inActor) != None)
+	{
+		Canvas.StrLen(inName, XLen, YLen);
 
-	Canvas.SetPos(ScreenLoc.X-0.5*XLen,ScreenLoc.Y-1.2*YLen + (YLen * listOffset));
-	FontInfo.bEnableShadow=true;
+		Canvas.SetPos(ScreenLoc.X-0.5*XLen,ScreenLoc.Y-1.2*YLen + (YLen * listOffset));
+		FontInfo.bEnableShadow=true;
 
-	Canvas.Font = PlayerNameFont;			
+		Canvas.Font = PlayerNameFont;			
 
-	if(Rx_Pawn(inActor) != none) RxP = Rx_Pawn(inActor);
-	else
-	if(Rx_Vehicle(inActor) != none) RxV = Rx_Vehicle(inActor);
+		if(Rx_Pawn(inActor) != none) 
+			RxP = Rx_Pawn(inActor);
+		else if(Rx_Vehicle(inActor) != none) 
+			RxV = Rx_Vehicle(inActor);
 	
-	if (!RenxHud.SystemSettingsHandler.GetNicknamesUseTeamColors() || RenxHud.PlayerOwner.WorldInfo.IsPlayingDemo())
-	{
-		if (inStance == STANCE_ENEMY)
-			Canvas.DrawColor = ColorRed;
-		else if (inStance == STANCE_FRIENDLY)
-			Canvas.DrawColor = ColorGreen;
-		else 
-			Canvas.DrawColor = ColorWhite;
-	}
-	else
-	{
-		if (RenxHud.PlayerOwner.PlayerReplicationInfo.Team.TeamIndex == TEAM_GDI && inStance == STANCE_FRIENDLY ||
-			RenxHud.PlayerOwner.PlayerReplicationInfo.Team.TeamIndex == TEAM_NOD && inStance == STANCE_ENEMY)
-			Canvas.DrawColor = ColorYellow;
-		else if (RenxHud.PlayerOwner.PlayerReplicationInfo.Team.TeamIndex == TEAM_NOD && inStance == STANCE_FRIENDLY ||
-			RenxHud.PlayerOwner.PlayerReplicationInfo.Team.TeamIndex == TEAM_GDI && inStance == STANCE_ENEMY)
-			Canvas.DrawColor = ColorRed;
+		if (!RenxHud.SystemSettingsHandler.GetNicknamesUseTeamColors() || RenxHud.PlayerOwner.WorldInfo.IsPlayingDemo())
+		{
+			if (inStance == STANCE_ENEMY)
+				Canvas.DrawColor = ColorRed;
+			else if (inStance == STANCE_FRIENDLY)
+				Canvas.DrawColor = ColorGreen;
+			else 
+				Canvas.DrawColor = ColorWhite;
+		}
 		else
-			Canvas.DrawColor = ColorWhite;
-	}
+		{
+			if (RenxHud.PlayerOwner.PlayerReplicationInfo.Team.TeamIndex == TEAM_GDI && inStance == STANCE_FRIENDLY ||
+				RenxHud.PlayerOwner.PlayerReplicationInfo.Team.TeamIndex == TEAM_NOD && inStance == STANCE_ENEMY)
+				Canvas.DrawColor = ColorYellow;
+			else if (RenxHud.PlayerOwner.PlayerReplicationInfo.Team.TeamIndex == TEAM_NOD && inStance == STANCE_FRIENDLY ||
+				RenxHud.PlayerOwner.PlayerReplicationInfo.Team.TeamIndex == TEAM_GDI && inStance == STANCE_ENEMY)
+				Canvas.DrawColor = ColorRed;
+			else
+				Canvas.DrawColor = ColorWhite;
+		}
 				
-	Canvas.DrawColor.A *= Opacity;
-	Canvas.DrawText(inName,,1.0,1.0,FontInfo);
+		Canvas.DrawColor.A *= Opacity;
+		Canvas.DrawText(inName,,1.0,1.0,FontInfo);
+	}
 	if(RenxHud.PlayerOwner.GetTeamNum() == inActor.GetTeamNum())
 	{
 		if(RxP != None)
@@ -357,9 +359,9 @@ function DrawNameOnActor(Actor inActor, string inName, optional STANCE inStance 
 	if(inStance == STANCE_ENEMY)
 	{
 		if(Rx_Pawn(inActor) != None && (Rx_PRI(Rx_Pawn(inActor).PlayerReplicationInfo) != none && Rx_PRI(Rx_Pawn(inActor).PlayerReplicationInfo).IsFocused()))
-			{
-				DrawFocusedIcon(inActor);
-			}	
+		{
+			DrawFocusedIcon(inActor);
+		}	
 		
 	}
 }

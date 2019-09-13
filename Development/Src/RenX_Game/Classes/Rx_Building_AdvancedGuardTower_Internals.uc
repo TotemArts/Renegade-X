@@ -94,9 +94,12 @@ function bool PowerLost(optional bool bFromKismet)
 	if(!super.PowerLost() && !bFromKismet)
 		return false;
 
+	bNoPower = true;
+
 	BuildingVisuals.TriggerEventClass(Class'Rx_SeqEvent_DefenseEvent',None,0);
 	
-	if(rocketTurret  == none) return true; 
+	if(rocketTurret  == none) 
+		return true; 
 	for(i = 0; i < 4; i++)
 	{
 		turrets[i].SController.Cannon.Destroy();

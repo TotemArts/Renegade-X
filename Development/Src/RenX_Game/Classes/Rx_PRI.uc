@@ -101,13 +101,15 @@ var bool		bUseLegacyScoreSystem; //Whether we're using Legacy or new scoring sys
 
 var bool bCanRequestCheatBots;
 var int BotSkill;
+var bool bisAFK;			// HANDEPSILON - This indicates whether or not the player is AFK at the moment
+var bool bIsScripted;
 
 replication
 {
 	if( bNetDirty && Role == ROLE_Authority)
 		PawnVehicleClass, ReplicatedRenScore, RenTotalKills, bIsSpy, 
 		bIsVehicleStolen, bIsVehicleFromCrate, bModeratorOnly, VRank, bUpdateTargetTimeFlag, bIsCommander, Veterancy_Points, 
-		NonDefensiveVeterancy_Points, Credits, Total_Vehicle_Kills, bCanRequestCheatBots, BotSkill; 
+		NonDefensiveVeterancy_Points, Credits, Total_Vehicle_Kills, bCanRequestCheatBots, BotSkill, bIsAFK, bIsScripted; 
 	
 	if(bNeedRelevancyInfo && !bNetOwner && bNetDirty && ROLE == ROLE_Authority)
 		PawnLocation, PawnRotation, PawnRadarVis, PawnVelocity; 
@@ -447,8 +449,8 @@ function AddScoreToPlayerAndTeam(float inScore, optional bool bAddCredits = true
 	
 	ReplicatedRenScore = RenScore;
 	
-	if(Rx_Controller(Owner) != None && Worldinfo.NetMode != NM_Standalone)
-		Rx_Controller(Owner).ResetAFKTimer();
+	if(!bBot && Worldinfo.NetMode != NM_Standalone)
+		ResetAFKTimer();
 	
 	Rx_TeamInfo(Team).AddRenScore(inScore);	
 }
@@ -500,13 +502,13 @@ simulated function String GetHumanReadableName()
 {
 	local string ret;
 	ret = super.GetHumanReadableName();
-	if(bBot)
+	if(bBot && !bIsScripted)
 	{
 		ret = "[B-"$BotSkill$"]"$ret;
 	}
 	else if(bIsSpectator)
 		ret = "[Spec]"$ret;
-	else if (Rx_Controller(Owner) != None)
+	else
 	{
 		if (left(ret,3) == "[B-")
 			ret = Split(ret,"[B-",true);
@@ -514,7 +516,7 @@ simulated function String GetHumanReadableName()
 		if (left(ret,5) == "[AFK]")
 			ret = Split(ret,"[AFK]",true);
 
-		if (Rx_Controller(Owner).bIsAFK)
+		if (bIsAFK)
 			ret = "[AFK]"$ret;
 	}
 
@@ -1342,6 +1344,33 @@ simulated function class GetPawnClass()
 simulated function SimVelocityToLocationTimer()
 {
 	TenthSecondsSinceLocationRep+=0.1;
+}
+
+reliable server function ResetAFKTimer ()
+{
+	ServerUndeclareAFK();
+
+//	`log(Owner.GetHumanReadableName()@" : Resetting afk timer from"@GetTimerCount('ServerDeclareAFK'));
+	SetTimer(180.0,false,'ServerDeclareAFK');
+
+}
+
+function ServerDeclareAFK()
+{
+	if(!bIsAFK)
+	{
+		bIsAFK = true;
+		Rx_Controller(Owner).CTextMessage("--You are now AFK--", 'Yellow'); 
+	}
+}
+
+function ServerUndeclareAFK()
+{
+	if(bIsAFK)
+	{
+		bIsAFK = false;
+		Rx_Controller(Owner).CTextMessage("--You are no longer AFK--"); 
+	}
 }
 
 DefaultProperties

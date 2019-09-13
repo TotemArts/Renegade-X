@@ -9,28 +9,29 @@ class Rx_Weapon_DeployedBeacon extends Rx_Weapon_DeployedActor
 
 `include(RenX_Game\RenXStats.uci);
 
-var int 					  count;
-var array<SoundCue>           GdiCountdownSounds;
-var array<SoundCue>           NodCountdownSounds;
-var SoundCue   				  GdiDeployedSound;
-var SoundCue   				  NodDeployedSound;
-var SoundCue   				  GdiDisarmSound;
-var SoundCue   				  NodDisarmSound;
-var SoundCue                  BeepCue;
-var SoundCue                  GdiCountDownInitiatedSound;
-var SoundCue                  NodCountDownInitiatedSound;
-var SoundCue                  BuildUpAndExplosionSound;
-var SoundCue                  GdiApproachingSound;
-var SoundCue                  NodApproachingSound;
-var SoundCue                  GdiImminentSound;
-var SoundCue                  NodImminentSound;
-var class<UDKExplosionLight>  ExplosionLightClass;
-var rotator					  emitterRotation;
-var ParticleSystemComponent   BlinkingLightComponent;
-var float		     	      DeployTime;
-var float					  Damage_Taken;
-var Texture					  MinimapIconTexture; //Why is this list spaced and not TAB'd ? 
-
+var int 					  	count;
+var array<SoundCue>           	GdiCountdownSounds;
+var array<SoundCue>           	NodCountdownSounds;
+var SoundCue   				  	GdiDeployedSound;
+var SoundCue   				  	NodDeployedSound;
+var SoundCue   				  	GdiDisarmSound;
+var SoundCue   				  	NodDisarmSound;
+var SoundCue                  	BeepCue;
+var SoundCue                  	GdiCountDownInitiatedSound;
+var SoundCue                  	NodCountDownInitiatedSound;
+var SoundCue                  	BuildUpAndExplosionSound;
+var SoundCue                  	GdiApproachingSound;
+var SoundCue                  	NodApproachingSound;
+var SoundCue                  	GdiImminentSound;
+var SoundCue                  	NodImminentSound;
+var class<UDKExplosionLight>  	ExplosionLightClass;
+var rotator					  	emitterRotation;
+var ParticleSystemComponent   	BlinkingLightComponent;
+var float		     	    	DeployTime;
+var float						Damage_Taken;
+var Texture					  	MinimapIconTexture;
+var bool					  	bOnPedestal, bExplosionPointValid;
+var Vector 						PedestalExplosionPoint;
 
 /*Track who does damage to me so I can distribute points correctly on disarming*/
 struct Attacker
@@ -43,8 +44,142 @@ var array<Attacker>	DamagingParties;	//Track who is doing damage to me to evenly
 
 function Explosion()
 {
-	super.Explosion();
+	local Rx_Building B, tracedB;
+	local Pawn P;
+	local vector HitLoc,HitNorm, BuildingLocation, FlatLocation, ExplosionLocation;
+ 	local bool bDamagePawn, bBuildingHit;   
+
+
+	if (InstigatorController != None && InstigatorController.PlayerReplicationInfo != None)
+		`LogRx("GAME" `s "Exploded;" `s self.Class `s "near" `s GetSpotMarkerName() `s "at" `s self.Location `s "by" `s `PlayerLog(InstigatorController.PlayerReplicationInfo));
+   	else
+		`LogRx("GAME" `s "Exploded;" `s self.Class `s "near" `s GetSpotMarkerName() `s "at" `s self.Location);
+   	bExplode = true; // trigger client replication
+   	if (WorldInfo.NetMode != NM_DedicatedServer)
+    	PlayExplosionEffect();
+
+	if(bOnPedestal)   	
+   		ExplosionLocation = GetPedestalExplosionPoint();
+
+   	else
+   		ExplosionLocation = Location;
+
+	// damage Buildings
+	if(bOnPedestal)
+		Base.TakeDamage(Damage*Vet_DamageModifier[VRank], InstigatorController, ExplosionLocation, vect(0,0,0), DamageTypeClass != none ? DamageTypeClass : class'UTDmgType_Burning',, self);
+	else
+	{
+		FlatLocation = Location;
+		foreach OverlappingActors(class'Rx_Building', B, BuildingDmgRadius, Location, false)
+		{
+			bBuildingHit = false;
+
+			if (VSizeSq(B.Location-Location) <= Square(BuildingDmgRadius))
+				bBuildingHit=true;
+			else if (B.BuildingInternals.Trace2dTargets.Length > 0)
+			{
+				foreach B.BuildingInternals.Trace2dTargets(BuildingLocation)
+				{
+					FlatLocation.Z = BuildingLocation.Z;
+					if (VSizeSq(BuildingLocation-FlatLocation) <= Square(BuildingDmgRadius))
+						bBuildingHit=true;
+					else
+					{
+						foreach TraceActors(class'Rx_Building', tracedB, HitLoc, HitNorm, BuildingLocation, FlatLocation)
+						{  
+							if (tracedB == B)
+							{
+								if (VSizeSq(HitLoc-FlatLocation) <= Square(BuildingDmgRadius))
+									bBuildingHit = true;
+								break;
+							}
+						}
+					}
+					if (bBuildingHit)
+						break;
+				}
+			}
+			else
+			{
+			// Fallback method in the event the building does not have any Trace2d targets.
+				BuildingLocation = B.Location;
+				foreach TraceActors(class'Rx_Building', tracedB, HitLoc, HitNorm, BuildingLocation, Location)
+				{  
+					if (tracedB == B && VSizeSq(HitLoc-Location) <= Square(BuildingDmgRadius))
+						bBuildingHit = true;
+					break;
+				}
+			}
+
+			if (bBuildingHit)
+			{
+				if (GetTeamNum() != B.GetTeamNum() || bDamageAll)
+					B.TakeRadiusDamage(InstigatorController, Damage*Vet_DamageModifier[VRank], DmgRadius, DamageTypeClass != none ? DamageTypeClass : class'UTDmgType_Burning', DamageMomentum, VectorHurtOrigin, true, self);
+			}
+		}
+	}
+   
+   	// damage Pawns
+   	foreach CollidingActors(class'Pawn', P, DmgRadius * (bOnPedestal ? 10 : 1), ExplosionLocation, false)
+   	{
+      	bDamagePawn = true;
+
+      	if(!bOnPedestal)
+      	{
+	      	foreach TraceActors(class'Rx_Building',B,HitLoc,HitNorm,location,P.location)
+	      	{
+   		      	bDamagePawn = false;
+        	 	break;		
+	     	}
+	    }
+	    else
+	    {
+	    	if(Rx_Pawn(P) != None)
+	    		Rx_Pawn(P).bStopDeathCamera = true;
+	    }
+
+      	if(bDamagePawn) 
+      	{ 
+         	if ((GetTeamNum() != P.GetTeamNum()) 
+             || (P.Controller == InstigatorController && !bOnPedestal) || bDamageAll)
+            	P.TakeRadiusDamage(InstigatorController, Damage*Vet_DamageModifier[VRank], DmgRadius, DamageTypeClass != none ? DamageTypeClass : class'UTDmgType_Burning', DamageMomentum, ExplosionLocation, bFullDamage, self);
+      	}
+   	}
+
+   	SetTimer(0.5f, false, 'ToDestroy'); 
+
 	`RecordGamePositionStat(WEAPON_BEACON_EXPLODED, Location, 1);
+}
+
+simulated function Vector GetPedestalExplosionPoint()
+{
+	local Rx_Building B;
+	local int i;
+	local Vector TotalLocation, HitLocation, HitNormal;
+
+	if(bExplosionPointValid)
+		return PedestalExplosionPoint;
+
+	foreach AllActors(class'Rx_Building',B)
+	{
+		if(GetTeamNum() == B.GetTeamNum() || Rx_Building_TechBuilding(B) != None)
+			continue;
+
+		TotalLocation += B.Location;
+		i++;
+	}
+
+	if(i > 0)
+	{
+		TotalLocation = TotalLocation / i;
+
+		if (Trace(HitLocation, HitNormal, TotalLocation - Vect(0,0,10000), TotalLocation, true) != None)
+			return HitLocation;
+		else
+			return TotalLocation;
+	}
+	else
+		return Location;
 }
 
 
@@ -76,48 +211,100 @@ simulated event HitWall( vector HitNormal, actor Wall, PrimitiveComponent WallCo
 	Landed(HitNormal, wall);
 }
 
+function Landed(vector HitNormal, Actor FloorActor)
+{
+    super(Actor).Landed(HitNormal, FloorActor);
+   
+   	if (WorldInfo.NetMode != NM_Client)
+      	bDeployed = true;
+
+    if (FloorActor != None)
+    {
+      	if(Rx_Weapon_DeployedActor(FloorActor) == none) 
+      	{
+            SetBase(FloorActor, HitNormal);
+			Mesh.SetTraceBlocking (true,true); //Enable collision with zero-extent traces for repair guns
+			
+	  	}
+
+	  	if(Rx_BuildingAttachment_BeaconPedestal(Base) != None)
+    	{
+        	bOnPedestal = true;
+        	PedestalExplosionPoint = GetPedestalExplosionPoint();
+        	bExplosionPointValid = true;
+    	}
+    }  
+
+   	PerformDeploy();
+      
+
+   	if(WorldInfo.NetMode != NM_DedicatedServer)
+   	{
+      	if(LandEffects != none && !LandEffects.bIsActive)
+      	{
+         	LandEffects.SetActive(true);
+      	}
+   	} 
+   	else 
+   	{    
+		SetTimer(0.5,false,'ReplicatePositionAfterLanded');
+   	}
+   
+}
+
 simulated function PerformDeploy()
 {
    local vector BlinkinglightSpawnLocation;
    local rotator BlinkinglightSpawnRotation;
    local AudioComponent TempAudio;
-   
+
    super.PerformDeploy();
+
+
+   	// Do a double check here
+   	if(!bOnPedestal && Rx_BuildingAttachment_BeaconPedestal(Base) != None)
+    {
+    	bOnPedestal = true;
+      	PedestalExplosionPoint = GetPedestalExplosionPoint();
+       	bExplosionPointValid = true;
+    }
 
    if (!bImminentExplode)
    {
 	  DeployTime = Worldinfo.Timeseconds;
-	  
-	  if(WorldInfo.NetMode != NM_Client) 
-      {
-		if (TimeUntilExplosion > GdiApproachingSound.Duration && TimeUntilExplosion > NodApproachingSound.Duration)
-			SetTimer(3.0, false, 'playApproachingSound');
-		if (TimeUntilExplosion - 31.0f > 0)
-			SetTimer(TimeUntilExplosion - 31.0f, false, 'playCountInitiatedDownSound');
-		if (TimeUntilExplosion - 14.0f > 0)
-			SetTimer(TimeUntilExplosion - 14.0f, false, 'PlayImminentSound');
-		if (TimeUntilExplosion - 11.0f > 0)
-			SetTimer(TimeUntilExplosion - 11.0f, false, 'DeactivateHealingAbility');
-      }
-      if(WorldInfo.NetMode != NM_DedicatedServer)
-      {
-		 TempAudio = CreateAudioComponent(BeepCue,true,true,true,,true); 
-		 
-		 if(TempAudio == none) SetTimer(1.0, true, 'CheckBeepSound');		
-		 else //Stop the engine from removing beacon beep sounds 
-		 {
-			TempAudio.bShouldRemainActiveIfDropped=true;
-			TempAudio.bIgnoreForFlushing=true;
-		 }		 
-		 
-		 if (TimeUntilExplosion - 10.5f > 0)
-			SetTimer(TimeUntilExplosion - 10.5f, false, 'CreateBuildUpAndExplosionSound');
-		 else
-			PlayExplosionSound = true; // If there's not enough time to play the whole build up + explosion, play the explosion sound.
 
-         SkeletalMeshComponent(Mesh).GetSocketWorldLocationAndRotation( 'BlinkingLightSocket', BlinkinglightSpawnLocation, BlinkinglightSpawnRotation );
-         BlinkingLightComponent = WorldInfo.MyEmitterPool.SpawnEmitter(BlinkingLight, BlinkinglightSpawnLocation, BlinkinglightSpawnRotation,self);		
-      }
+	  	if(WorldInfo.NetMode != NM_Client) 
+      	{
+			if (TimeUntilExplosion > GdiApproachingSound.Duration && TimeUntilExplosion > NodApproachingSound.Duration)
+				SetTimer(3.0, false, 'playApproachingSound');
+			if (TimeUntilExplosion - 31.0f > 0)
+				SetTimer(TimeUntilExplosion - 31.0f, false, 'playCountInitiatedDownSound');
+			if (TimeUntilExplosion - 14.0f > 0)
+				SetTimer(TimeUntilExplosion - 14.0f, false, 'PlayImminentSound');
+			if (TimeUntilExplosion - 11.0f > 0)
+				SetTimer(TimeUntilExplosion - 11.0f, false, 'DeactivateHealingAbility');
+			if (bOnPedestal && TimeUntilExplosion - 0.5f > 0)
+				SetTimer(TimeUntilExplosion - 0.5f, false, 'DramaticSlomo');
+    	}
+    	if(WorldInfo.NetMode != NM_DedicatedServer)
+      	{
+			TempAudio = CreateAudioComponent(BeepCue,true,true,true,,true); 
+		 
+		 	if(TempAudio == none) SetTimer(1.0, true, 'CheckBeepSound');		
+		 	else //Stop the engine from removing beacon beep sounds 
+		 	{
+				TempAudio.bShouldRemainActiveIfDropped=true;
+				TempAudio.bIgnoreForFlushing=true;
+		 	}		 
+		 
+		 	if (TimeUntilExplosion - 10.5f > 0)
+				SetTimer(TimeUntilExplosion - 10.5f, false, 'CreateBuildUpAndExplosionSound');
+			else
+				PlayExplosionSound = true; // If there's not enough time to play the whole build up + explosion, play the explosion sound.
+
+         	SkeletalMeshComponent(Mesh).GetSocketWorldLocationAndRotation( 'BlinkingLightSocket', BlinkinglightSpawnLocation, BlinkinglightSpawnRotation );
+         	BlinkingLightComponent = WorldInfo.MyEmitterPool.SpawnEmitter(BlinkingLight, BlinkinglightSpawnLocation, BlinkinglightSpawnRotation,self);		
+      	}
    }
 }
 
@@ -168,12 +355,15 @@ function BroadcastPlaced()
 	
 	foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
 	{
-	if (PC.GetTeamNum() == IPC.GetTeamNum())
+		if (PC.GetTeamNum() == IPC.GetTeamNum())
 		{
-		PC.CTextMessage("Friendly" @ DeployableName @ " placed " @ "[" $ SpotLocation $ "]" @ "!",'Green', 150);
+			if(bOnPedestal)
+				PC.CTextMessage("Friendly" @ DeployableName @ " placed on the >> PEDESTAL <<",'Green', 150);
+			else
+				PC.CTextMessage("Friendly" @ DeployableName @ " placed " @ "[" $ SpotLocation $ "]" @ "!",'Green', 150);
 		}
-	else
-		PC.CTextMessage("Enemy" @ DeployableName @ "placed!",'Red',150,,,true);
+		else
+			PC.CTextMessage("Enemy" @ DeployableName @ "placed!",'Red',150,,,true);
 	}	
 }
 
@@ -227,9 +417,11 @@ simulated function Destroyed()
 function BroadcastDisarmed(Controller Disarmer)
 {
 	local Rx_Controller PC, IPC ;
-   
+//  local string SpotLocation;
 	
 	IPC=Rx_Controller(InstigatorController);
+
+//	SpotLocation = GetSpotMarkerName();
 	
 	if (InstigatorController != None && InstigatorController.PlayerReplicationInfo != None)
 		`LogRx("GAME" `s "Disarmed;" `s self.Class `s "by" `s `PlayerLog(Disarmer.PlayerReplicationInfo) `s "owned by" `s `PlayerLog(InstigatorController.PlayerReplicationInfo));
@@ -239,9 +431,17 @@ function BroadcastDisarmed(Controller Disarmer)
 
 	foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
    {
-      if(PC.GetTeamNum() == IPC.GetTeamNum()) PC.CTextMessage(DeployableName@"disarmed!",'Red',130);
+      if(PC.GetTeamNum() == IPC.GetTeamNum()) 
+      {
+//      	if
+//    	  	PC.CTextMessage(DeployableName@"[" $ SpotLocation $ "]"@"disarmed!",'Red',130);
+//     	else
+//	      	PC.CTextMessage(DeployableName@" on the >>PEDESTAL<< disarmed!",'Red',130);
+		PC.CTextMessage(DeployableName@"disarmed!",'Red',130);
+
+      }
 	  else
-	PC.CTextMessage(DeployableName@"disarmed!",'Green',130);
+		PC.CTextMessage(DeployableName@"disarmed!",'Green',130);
 
    }
 }
@@ -275,6 +475,12 @@ simulated function playCountDownSound()
 function DeactivateHealingAbility()
 {
    bCanNotBeDisarmedAnymore = true;	
+}
+
+function DramaticSlomo()
+{
+	if(WorldInfo.Game != None)
+		WorldInfo.Game.SetGameSpeed(0.2);
 }
 
 function bool HealDamage(int Amount, Controller Healer, class<DamageType> DamageType)

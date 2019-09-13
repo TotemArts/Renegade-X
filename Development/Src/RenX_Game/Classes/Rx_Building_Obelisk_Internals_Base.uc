@@ -79,6 +79,7 @@ function bool PowerLost(optional bool bFromKismet)
 		laserSentinel.Destroy();
 
 		BuildingVisuals.TriggerEventClass(Class'Rx_SeqEvent_DefenseEvent',None,0);
+		bNoPower = true;
 
 		return true;
 	}

@@ -14,6 +14,7 @@ var Rx_ScriptedBotSpawner MySpawner;
 var Rx_ScriptedObj_PatrolPoint PatrolTask;
 var int PatrolNumber;
 var UTGameObjective MyObjective;
+var Rx_Vehicle BoundVehicle;
 
 function InitPlayerReplicationInfo()
 {
@@ -22,6 +23,7 @@ function InitPlayerReplicationInfo()
 		CleanupPRI();
 	}
 	PlayerReplicationInfo = Spawn(class'Rx_PRI', self);
+	Rx_PRI(PlayerReplicationInfo).bIsScripted = true;
 
 	if (PlayerReplicationInfo != none) {
 		PlayerReplicationInfo.SetPlayerTeam(WorldInfo.GRI.Teams[Owner.GetTeamNum()]);
@@ -35,6 +37,7 @@ function RxInitialize(float InSkill, const out CharacterInfo BotInfo, UTTeamInfo
 
 	Skill = FClamp(InSkill, 0, 7);
 
+	bCanTalk = false;
 
 	Aggressiveness = FClamp(BotInfo.AIData.Aggressiveness, 0, 1);
 	BaseAggressiveness = Aggressiveness;
@@ -76,7 +79,28 @@ protected event ExecuteWhatToDoNext()
 	}
 	if(MySpawner != None)
 	{
+		if(MySpawner.Skill != Skill)
+		{
+			Skill = MySpawner.Skill;
+			ResetSkill();
+		}
+
+
 		bGodMode = MySpawner.bInvulnerableBots;
+	}
+
+	if(Vehicle(Pawn) == None && BoundVehicle != None)
+	{
+		if(BoundVehicle.Health > 0 && BoundVehicle.DriverEnter(Pawn))
+		{
+			RouteGoal = None;
+			MoveTarget = None;
+		}
+		else if(BoundVehicle.Health <= 0)
+		{
+			BoundVehicle = None;
+		}
+
 	}
 
 	bHasFired = false;
@@ -241,6 +265,68 @@ Begin:
 
 	sleep(0.1);
 	LatentWhatToDoNext();
+}
+
+state Roaming
+{
+	ignores EnemyNotVisible;
+
+	function MayFall(bool bFloor, vector FloorNormal)
+	{
+		Pawn.bCanJump = ( (MoveTarget != None)
+					&& ((MoveTarget.Physics != PHYS_Falling) || !MoveTarget.IsA('DroppedPickup')) );
+	}
+
+Begin:
+
+	SwitchToBestWeapon();
+
+	WaitForLanding();
+
+
+	if(MoveTarget != None)
+		MoveToward(MoveTarget,FaceActor(1),GetDesiredOffset(),ShouldStrafeTo(MoveTarget));
+	else
+		Sleep(1.0);
+
+	sleep(0.1);
+	LatentWhatToDoNext();
+
+	if(!IsTimerActive('WaitAtAreaTimer')) 
+	{
+		GoalString @= "- STUCK IN ROAMING";
+		if ( bSoaking )
+			SoakStop("STUCK IN ROAMING!");
+		
+
+	}
+}
+
+state WaitForTactics
+{
+
+Begin :
+	WaitForLanding();
+	SwitchToBestWeapon();
+
+	GoalString = "Holding Position";
+
+	StopMovement();
+
+	if(Enemy != None)
+	{
+		Focus = Enemy;
+
+		if(Rx_ScriptedObj_HoldPosition(MyObjective) != None && Rx_ScriptedObj_HoldPosition(MyObjective).bRootPawn)
+			DoRangedAttackOn(Enemy);
+		else
+			ChooseAttackMode();
+	}
+
+
+	Sleep(1.0);
+	LatentWhatToDoNext();
+
 }
 
 function Actor FaceActor(float StrafingModifier)

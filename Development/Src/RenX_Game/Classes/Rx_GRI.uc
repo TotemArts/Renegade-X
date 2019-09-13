@@ -44,7 +44,6 @@ var array<MaterialInstanceConstant> CustomWeaponMICs;
 var array<Actor> SpottingArray; //Array of spot locations on the map
 var array<Actor> TechBuildingArray; //Array to hold map tech buildings (Optimization to reduce constantly iterating 'AllActors')
 
-
 replication
 {
 	if (bNetDirty)
@@ -808,8 +807,6 @@ simulated function CreateListArrays(){
 	}
 }
 
-
-
 defaultproperties
 {
 	GameClass   = class'Rx_Game'
@@ -817,8 +814,6 @@ defaultproperties
    
 	MaxActiveEmitters = 200
     
-	
-   
 	NightVisionMIC=MaterialInstanceConstant'RenX_AssetBase.PostProcess.MI_NightVision'
 	GlobalStealthAddTranslucencyBiasMIC=MaterialInstanceConstant'RenX_AssetBase.Stealth.MI_Cloak_Enemy'
 	GlobalStealthEffectMultiplierMIC=MaterialInstanceConstant'RenX_AssetBase.Stealth.MI_Cloak_Enemy'

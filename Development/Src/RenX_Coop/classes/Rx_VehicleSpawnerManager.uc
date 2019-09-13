@@ -6,22 +6,19 @@ var(Spawner) byte Team;		//The team this spawner is associated with
 var(Spawner) Array<Rx_VehicleSpawner> AssociatedSpawners;	//Vehicle spawner that will be used when using this manager
 var(Spawner) float Cooldown;
 
-var Rx_VehicleManager VehicleManager;
-var bool bSpawningVehicle;
-var Rx_VehicleSpawner CurrentSpawner;
+var Rx_VehicleManager_Coop VehicleManager;
+var int ProcessedQueue;
 
-function PostBeginPlay()
+
+replication
 {
-	if(Rx_Game_Cooperative(WorldInfo.Game) == None)
-		return;
-
-	Rx_Game_Cooperative(WorldInfo.Game).AddSpawnerManager(Self);
+	if( bNetDirty && Role == ROLE_Authority )
+		bEnabled, ProcessedQueue;
 }
 
 function Rx_VehicleSpawner GetAvailableSpawner()
 {
 	local Rx_VehicleSpawner Spawner;
-	local int Num;
 
 	foreach AssociatedSpawners(Spawner)
 	{
@@ -29,56 +26,54 @@ function Rx_VehicleSpawner GetAvailableSpawner()
 		{
 			return Spawner;
 		}
-		else
-		{	
-			if(Num < AssociatedSpawners.length - 1)
-			{
-				Num++;
-				continue;
-			}
-			else
-			{
-				return AssociatedSpawners[0];
-			}
-		}
 	}
+
+		return None;
 }
 
-function InitializeSpawn()
+function InitializeSpawn(Rx_VehicleManager_Coop VM)
 {
-	if (bSpawningVehicle || IsTimerActive('CoolingDown'))
+	if (IsTimerActive('CoolingDown'))
 		return;
 
+	if(VehicleManager == None || VehicleManager != VM)
+		VehicleManager = VM;
+
+	
+	StartSpawn();
+}
+
+function StartSpawn()
+{
+	local Rx_VehicleSpawner CurrentSpawner;
+
 	CurrentSpawner = GetAvailableSpawner();
-	if(CurrentSpawner == None)
-	{
-		`Warn("VSM failed to get viable spawnpoint!");
-	}
-	else
+
+	if(CurrentSpawner != None)	// if no spawner is available, we go back to cooldown
 	{
 		CurrentSpawner.Manager = self;
 
 		CurrentSpawner.ProcessQueue();
+		ProcessedQueue += 1;
 	}
 	SetTimer(Cooldown,false,'CoolingDown');
 }
 
+
+
 function CoolingDown()
 {
-	local Rx_VehicleManager_Coop VM;
-
-	VM = Rx_VehicleManager_Coop(Rx_Game(WorldInfo.Game).GetVehicleManager());
-	if(Team == 0 && VM.GDI_QueueCoop.Length > 0)
-		InitializeSpawn();
-	else if (Team == 1 && VM.Nod_QueueCoop.Length > 0)
-		InitializeSpawn();
-
+	if(Team == 0 && VehicleManager.GDI_QueueCoop.Length > ProcessedQueue)
+		StartSpawn();
+	else if (Team == 1 && VehicleManager.Nod_QueueCoop.Length > ProcessedQueue)
+		StartSpawn();
 }
 
-function SpawnVehicleAtSpawnPoint()
+function SpawnVehicleAtSpawnPoint(Rx_VehicleSpawner Spawner)
 {
-	bSpawningVehicle = false;
-	Rx_Game_Cooperative(WorldInfo.Game).SpawnVehicleFor(Team);
+	Rx_Game_Cooperative(WorldInfo.Game).SpawnVehicleFor(Team, Spawner);
+	ProcessedQueue -= 1;
+
 }
 
 simulated function OnToggle(SeqAct_Toggle Action)
@@ -106,4 +101,10 @@ DefaultProperties
 		SpriteCategoryName="Navigation"
 	End Object
 	Components.Add(Sprite)
+
+	RemoteRole            = ROLE_SimulatedProxy
+	bGameRelevant       = True
+	bOnlyDirtyReplication = True
+	
+	NetUpdateFrequency=10.0
 }

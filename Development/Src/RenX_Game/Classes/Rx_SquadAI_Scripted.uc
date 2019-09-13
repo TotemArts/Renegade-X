@@ -11,6 +11,11 @@ function bool AssignSquadResponsibility(UTBot B)
 	return false;
 }
 
+function ChooseTactics()
+{
+	
+}
+
 function bool CheckSquadObjectives(UTBot B)
 {
 	local Rx_ScriptedObj ScriptedObj;
@@ -57,4 +62,11 @@ function RemoveBot (UTBot B)
 	}
 	if ( SquadLeader == B )
 		PickNewLeader();
+}
+
+function float VehicleDesireability(UTVehicle V, UTBot B)
+{
+	// will always return 0 so that the bots will not try to enter other vehicles
+
+	return 0;
 }

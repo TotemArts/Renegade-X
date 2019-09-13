@@ -371,14 +371,14 @@ function string GetColouredName(PlayerReplicationInfo PRI)
 {
 	if (PRI.GetTeamNum() == TEAM_GDI)
 	{
-		if (Rx_Bot_Scripted(PRI.Owner) == None)
+		if (!Rx_PRI(PRI).bIsScripted)
 			return "<font color='" $GDIColor $"'>" $CleanHTMLMessage(PRI.PlayerName)$"</font>";
 		else
 			return "<font color='" $GDIColor $"'>" $CleanHTMLMessage("A GDI Trooper")$"</font>";
 	}
 	else if (PRI.GetTeamNum() == TEAM_NOD)
 	{
-		if (Rx_Bot_Scripted(PRI.Owner) == None)
+		if (!Rx_PRI(PRI).bIsScripted)
 			return "<font color='" $NodColor$"'>" $CleanHTMLMessage(PRI.PlayerName)$"</font>";
 		else
 			return "<font color='" $NodColor$"'>" $CleanHTMLMessage("A Nod Trooper")$"</font>";			
@@ -1163,7 +1163,7 @@ function DrawNewScorePanel()
 		
 		foreach WorldInfo.GRI.PRIArray(pri)
 		{
-			if(Rx_Pri(pri) == None || Rx_Bot_Scripted(pri.owner) != None)
+			if(Rx_Pri(pri) == None || Rx_PRI(PRI).bIsScripted)
 				PRIArray.RemoveItem(pri);
 		}
 		

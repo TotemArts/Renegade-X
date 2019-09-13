@@ -12,6 +12,7 @@ DefaultProperties
 	End Object
 
 	AttachmentClasses.Add(Rx_BuildingAttachment_Door_GDI)
+	AttachmentClasses.Add(Rx_BuildingAttachment_BeaconPedestal)
 
 	
 	FriendlyBuildingSounds(BuildingDestroyed)           = SoundNodeWave'RX_EVA_VoiceClips.gdi_eva.S_EVA_GDI_Barracks_Destroyed'

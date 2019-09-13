@@ -32,4 +32,5 @@ DefaultProperties
 	//AttachmentClasses.Add(Rx_BuildingAttachment_Glass_TypeB)
 	//AttachmentClasses.Add(Rx_BuildingAttachment_Glass_TypeC)
 	AttachmentClasses.Add( Rx_BuildingAttachment_RadialImpulse_HoN )
+	AttachmentClasses.Add(Rx_BuildingAttachment_BeaconPedestal)
 }

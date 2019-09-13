@@ -274,10 +274,12 @@ simulated function String GetSpotName()
 	return GetHumanReadableName();
 }
 
+/*
 simulated function vector GetTargetLocation(optional actor RequestedBy, optional bool bRequestAlternateLoc) 
 {
 	return super.GetTargetLocation(RequestedBy,bRequestAlternateLoc) + vect(0,0,200);
 }
+*/
 
 function RemoveMyMines(Rx_Controller Control)
 {

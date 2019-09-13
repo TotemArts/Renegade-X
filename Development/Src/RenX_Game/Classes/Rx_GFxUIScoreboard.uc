@@ -22,7 +22,7 @@ var GFxObject duration;
 
 var GFxClikWidget ScoreBoardGDI;
 var GFxClikWidget ScoreBoardNod;
-var GFxClikWidget Scoreboard;
+var GFxObject Scoreboard;
 var GFxClikWidget EndGameScoreBoard;
 var GFxClikWidget MapVoteList;
 var GFxClikWidget ChatBox;
@@ -82,6 +82,8 @@ var config bool debugScoreboardUI; // Show debug elements on screen.
 var array<Rx_UIDataProvider_MapInfo> MapDataProviderList;
 var bool bHasFadeIn;
 
+var string CommanderName[2]; 
+
 function bool Start(optional bool StartPaused = false)
 {
 	//cache variables we use alot
@@ -118,6 +120,7 @@ function LoadGfxObjects()
 
 	//Root
 	RootMC = GetVariableObject("root1.rootMC");
+	Scoreboard = RootMC.GetObject("sb");
 	
 	//Root objects	
 	rootdebugtimertext = RootMC.GetObject("namedtest");
@@ -270,11 +273,10 @@ function UpdatePlayers()
 
 	foreach RxGRI.PRIArray(pri)
 	{
-		if(Rx_Bot_Scripted(pri.Owner) != None)	// skip if the bot is a scripted one
+		if(Rx_Pri(pri) == None || Rx_PRI(pri).bIsScripted)	// skip if the bot is a scripted one
 			continue;
 
-		if(Rx_Pri(pri) != None)
-			PRIArray.AddItem(pri);
+		PRIArray.AddItem(pri);
 	}
 
 	PRIArray.Sort(SortPriDelegate);	
@@ -407,7 +409,7 @@ function TickEndGameScoreboard()
 	{
 		TimeLeft = RxGRI.RenEndTime - PC.WorldInfo.RealTimeSeconds; //work out countdown for map voting/till next map load
 		if (int(TimeLeft) < 10) {
-			if(!`GameObject.IsTimerActive('PlayTickSound'))
+			if(`GameObject != None && !`GameObject.IsTimerActive('PlayTickSound'))
 				`GameObject.SetTimer(1, true, 'PlayTickSound', self);
 
 			NextRound.GotoAndStopI(10); // swap nextround countdown to red.		
@@ -716,13 +718,13 @@ function string divideTime(out float fTime, int timeDivision)
 			SetUpDataProvider(StatsGDI);
 			bWasHandled = true;
 			break;
-		case 'sb':
-			if (Scoreboard == none || Scoreboard != Widget) {
-				Scoreboard = GFxClikWidget(Widget);
-			}
-			SetUpDataProvider(Scoreboard);
-			bWasHandled = true;
-			break;
+//		case 'sb':
+//			if (Scoreboard == none || Scoreboard != Widget) {
+//				Scoreboard = GFxClikWidget(Widget);
+//			}
+//			SetUpDataProvider(Scoreboard);
+//			bWasHandled = true;
+//			break;
 		case 'endgameSB':
 			if (EndGameScoreBoard == none || EndGameScoreBoard != Widget) {
 				EndGameScoreBoard = GFxClikWidget(Widget);
@@ -754,6 +756,8 @@ function SetUpDataProvider(GFxObject Widget)
 
 	DataProvider = CreateObject("scaleform.clik.data.DataProvider");
 
+	UpdateCommanderNames();
+	
 	switch (Widget) 
 	{
 		case (MapVoteList):
@@ -801,8 +805,8 @@ function SetUpDataProvider(GFxObject Widget)
 			ChatBox.SetFloat("position", ChatBox.GetFloat("maxscroll"));
 			return;
 		case (MVPGDICommander):
-			if(RxGRI.ObjectiveManager != none && RxGRI.ObjectiveManager.Commander_GDI != "")
-				MVPGDICommander.SetText(RxGRI.ObjectiveManager.Commander_GDI);
+			if(CommanderName[0] != "")
+				MVPGDICommander.SetText(CommanderName[0]);
 			else
 				MVPGDICommander.SetText("None");
 			return;
@@ -831,8 +835,8 @@ function SetUpDataProvider(GFxObject Widget)
 				MVPGDISupport.SetText("None");
 			return;
 		case (MVPNODCommander):
-			if(RxGRI.ObjectiveManager != none && RxGRI.ObjectiveManager.Commander_Nod != "")
-				MVPNODCommander.SetText(RxGRI.ObjectiveManager.Commander_Nod);
+			if(CommanderName[1] != "")
+				MVPNODCommander.SetText(CommanderName[1]);
 			else
 				MVPNODCommander.SetText("None");
 			return;
@@ -1053,6 +1057,26 @@ function int SortPriDelegate( coerce PlayerReplicationInfo pri1, coerce PlayerRe
 			return -1;
 	}
 	return 0;
+}
+
+function UpdateCommanderNames(){ 
+	local PlayerReplicationInfo pri; 
+	
+	CommanderName[0] = ""; 
+	CommanderName[1] = ""; 
+	
+	foreach RxGRI.PRIArray(pri)
+	{
+		if(Rx_Pri(pri) != None && Rx_PRI(pri).bIsCommander){
+			if(pri.GetTeamNum() == 0){
+				CommanderName[0] = pri.PlayerName; 
+			}
+			else{
+				CommanderName[1] = pri.PlayerName; 
+			}
+				
+		}
+	}
 }
 
 DefaultProperties
