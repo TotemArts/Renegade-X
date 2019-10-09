@@ -24,8 +24,8 @@ simulated function bool IsTouchingOnly()
 DefaultProperties
 {
     BuildingInternalsClass = Rx_Building_RepairFacility_Internals
-    myBuildingType=BT_Rep
     TeamID = TEAM_UNOWNED
+    bSignificant = false
 
 	Begin Object Name=Static_Interior
 		StaticMesh = StaticMesh'RX_BU_RepairPad.Mesh.SM_RepairPad'

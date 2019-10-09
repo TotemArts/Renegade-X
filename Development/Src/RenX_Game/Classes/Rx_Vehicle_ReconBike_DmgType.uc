@@ -12,6 +12,6 @@ defaultproperties
     BuildingDamageScaling=0.96f
 	MineDamageScaling=2.0
 
-	IconTextureName="T_DeathIcon_Apache"
-	IconTexture=Texture2D'TS_VH_Buggy.Materials.T_DeathIcon_Buggy'
+	IconTextureName="T_DeathIcon_ReconBike"
+	IconTexture=Texture2D'RX_VH_ReconBike.UI.T_DeathIcon_ReconBike'
 }

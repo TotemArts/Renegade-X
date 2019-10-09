@@ -138,6 +138,8 @@ simulated function PlayDestructionAnimation()
 
 	bStartEmitter = false;
 
+	super.PlayDestructionAnimation();
+
 	if (`WorldInfoObject.NetMode != NM_DedicatedServer)
 		ForEach RepairJets(PS)
 			PS.KillParticlesForced();

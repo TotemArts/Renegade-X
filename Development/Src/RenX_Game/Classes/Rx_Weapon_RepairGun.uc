@@ -486,15 +486,110 @@ function bool CanHeal(Actor Other)
 function bool CanAttack(Actor Other)
 {
 	if(VSizeSq(Instigator.GetWeaponStartTraceLocation() - Other.Location) <= Square(WeaponRange - 100))
-
+		return false;
+		
 	if(Rx_Weapon_DeployedActor(Other) != None)
-		return super.CanAttack(Other);
+		return CanTraceTo(Other);
 
 	if(Other.GetTeamNum() != 255 && Other.GetTeamNum() != Owner.GetTeamNum()) 
 	{
 		return false;
 	}
-	return super.CanAttack(Other);
+	return CanTraceTo(Other);
+}
+
+// super version of CanAttack, but edited
+function bool CanTraceTo(Actor Other)
+{
+	local float Dist, CheckDist, OtherHeight;
+	local vector HitLocation, HitNormal, projStart, TargetLoc;
+	local Actor HitActor;
+	local class<Projectile> ProjClass;
+	local int i;
+	local UTBot B;
+
+	if (Instigator == None || Instigator.Controller == None)
+	{
+		return false;
+	}
+
+	// check that target is within range
+	Dist = VSize(Instigator.Location - Other.Location);
+	if (Dist > MaxRange())
+	{
+		return false;
+	}
+
+	projStart = bInstantHit ? InstantFireStartTrace() : GetPhysicalFireStartLoc();
+
+	// check that can see target
+	B = UTBot(Instigator.Controller);
+	if (Instigator.Controller.LineOfSightTo(Other, projStart))
+	{
+		if (B != None && B.Focus == Other)
+		{
+			B.bTargetAlternateLoc = false;
+		}
+	}
+	else
+	{
+		if (!Other.bHasAlternateTargetLocation || !Instigator.Controller.LineOfSightTo(Other, projStart, true))
+		{
+			return false;
+		}
+
+		if (B != None && B.Focus == Other)
+		{
+			B.bTargetAlternateLoc = true;
+		}
+	}
+
+	if ( !bInstantHit )
+	{
+		ProjClass = GetProjectileClass();
+		if ( ProjClass == None )
+		{
+			for (i = 0; i < WeaponProjectiles.length; i++)
+			{
+				ProjClass = WeaponProjectiles[i];
+				if (ProjClass != None)
+				{
+					break;
+				}
+			}
+		}
+		if (ProjClass == None)
+		{
+			`warn("No projectile class for "$self);
+			CheckDist = 300;
+		}
+		else
+		{
+			CheckDist = FMax(CheckDist, 0.5 * ProjClass.default.Speed);
+			CheckDist = FMax(CheckDist, 300);
+			CheckDist = FMin(CheckDist, VSize(Other.Location - Location));
+		}
+	}
+
+	// check that would hit target, and not a friendly
+	TargetLoc = Other.GetTargetLocation(Instigator);
+	if ( Pawn(Other) != None )
+	{
+		OtherHeight = Pawn(Other).GetCollisionHeight();
+		TargetLoc.Z += 0.9 * OtherHeight;
+	}
+
+	// perform the trace
+
+	HitActor = GetTraceOwner().Trace(HitLocation, HitNormal, TargetLoc, projStart, true,,, TRACEFLAG_Bullet);
+	
+
+	if ( HitActor == Other )	// we need to be sure that we hit the actual target
+	{
+		return true;
+	}
+
+	return false;
 }
 
 simulated function bool UsesClientSideProjectiles(byte FireMode)

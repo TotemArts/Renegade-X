@@ -17,7 +17,12 @@ function float GetProbabilityWeight(Rx_Pawn Recipient, Rx_CratePickup CratePicku
 
 function ExecuteCrateBehaviour(Rx_Pawn Recipient, Rx_PRI RecipientPRI, Rx_CratePickup CratePickup)
 {
-	RecipientPRI.AddVP(VPAmount);
+	//
+	if(Rx_Controller(Recipient.Controller) != none){
+		Rx_Controller(Recipient.Controller).DisseminateVPString("[Veterancy Crate]&" $ VPAmount $ "&");;
+	}
+	else
+		RecipientPRI.AddVP(VPAmount);
 }
 
 DefaultProperties

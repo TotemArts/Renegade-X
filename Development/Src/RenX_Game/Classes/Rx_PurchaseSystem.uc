@@ -2,12 +2,12 @@ class Rx_PurchaseSystem extends ReplicationInfo
 	notplaceable
 	config(PurchaseSystem);
 
-var privatewrite array<class<Rx_FamilyInfo> >	GDIInfantryClasses;
-var privatewrite array<class<Rx_Vehicle_PTInfo> >     GDIVehicleClasses;
+var protectedwrite array<class<Rx_FamilyInfo> >	GDIInfantryClasses;
+var protectedwrite array<class<Rx_Vehicle_PTInfo> >     GDIVehicleClasses;
 var array<class<Rx_Weapon> >      		GDIWeaponClasses;
 var array<class<Rx_Weapon> >      		GDIItemClasses;
-var privatewrite array<class<Rx_FamilyInfo> >			NodInfantryClasses;
-var privatewrite array<class<Rx_Vehicle_PTInfo> >     NodVehicleClasses;
+var protectedwrite array<class<Rx_FamilyInfo> >			NodInfantryClasses;
+var protectedwrite array<class<Rx_Vehicle_PTInfo> >     NodVehicleClasses;
 var array<class<Rx_Weapon> >      		NodWeaponClasses;
 var array<class<Rx_Weapon> >      		NodItemClasses;
 

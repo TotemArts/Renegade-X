@@ -7,4 +7,5 @@ defaultproperties
 	PreparationTime = 30
 
 	TacticName = "McFarland Party"
+	bTimeLimited = false
 }

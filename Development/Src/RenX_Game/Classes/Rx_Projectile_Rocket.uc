@@ -27,6 +27,7 @@ var float Vet_DamageIncrease[4];
 var Weapon MyWeaponInstigator;  
 
 var ParticleSystem				AirburstExplosionTemplate; 
+var vector						ExplosionSmokeColour;
 
 simulated function PostBeginPlay()
 {
@@ -335,6 +336,7 @@ simulated function SpawnExplosionEffects(vector HitLocation, vector HitNormal)
 		} else if(ImpactedActor != None && ImpactedActor.isA('Rx_Pawn')){
 			ProjExplosionTemplate = ImpactEffects[8].ParticleTemplate;
 			ExplosionSound = ImpactEffects[8].Sound;
+			ExplosionSmokeColour = ImpactEffects[8].ImpactSmokeColour; 
 		} else if(bShuttingDown && AirburstExplosionTemplate != none){
 			ProjExplosionTemplate = AirburstExplosionTemplate;
 			//ExplosionSound = ImpactEffects[8].Sound;
@@ -343,10 +345,18 @@ simulated function SpawnExplosionEffects(vector HitLocation, vector HitNormal)
 			Trace(NewHitLoc, HitNormal, (HitLocation - (HitNormal * 32)), HitLocation + (HitNormal * 32), true,, HitInfo, TRACEFLAG_Bullet);
 			ImpactEffect = GetImpactEffect(HitInfo.PhysMaterial);
 			ProjExplosionTemplate = ImpactEffect.ParticleTemplate;
+			ExplosionSmokeColour = ImpactEffect.ImpactSmokeColour; 
 			ExplosionSound = ImpactEffect.Sound;
 		}
 	}
 	super.SpawnExplosionEffects(HitLocation,HitNormal);
+}
+
+simulated function SetExplosionEffectParameters(ParticleSystemComponent ProjExplosion)
+{
+    Super.SetExplosionEffectParameters(ProjExplosion);
+	
+	ProjExplosion.SetVectorParameter('SurfaceImpactColour', ExplosionSmokeColour);
 }
 
 simulated function MaterialImpactEffect GetImpactEffect(PhysicalMaterial HitMaterial)

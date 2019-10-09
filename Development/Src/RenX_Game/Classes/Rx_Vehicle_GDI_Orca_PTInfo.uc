@@ -6,7 +6,7 @@ class Rx_Vehicle_GDI_Orca_PTInfo extends Rx_Vehicle_PTInfo
 DefaultProperties
 {
 		PTIconTexture	=	Texture2D'RenXPurchaseMenu.T_Icon_Veh_GDI_Orca'
-		title	    	=	"ORCA FIGHTER"
+		title	    	=	"ORCA"
 		cost	    	=	"900"
 		iconID			=	13
 		bAircraft   	=   true

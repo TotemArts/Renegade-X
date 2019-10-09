@@ -9,12 +9,7 @@ auto state Pickup
 	{
 		local Rx_Pawn RenPawn;
 		RenPawn = Rx_Pawn(Other);
-
-		if (RenPawn != none)
-		{
-			return RenPawn.Armor < RenPawn.ArmorMax && RenPawn.Health > 0;
-		}
-		else return false;
+		return RenPawn != None && RenPawn.Armor < RenPawn.ArmorMax && RenPawn.Health > 0;
 	}
 }
 
@@ -26,7 +21,7 @@ function SpawnCopyFor(Pawn Recipient)
 	if (RenPawn != none)
 	{
 		RenPawn.GiveArmor(ArmourGain);
-		RenPawn.DamageRate = 0; 
+		RenPawn.DamageRate = 0;
 	}
 
 	super.SpawnCopyFor(Recipient);

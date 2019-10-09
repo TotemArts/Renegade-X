@@ -13,6 +13,6 @@ DefaultProperties
 		desc			= 	"<font size='10'>-SWARM Rockets\n-Hydra-70 Rockets\n-Very Light Armour\n-Fast Harasser\n-Driver Only</font>"
 		VehicleClass	= 	class'TS_Vehicle_ReconBike'
 		
-		GDIVehicleAnnouncment = SoundNodeWave'RX_EVA_VoiceClips_Extra.gdi_eva.S_EVA_GDI_UnitReady_ReconBike'
+		GDIVehicleAnnouncment = SoundNodeWave'RX_EVA_VoiceClips.Nod_EVA.S_EVA_Nod_UnitReady_ReconBike'
 		NodVehicleAnnouncment = SoundNodeWave'RX_EVA_VoiceClips.Nod_EVA.S_EVA_Nod_UnitReady_ReconBike'
 }

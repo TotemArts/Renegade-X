@@ -487,7 +487,11 @@ function float AssessThreat( UTBot B, Pawn NewThreat, bool bThreatVisible )
 	if (Rx_Pawn(NewThreat) != None)
 	{
 		FI = class<Rx_FamilyInfo>(Rx_Pawn(NewThreat).CurrCharClassInfo);
-		ThreatValue += FI.static.Cost(Rx_PRI(NewThreat.PlayerReplicationInfo)) / 1000.0;
+
+		if(Rx_Pawn_Scripted(NewThreat) == None)
+			ThreatValue += FI.static.Cost(Rx_PRI(NewThreat.PlayerReplicationInfo)) / 1000.0;
+		else
+			ThreatValue += FI.default.BasePurchaseCost / 1000.0;
 	}
 
 	else if (Rx_Vehicle(NewThreat) != None && Rx_Bot(B).IdealToAttack(NewThreat))
@@ -544,6 +548,9 @@ function float AssessThreat( UTBot B, Pawn NewThreat, bool bThreatVisible )
 function bool MustKeepEnemy(Pawn E)
 {
 	local Rx_Building B;
+
+	if(E.GetTeamNum() == SquadLeader.GetTeamNum())
+		return false;
 
 	if(GetOrders() == 'DEFEND')
 	{
@@ -675,6 +682,11 @@ DefaultProperties
 	GDITactics.Add(class'Rx_AITactics_GDI_PatchRush')
 	GDITactics.Add(class'Rx_AITactics_GDI_MiniBeaconRush')
 	GDITactics.Add(class'Rx_AITactics_GDI_CommandoDeathball')
+	GDITactics.Add(class'Rx_AITactics_GDI_HavocRapeFest')
+	GDITactics.Add(class'Rx_AITactics_GDI_GunnerRush')
+	GDITactics.Add(class'Rx_AITactics_GDI_SydneyParty')
+
+
 
 	GDITactics.Add(class'Rx_AITactics_GDI_APCRush')
 	GDITactics.Add(class'Rx_AITactics_GDI_MedRush')
@@ -690,6 +702,9 @@ DefaultProperties
 	NodTactics.Add(class'Rx_AITactics_Nod_MiniBeaconRush')
 	NodTactics.Add(class'Rx_AITactics_Nod_StealthBeaconRush')
 	NodTactics.Add(class'Rx_AITactics_Nod_CommandoDeathball')
+	NodTactics.Add(class'Rx_AITactics_Nod_SakuraRapeFest')
+	NodTactics.Add(class'Rx_AITactics_Nod_LCGRush')
+	NodTactics.Add(class'Rx_AITactics_Nod_RaveParty')
 
 	NodTactics.Add(class'Rx_AITactics_Nod_FlameRush')
 	NodTactics.Add(class'Rx_AITactics_Nod_StankRush')

@@ -17,6 +17,11 @@ class Rx_Vehicle_ReconBike_Weapon extends Rx_Vehicle_Weapon_Reloadable;
 var float Target_Distance;
 var SoundCue WeaponDistantFireSnd;  // A second firing sound to be played when weapon fires. (Used for distant sound)
 
+simulated function bool UsesClientSideProjectiles(byte CurrFireMode)
+{
+	return false;
+}
+
 simulated function FireAmmunition()
 {
     super.FireAmmunition();

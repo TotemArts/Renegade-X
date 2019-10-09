@@ -380,6 +380,36 @@ function bool CanPlayBuildingUnderAttackMessage(byte TeamNum)
 	return false;
 }
 
+function AdjustTeamBalance()
+{
+	local Rx_Mutator Rx_Mut;
+
+	Rx_Mut = GetBaseRXMutator();
+	if (Rx_Mut != None)
+	{
+		if(Rx_Mut.adjustTeamBalance())
+	}	
+}
+
+function AdjustTeamSize()
+{
+	local Controller PC;
+	local Rx_Mutator Rx_Mut;
+
+	Rx_Mut = GetBaseRXMutator();
+	if (Rx_Mut != None)
+	{
+		if(Rx_Mut.adjustTeamSize())
+			return;
+	}
+
+	foreach WorldInfo.AllControllers( class'Controller', PC )
+	{
+		if(PC.bIsPlayer && PC.GetTeamNum() != GetPlayerTeam())
+			SetTeam(PC, Teams[GetPlayerTeam()], false);
+	}
+}
+
 DefaultProperties
 {
 	PlayerControllerClass	   = class'Rx_Controller_Coop'

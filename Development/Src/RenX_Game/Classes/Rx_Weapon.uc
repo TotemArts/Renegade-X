@@ -931,6 +931,7 @@ simulated function InstantFire()
 	} 
 	if (InstantHitDamageRadius[CurrentFireMode] > 0)
 		InstantFireRadiusDamage(CurrentFireMode, RealImpact.HitLocation, RealImpact.HitNormal, RealImpact.HitActor);
+	
 	if(Role < ROLE_Authority) {
 		Rx_Pawn(Owner).WeaponFired(self,true,RealImpact.HitLocation);
 	}
@@ -1593,8 +1594,12 @@ simulated function CheckMyZoom()
 
 reliable server function ServerALInstanthitHit( byte FiringMode, ImpactInfo Impact, vector RealImpactLocation)
 {
+	if(WorldInfo.Netmode == NM_DedicatedServer){
+		SetFlashLocation(RealImpactLocation);
+	}
+	
 	ProcessInstantHit(FiringMode, Impact);
-	SetFlashLocation(RealImpactLocation);
+	
 	if(Rx_Weapon_Shotgun(self) != None) {
 		if(Rx_Pawn(Owner).ShotgunPelletCount <= 10) { 
 			Rx_Pawn(Owner).ShotgunPelletHitLocations[Rx_Pawn(Owner).ShotgunPelletCount++] = RealImpactLocation;

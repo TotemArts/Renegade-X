@@ -12,6 +12,7 @@ var(Combat) bool bInvulnerableBots;
 var(Combat) float DamageDealtModifier;					// Determines the multiplier of this bot's damage
 var(Combat) float DamageTakenModifier;					// Determines the multiplier of the damage this bot takes from others
 var(Combat) float Skill;
+var(Combat) float SpeedModifier;
 
 
 defaultproperties
@@ -22,9 +23,10 @@ defaultproperties
 	
 	VariableLinks(0)=(ExpectedType=class'SeqVar_Object',LinkDesc="Spawner Object")
 
-	HandlerName = "OnModifySpawn"
+	HandlerName = OnModifySpawn
 
 	DamageDealtModifier = 1.f
 	DamageTakenModifier = 1.f
+	SpeedModifier = 1.f
 	Skill = 5.f
 }

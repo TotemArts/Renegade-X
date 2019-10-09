@@ -1152,14 +1152,15 @@ function SetUpDataProvider(GFxClikWidget Widget)
 			DataProvider.SetElementString(0, "BOINK");
 			DataProvider.SetElementString(1, "MODERN");
 			DataProvider.SetElementString(2, "KILL ALERT");
-			DataProvider.SetElementString(3, "HAVOC");
-			DataProvider.SetElementString(4, "MCFARLAND");
-			DataProvider.SetElementString(5, "GOTCHYA");
-			DataProvider.SetElementString(6, "AWW TOO EASY");
-			DataProvider.SetElementString(7, "FOR KANE");
-			DataProvider.SetElementString(8, "DIE INFIDEL");
-			DataProvider.SetElementString(9, "GOAT");
-			DataProvider.SetElementString(10, "NONE");
+			DataProvider.SetElementString(3, "COMMANDO");
+			DataProvider.SetElementString(4, "HAVOC");
+			DataProvider.SetElementString(5, "MCFARLAND");
+			DataProvider.SetElementString(6, "GOTCHYA");
+			DataProvider.SetElementString(7, "AWW TOO EASY");
+			DataProvider.SetElementString(8, "FOR KANE");
+			DataProvider.SetElementString(9, "DIE INFIDEL");
+			DataProvider.SetElementString(10, "GOAT");
+			DataProvider.SetElementString(11, "NONE");
 			break;
 
 		/************************************* [Settings - Input] *****************************************/
@@ -2276,24 +2277,27 @@ function OnKillSoundPlayButtonChange (GFxClikWidget.EventData ev)
 			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Kill_Alert_Cue');
 			break;
 		case 3:
-			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.SC_Havoc');
+			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.SC_Commando');
 			break;
 		case 4:
-			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.SC_McFarland');
+			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.SC_Havoc');
 			break;
 		case 5:
-			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Gotchya_Cue');
+			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.SC_McFarland');
 			break;
 		case 6:
-			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Aww_Too_Easy_Cue');
+			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Gotchya_Cue');
 			break;
 		case 7:
-			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_For_Kane_Cue');
+			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Aww_Too_Easy_Cue');
 			break;
 		case 8:
-			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Die_Infidel_Cue');
+			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_For_Kane_Cue');
 			break;
 		case 9:
+			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Die_Infidel_Cue');
+			break;
+		case 10:
 			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Goat_Cue');
 			break;	
 		default:

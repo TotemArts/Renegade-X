@@ -99,7 +99,8 @@ function bool PowerRestore()
 		SetupLaser();
 		return true;
 	}
-	else{
+	else
+	{
 		return false;
 	}
 }

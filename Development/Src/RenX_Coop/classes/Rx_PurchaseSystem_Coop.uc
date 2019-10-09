@@ -65,13 +65,23 @@ simulated function string GetFactoryDescription(byte teamID, string menuName, Rx
 		
 	} 
 	else if (menuName == "CHARACTERS") {
-		if (teamID == TEAM_GDI) {
+		if (teamID == TEAM_GDI) 
+		{
 			factoryName = Barracks.Length > 0 ? Caps(Barracks[0].GetHumanReadableName()) : "ARMORY";
-		} else if (teamID == TEAM_NOD) {
+			if(GDIInfantryClasses.Length < 6)
+				factoryStatus = "STATUS: UNAVAILABLE";
+			else
+				factoryStatus = "STATUS: ACTIVE";
+		} 
+		else if (teamID == TEAM_NOD) {
 			factoryName = HandOfNod.Length > 0 ? Caps(HandOfNod[0].GetHumanReadableName()) : "ARMORY";
+			if(NodInfantryClasses.Length < 6)
+				factoryStatus = "STATUS: UNAVAILABLE";
+			else
+				factoryStatus = "STATUS: ACTIVE";		
 		}
 		
-		factoryStatus = "STATUS: ACTIVE";
+
 		outputText = "<font size='9'>" $factoryName $"</font>"
 		$ "\n<font size='11'><b>" $factoryStatus $"</b></font>" 		
 		$ "\n<font size='10'>Advanced Characters" 
@@ -91,6 +101,18 @@ simulated function string GetFactoryDescription(byte teamID, string menuName, Rx
 
 	return outputText;
 }
+
+simulated function bool AreClassOptionLimited(byte teamID)
+{
+	if(teamID == TEAM_GDI && GDIInfantryClasses.Length <= 5)
+		return true;
+	if(teamID == TEAM_NOD && NodInfantryClasses.Length <= 5)
+		return true;
+
+	return false;
+
+}
+
 
 simulated function bool AreVehiclesDisabled(byte teamID, Controller rxPC)
 {
@@ -136,5 +158,60 @@ function bool PurchaseVehicle(Rx_PRI Buyer, int TeamID, int VehicleID )
 
 	Super.PurchaseVehicle(Buyer,TeamID,VehicleID);
 
+}
+
+simulated function UpdateMapSpecificVehicleClasses(){
+	local Rx_MapInfo MI;
+	
+	MI = Rx_MapInfo(WorldInfo.GetMapInfo());
+	
+	if(MI == none)
+			return; 
+	else
+	{
+			GDIVehicleClasses = MI.GDIVehicleArray;
+			NodVehicleClasses = MI.NodVehicleArray;
+	}	
+}
+
+simulated function UpdateMapSpecificInfantryClasses()
+{
+	local Rx_MapInfo MI; 
+	
+	MI = Rx_MapInfo(WorldInfo.GetMapInfo());
+	
+	if(MI == none)
+			return; 
+	else
+	{
+
+			GDIInfantryClasses = MI.GDIInfantryArray;
+			NodInfantryClasses = MI.NodInfantryArray;
+	}	
+}
+
+function bool DoesHaveRepairGun( class<UTFamilyInfo> inFam )
+{
+	local class<Rx_Weapon> WeaponLoadout;
+	local class<Rx_InventoryManager> InvManager;
+
+	InvManager = class<Rx_FamilyInfo>(inFam).default.InvManagerClass;
+
+	foreach InvManager.default.PrimaryWeapons(WeaponLoadout)
+	{
+		if(class<Rx_Weapon_RepairGun>(WeaponLoadout) != None)
+			return true;
+	}
+
+	return false;	
+}
+
+simulated function bool DoesClassExist( byte TeamID, int ClassNumber)
+{
+	if(TeamID == TEAM_GDI)
+		return ClassNumber <= GDIInfantryClasses.Length - 1;
+
+	else
+		return ClassNumber <= NodInfantryClasses.Length - 1;
 }
 

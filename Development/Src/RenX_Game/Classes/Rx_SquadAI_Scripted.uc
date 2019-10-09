@@ -70,3 +70,32 @@ function float VehicleDesireability(UTVehicle V, UTBot B)
 
 	return 0;
 }
+
+function PickNewLeader()
+{
+	local UTBot B;
+
+	// pick a leader that isn't out of the game or in a vehicle turret
+	for ( B=SquadMembers; B!=None; B=B.NextSquadMember )
+		if (B.Pawn == None || !B.Pawn.bStationary || B.Pawn.GetVehicleBase() == None)
+			break;
+
+	if ( B == None )
+		return;
+
+	if ( SquadLeader != B )
+	{
+		SquadLeader = B;
+		if ( SquadLeader == None )
+			LeaderPRI = None;
+		else
+			LeaderPRI = UTPlayerReplicationInfo(SquadLeader.PlayerReplicationInfo);
+		bForceNetUpdate = TRUE;
+	}
+}
+
+function bool FriendlyToward(Pawn Other)
+{
+	return SquadLeader.GetTeamNum() == Other.GetTeamNum();
+}
+

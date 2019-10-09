@@ -188,7 +188,6 @@ function SetFlashText(string TEXT,color C,optional float TIME = 60, optional flo
 	if(RenxHud == None) 
 		return;
 	
-	`log("Warning:" @ bWarning); 
 	if(bWarning)
 		RenxHud.PlayerOwner.ClientPlaySound(WarningBeepSnd) ;
 	else

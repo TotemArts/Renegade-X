@@ -208,4 +208,5 @@ DefaultProperties
 	DefaultCrateTypes[12] = class'Rx_CrateType_DamageResistance'
 	DefaultCrateTypes[13] = class'Rx_CrateType_ClassicVehicle'
 	DefaultCrateTypes[14] = class'Rx_CrateType_EpicCharacter'
+	DefaultCrateTypes[15] = class'Rx_CrateType_Kamikaze'
 }

@@ -801,7 +801,7 @@ reliable server function IncreaseSprintSpeed()
 	
 	VGround_SprintSpeedMax = default.MaxSprintSpeedMultiplier*GetSpeedModifier() ;//*Vet_SprintSpeedMod[VRank] ;
 	//`log(VGround_SprintSpeedMax);
-	MinSprintSpeedMultiplier += SprintSpeedIncrement*GetSpeedModifier(); ;//Vet_SprintSpeedMod[VRank];
+	MinSprintSpeedMultiplier += SprintSpeedIncrement*GetSpeedModifier();//Vet_SprintSpeedMod[VRank];
 	//`log(SprintSpeedIncrement*Vet_SprintSpeedMod[VRank]);
 	
 	if(MinSprintSpeedMultiplier >= VGround_SprintSpeedMax)
@@ -813,9 +813,9 @@ reliable server function IncreaseSprintSpeed()
 		}
 	}
 
-	SprintSpeed_Air = Default.AirSpeed * MinSprintSpeedMultiplier * GetSpeedModifier();//Vet_SprintSpeedMod[VRank];
-	SprintSpeed_Ground = Default.GroundSpeed * MinSprintSpeedMultiplier * GetSpeedModifier() ;//Vet_SprintSpeedMod[VRank];
-	SprintSpeed_Water = Default.WaterSpeed * MinSprintSpeedMultiplier * GetSpeedModifier() ;//Vet_SprintSpeedMod[VRank];
+	SprintSpeed_Air = Default.AirSpeed * MinSprintSpeedMultiplier * GetSpeedModifier() * GetScriptedSpeedModifier();//Vet_SprintSpeedMod[VRank];
+	SprintSpeed_Ground = Default.GroundSpeed * MinSprintSpeedMultiplier * GetSpeedModifier() * GetScriptedSpeedModifier();//Vet_SprintSpeedMod[VRank];
+	SprintSpeed_Water = Default.WaterSpeed * MinSprintSpeedMultiplier * GetSpeedModifier() * GetScriptedSpeedModifier();//Vet_SprintSpeedMod[VRank];
 
 	if(PlayerController(Controller) != None)
 	{
@@ -829,7 +829,7 @@ reliable server function IncreaseSprintSpeed()
 	WaterSpeed = SprintSpeed_Water;
 
 	if(UDKVehicleSimCar(SimObj) != None)
-		UDKVehicleSimCar(SimObj).ThrottleSpeed = UDKVehicleSimCar(SimObj).Default.ThrottleSpeed * MinSprintSpeedMultiplier;
+		UDKVehicleSimCar(SimObj).ThrottleSpeed = UDKVehicleSimCar(SimObj).Default.ThrottleSpeed * MinSprintSpeedMultiplier * GetScriptedSpeedModifier();
 }
 reliable server function DecreaseSprintSpeed()
 {
@@ -852,27 +852,27 @@ reliable server function DecreaseSprintSpeed()
 		ServerSetWaterSpeed(WaterSpeed);
 	}
 
-	AirSpeed = Default.AirSpeed;
-	GroundSpeed = Default.GroundSpeed;
-	WaterSpeed = Default.WaterSpeed;
+	AirSpeed = Default.AirSpeed * GetScriptedSpeedModifier();
+	GroundSpeed = Default.GroundSpeed * GetScriptedSpeedModifier();
+	WaterSpeed = Default.WaterSpeed * GetScriptedSpeedModifier();
 
 	if(UDKVehicleSimCar(SimObj) != None)
-		UDKVehicleSimCar(SimObj).ThrottleSpeed = UDKVehicleSimCar(SimObj).Default.ThrottleSpeed;
+		UDKVehicleSimCar(SimObj).ThrottleSpeed = UDKVehicleSimCar(SimObj).Default.ThrottleSpeed * GetScriptedSpeedModifier();
 }
 
 reliable server function HardSprintStop()
 {
 	
 	//`log("Tried to decrease");
-	MinSprintSpeedMultiplier -= default.MinSprintSpeedMultiplier;
+	MinSprintSpeedMultiplier -= default.MinSprintSpeedMultiplier  * GetScriptedSpeedModifier();
 	if(IsTimerActive('DecreaseSprintSpeed'))
 	{
 		ClearTimer('DecreaseSprintSpeed');
 	}
 	
-	AirSpeed = Default.AirSpeed;
-	GroundSpeed = Default.GroundSpeed;
-	WaterSpeed = Default.WaterSpeed;
+	AirSpeed = Default.AirSpeed * GetScriptedSpeedModifier();
+	GroundSpeed = Default.GroundSpeed * GetScriptedSpeedModifier();
+	WaterSpeed = Default.WaterSpeed * GetScriptedSpeedModifier();
 
 	if(PlayerController(Controller) != None)
 	{
@@ -882,7 +882,7 @@ reliable server function HardSprintStop()
 	}
 
 	if(UDKVehicleSimCar(SimObj) != None)
-		UDKVehicleSimCar(SimObj).ThrottleSpeed = UDKVehicleSimCar(SimObj).Default.ThrottleSpeed;
+		UDKVehicleSimCar(SimObj).ThrottleSpeed = UDKVehicleSimCar(SimObj).Default.ThrottleSpeed  * GetScriptedSpeedModifier();
 }
 
 function UnmarkTarget()
@@ -1697,7 +1697,7 @@ function bool Died(Controller Killer, class<DamageType> DamageType, vector HitLo
 				{
 					bStopDeathCamera = true;
 				}
-				else
+				else if(Rx_Bot_Scripted(Seats[i].SeatPawn.Controller) == None || (Rx_Bot_Scripted(Seats[i].SeatPawn.Controller).mySpawner != None && Rx_Bot_Scripted(Seats[i].SeatPawn.Controller).mySpawner.bDriverSurvives))
 					Seats[i].SeatPawn.DriverLeave(true);
 			}
 		}
@@ -2011,13 +2011,27 @@ function bool DriverEnter(Pawn P)
 	else
 	if(ROLE == ROLE_Authority && Rx_Bot(Controller) != none) 
 	{
-		SetRadarVisibility(Rx_Bot(Controller).GetRadarVisibility());  	
-		PromoteUnit(Rx_PRI(Controller.PlayerReplicationInfo).VRank); 
-		//Update overlays/stats
-		Rx_Bot(Controller).UpdateModifiedStats();
-		Rx_PRI(Controller.PlayerReplicationInfo).UpdateVehicleClass(self.class); 
-		TempVRank =Rx_PRI(Controller.PlayerReplicationInfo).VRank;
-		if(IsTimerActive('ResetTempVRank')) ClearTimer('ResetTempVRank'); 
+		if(Rx_Bot_Scripted(Controller) == None)
+		{
+			SetRadarVisibility(Rx_Bot(Controller).GetRadarVisibility());  	
+			PromoteUnit(Rx_PRI(Controller.PlayerReplicationInfo).VRank); 
+			//Update overlays/stats
+			Rx_Bot(Controller).UpdateModifiedStats();
+			Rx_PRI(Controller.PlayerReplicationInfo).UpdateVehicleClass(self.class); 
+			TempVRank =Rx_PRI(Controller.PlayerReplicationInfo).VRank;
+		}
+		else
+		{
+			SetRadarVisibility(Rx_Bot(Controller).GetRadarVisibility());  	
+			PromoteUnit(Rx_Bot_Scripted(Controller).VRank); 
+			//Update overlays/stats
+			Rx_Bot(Controller).UpdateModifiedStats();
+			TempVRank =Rx_Bot_Scripted(Controller).VRank;
+
+		}
+
+		if(IsTimerActive('ResetTempVRank')) 
+			ClearTimer('ResetTempVRank'); 
 	}
 	else 
 	if(ROLE == ROLE_Authority && Rx_Vehicle_HarvesterController(Controller) != none) 
@@ -4075,15 +4089,31 @@ simulated function float GetSpeedModifier()
 	
 	if(bEMPd) return 0.0; 
 	
-	if(Rx_Controller(Controller) != none) return Vet_SprintSpeedMod[VRank]+(Rx_Controller(Controller).Misc_SpeedModifier); 
+	if(Rx_Controller(Controller) != none) 
+		return Vet_SprintSpeedMod[VRank]+(Rx_Controller(Controller).Misc_SpeedModifier); 
+	
+	else if(Rx_Bot(Controller) != none) 
+	{
+		return Vet_SprintSpeedMod[VRank]+(Rx_Bot(Controller).Misc_SpeedModifier); 
+	}
+	
+	else if(Rx_Vehicle_HarvesterController(Controller) != none) 
+		return Vet_SprintSpeedMod[VRank]+(Rx_Vehicle_HarvesterController(Controller).Misc_SpeedModifier); 
+	
+	else if(Rx_Defence_Controller(Controller) != none) 
+		return Vet_SprintSpeedMod[VRank]+(Rx_Defence_Controller(Controller).Misc_SpeedModifier); 
+	
 	else
-	if(Rx_Bot(Controller) != none) return Vet_SprintSpeedMod[VRank]+(Rx_Bot(Controller).Misc_SpeedModifier); 
+		return Vet_SprintSpeedMod[VRank]; 
+}
+
+simulated function float GetScriptedSpeedModifier()
+{
+	if(Rx_Bot_Scripted(Controller) != None && Rx_Bot_Scripted(Controller).MySpawner != None)
+		return Rx_Bot_Scripted(Controller).MySpawner.SpeedModifier;
+
 	else
-	if(Rx_Vehicle_HarvesterController(Controller) != none) return Vet_SprintSpeedMod[VRank]+(Rx_Vehicle_HarvesterController(Controller).Misc_SpeedModifier); 
-	else
-	if(Rx_Defence_Controller(Controller) != none) return Vet_SprintSpeedMod[VRank]+(Rx_Defence_Controller(Controller).Misc_SpeedModifier); 
-	else
-	return Vet_SprintSpeedMod[VRank]; 
+		return 1.f;
 }
 
 //Resistance is about the only thing defences and Harvesters need to worry about 
@@ -4197,19 +4227,24 @@ simulated function UpdateThrottleAndTorqueVars()
 {
 	if(UDKVehicleSimCar(SimObj) != None)
 		{
-			UDKVehicleSimCar(SimObj).ThrottleSpeed = UDKVehicleSimCar(SimObj).Default.ThrottleSpeed * MinSprintSpeedMultiplier*GetSpeedModifier(); //*Vet_SprintSpeedMod[VRank];
+			UDKVehicleSimCar(SimObj).ThrottleSpeed = UDKVehicleSimCar(SimObj).Default.ThrottleSpeed * MinSprintSpeedMultiplier*GetSpeedModifier() * GetScriptedSpeedModifier(); //*Vet_SprintSpeedMod[VRank];
+			if(Rx_Bot_Scripted(Controller) != None)
+			{
+				MaxSpeed = Default.MaxSpeed * GetScriptedSpeedModifier();
+				ServerSetMaxSpeed(MaxSpeed);
+			}
 		}
 		else if(SVehicleSimTank(SimObj) != None)
 		{
 			if(bSprinting)
 			{
-				SVehicleSimTank(SimObj).MaxEngineTorque = SVehicleSimTank(SimObj).Default.MaxEngineTorque * MinSprintSpeedMultiplier*GetSpeedModifier(); //*Vet_SprintSpeedMod[VRank];
-				SVehicleSimTank(SimObj).InsideTrackTorqueFactor =  SVehicleSimTank(SimObj).Default.InsideTrackTorqueFactor * ((MinSprintSpeedMultiplier*GetSpeedModifier()) / (Rx_Vehicle_Treaded(self).SprintTrackTorqueFactorDivident+GetTurnTrackSpeedModifier())) ;
+				SVehicleSimTank(SimObj).MaxEngineTorque = SVehicleSimTank(SimObj).Default.MaxEngineTorque * MinSprintSpeedMultiplier*GetSpeedModifier() * GetScriptedSpeedModifier(); //*Vet_SprintSpeedMod[VRank];
+				SVehicleSimTank(SimObj).InsideTrackTorqueFactor =  SVehicleSimTank(SimObj).Default.InsideTrackTorqueFactor * ((MinSprintSpeedMultiplier*GetSpeedModifier()) / (Rx_Vehicle_Treaded(self).SprintTrackTorqueFactorDivident+GetTurnTrackSpeedModifier()))  * GetScriptedSpeedModifier();
 			}
 			else
 			{
-				SVehicleSimTank(SimObj).MaxEngineTorque = SVehicleSimTank(SimObj).Default.MaxEngineTorque; //*Vet_SprintSpeedMod[VRank];
-				SVehicleSimTank(SimObj).InsideTrackTorqueFactor =  SVehicleSimTank(SimObj).Default.InsideTrackTorqueFactor ;
+				SVehicleSimTank(SimObj).MaxEngineTorque = SVehicleSimTank(SimObj).Default.MaxEngineTorque  * GetScriptedSpeedModifier(); //*Vet_SprintSpeedMod[VRank];
+				SVehicleSimTank(SimObj).InsideTrackTorqueFactor =  SVehicleSimTank(SimObj).Default.InsideTrackTorqueFactor  * GetScriptedSpeedModifier();
 			}
 			
 		} 	
@@ -4426,6 +4461,18 @@ function bool FindAutoExit(Pawn ExitingDriver)
 simulated function bool CanBeBaseForPawn(Pawn APawn)
 {
 	return super.CanBeBaseForPawn(APawn) && Rx_Vehicle_Walker(APawn) == None;
+}
+
+simulated function byte GetTeamNum()
+{
+	if(Rx_Bot_Scripted(Controller) != None)
+		return Controller.GetTeamNum();
+	else if(Rx_Pawn_Scripted(Driver) != None)
+		return Driver.GetTeamNum();
+	else if(Rx_Pawn_Scripted(Seats[0].StoragePawn) != None)
+		return Seats[0].StoragePawn.GetTeamNum();
+
+	return Super.GetTeamNum();
 }
 
 DefaultProperties

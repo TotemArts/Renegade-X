@@ -49,6 +49,7 @@ var GFxClikWidget TimeLimitExpiryCheckBox;
 
 
 var array<Rx_UIDataProvider_MapInfo> MapDataProviderList;
+var array<Rx_UIDataProvider_MapInfo> AvailableMapDataProviders;
 
 var Rx_UIDataProvider_MapInfo SkirmishMapSettings;
 
@@ -93,6 +94,15 @@ struct MapOption
 	var string MapImage;
 };
 
+struct GameModeInfo
+{
+    var string Prefix;
+    var string GameModeName;
+};
+
+var config array<GameModeInfo> GameModes;
+
+
 var config array<int> TimeLimitPresets;
 var config array<int> MineLimitPresets;
 var config int VehicleLimit;
@@ -116,12 +126,25 @@ function OnViewLoaded(Rx_GFXFrontEnd FrontEnd)
 {
 	MainFrontEnd = FrontEnd;
 	MapDataProviderList = Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList;
-
-	SkirmishMapSettings =  MapDataProviderList[0];
+    GetAvailableMapDataProviders();
+	SkirmishMapSettings =  AvailableMapDataProviders[0];
 
 	SaveConfig();
     //SaveSkirmishOption();
 	ActionScriptVoid("validateNow");
+}
+
+function GetAvailableMapDataProviders()
+{
+    local int i;
+
+    for (i = 0; i < MapDataProviderList.Length; i++) 
+    {
+        if(Mid(MapDataProviderList[i].MapName,0,Len(GameModes[LastGameModeItemPosition].Prefix)) ~= GameModes[LastGameModeItemPosition].Prefix)
+        {
+            AvailableMapDataProviders.AddItem(MapDataProviderList[i]);
+        }
+    }   
 }
 
 function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widget)
@@ -164,9 +187,11 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 				MapImageLoader = GFxClikWidget(Widget);
 			}
 
-			if (MapDataProviderList[LastMapListItemPosition].PreviewImageMarkup != "") {
-				MapImageLoader.SetString("source", "img://" $ MapDataProviderList[LastMapListItemPosition].PreviewImageMarkup);
-			} else {
+			if (AvailableMapDataProviders[LastMapListItemPosition].PreviewImageMarkup != "") {
+				MapImageLoader.SetString("source", "img://" $ AvailableMapDataProviders[LastMapListItemPosition].PreviewImageMarkup);
+			} 
+            else 
+            {
 				//MapImageLoader.SetString("source", "Mockup_MissingCameo");
 				MapImageLoader.SetString("source", "img://RenXFrontEnd.MapImage.___map-pic-missing-cameo");
 			}
@@ -185,7 +210,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			if (MapSizeLabel == none || MapSizeLabel != Widget) {
 				MapSizeLabel = GFxClikWidget(Widget);
 			}
-            MapSizeLabel.SetText("Size: " $ MapDataProviderList[LastMapListItemPosition].Size);
+            MapSizeLabel.SetText("Size: " $ AvailableMapDataProviders[LastMapListItemPosition].Size);
 			bWasHandled = true;
             break;
 			if (MapImageLoader == none || MapImageLoader != Widget) {
@@ -195,39 +220,39 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			if (MapStyleLabel == none || MapStyleLabel != Widget) {
 				MapStyleLabel = GFxClikWidget(Widget);
 			}
-            MapStyleLabel.SetText("Style: " $ MapDataProviderList[LastMapListItemPosition].Style);
+            MapStyleLabel.SetText("Style: " $ AvailableMapDataProviders[LastMapListItemPosition].Style);
 			bWasHandled = true;
             break;
         case 'MapPlayerCountLabel':
 			if (MapPlayerCountLabel == none || MapPlayerCountLabel != Widget) {
 				MapPlayerCountLabel = GFxClikWidget(Widget);
 			}
-            MapPlayerCountLabel.SetText("Recommended Players: " $ MapDataProviderList[LastMapListItemPosition].NumPlayers);
+            MapPlayerCountLabel.SetText("Recommended Players: " $ AvailableMapDataProviders[LastMapListItemPosition].NumPlayers);
 			bWasHandled = true;
             break;
         case 'MapHasAirVehiclesLabel':
 			if (MapHasAirVehiclesLabel == none || MapHasAirVehiclesLabel != Widget) {
 				MapHasAirVehiclesLabel = GFxClikWidget(Widget);
 			}
-            MapHasAirVehiclesLabel.SetText("Air Vehicles: " $ MapDataProviderList[LastMapListItemPosition].AirVehicles);
+            MapHasAirVehiclesLabel.SetText("Air Vehicles: " $ AvailableMapDataProviders[LastMapListItemPosition].AirVehicles);
 			bWasHandled = true;
             break;
         case 'MapTechBuildingsLabel':
 			if (MapTechBuildingsLabel == none || MapTechBuildingsLabel != Widget) {
 				MapTechBuildingsLabel = GFxClikWidget(Widget);
 			}
-            MapTechBuildingsLabel.SetText("Tech Buildings: " $ MapDataProviderList[LastMapListItemPosition].TechBuildings);
+            MapTechBuildingsLabel.SetText("Tech Buildings: " $ AvailableMapDataProviders[LastMapListItemPosition].TechBuildings);
 			bWasHandled = true;
             break;
         case 'MapBaseDefencesLabel':
 			if (MapBaseDefencesLabel == none || MapBaseDefencesLabel != Widget) {
 				MapBaseDefencesLabel = GFxClikWidget(Widget);
 			}
-            MapBaseDefencesLabel.SetText("Base Defences: " $ MapDataProviderList[LastMapListItemPosition].BaseDefences);
+            MapBaseDefencesLabel.SetText("Base Defences: " $ AvailableMapDataProviders[LastMapListItemPosition].BaseDefences);
 			bWasHandled = true;
             break;
 
-        case 'GDIBotDropDown':
+        case 'GDIBotDropDown': 
 			if (GDIBotDropDown == none || GDIBotDropDown != Widget) {
 				GDIBotDropDown = GFxClikWidget(Widget);
 			}
@@ -257,7 +282,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			if (GDIAttackingLabel == none || GDIAttackingLabel != Widget) {
 				GDIAttackingLabel = GFxClikWidget(Widget);
 			}
-            GDIAttackingLabel.SetText(""$ MapDataProviderList[LastMapListItemPosition].GDIAttackingValue $" %");
+            GDIAttackingLabel.SetText(""$ AvailableMapDataProviders[LastMapListItemPosition].GDIAttackingValue $" %");
 			bWasHandled = true;
             break;
         case 'GDIBotSlider':
@@ -273,7 +298,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			if (GDIBotCountLabel == none || GDIBotCountLabel != Widget) {
 				GDIBotCountLabel = GFxClikWidget(Widget);
 			}
-            GDIBotCountLabel.SetText(MapDataProviderList[LastMapListItemPosition].GDIBotValue);
+            GDIBotCountLabel.SetText(AvailableMapDataProviders[LastMapListItemPosition].GDIBotValue);
 			bWasHandled = true;
             break;
         case 'NodBotDropDown':
@@ -306,7 +331,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			if (NodAttackingLabel == none || NodAttackingLabel != Widget) {
 				NodAttackingLabel = GFxClikWidget(Widget);
 			}
-            NodAttackingLabel.SetText(""$ MapDataProviderList[LastMapListItemPosition].NodAttackingValue $" %" );
+            NodAttackingLabel.SetText(""$ AvailableMapDataProviders[LastMapListItemPosition].NodAttackingValue $" %" );
 			bWasHandled = true;
             break;
         case 'NodBotSlider':
@@ -321,7 +346,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			if (NodBotCountLabel == none || NodBotCountLabel != Widget) {
 				NodBotCountLabel = GFxClikWidget(Widget);
 			}
-            NodBotCountLabel.SetText(MapDataProviderList[LastMapListItemPosition].NodBotValue);
+            NodBotCountLabel.SetText(AvailableMapDataProviders[LastMapListItemPosition].NodBotValue);
 			bWasHandled = true;
             break;
         case 'StartingTeamDropDown':
@@ -346,7 +371,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			if (StartingCreditsLabel == none || StartingCreditsLabel != Widget) {
 				StartingCreditsLabel = GFxClikWidget(Widget);
 			}
-            StartingCreditsLabel.SetText(MapDataProviderList[LastMapListItemPosition].StartingCreditsValue);
+            StartingCreditsLabel.SetText(AvailableMapDataProviders[LastMapListItemPosition].StartingCreditsValue);
 			bWasHandled = true;
             break;
         case 'TimeLimitStepper':
@@ -426,7 +451,7 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 /** Populates dropdowns, selection lists, and button groups with appropriate data **/
 function SetUpDataProvider(GFxClikWidget Widget)
 {
-    local byte i;
+    local byte i, j, k;
     local GFxObject DataProvider;
 	local GFxObject TempObj;
 
@@ -451,32 +476,62 @@ function SetUpDataProvider(GFxClikWidget Widget)
             break; 
 
         case (GameModeDropDown):
-            DataProvider.SetElementString(0, Caps("Command & Conquer"));
+            k = 0;
+            for(i = 0; i < GameModes.Length; i++)
+            {
+                for (j = 0; j < MapDataProviderList.Length; j++) 
+                {
+                    if(Mid(MapDataProviderList[j].MapName,0,Len(GameModes[i].Prefix)) ~= GameModes[i].Prefix)
+                    {
+                        DataProvider.SetElementString(k, Caps(GameModes[i].GameModeName));
+                        k++;
+                        break;
+                    }
+                }
+            }
             //DataProvider.SetElementString(1, "C&C Assault");
             break;
         case (MapList):
 			Widget.SetInt("rowCount", 11);
-            if (GameModeDropDown != none) {
-                if (LastGameModeItemPosition == 0) {
-                    for (i = 0; i < MapDataProviderList.Length; i++) {
-						
-						`log("Name - " $ MapDataProviderList[i].FriendlyName);
-                        DataProvider.SetElementString(i, MapDataProviderList[i].FriendlyName);
+            j = 0;
+            AvailableMapDataProviders.Length = 0;
+
+            if (GameModeDropDown != none) 
+            {            
+                for (i = 0; i < MapDataProviderList.Length; i++) 
+                {
+                    if(Mid(MapDataProviderList[i].MapName,0,Len(GameModes[LastGameModeItemPosition].Prefix)) ~= GameModes[LastGameModeItemPosition].Prefix)
+                    {
+                        AvailableMapDataProviders.AddItem(MapDataProviderList[i]);
+				        `log("Name - " $ MapDataProviderList[i].FriendlyName);
+                        DataProvider.SetElementString(j, MapDataProviderList[i].FriendlyName);                       
+                        j++;
                     }
-                }
-            } else {
-                if (LastGameModeItemPosition == 0) {
-                    for (i = 0; i < MapDataProviderList.Length; i++) {
-                        DataProvider.SetElementString(i, MapDataProviderList[i].FriendlyName);
+                }            
+            } 
+            else 
+            {                
+                for (i = 0; i < MapDataProviderList.Length; i++) 
+                {
+                    if(Mid(MapDataProviderList[i].MapName,0,Len(GameModes[LastGameModeItemPosition].Prefix)) ~= GameModes[LastGameModeItemPosition].Prefix)
+                    {
+                        AvailableMapDataProviders.AddItem(MapDataProviderList[i]);
+                        `log("Name - " $ MapDataProviderList[i].FriendlyName);
+                        DataProvider.SetElementString(j, MapDataProviderList[i].FriendlyName);
+                        j++;
                     }
                 }
             }
-			if (MapDataProviderList.Length > 12) {
-				if (MapScrollBar != none) {
+			if (j > 12) 
+            {
+				if (MapScrollBar != none) 
+                {
 					MapScrollBar.SetVisible(true);
 				}
-			} else {
-				Widget.SetInt("rowCount", MapDataProviderList.Length);
+			} 
+            else 
+            {
+				Widget.SetInt("rowCount", j);
 			}
 			
             break;
@@ -725,40 +780,46 @@ function OnGameModeDropDownChange(GFxClikWidget.EventData ev)
 	LastGameModeItemPosition = ev._this.GetObject("target").GetInt("selectedIndex");
     SetUpDataProvider(MapList);
     MapList.AddEventListener('CLIK_itemClick', OnMapListItemClick);
-
+    UpdateMapLabels(0);
 }
 
 function OnMapListItemClick(GFxClikWidget.EventData ev)
 {
-	local texture2D mapImage;
-
-    if (ev._this.GetInt("index") == Clamp(ev._this.GetInt("index"), 0, MapDataProviderList.Length)) {	
-		mapImage = texture2d(DynamicLoadObject(MapDataProviderList[ev._this.GetInt("index")].PreviewImageMarkup, class'texture2d', true));
-		if (MapDataProviderList[ev._this.GetInt("index")].PreviewImageMarkup != "" && mapImage != none) {
-			MapImageLoader.SetString("source", "img://" $ MapDataProviderList[ev._this.GetInt("index")].PreviewImageMarkup);
-		} else {
-			MapImageLoader.SetString("source", "img://RenXFrontEnd.MapImage.___map-pic-missing-cameo");
-		}
-
-        MapSizeLabel.SetText("Size: "$ MapDataProviderList[ev._this.GetInt("index")].Size);
-        MapStyleLabel.SetText("Style: "$ MapDataProviderList[ev._this.GetInt("index")].Style);
-        MapPlayerCountLabel.SetText("Recommended Players: "$ MapDataProviderList[ev._this.GetInt("index")].NumPlayers);
-        MapHasAirVehiclesLabel.SetText("Air Vehicles: "$ MapDataProviderList[ev._this.GetInt("index")].AirVehicles);
-        MapTechBuildingsLabel.SetText("Tech Buildings: "$ MapDataProviderList[ev._this.GetInt("index")].TechBuildings);
-        MapBaseDefencesLabel.SetText("Base Defences: "$ MapDataProviderList[ev._this.GetInt("index")].BaseDefences);
-	    LastMapListItemPosition = ev._this.GetInt("index");
-		SkirmishMapSettings.MapName = MapDataProviderList[ev._this.GetInt("index")].MapName;
-    } else {
-		MapImageLoader.SetString("source", "img://RenXFrontEnd.MapImage.___map-pic-missing-cameo");
-        MapSizeLabel.SetText("Size: Unknown");
-        MapStyleLabel.SetText("Style: Unknown");
-        MapPlayerCountLabel.SetText("Recommended Players: Unknown");
-        MapHasAirVehiclesLabel.SetText("Air Vehicles: Unknown");
-        MapTechBuildingsLabel.SetText("Tech Buildings: Unknown");
-        MapBaseDefencesLabel.SetText("Base Defences: Unknown");
-	    LastMapListItemPosition = 0;
+    if (ev._this.GetInt("index") == Clamp(ev._this.GetInt("index"), 0, AvailableMapDataProviders.Length)) 
+    {	
+        UpdateMapLabels(ev._this.GetInt("index"));
+    } 
+    else 
+    {
+        UpdateMapLabels(0);
     }
 }
+
+function UpdateMapLabels(int i)
+{
+    local texture2D mapImage;
+    
+    mapImage = texture2d(DynamicLoadObject(AvailableMapDataProviders[i].PreviewImageMarkup, class'texture2d', true));
+    if (AvailableMapDataProviders[i].PreviewImageMarkup != "" && mapImage != none) 
+    {
+    MapImageLoader.SetString("source", "img://" $ AvailableMapDataProviders[i].PreviewImageMarkup);
+    } 
+    else 
+    {
+        MapImageLoader.SetString("source", "img://RenXFrontEnd.MapImage.___map-pic-missing-cameo");
+    }
+
+    MapSizeLabel.SetText("Size: "$ AvailableMapDataProviders[i].Size);
+    MapStyleLabel.SetText("Style: "$ AvailableMapDataProviders[i].Style);
+    MapPlayerCountLabel.SetText("Recommended Players: "$ AvailableMapDataProviders[i].NumPlayers);
+    MapHasAirVehiclesLabel.SetText("Air Vehicles: "$ AvailableMapDataProviders[i].AirVehicles);
+    MapTechBuildingsLabel.SetText("Tech Buildings: "$ AvailableMapDataProviders[i].TechBuildings);
+    MapBaseDefencesLabel.SetText("Base Defences: "$ AvailableMapDataProviders[i].BaseDefences);
+    LastMapListItemPosition = i;
+    SkirmishMapSettings.MapName = AvailableMapDataProviders[i].MapName;
+ 
+}
+
 
 
 function OnGDIBotDropDownChange(GFxClikWidget.EventData ev)

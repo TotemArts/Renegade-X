@@ -123,7 +123,7 @@ function Update()
 	}
 	
 	foreach GetPC().AllActors(class'Rx_Building', B) {
-		if(GetBuildingIndex(B) == -1) {
+		if(GetBuildingIndex(B) == -1 || !B.bSignificant) {
 			continue;
 		}
 		

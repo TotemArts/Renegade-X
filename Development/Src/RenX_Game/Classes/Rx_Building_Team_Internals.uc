@@ -391,14 +391,14 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 
 function TriggerBuildingUnderAttackMessage(Controller EventInstigator)
 {
-	if( Rx_Game(WorldInfo.Game).CanPlayBuildingUnderAttackMessage(GetTeamNum()) )
+	if(BuildingVisuals.bSignificant && Rx_Game(WorldInfo.Game).CanPlayBuildingUnderAttackMessage(GetTeamNum()) )
 	{
 		/**if (Health <= LowHPWarnLevel) 
 			BroadcastLocalizedTeamMessage(GetTeamNum(),MessageClass,BuildingDestructionImminent,EventInstigator.PlayerReplicationInfo,,self);
 		else*/
 			BroadcastLocalizedMessage(MessageClass,BuildingUnderAttack,EventInstigator.PlayerReplicationInfo,,self);
-	}
-	Rx_Game(WorldInfo.Game).ResetBuildingUnderAttackEvaTimer(GetTeamNum());
+			Rx_Game(WorldInfo.Game).ResetBuildingUnderAttackEvaTimer(GetTeamNum());
+	}	
 }
 
 function bool HealDamage(int Amount, Controller Healer, class<DamageType> DamageType)
@@ -720,6 +720,9 @@ function bool PowerRestore()
 	local Rx_Building_PowerFactory building;
 	local bool foundPowerPlant;
 	local bool bPPAvailable;
+
+	if(IsDestroyed())  // if this building is already destroyed, skip ahead and make it false
+		return false;
 	
 	//Check for Powerplants
 	foreach AllActors(class'Rx_Building_PowerFactory', building) 

@@ -286,6 +286,20 @@ simulated function PlayCamerashakeAnim()
    }
 }
 
+function OnToggleShowDestroyableHealth(Rx_SeqAct_ToggleShowDestroyableHealth Action)
+{
+	if(Action.InputLinks[0].bHasImpulse)
+	{
+		bShowHealth = true;
+	}
+	else if(Action.InputLinks[1].bHasImpulse)
+	{
+		bShowHealth = false;
+	}
+	else
+		bShowHealth = !bShowHealth;
+}
+
 DefaultProperties
 
 {

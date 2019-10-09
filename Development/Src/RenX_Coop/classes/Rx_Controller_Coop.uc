@@ -1,12 +1,12 @@
 class Rx_Controller_Coop extends Rx_Controller;
 
-reliable server function Array<Rx_CoopObjective> GetCoopObjectives()
+simulated function Array<Rx_CoopObjective> GetCoopObjectives()
 {
 	local array<Rx_CoopObjective> COList;
 	local Rx_CoopObjective CO;
 
 
-	foreach WorldInfo.AllNavigationPoints(class'Rx_CoopObjective', CO)
+	foreach WorldInfo.AllActors(class'Rx_CoopObjective', CO)
 	{
 			COList.AddItem(CO);
 	}
@@ -20,4 +20,9 @@ function bool ValidPTUse(Rx_BuildingAttachment_PT PT)	// we don't always have PT
 		return true;
 	else
 		return false;
+}
+
+DefaultProperties
+{
+	PTMenuClass = class'Rx_GFxPurchaseMenu_Coop'
 }

@@ -134,6 +134,7 @@ DefaultProperties
 	CreditContent.Add("Fedor Kurmazov")
 	CreditContent.Add("Yaroslav Baryshev")
 	CreditContent.Add("Kamal Afiq Kamarul Bahri")
+	CreditContent.Add("Ettienne 'Xelus' Vorster")
 	CreditContent.Add("")
 	CreditContent.Add("")
 	CreditContent.Add("[ Public Relations & Web Development ]")

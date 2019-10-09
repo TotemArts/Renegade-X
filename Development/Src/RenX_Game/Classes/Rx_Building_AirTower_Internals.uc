@@ -42,7 +42,7 @@ function FindAirStrip()
 	local Rx_Building_AirStrip strip,beststrip;
 	local float BestDist,CurDist;
 
-	if(Rx_Building_AirTower(BuildingVisuals).LinkedAirstrip != None)
+	if(Rx_Building_AirTower(BuildingVisuals).LinkedAirstrip != None && Rx_Building_AirTower(BuildingVisuals).LinkedAirstrip.GetTeamNum() == GetTeamNum())
 	{
 		beststrip = Rx_Building_AirTower(BuildingVisuals).LinkedAirstrip;
 	}
@@ -50,6 +50,9 @@ function FindAirStrip()
 	{
 		ForEach AllActors(class'Rx_Building_AirStrip',strip)
 		{
+			if(strip.GetTeamNum() != GetTeamNum())
+				continue;
+
 			if(beststrip == None)
 			{
 				beststrip = strip;
@@ -65,6 +68,12 @@ function FindAirStrip()
 				}
 			}
 		}
+	}
+
+	if(beststrip == None)
+	{
+		`warn(self@" : Cannot find an airstrip to link to!");
+		return;
 	}
 
 	beststrip.RegsiterTowerInternals(self);

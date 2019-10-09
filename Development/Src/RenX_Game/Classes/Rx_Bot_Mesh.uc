@@ -1680,16 +1680,14 @@ Begin:
 		FinishRotation();
 	}
 	bHasFired = true;
-	if(CantAttackCheckCount > 10) {
-		CantAttackCheckCount = 0;
-	} else {
-		if ( Focus == Enemy )
-			TimedFireWeaponAtEnemy();
-		else if (Focus != None && (Rx_Building(Focus) != None || UTVehicle(Focus) != None)) 
-			TimedFireWeaponAtFocus();
-		else
-			FireWeaponAt(Focus);	
-	}	
+
+	if ( Focus == Enemy )
+		TimedFireWeaponAtEnemy();
+	else if (Focus != None && (Rx_Building(Focus) != None || UTVehicle(Focus) != None)) 
+		TimedFireWeaponAtFocus();
+	else
+		FireWeaponAt(Focus);	
+
 	Sleep(0.1);
 	if ( ((Pawn.Weapon != None) && Pawn.Weapon.bMeleeWeapon) || (Focus == None) || ((Focus != Enemy) 
 			&& (UTGameObjective(Focus) == None) 

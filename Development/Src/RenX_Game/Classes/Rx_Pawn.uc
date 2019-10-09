@@ -333,10 +333,13 @@ var bool bWasSprintingBeforeDodge; //Were we sprinting before we started dodging
 var vector DodgeCameraOffset; 
 var float  DodgeCameraZOffset;
 
+var float CrouchCameraZOffset; 
+
+var bool  bCanSuicide; //Can we take the ultimate way out?
+
 //-----------------------------------------------------------------------------
 // Pawn control
 //-----------------------------------------------------------------------------
-
 replication
 {
 	if ( bNetDirty)
@@ -3857,7 +3860,7 @@ event UpdateEyeHeight( float DeltaTime )
 		OldEyeHeight = EyeHeight;
 		EyeHeight = EyeHeight * (1 - 1.5*smooth);
 		LandBob += 0.08 * (OldEyeHeight - Eyeheight);
-		if(IsFirstPerson())
+		if(IsFirstPerson() || !bUpdate3rdPersonEyeHeightBob)
 		{
 			if ( (Eyeheight < 0.25 * BaseEyeheight + 1) || (LandBob > 2.4)  )
 			{
@@ -4063,8 +4066,9 @@ simulated function bool CalcThirdPersonCam( float fDeltaTime, out vector out_Cam
 		
 		if(bDodging)
 			DesiredCameraZOffset += DodgeCameraZOffset; 
-
-		CameraZOffset = Lerp(CameraZOffset,DesiredCameraZOffset,FClamp(fDeltaTime * 10.0f,0,1)) ;//(CameraZOffset >= CamStartCrouchZHeight && CameraZOffset <= CamStartZHeight) ? Lerp(CameraZOffset,DesiredCameraZOffset,FClamp(fDeltaTime * 10.0f,0,1)) : DesiredCameraZOffset;
+		
+		CameraZOffset = Lerp(CameraZOffset,DesiredCameraZOffset,FClamp(fDeltaTime * 10.0f,0,1)) ; //(CameraZOffset >= CamStartCrouchZHeight && CameraZOffset <= CamStartZHeight) ? Lerp(CameraZOffset,DesiredCameraZOffset,FClamp(fDeltaTime * 10.0f,0,1)) : DesiredCameraZOffset;
+		
 		if ( Health <= 0 )
 		{
 			CurrentCamOffset = vect(0,0,0);
@@ -4209,7 +4213,10 @@ simulated function vector GetSmoothedCamStart(vector DesiredStart)
 	DeltaTime = (len > 2) ? (WorldInfo.TimeSeconds - OldPositions[len-2].Time) : 0.0;
 
 	// If we're too far from out previous position, and it's not because of velocity (therefor we have been moved), reset the camera
-	if (len > 2 && VSizeSq(DesiredStart - Oldpositions[len-2].Position) * DeltaTime > VSizeSq(Velocity)+1)
+	//if (len > 2 && VSizeSq(DesiredStart - Oldpositions[len-2].Position) * DeltaTime > VSizeSq(Velocity)+1)
+
+	//if (len > 2 && VSize(DesiredStart - Oldpositions[len-2].Position) * DeltaTime > VSize(Velocity)+1)
+	if (len > 2 && VSizeSq(DesiredStart - Oldpositions[len-2].Position) * Square(DeltaTime) > VSizeSq(Velocity)+1)
 	{
 		OldPositions.remove(0,OldPositions.Length);
 //		return CamStart;
@@ -4584,10 +4591,19 @@ event Landed(vector HitNormal, actor FloorActor)
 
 	if (WorldInfo.NetMode != NM_DedicatedServer)
 	{
-		if(Weapon != none && Rx_Weapon(Weapon).bIronsightActivated) 
-			SetGroundSpeed(Rx_Weapon(Weapon).ZoomGroundSpeed);
-		else
-			SetGroundSpeed();
+		SetGroundSpeed();
+
+		if(Rx_Weapon(Weapon) != none) 
+		{
+			if(Rx_Weapon(Weapon).bIronsightActivated)
+			{ 
+				SetGroundSpeed(Rx_Weapon(Weapon).ZoomGroundSpeed);
+			}
+			else if(Rx_Weapon_Scoped(Weapon) != None && Rx_Weapon_Scoped(Weapon).GetZoomedState() != ZST_NotZoomed)
+			{
+				StartWalking();
+			}
+		}
 	}
 
 	if(bIsPtPawn) {
@@ -5131,6 +5147,8 @@ function CheckVRank()
 
 function Suicide() //edit so suicides can no longer be used to totally negate a player's bonuses
 {
+	if(!bCanSuicide)
+		return; 
 	//KilledBy(LastHitBy.Pawn);
 	
 	if(LastHitBy != none) 
@@ -5138,7 +5156,7 @@ function Suicide() //edit so suicides can no longer be used to totally negate a 
 		TakeDamage(Armor+Health+99, LastHitBy, location, vect(0,0,0), class'DmgType_Suicided'); 
 	}
 	else
-	KilledBy(self);
+		KilledBy(self);
 }
 
 function ResetLastHit()
@@ -5904,8 +5922,66 @@ function ResetAlwaysRelevantTimer()
 	bAlwaysRelevant = Rx_Game(WorldInfo.Game).bInfantryAlwaysRelevant;
 }
 
-simulated function NotifyTeamChanged() {
-	Super.NotifyTeamChanged();
+simulated function NotifyTeamChanged() 
+{
+	local UTPlayerReplicationInfo PRI;
+	local int i;
+
+	// set mesh to the one in the PRI, or default for this team if not found
+	PRI = GetUTPlayerReplicationInfo();
+
+	if (PRI != None)
+	{
+		SetCharacterClassFromInfo(GetFamilyInfo());
+
+		if (WorldInfo.NetMode != NM_DedicatedServer)
+		{
+			// refresh weapon attachment
+			if (CurrentWeaponAttachmentClass != None)
+			{
+				// recreate weapon attachment in case the socket on the new mesh is in a different place
+				if (CurrentWeaponAttachment != None)
+				{
+					CurrentWeaponAttachment.DetachFrom(Mesh);
+					CurrentWeaponAttachment.Destroy();
+					CurrentWeaponAttachment = None;
+				}
+				WeaponAttachmentChanged();
+			}
+			// refresh overlay
+			if (OverlayMaterialInstance != None)
+			{
+				SetOverlayMaterial(OverlayMaterialInstance);
+			}
+		}
+
+		// Make sure physics is in the correct state.
+		// Rebuild array of bodies to not apply joint drive to.
+		NoDriveBodies.length = 0;
+		if(Mesh.PhysicsAsset != None)
+		{
+			for( i=0; i<Mesh.PhysicsAsset.BodySetup.Length; i++)
+			{
+				if(Mesh.PhysicsAsset.BodySetup[i].bAlwaysFullAnimWeight)
+				{
+					NoDriveBodies.AddItem(Mesh.PhysicsAsset.BodySetup[i].BoneName);
+				}
+			}
+		}
+
+		// Reset physics state.
+		bIsHoverboardAnimPawn = FALSE;
+
+//		if(WorldInfo.NetMode != NM_DedicatedServer)
+		ResetCharPhysState();
+	}
+
+	if (!bReceivedValidTeam)
+	{
+		SetTeamColor();
+		bReceivedValidTeam = (GetTeam() != None);
+	}
+
 	if (Rx_Controller(Controller) != None && `RxGameObject != None) {
 		Rx_Controller(Controller).UpdateDiscordPresence(`RxGameObject.MaxPlayers);
 	}
@@ -6155,6 +6231,7 @@ DefaultProperties
 //	CamOffset=(X=-12.0,Y=4.0,Z=-37.0)	// First person view using 3rd person camera
 	CamStartZHeight = 93.0
 	CamStartCrouchZHeight = 75.0
+	CrouchCameraZOffset = -20
 	CameraSmoothingFactor = 3
 	CameraLag = 0.05
 
@@ -6408,6 +6485,8 @@ DefaultProperties
 	
 	DodgeCameraZOffset = -40
 	DodgeCoolDownTime = 1.5
+	
+	bCanSuicide = true
 	
 	//bSmoothNetUpdates = 
 

@@ -1,4 +1,4 @@
-class Rx_Building_RepairFacility_GDI extends Rx_Building_RepairFacility
+class Rx_Building_RepairFacility_GDI extends Rx_Building_GDI_RepairFactory
 	placeable;
 
 simulated function String GetHumanReadableName()

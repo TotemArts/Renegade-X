@@ -109,7 +109,7 @@ reliable server function IncreaseSprintSpeed()
 
 	
 	
-	SprintSpeed_Max = Default.MaxSpeed * MinSprintSpeedMultiplier;
+	SprintSpeed_Max = Default.MaxSpeed * MinSprintSpeedMultiplier * GetScriptedSpeedModifier();
 
 	if(PlayerController(Controller) != None)
 	{
@@ -133,7 +133,7 @@ reliable server function DecreaseSprintSpeed()
 		ServerSetMaxSpeed(MaxSpeed);
 	}
 
-	MaxSpeed = Default.MaxSpeed;
+	MaxSpeed = Default.MaxSpeed * GetScriptedSpeedModifier();
 
 	if(SVehicleSimTank(SimObj) != None)
 	{

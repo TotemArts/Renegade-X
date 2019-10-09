@@ -415,7 +415,7 @@ simulated state Reloading
 			`log("---"@self$"."$GetStateName()$".ReloadWeapon()");
 		}
 
-		if (bHasInfiniteAmmo) 
+		if (bHasInfiniteAmmo || Rx_Pawn_Scripted(Owner) != None) 
 		{
 			AmmoCount = MaxAmmoCount;
 			CurrentAmmoInClip = ClipSize ; // default.ClipSize;

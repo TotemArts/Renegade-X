@@ -30,6 +30,7 @@ function DrawObjectiveMarkers()
 	local float XLen, YLen ; 
 	local byte FinalAlpha; 
 	local color BackgroundColor; 
+	local Actor ActualActor;
 	// ResScaleX, ResScaleY
 
 	if(CoopObjectives.Length <= 0)
@@ -54,14 +55,19 @@ function DrawObjectiveMarkers()
 		if(RenxHud.PlayerOwner.Pawn == none) 
 			return; 
 
-		if(!O.bShowObjective)
+		if(!O.bShowObjective || O.bIsDisabled || O.VisualIndicatedActor == None)
 			continue;
+		if(Controller(O.VisualIndicatedActor) != None)
+			ActualActor = Controller(O.VisualIndicatedActor).Pawn;
+		else
+			ActualActor = O.VisualIndicatedActor;
 					
-		bIsBehindMe = class'Rx_Utils'.static.OrientationOfLocAndRotToBLocation(RenxHud.PlayerOwner.ViewTarget.Location,RenxHud.PlayerOwner.Rotation,O.location) < -0.5;
+		bIsBehindMe = class'Rx_Utils'.static.OrientationOfLocAndRotToBLocation(RenxHud.PlayerOwner.ViewTarget.Location,RenxHud.PlayerOwner.Rotation,ActualActor.location) < -0.5;
+		
 		if(bIsBehindMe) 
 			continue;
 				
-		WayPointVector=HUD.Canvas.Project(O.GetWaypointLocation()) ;
+		WayPointVector=HUD.Canvas.Project(ActualActor.Location) ;
 		DistanceFade = abs(round(Vsize(MidscreenVector-WayPointVector)))/(MidscreenVector.X) ; //Distance from the center of the screen.. Divided by the horizontal length of the screen, as it is USUALLY more than the vertical length
 		HUD.Canvas.SetPos(WayPointVector.x, WayPointVector.y);
 		//Insert functionality for fading with distance/ Scrap, fade is based on proximity of crosshair to target.

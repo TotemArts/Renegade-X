@@ -12,8 +12,14 @@ var(Coop) bool bFailCompletion;
 var(Coop) int BonusVP;
 Var(Coop) int TeamBonusVP;
 var(Coop) string VisualText;
-var(Coob) bool bShowObjective;
+var(Coop) bool bShowObjective;
 var(Coop) Actor VisualIndicatedActor;
+
+replication
+{
+	if( bNetDirty && Role == ROLE_Authority )
+		VisualIndicatedActor, bShowObjective;
+}
 
 simulated function PostBeginPlay()
 {
@@ -126,6 +132,14 @@ simulated function FinishObjective(Controller InstigatingPlayer)
 simulated function bool IsDisabled()
 {
 	return bIsDisabled;
+}
+
+function OnChangeVisualIndicator(Rx_SeqAct_ChangeObjectiveIndicator Action)
+{
+	bShowObjective = Action.bShowObjective;
+
+	if(Action.VisualIndicatedActor != None)
+		VisualIndicatedActor = Action.VisualIndicatedActor;
 }
 
 DefaultProperties

@@ -1,4 +1,4 @@
-class Rx_Building_RepairFacility_Nod extends Rx_Building_RepairFacility
+class Rx_Building_RepairFacility_Nod extends Rx_Building_Nod_RepairFactory
 	placeable;
 
 simulated function String GetHumanReadableName()

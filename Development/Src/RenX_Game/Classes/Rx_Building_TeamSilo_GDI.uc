@@ -10,6 +10,7 @@ defaultproperties
 {
    TeamID = TEAM_GDI
    BuildingInternalsClass = Rx_Building_TeamSilo_GDI_Internals
+   bSignificant		= false
 
 	Begin Object Name=Static_Exterior
 		StaticMesh = StaticMesh'RX_BU_TeamSilo.Meshes.SM_Silo_GDI'

@@ -42,7 +42,7 @@ struct native MaterialImpactEffect
 	var float DecalWidth;
 	var float DecalHeight;
 	var ParticleSystem ParticleTemplate;
-	var color			ImpactSmokeColour;
+	var vector			ImpactSmokeColour;
 	
 	StructDefaultProperties
 	{

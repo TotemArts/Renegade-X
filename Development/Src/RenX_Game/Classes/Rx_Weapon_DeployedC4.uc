@@ -67,10 +67,39 @@ event HitWall( vector HitNormal, actor Wall, PrimitiveComponent WallComp)
 function Landed(vector HitNormal, Actor FloorActor)
 {
    	ImpactedActor = FloorActor;
+
+/*   if(Rx_Pawn(ImpactedActor) != None && ImpactedActor.GetTeamNum() == GetTeamNum() && InstigatorController != Pawn(ImpactedActor).Controller)
+   	{
+   		if(TooMuchFriendlyC4OnPlayer())
+   		{
+   			ImmediateDisarm();
+   			return;
+   		}
+   	}
+*/
    	//loginternal(impactedActor);
    	FloorNormal = HitNormal;
    	PlaySound(ImpactSound);
 	super.Landed(HitNormal, FloorActor);
+}
+
+function bool TooMuchFriendlyC4OnPlayer()
+{
+	local Rx_Weapon_DeployedC4 C4;
+	local Rx_Pawn ImpactedPawn;
+
+	if(ImpactedActor == None)
+		return false;
+
+	ImpactedPawn = Rx_Pawn(ImpactedActor);
+
+	foreach ImpactedPawn.BasedActors(class'Rx_Weapon_DeployedC4', C4)
+	{
+		if(C4.GetTeamNum() == ImpactedPawn.GetTeamNum() && C4.InstigatorController != ImpactedPawn.Controller)
+			return true;
+	}
+
+	return false;
 }
 
 simulated function PerformDeploy()
@@ -147,6 +176,21 @@ function Explosion()
 	}
 }
 
+function ImmediateDisarm()
+{
+	HP = 0;
+
+	if (WorldInfo.NetMode == NM_DedicatedServer || WorldInfo.NetMode == NM_ListenServer) // trigger client replication
+		bDisarmed = true;
+	if (WorldInfo.NetMode != NM_DedicatedServer)
+		PlayDisarmedEffect();      
+		ClearTimer('Explosion');
+
+	
+	SetTimer(0.1, false, 'DestroyMe'); // delay it a bit so disappearing blends a littlebit better with the disarmed effects
+
+}
+
 function DestroyMe()
 {
 	Destroy();
@@ -211,8 +255,10 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 {
 	
 	//super.TakeDamage(DamageAmount,EventInstigator,HitLocation,Momentum,DamageType,HitInfo,DamageCauser);
-		if (!CanDisarmMe(DamageCauser))
+	if (!CanDisarmMe(DamageCauser))
 	{
+		if(ImpactedActor != None)
+			ImpactedActor.TakeDamage(DamageAmount,EventInstigator,HitLocation,Momentum,DamageType,HitInfo,DamageCauser);
 		return;
 	}
 	
@@ -241,13 +287,6 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 		}
 		
 		SetTimer(0.1, false, 'DestroyMe'); // delay it a bit so disappearing blends a littlebit better with the disarmed effects
-	}
-	
-	if (!CanDisarmMe(DamageCauser))
-	{
-		if(ImpactedActor != None)
-			ImpactedActor.TakeDamage(DamageAmount,EventInstigator,HitLocation,Momentum,DamageType,HitInfo,DamageCauser);
-		return;
 	}
 }
 

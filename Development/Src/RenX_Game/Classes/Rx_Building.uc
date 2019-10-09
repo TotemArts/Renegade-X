@@ -26,7 +26,7 @@ enum BuildingType
 	BT_Neutral
 };
 
-var TEAM                                        TeamID;                 // building belongs to team with this TeamID (normally 0 -> GDI, 1-> Nod)
+var(RenX_Buildings) TEAM                        TeamID;                 // building belongs to team with this TeamID (normally 0 -> GDI, 1-> Nod)
 var(RenX_Buildings) int                         Health;                 // Starting Health for the building
 var(RenX_Buildings) int                         HealthMax;                // Max Health for the building
 var(RenX_Buildings) bool                        bBuildingDebug;         // Set to true to enable Debug Logging
@@ -34,6 +34,8 @@ var(RenX_Buildings) const BuildingType myBuildingType;
 
 var class<Rx_Building_Internals>          BuildingInternalsClass; // Class of the internals that needs spawned
 var repnotify Rx_Building_Internals             BuildingInternals;      // Instance of the internals that handles the logic like TakeDamage and the like
+var(RenX_Buildings) bool bSignificant;									// Whether or not this building counts as victory condition and is shown in HUD
+
 
 var(BuildingLights) array<PointLightComponent>  PointLightComponents;   // Point lights for the pre setup lighting
 var(BuildingLights) array<SpotLightComponent>   SpotLightComponents;    // Spot lights for the PT's and MCT's for pre setup lighting
@@ -373,7 +375,7 @@ function OnToggle(SeqAct_Toggle Action)
 	local Rx_Building_Team_Internals TeamInternals;
 	local bool bNewPowerStatus;
 
-	if(Rx_Building_Team_Internals(BuildingInternals) != None)
+	if(Rx_Building_Team_Internals(BuildingInternals) != None && !IsDestroyed())
 		TeamInternals = Rx_Building_Team_Internals(BuildingInternals);
 
 	else
@@ -420,6 +422,7 @@ defaultproperties
 	HealthMax           = 4000
 	Health              = 0
 	bBuildingDebug      = False
+	bSignificant		= true
 
 	/***************************************************/
 	/*             Buildings Static Meshes             */

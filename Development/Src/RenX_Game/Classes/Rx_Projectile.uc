@@ -22,7 +22,8 @@ var bool bDoWaitingForVelocityAndInstigatorTimer;
 
 var array<MaterialImpactEffect> ImpactEffects;
 var ParticleSystem				AirburstExplosionTemplate; 
-var Color						ExplosionSmokeColour; 
+//var Color						ExplosionSmokeColour; 
+var vector						ExplosionSmokeColour;
 
 // If non-zero, the hurt origin for the projectile is translated by this value on the Z-axis, on top of the existing normal translation.
 var float AddedZTranslate;
@@ -522,6 +523,7 @@ simulated function SpawnExplosionEffects(vector HitLocation, vector HitNormal)
 		if(ImpactedActor != None && ImpactedActor.isA('Rx_Vehicle')){
 			ProjExplosionTemplate = ImpactEffects[3].ParticleTemplate;
 			ExplosionSound = ImpactEffects[3].Sound;
+			
 		} else if(ImpactedActor != None && ImpactedActor.isA('Rx_Pawn')){
 			ProjExplosionTemplate = ImpactEffects[8].ParticleTemplate;
 			ExplosionSound = ImpactEffects[8].Sound;
@@ -547,7 +549,7 @@ simulated function SetExplosionEffectParameters(ParticleSystemComponent ProjExpl
 
     ProjExplosion.SetScale(ProjExplosionScale);
 	
-	ProjExplosion.SetColorParameter('SurfaceImpactColour', ExplosionSmokeColour);
+	ProjExplosion.SetVectorParameter('SurfaceImpactColour', ExplosionSmokeColour);
 }
 
 simulated function bool HurtRadius( float DamageAmount,

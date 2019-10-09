@@ -34,7 +34,6 @@ var float ReevaluateAreaObjectiveTime;
 var bool bStrafingDisabled;
 var bool bAttackingEnemyBase;
 var int WaitingInAreaCount;
-var int CantAttackCheckCount;
 var bool bCheckIfBetterSoInCurrentGroup;
 
 
@@ -859,13 +858,6 @@ function bool CanAttack(Actor Other)
 
 	ret = super.CanAttack(Other);
 	
-
-
-	if(!ret) 
-		CantAttackCheckCount++;
-	else 
-		CantAttackCheckCount = 0;
-	
 	return ret;
 }
 
@@ -1270,6 +1262,23 @@ function DoRandomJumps()
 	}
 }
 
+function bool DoWaitForLanding()
+{
+	SetTimer(1.0, true, 'TryParachute');
+	GotoState('WaitingForLanding');
+	return true;
+}
+
+function TryParachute()
+{
+	if(Pawn.Physics == PHYS_Falling)
+	{
+		Rx_Pawn(Pawn).TryParachute();
+	}
+	else
+		ClearTimer('TryParachute');
+}
+
 function ChangeToSBH(bool sbh) {
 	local pawn p;
 	local vector l;
@@ -1448,9 +1457,198 @@ function bool LostContact(float MaxTime)
 	return false;
 }
 
-function Rotator GetAdjustedAimFor( Weapon W, vector StartFireLoc )
+function Rotator GetAdjustedAimFor( Weapon InWeapon, vector projStart )
 {
-	return super.GetAdjustedAimFor(W,StartFireLoc);
+	local rotator FireRotation;
+	local float TargetDist, ProjSpeed, TargetHeight;
+	local actor HitActor;
+	local vector FireSpot, FireDir, HitLocation, HitNormal;
+	local bool bDefendMelee, bClean;
+	local class<UTProjectile> ProjectileClass;
+	local UTWeapon W;
+
+	// make sure bot has a valid target
+	if ( Focus == None )
+		return Rotation;
+
+	W = UTWeapon(InWeapon);
+	if ( W == None )
+		return Rotation;
+
+	ProjectileClass = class<UTProjectile>(W.GetProjectileClass());
+	if ( ProjectileClass != None )
+		projspeed = ProjectileClass.default.speed;
+	if(Skill < 6 || Focus == None || Focus != Enemy || Rx_Pawn(Focus) == None || (FRand() < 0.3 && Skill < 9))
+		FireSpot = GetFocalPoint();
+
+	else
+		FireSpot = GetEnemyHeadLocation();
+
+	TargetDist = VSize(GetFocalPoint() - Pawn.Location);
+
+	// perfect aim at stationary objects
+	if ( Focus.IsStationary() )
+	{
+		if ( (ProjectileClass == None) || (ProjectileClass.Default.Physics != PHYS_Falling) )
+		{				
+				FireRotation = rotator(FireSpot - projstart);
+		}
+		else
+		{
+			SuggestTossVelocity(FireDir, GetFocalPoint(), ProjStart, projspeed, ProjectileClass.Default.TossZ, 0.2,, PhysicsVolume.bWaterVolume ? PhysicsVolume.TerminalVelocity : ProjectileClass.Default.TerminalVelocity);
+			FireRotation = rotator(FireDir);
+		}
+		// make sure bot shoots in the direction it's facing
+		// our vehicles do their own aim clamping stuff so we don't need this
+		if (Vehicle(Pawn) == None)
+		{
+			FireRotation.Yaw = Pawn.Rotation.Yaw;
+		}
+		SetRotation(FireRotation);
+		return Rotation;
+	}
+
+	if ( (WorldInfo.TimeSeconds - LastActionMusicUpdate > 6.0) && (Enemy != None) && (Focus == Enemy) && (UTPlayerController(Enemy.Controller) != None) )
+	{
+		LastActionMusicUpdate = WorldInfo.TimeSeconds;
+		UTPlayerController(Enemy.Controller).ClientMusicEvent(0);
+	}
+
+	bDefendMelee = ( (Focus == Enemy) && DefendMelee(TargetDist) );
+
+	bClean = false; //so will fail first check unless shooting at feet
+
+	if ( Pawn(Focus) != None )
+		TargetHeight = Pawn(Focus).GetCollisionHeight();
+
+	// adjust for toss distance
+	if ( (ProjectileClass != None) && (ProjectileClass.Default.Physics == PHYS_Falling) )
+	{
+		if ( W.bRecommendSplashDamage && (Pawn(Focus) != None) && ((Skill >=4) || bDefendMelee)
+			&& (((Focus.Physics == PHYS_Falling) && (Pawn.Location.Z + 80 >= GetFocalPoint().Z))
+				|| ((Pawn.Location.Z + 19 >= GetFocalPoint().Z) && (bDefendMelee || (skill > 6.5 * FRand() - 0.5)))) )
+		{
+			FireSpot = FireSpot - vect(0,0,1) * TargetHeight;
+		}
+		// toss at target
+		SuggestTossVelocity(FireDir, FireSpot, ProjStart, projspeed, ProjectileClass.Default.TossZ, 0.2,, PhysicsVolume.bWaterVolume ? PhysicsVolume.TerminalVelocity : ProjectileClass.Default.TerminalVelocity);
+	}
+	else
+	{
+		if ( W.bRecommendSplashDamage && (Pawn(Focus) != None) )
+		{
+			if ( W.bLockedAimWhileFiring )
+			{
+				// it's a levi - fire at ground
+	 			HitActor = Trace(HitLocation, HitNormal, FireSpot - vect(0,0,1000), FireSpot, false);
+ 				bClean = (HitActor == None);
+				if ( !bClean )
+				{
+					FireSpot = HitLocation + vect(0,0,20);
+					bClean = FastTrace(FireSpot, ProjStart);
+				}
+				else
+				{
+					bClean = FastTrace(FireSpot, ProjStart);
+				}
+			}
+			else if ( ((Skill >=4) || bDefendMelee)
+			&& (((Focus.Physics == PHYS_Falling) && (Pawn.Location.Z + 80 >= GetFocalPoint().Z))
+				|| ((Pawn.Location.Z + 19 >= GetFocalPoint().Z) && (bDefendMelee || (skill > 6.5 * FRand() - 0.5)))) )
+			{
+	 			HitActor = Trace(HitLocation, HitNormal, FireSpot - vect(0,0,1) * (TargetHeight + 6), FireSpot, false);
+ 				bClean = (HitActor == None);
+				if ( !bClean )
+				{
+					FireSpot = HitLocation + vect(0,0,3);
+					bClean = FastTrace(FireSpot, ProjStart);
+				}
+				else
+					bClean = ( (Focus.Physics == PHYS_Falling) && FastTrace(FireSpot, ProjStart) );
+			}
+		}
+		if (Rx_Pawn(Enemy) != None && Rx_Weapon_RepairGun(Pawn.Weapon) != None && Rx_Weapon_Deployable(Pawn.Weapon) != None && (Skill > 5 + 6 * FRand()) )
+		{
+			// try head
+ 			FireSpot.Z = GetEnemyHeadLocation().Z;
+ 			bClean = FastTrace(FireSpot, ProjStart);
+		}
+
+		if ( !bClean )
+		{
+			//try middle
+			FireSpot.Z = GetFocalPoint().Z;
+ 			bClean = FastTrace(FireSpot, ProjStart);
+		}
+		if ( (ProjectileClass != None) && (ProjectileClass.Default.Physics == PHYS_Falling) && !bClean && bEnemyInfoValid )
+		{
+			FireSpot = LastSeenPos;
+	 		HitActor = Trace(HitLocation, HitNormal, FireSpot, ProjStart, false);
+			if ( HitActor != None )
+			{
+				bCanFire = false;
+				FireSpot += 2 * TargetHeight * HitNormal;
+			}
+			bClean = true;
+		}
+
+		if( !bClean )
+		{
+			// try head
+ 			FireSpot.Z = GetEnemyHeadLocation().Z;
+ 			bClean = FastTrace(FireSpot, ProjStart);
+		}
+		if (!bClean && (Focus == Enemy) && bEnemyInfoValid)
+		{
+			FireSpot = LastSeenPos;
+			if ( Pawn.Location.Z >= LastSeenPos.Z )
+				FireSpot.Z -= 0.4 * TargetHeight;
+	 		HitActor = Trace(HitLocation, HitNormal, FireSpot, ProjStart, false);
+			if ( HitActor != None )
+			{
+				FireSpot = LastSeenPos + 2 * TargetHeight * HitNormal;
+				if ( Pawn.Weapon != None && UTWeapon(Pawn.Weapon).GetDamageRadius() > 0 && (Skill >= 4) )
+				{
+			 		HitActor = Trace(HitLocation, HitNormal, FireSpot, ProjStart, false);
+					if ( HitActor != None )
+						FireSpot += 2 * TargetHeight * HitNormal;
+				}
+				if ( UTWeapon(Pawn.Weapon) != None && !UTWeapon(Pawn.Weapon).bFastRepeater )
+				{
+					bCanFire = false;
+			}
+		}
+		}
+
+		FireDir = FireSpot - ProjStart;
+	}
+
+	FireRotation = Rotator(FireDir);
+	// make sure bot shoots in the direction it's facing
+	// our vehicles do their own aim clamping stuff so we don't need this
+	if (Vehicle(Pawn) == None)
+	{
+		FireRotation.Yaw = Pawn.Rotation.Yaw;
+	}
+
+	if (ProjectileClass == None)
+	{
+		InstantWarnTarget(Focus, Pawn.Weapon, vector(FireRotation));
+	}
+	ShotTarget = Pawn(Focus);
+
+	SetRotation(FireRotation);
+	return FireRotation;
+}
+
+function vector GetEnemyHeadLocation()
+{
+	if(Enemy != None && Focus == Enemy)
+		return Rx_Pawn(Focus).Mesh.GetBoneLocation(Rx_Pawn(Focus).HeadBone) + vect(0,0,1) * Rx_Pawn(Focus).HeadHeight;
+	else if (Pawn(Focus) != None)
+		return GetFocalPoint() + (vect(0,0,1) * 0.9 * Pawn(Focus).GetCollisionHeight());
+	else
+		return GetFocalPoint();
 }
 
 function WaitAtAreaTimer() 
@@ -2139,12 +2337,17 @@ function ResetSkill()
 {
 	Super.ResetSkill();
 
-	Rx_PRI(PlayerReplicationInfo).BotSkill = Skill;
+	if(PlayerReplicationInfo != None)
+		Rx_PRI(PlayerReplicationInfo).BotSkill = Skill;
 
 	if(Skill >= 9)
 	{
 		bCheetozBotz = true;
-		Rx_PRI(PlayerReplicationInfo).AddCredits(90010);
+		if(PlayerReplicationInfo != None)	
+		{
+			Rx_PRI(PlayerReplicationInfo).AddCredits(90010);
+			Rx_PRI(PlayerReplicationInfo).TickVPToFull();
+		}
 		Aggressiveness = 1;
 		BaseAggressiveness = Aggressiveness;
 		Accuracy = 5;
@@ -2152,7 +2355,6 @@ function ResetSkill()
 		Tactics = 5;
 		ReactionTime = 5;
 		RefillDelay = 0.1;
-		Rx_PRI(PlayerReplicationInfo).TickVPToFull();
 	}
 }
 
@@ -2403,7 +2605,7 @@ function bool WeaponFireAgain(bool bFinishedFire)
 
 function bool ShouldFire()
 {
-	if(Pawn.Weapon == None)
+	if(Pawn.Weapon == None || !CanAttack(Focus))
 		return false;
 
 	if(Rx_WeaponAbility(Pawn.Weapon) != None)
@@ -2918,6 +3120,18 @@ exec function SwitchToBestWeapon(optional bool bForceNewWeapon)
 
 			}
 		}
+		else
+		{
+			if(VSizeSq(Pawn.Location - Enemy.Location) > 400 && Rx_Pawn(Enemy) != None)
+			{
+				Rx_InventoryManager(Pawn.InvManager).SwitchToSidearmWeapon();
+			}
+			else
+			{
+				SwitchToC4();
+			}
+			return;
+		}
 	}
 
 	if(Rx_BuildingAttachment_MCT(Focus) != None && Focus.GetTeamNum() != GetTeamNum() && VSizeSq(Focus.Location - Pawn.Location) < 250000 && SwitchToC4())
@@ -2927,14 +3141,15 @@ exec function SwitchToBestWeapon(optional bool bForceNewWeapon)
 
 	//	Smoke grenade - Try to choose if needed to disorient enemy
 
-	if(IM != None && Enemy != None && Focus == Enemy && (Rx_Pawn(Pawn).Armor < Rx_Pawn(Pawn).ArmorMax * 0.25 || Skill > 6.0))
+	if(IM != None && Enemy != None && Focus == Enemy && (Rx_Pawn(Pawn).Armor < Rx_Pawn(Pawn).ArmorMax * 0.25 || Skill >= 6.0))
 	{
 		if((Rx_WeaponAbility_SmokeGrenade(Pawn.Weapon) != None && Rx_Weapon_SmokeGrenade_Rechargeable(Pawn.Weapon).bReadyToFire()))
 			return;
 
 		if(FRand() >= 2/Skill)
-		{
-			Smoke = Rx_WeaponAbility_SmokeGrenade(IM.GetIndexedAbility(0));
+		{	
+			if(IM.AbilityWeapons[0] != None)
+				Smoke = Rx_WeaponAbility_SmokeGrenade(IM.AbilityWeapons[0]);
 
 			if(Smoke != None && Smoke.bReadyToFire())
 			{

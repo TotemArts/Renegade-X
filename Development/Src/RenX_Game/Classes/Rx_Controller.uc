@@ -667,8 +667,8 @@ reliable server function ServerDonateCredits(int playerID, float amount)
 
 	// Fire off notifications
 	`LogRxPub("GAME" `s "Donated;" `s amount `s "to" `s `PlayerLog(target) `s "by" `s `PlayerLog(PlayerReplicationInfo));
-	Rx_Controller(target.Owner).ClientMessage(PlayerReplicationInfo.PlayerName $ " donated you " $ amount $" credits.");
-	ClientMessage("You've donated " $ amount $ " credits to " $ PlayerReplicationInfo.PlayerName);
+	Rx_Controller(target.Owner).ClientMessage(PlayerReplicationInfo.PlayerName $ " donated you " $ int(amount) $" credits.");
+	ClientMessage("You've donated " $ int(amount) $ " credits to " $ target.PlayerName);
 }
 
 exec function TeamDonate(int Credits)
@@ -919,7 +919,8 @@ function DisableVoteMenu(optional bool Destroy = false)
 		if (VoteHandler.Disabled())
 			VoteHandler = none;
 	}
-	Rx_HUD(myHUD).HudMovie.SideMenuVis(false);
+	if(Rx_HUD(myHUD).HudMovie != None)
+		Rx_HUD(myHUD).HudMovie.SideMenuVis(false);
 }
 
 function CancelCommandMenuSelection()
@@ -3318,18 +3319,18 @@ function BroadcastBaseDefenseSpotMessages(Rx_Defence DefenceStructure)
 		
 		
 		if(DefenceStructure.GetHealth(0) == DefenceStructure.HealthMax) { 
-			msg = "Defend the <font color='"$TeamColor$"'>"@DefenceStructure.GetHumanReadableName()$"</font>!";
+			msg = "Defend the<font color='"$TeamColor$"'>"@DefenceStructure.GetHumanReadableName()$"</font>!";
 			nr = 27;
 		}
 		else if(DefenceStructure.GetHealth(0) > DefenceStructure.HealthMax/3) {
-			msg = "The <font color='"$TeamColor$"'>"@DefenceStructure.GetHumanReadableName()$"</font> needs repair!";
+			msg = "The<font color='"$TeamColor$"'>"@DefenceStructure.GetHumanReadableName()$"</font> needs repair!";
 			nr = 0;
 		} else {
-			msg = "The <font color='"$TeamColor$"'>"@DefenceStructure.GetHumanReadableName()$"</font> needs repair immediately!";	
+			msg = "The<font color='"$TeamColor$"'>"@DefenceStructure.GetHumanReadableName()$"</font> needs repair immediately!";	
 			nr = 0;
 		}	
 	} else {
-		msg = "Attack the <font color='"$TeamColor$"'>"@DefenceStructure.GetHumanReadableName()$"</font>!"; 
+		msg = "Attack the<font color='"$TeamColor$"'>"@DefenceStructure.GetHumanReadableName()$"</font>!"; 
 		nr = 20;
 	}
 	BroadCastSpotMessage(nr, msg);	
@@ -5439,7 +5440,14 @@ ignores SeePlayer, HearNoise, KilledBy, NotifyBump, HitWall, NotifyHeadVolumeCha
 	{
 		if (Rx_HUD(myHUD) != none)
 		{
-			Rx_HUD(myHUD).SetShowScores(true);
+			if(Rx_HUD(myHUD).Scoreboard == None)
+				Rx_HUD(myHUD).SetShowScores(true);
+			else
+			{
+				Rx_HUD(myHUD).Scoreboard.EndGameScoreboard.SetVisible(true);
+				Rx_HUD(myHUD).Scoreboard.ServerName.SetVisible(true);
+				Rx_HUD(myHUD).Scoreboard.Start();
+			}
 		}
 		
 		AutoContinueToNextRound();
@@ -5510,18 +5518,21 @@ reliable server function ServerRTC()
 	
 	if(!IsTeamChangeEnabled()) return;
 		
-	if(RxG.TeamsAreEven()) RxG.AddTeamChangeRequest(Rx_PRI(PlayerReplicationInfo));	
+	// if team is even and the teammode is not set to free swapping, add a request
+	if(RxG.TeamsAreEven() && RxG.TeamMode != 5) 
+		RxG.AddTeamChangeRequest(Rx_PRI(PlayerReplicationInfo));
+
 	else
+	{
+		if ( (PlayerReplicationInfo.Team == None) || (PlayerReplicationInfo.Team.TeamIndex == 1) )
 		{
-			if ( (PlayerReplicationInfo.Team == None) || (PlayerReplicationInfo.Team.TeamIndex == 1) )
-				{
-					ServerChangeTeam(0);
-				}
-				else
-				{
-					ServerChangeTeam(1);
-				}
+			ServerChangeTeam(0);
 		}
+		else
+		{
+			ServerChangeTeam(1);
+		}
+	}
 
 }
 
@@ -6729,24 +6740,27 @@ reliable client function PlayKillSound()
 			ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Kill_Alert_Cue');
 			break;
 		case 3:
-			ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.SC_Havoc');
+			ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.SC_Commando');
 			break;
 		case 4:
-			ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.SC_McFarland');
+			ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.SC_Havoc');
 			break;
 		case 5:
-			ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Gotchya_Cue');
+			ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.SC_McFarland');
 			break;
 		case 6:
-			ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Aww_Too_Easy_Cue');
+			ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Gotchya_Cue');
 			break;
 		case 7:
-			ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_For_Kane_Cue');
+			ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Aww_Too_Easy_Cue');
 			break;
 		case 8:
-			ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Die_Infidel_Cue');
+			ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_For_Kane_Cue');
 			break;
 		case 9:
+			ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Die_Infidel_Cue');
+			break;
+		case 10:
 			ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Goat_Cue');
 			break;
 		default:
@@ -7031,8 +7045,10 @@ function bool SetWaypoint(string WayPointName, optional string MetaTag)
 {
 
 	local vector startL, normthing, endL;
-	local rotator ADir					;
-	local Actor Actor_Discard			;
+	local rotator ADir;
+	local Actor Actor_Discard;
+	local Rx_Vehicle_Harvester TH;
+	local Rx_Vehicle_HarvesterController TeamHarvesterController;
 	// get aiming direction from our instigator (Assume this is the pawn from what I've read.)
 
 	if(!bPlayerIsCommander())
@@ -7051,7 +7067,7 @@ function bool SetWaypoint(string WayPointName, optional string MetaTag)
 	
 	//.......... Yosh need learn math. Working in 3D space is making me twitchy X.x. Comment from the commander mod 2 years ago. And I still haven't learned how to math
 	
-	Actor_Discard=Trace(endL, normthing, startL + vector(Adir) * MaxCommanderSpottingRange, startL, true) ;
+	Actor_Discard = Trace(endL, normthing, startL + vector(Adir) * MaxCommanderSpottingRange, startL, true) ;
 	
 	if(Actor_Discard == none) 
 	{
@@ -7059,6 +7075,23 @@ function bool SetWaypoint(string WayPointName, optional string MetaTag)
 	}
 	
 	endL.Z+=50; //Don't sit right on the ground... It's weird.
+
+	//Handepsilon Note : Due to the recent changes, we need to make sure that the Commander doesn't screw up the harvester either intentionally or accidentally
+	//					 Yeah, I know, recent harvy pathing changes are quite a pain, but I'm pretty sure something good will come out of this in the end
+
+	if(MetaTag == "GDI_Harvester_Halt" || MetaTag == "Nod_Harvester_Halt")
+	{
+		foreach DynamicActors(class'Rx_Vehicle_Harvester', TH) // since the harvy waypoint is called from server, we should in theory have no problem with putting the check here...
+		{
+			if(TH.GetTeamNum() == GetTeamNum() && TH.Controller != none) 
+			{
+				TeamHarvesterController = Rx_Vehicle_HarvesterController(TH.Controller);
+				
+				if(TeamHarvesterController.FindPathTo(endL) == None)
+					return false;
+			}
+		}	
+	}
 	
 	ServerSetWaypoint(WaypointName, endL, MetaTag);
 	return true; 
@@ -7386,6 +7419,7 @@ reliable server function ServerCommandHarvester(byte AbilityNumber)
 	local Rx_Vehicle_Harvester TH;
 	local Rx_Vehicle_HarvesterController TeamHarvesterController;
 	local bool	bCommandSuccess; 
+	local string FailReason;
 	
 	if(!bPlayerIsCommander())
 	{
@@ -7410,6 +7444,12 @@ reliable server function ServerCommandHarvester(byte AbilityNumber)
 	
 	if(AbilityNumber == 0)
 	{
+		if(!CheckHarvesterPath(TeamHarvesterController))
+		{
+			CTextMessage("Command Failed : Harvester cannot reach halted point!",'Red');
+			return;
+		}
+
 		bCommandSuccess = TeamHarvesterController.ToggleHaltHarv(self);
 		
 		if(bCommandSuccess)
@@ -7421,13 +7461,21 @@ reliable server function ServerCommandHarvester(byte AbilityNumber)
 		if(GetTeamNum() == 0) 
 		{
 			bCommandSuccess = SetWaypoint("Harvester Standby","GDI_Harvester_Halt");
-			TeamHarvesterController.UpdateHaltedHarvWaypoint(false);
+			if(bCommandSuccess) // no point in calling this if the command fails
+				TeamHarvesterController.UpdateHaltedHarvWaypoint(false);
+
+			else
+				FailReason = "Harvester cannot reach that point!";
 		}
 		else
 		if(GetTeamNum() == 1) 
 		{
 			bCommandSuccess = SetWaypoint("Harvester Standby","Nod_Harvester_Halt");
-			TeamHarvesterController.UpdateHaltedHarvWaypoint(false);
+			if(bCommandSuccess) // no point in calling this if the command fails
+				TeamHarvesterController.UpdateHaltedHarvWaypoint(false);
+
+			else
+				FailReason = "Harvester cannot reach that point!";
 		}
 		else
 		bCommandSuccess = false; 
@@ -7465,9 +7513,40 @@ reliable server function ServerCommandHarvester(byte AbilityNumber)
 	else
 	bCommandSuccess = false;
 
-	if(!bCommandSuccess) CTextMessage("Command Failed", 'Red'); 
+	if(!bCommandSuccess) 
+	{
+		if(FailReason == "")
+			CTextMessage("Command Failed", 'Red'); 
+		else
+			CTextMessage("Command Failed :"@FailReason, 'Red');
+	}
 	
 	
+}
+
+function bool CheckHarvesterPath(Rx_Vehicle_HarvesterController Harvy)
+{
+	local Rx_CommanderWayPoint HW;
+
+	foreach WorldInfo.AllActors(class'Rx_CommanderWayPoint', HW)
+	{
+		if(GetTeamNum() == 0 && HW.GetMetaTag() == "GDI_Harvester_Halt") 
+		{
+			break; 
+		}
+		else
+		if(GetTeamNum() == 1 && HW.GetMetaTag() == "Nod_Harvester_Halt") 
+		{
+			break; 
+		}
+	}	
+
+	if(HW == None)
+		return false;
+
+	return Harvy.FindPathToward(HW, false) != None;
+
+
 }
 
 /***************************************
@@ -7981,6 +8060,7 @@ function SetTeamHarvesterStopped()
 
 /** Properties */
 
+/**
 exec function UpdateLocationTolerance(float Multi){
 	ServerSetLocationTolerance(Multi); 
 }
@@ -7993,6 +8073,15 @@ reliable server function ServerSetLocationTolerance(float Multi){
 		P = UDKPawn(Pawn);
 		P.MaxSmoothNetUpdateDist = P.default.MaxSmoothNetUpdateDist*Multi; 
 		P.NoSmoothNetUpdateDist = P.default.NoSmoothNetUpdateDist*Multi; 
+	}
+}*/
+
+exec function SetPawnActorCollision(bool bCollide, bool bBlock, bool bAlwaysCheck)
+{
+	local Rx_Pawn RxP; 
+	
+	foreach WorldInfo.AllActors(class'Rx_Pawn', RxP){
+		RxP.Mesh.SetActorCollision(bCollide, bBlock, bAlwaysCheck);
 	}
 }
 

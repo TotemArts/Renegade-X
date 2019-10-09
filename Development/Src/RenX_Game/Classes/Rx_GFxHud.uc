@@ -1534,6 +1534,9 @@ function UpdateBuildings()
 
 	foreach WI.AllActors(class'Rx_Building', BuildingActor)
 	{
+		if(!BuildingActor.bSignificant)	// if insignificant, skip checking this
+			continue;
+
 		if(BuildingActor.TeamID == TEAM_GDI)
 		{
 			if( Rx_Building_GDI_Defense(BuildingActor) != None )
@@ -2530,6 +2533,9 @@ function setupTechBuildingIcons ()
 	buildingCount = 0;
 	foreach class'WorldInfo'.static.GetWorldInfo().AllActors(class 'RX_Building',tempBuilding)
 	{
+		if(!tempBuilding.bSignificant)
+			continue;
+
 		//skip building ramps and tech buildings and nod buildings
 		if (tempBuilding.isA('Rx_Building_GDI_InfantryFactory') || 
 			tempBuilding.isA('Rx_Building_GDI_MoneyFactory') || 

@@ -17,12 +17,29 @@ var(Combat) float Skill;
 var(Combat) bool bInvulnerableBots;						// Is the bot in God Mode?
 var(Combat) float DamageDealtModifier;					// Determines the multiplier of this bot's damage
 var(Combat) float DamageTakenModifier;					// Determines the multiplier of the damage this bot takes from others
+var(Combat) float SpeedModifier;						// Determines the multiplier for speed of the bot
+
+struct CustomInv
+{
+	var() array<class<Rx_Weapon> > PrimaryWeapons;
+	var() array<class<Rx_Weapon> > SecondaryWeapons;
+	var() array<class<Rx_Weapon> > SidearmWeapons;
+	var() array<class<Rx_Weapon> > ExplosiveWeapons;
+	var() array<class<Rx_Weapon> > Items;	
+};
+
+var(Combat) array<CustomInv> CustomInventory;		// a set of Custom inventory for the class corresponding to the index
+var(Combat) bool bDriverSurvives;					// Kills driver upon vehicle destruction if set to false
 
 var bool bActive;
 var int SpawnedBotNumber, BotRemaining;
 var Rx_SquadAI_Scripted AffiliatedSquad;
 var Rx_TeamInfo AffiliatedTeam;
 var Array<Rx_Bot_Scripted> MyBots;
+
+var bool bWaitForMatch;
+
+
 
 event PostBeginPlay()
 {
@@ -40,12 +57,34 @@ event PostBeginPlay()
 
 	if(bActive)
 	{
-		if(SpawnInterval > 0)
-			SetTimer(SpawnInterval,true,'StartSpawning');
+		if(Rx_Game(WorldInfo.Game) != None && Rx_Game(WorldInfo.Game).IsInState('MatchInProgress'))
+		{
+			if(SpawnInterval > 0)
+				SetTimer(SpawnInterval,true,'StartSpawning');
 
-		StartSpawning();
+			StartSpawning();
+		}
+		else
+		{
+			bWaitForMatch = true;
+		}
 	}
 
+}
+
+event Tick(float DeltaTime)
+{
+	if(bWaitForMatch)
+	{
+		if(Rx_Game(WorldInfo.Game) != None && Rx_Game(WorldInfo.Game).IsInState('MatchInProgress'))
+		{
+			if(SpawnInterval > 0)
+				SetTimer(SpawnInterval,true,'StartSpawning');
+
+			StartSpawning();
+			bWaitForMatch = false;
+		}		
+	}
 }
 
 function StartSpawning (optional bool bForced)
@@ -56,6 +95,7 @@ function StartSpawning (optional bool bForced)
 	local Rx_Vehicle V;
 	local int I, VI;
 	local Actor BestSpawn;
+	local Rx_InventoryManager PawnIM;
 
 	if(!bActive && !bForced)
 		return;
@@ -82,25 +122,48 @@ function StartSpawning (optional bool bForced)
 	if(BestSpawn != None)		// if failed, postpone the spawn cycle
 	{
 		if(VI >= 0)
+		{
 			V = Spawn(VehicleTypes[VI],,,BestSpawn.location,BestSpawn.rotation);
-	
+			if(V != None)
+				P = Spawn(class'Rx_Pawn_Scripted',,,BestSpawn.location + (vect(0,0,1) * 10000),BestSpawn.rotation,,true);
+		}
+		else
+		{
+			P = Spawn(class'Rx_Pawn_Scripted',,,BestSpawn.location,BestSpawn.rotation);
+		}
+	}
 
+	if(P != None)	// check if spawn fails
+	{
+		P.TeamNum = TeamIndex;
 		B = Spawn(class'Rx_Bot_Scripted');
 		Rx_Game(WorldInfo.Game).SetTeam(B, Rx_Game(WorldInfo.Game).Teams[TeamIndex], false);
-		if(V != None)
-			P = Spawn(class'Rx_Pawn_Scripted',,,WorldInfo.Game.FindPlayerStart(B,TeamIndex).location,BestSpawn.rotation,,true);
-		else
-			P = Spawn(class'Rx_Pawn_Scripted',,,BestSpawn.location,BestSpawn.rotation);
+		P.MySpawner = Self;
 		B.Possess(P,false);
 		MyBots.AddItem(B);
 		B.MySpawner = Self;
 
 		I = Rand(CharTypes.Length);
 
-		if(CharTypes[I].static.Cost(Rx_PRI(B.PlayerReplicationInfo)) <= 0)
-			Rx_PRI(B.PlayerReplicationInfo).SetChar(CharTypes[I], B.Pawn, true);
+		if(i + 1 <= CustomInventory.Length)
+		{
+			P.CurrCharClassInfo = CharTypes[i];
+			P.NotifyTeamChanged();
+
+			PawnIM = Rx_InventoryManager(B.Pawn.InvManager);
+
+			PawnIM.PrimaryWeapons = CustomInventory[i].PrimaryWeapons;
+			PawnIM.SecondaryWeapons = CustomInventory[i].SecondaryWeapons;
+			PawnIM.SidearmWeapons = CustomInventory[i].SidearmWeapons;
+			PawnIM.ExplosiveWeapons = CustomInventory[i].ExplosiveWeapons;
+			PawnIM.Items = CustomInventory[i].Items;
+
+			P.equipStartWeapons();
+
+		}
 		else
-			Rx_PRI(B.PlayerReplicationInfo).SetChar(CharTypes[I], B.Pawn, false);
+			B.SetChar(CharTypes[i], CharTypes[i].default.BasePurchaseCost <= 0);
+
 
 		if(AffiliatedSquad == None)
 		{
@@ -120,6 +183,8 @@ function StartSpawning (optional bool bForced)
 
 			B.BoundVehicle = V;
 		}
+
+		B.UpdateModifiedStats();
 
 		if((SquadID != "" && B.Squad.SquadObjective != SquadObjective) || B.MyObjective != SquadObjective)
 			B.ForceAssignObjective(SquadObjective);
@@ -212,7 +277,9 @@ function StopSpawning ()
 function NotifyPawnDeath (Rx_Bot_Scripted B)
 {
 
-	if(SpawnNumber <= 0 || (SpawnNumber > SpawnedBotNumber && SpawnNumber > 0))
+	BotRemaining = Max(0,BotRemaining - 1);
+
+	if(bActive && (SpawnNumber <= 0 || (SpawnNumber > SpawnedBotNumber && SpawnNumber > 0)))
 	{	
 		RestartSpawning();
 	}
@@ -291,7 +358,7 @@ function OnForceSpawn(Rx_SeqAct_ScriptedBotForceSpawn Action)
 	StartSpawning(true);
 }
 
-function OnModifySpawner (Rx_SeqAct_ScriptedBotModifySpawnValues Action)
+function OnModifySpawn (Rx_SeqAct_ScriptedBotModifySpawnValues Action)
 {
 	if(Action.SpawnPoints.Length > 0)
 		SpawnPoints = Action.SpawnPoints;
@@ -318,6 +385,7 @@ function OnModifySpawner (Rx_SeqAct_ScriptedBotModifySpawnValues Action)
 
 	DamageDealtModifier = Action.DamageDealtModifier;
 	DamageTakenModifier = Action.DamageTakenModifier;
+	SpeedModifier = Action.SpeedModifier;
 }
 
 
@@ -325,8 +393,9 @@ function OnChangeObjective(Rx_SeqAct_ScriptedBotChangeObjective Action)
 {
 	local SeqVar_Object ObjVar;
 	local Rx_ScriptedObj NewObjective;
+	local Rx_Bot_Scripted B;
 
-	foreach Action.LinkedVariables(class'SeqVar_Object', ObjVar, "Objective")
+	foreach Action.LinkedVariables(class'SeqVar_Object', ObjVar, "New Objective")
 	{
 		NewObjective = Rx_ScriptedObj(ObjVar.GetObjectValue());
 
@@ -343,7 +412,12 @@ function OnChangeObjective(Rx_SeqAct_ScriptedBotChangeObjective Action)
 	if(NewObjective != None)
 	{
 		AffiliatedSquad.SetObjective(SquadObjective,true);
+		foreach MyBots(B)
+		{
+			B.MyObjective = SquadObjective;
+		}
 	}
+
 }
 
 DefaultProperties
@@ -361,5 +435,15 @@ DefaultProperties
 
 	DamageDealtModifier = 1.f
 	DamageTakenModifier = 1.f
+	SpeedModifier = 1.f
 	Skill = 5.f
+/*
+	RemoteRole            = ROLE_SimulatedProxy
+	bAlwaysRelevant     = True
+	bGameRelevant       = True
+	bOnlyDirtyReplication = True
+	
+	NetUpdateFrequency=10.0
+
+*/
 }

@@ -6,12 +6,6 @@ var Rx_VehicleSpawnerManager Manager;
 var bool bReadyToSpawn;
 var(Spawner) float CooldownAfterSpawn;
 
-replication
-{
-	//if( bNetInitial && Role == ROLE_Authority )
-	if( bNetDirty && Role == ROLE_Authority )
-		bReadyToSpawn, Manager;
-}
 
 function ProcessQueue()
 {
@@ -41,10 +35,6 @@ defaultproperties
 
 	bReadyToSpawn = true
 
-	RemoteRole            = ROLE_SimulatedProxy
-	bGameRelevant       = True
-	bOnlyDirtyReplication = True
-	
-	NetUpdateFrequency=10.0
+
 
 }

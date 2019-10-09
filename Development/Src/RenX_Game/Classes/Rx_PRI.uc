@@ -251,7 +251,7 @@ function SetChar(class<Rx_FamilyInfo> newFamily, Pawn pawn, optional bool isFree
 	}
 	if(Rx_Bot(Owner) != None)
 	{
-		Rx_Pawn(pawn).SetCharacterClassFromInfo(newFamily);
+		Rx_Pawn(pawn).NotifyTeamChanged();
 //		Rx_Pawn(pawn).ChangeCharacterClass();
 	}
 	else if((WorldInfo.NetMode == NM_ListenServer && RemoteRole == ROLE_SimulatedProxy) || WorldInfo.NetMode == NM_Standalone )
@@ -735,7 +735,8 @@ function AddVP(float Amount)
 	
 	G = Rx_Game(WorldInfo.Game);
 	
-	if(bVeterancyDisabled) return; 
+	if(bVeterancyDisabled) 
+		return; 
 	
 	Veterancy_Points += Amount; 
 	

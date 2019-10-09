@@ -83,6 +83,8 @@ var array<Rx_UIDataProvider_MapInfo> MapDataProviderList;
 var bool bHasFadeIn;
 
 var string CommanderName[2]; 
+var bool bHasInitialized;
+var float ChatMaxRubberband;
 
 function bool Start(optional bool StartPaused = false)
 {
@@ -98,6 +100,8 @@ function bool Start(optional bool StartPaused = false)
 
 	if(RxGRI.bMatchIsOver)
 		EndGameMode();
+	else
+		InitScoreboard();
 
 	AddFocusIgnoreKey('Escape');
 
@@ -145,6 +149,21 @@ function LoadGfxObjects()
 		rootdebugtimertext.SetVisible(true);
 }
 
+function InitScoreboard()
+{
+	if(Scoreboard != None)
+		ServerName = Scoreboard.GetObject("ServerName");
+
+	if(ServerName == None)
+		return;
+
+	if(PC.WorldInfo.NetMode == NM_Standalone)
+		ServerName.SetText("Skirmish Session");
+	else
+		ServerName.SetText(RxGRI.ServerName);
+
+}
+
 /** Are we in a state where we should be updating the scoreboard, or has enough time passed since last update. */
 function bool ShouldUpdate() 
 {
@@ -173,6 +192,9 @@ function LoadBuildings()
 
 	foreach PC.AllActors(class'Rx_Building', B)
 	{
+		if(!B.bSignificant)
+			continue;
+
 		buildingIndex = GetBuildingIndex(B);
 
 		`logd("Rx_GFxUIScoreBoard::LoadBuildings"@`ShowVar(buildingIndex),true,'DevGFxUI');
@@ -229,7 +251,7 @@ function UpdateBuildings(bool force)
 			BuildingsList[i].iconMC = BuildingsList[i].containerMC.GetObject("icon");	
 			BuildingsList[i].iconMC.GotoAndStopI(BuildingsList[i].iconIndex);
 		}
-		else // Update health and armor levels on UI.
+		else if (health > 0) // Update health and armor levels on UI.
 		{
 			 //check our cached health to see if it has changed.
 			if(force || health != BuildingsList[i].hp)
@@ -312,13 +334,13 @@ function UpdatePlayers()
 
 		if (PRIArray[i] == PC.PlayerReplicationInfo) tmpObj.SetString("Color", "0x00FF00");
 
-		if (PRIArray[i].GetTeamNum() == TEAM_GDI)
+		if (PRIArray[i].GetTeamNum() == TEAM_GDI && GDIp < 32)
 		{
 			tmpObj.SetInt("Position", GDIp + 1);
 			DataProviderGDI.SetElementObject(GDIp, tmpObj);
 			GDIp++;
 		}
-		else if (PRIArray[i].GetTeamNum() == TEAM_NOD)
+		else if (PRIArray[i].GetTeamNum() == TEAM_NOD && NODp < 32)
 		{
 			tmpObj.SetInt("Position", NODp + 1);
 			DataProviderNOD.SetElementObject(NODp, tmpObj);
@@ -365,8 +387,16 @@ function Draw()
 	{
 		TickEndGameScoreboard();	
 		UpdateBuildings(true);
-	} else
+	} 
+	else if(bHasInitialized)
+	{
 		UpdateBuildings(false);
+	}
+	else
+	{
+		UpdateBuildings(true);
+		bHasInitialized = true;
+	}
 
 	UpdatePlayers();
 	UpdateScoreTotals();
@@ -374,7 +404,7 @@ function Draw()
 
 function PlayTickSound()
 {
-	PlaySoundFromTheme('Click', 'default'); 
+	PlaySoundFromTheme('press', 'default'); 
 }
 
 function SetEndGameResult(bool bWin)
@@ -408,14 +438,21 @@ function TickEndGameScoreboard()
 	if(NextRound != None)
 	{
 		TimeLeft = RxGRI.RenEndTime - PC.WorldInfo.RealTimeSeconds; //work out countdown for map voting/till next map load
-		if (int(TimeLeft) < 10) {
-			if(`GameObject != None && !`GameObject.IsTimerActive('PlayTickSound'))
-				`GameObject.SetTimer(1, true, 'PlayTickSound', self);
+		if (int(TimeLeft) < 10) 
+		{
+			if(TimeLeft > 0)
+			{
+				if(!PC.IsTimerActive('PlayTickSound',self))
+				{
+					PlayTickSound();
+					PC.SetTimer(1, true, 'PlayTickSound',self);
+				}
 
-			NextRound.GotoAndStopI(10); // swap nextround countdown to red.		
-			NextRound.SetText(Left(string(TimeLeft), InStr(string(TimeLeft), ".") + 2));
-
-			if (TimeLeft <= 0.0) {
+				NextRound.GotoAndStopI(10); // swap nextround countdown to red.		
+				NextRound.SetText(Left(string(TimeLeft), InStr(string(TimeLeft), ".") + 2));
+			}
+			else
+			{
 				NextRound.SetVisible(false);
 				NextLoadingMap.GotoAndStopI(10); // swap NextLoadingMap to red.
 				NextLoadingMap.SetText("Loading Map...");
@@ -502,7 +539,12 @@ function InitEndGameScoreboard()
 		duration.SetText(FormatTime(RxGRI.RenEndTime));
 
 	if(ServerName != None)
-		ServerName.SetText(RxGRI.ServerName);
+	{
+		if(PC.WorldInfo.NetMode == NM_Standalone)
+			ServerName.SetText("Skirmish Session");
+		else
+			ServerName.SetText(RxGRI.ServerName);
+	}
 
 	if(currentMap != None)
 		currentMap.SetText(GetMapFriendlyName(PC.WorldInfo.GetMapName()));
@@ -802,7 +844,7 @@ function SetUpDataProvider(GFxObject Widget)
 			return;
 		case (ChatBox):
 			ChatBox.SetString("htmlText", ChatLog);
-			ChatBox.SetFloat("position", ChatBox.GetFloat("maxscroll"));
+			ChatBox.SetInt("position", ChatBox.GetInt("maxScroll"));
 			return;
 		case (MVPGDICommander):
 			if(CommanderName[0] != "")
@@ -902,7 +944,7 @@ function bool FilterButtonInput(int ControllerId, name ButtonName, EInputEvent I
 			if (InputEvent == EInputEvent.IE_Pressed) {
 				if (TextMsg != none && TextMsg.GetText() != "") {
 					PC.Say(TextMsg.GetText());
-					PlaySoundFromTheme('click', 'default');
+					PlaySoundFromTheme('press', 'default');
 					TextMsg.SetText("");
 				} 
 			}
@@ -925,13 +967,32 @@ function OnPlayerSendBtnPress(GFxClikWidget.EventData ev)
 
 function AddChatMessage(string html, string raw)
 {
+	local bool bUpdateTomaxScroll;
+	local int CurrentPos;
+
 	ChatLog $= html $ "\n";
 
-	if (ChatBox != none) {
+	if (ChatBox != none) 
+	{
+		CurrentPos = ChatBox.GetInt("position");
+
+		if(CurrentPos >= ChatBox.GetInt("maxScroll") - ChatMaxRubberband)
+			bUpdateTomaxScroll = true;
+
+
 		ChatBox.SetString("htmlText", ChatLog);
 		ChatBox.SetString("rawMsg", raw);
-		ChatBox.SetFloat("position", ChatBox.GetFloat("maxscroll"));
+
+		if(bUpdateTomaxScroll && PC != None && !PC.IsTimerActive('UpdateScroll',Self))
+			PC.SetTimer(0.1,false,'UpdateScroll',Self); // Set timer here since maxScroll doesn't update immediately
+			
+
 	}
+}
+
+function UpdateScroll()
+{
+	ChatBox.SetInt("position", ChatBox.GetInt("maxScroll"));
 }
 
 function OnMapVoteListChange (GFxClikWidget.EventData ev) 
@@ -954,33 +1015,49 @@ function OnMapVoteListChange (GFxClikWidget.EventData ev)
 
 function int GetBuildingIndex(Rx_Building B)
 {
-	if(Rx_Building_GDI_InfantryFactory(B) != None) return 0;
-	if(Rx_Building_GDI_VehicleFactory(B) != None) return 1;
-	if(Rx_Building_GDI_MoneyFactory(B) != None) return 2;
-	if(Rx_Building_GDI_PowerFactory(B) != None) return 3;
-	if(Rx_Building_GDI_Defense(B) != None) return 4;
+	local Int Index;
 	
-	if(Rx_Building_Nod_InfantryFactory(B) != None) return 6;
-	if(Rx_Building_Nod_VehicleFactory(B) != None) return 7;
-	if(Rx_Building_Nod_MoneyFactory(B) != None) return 8;
-	if(Rx_Building_Nod_PowerFactory(B) != None) return 9;
-	if(Rx_Building_Nod_Defense(B) != None) return 10;
-	return -1;
+	if(Rx_Building_InfantryFactory(B) != None)
+		Index = 0;
+
+	else if(Rx_Building_VehicleFactory(B) != None)
+		Index = 1;
+
+	else if(Rx_Building_MoneyFactory(B) != None)
+		Index = 2;
+
+	else if(Rx_Building_PowerFactory(B) != None)
+		Index = 3;
+
+	else if(Rx_Building_Defense(B) != None)
+		Index = 4;
+
+	else if(Rx_Building_RepairFacility(B) != None)
+		Index = 5;
+
+	else
+		return -1;
+
+	if(B.GetTeamNum() > 0)
+		Index = Index + 6;
+
+	return Index;
 }
 
 function int GetBuildingPicIndex(Rx_Building B)
 {
 	if(Rx_Building_GDI_InfantryFactory(B) != None) return 3;
 	if(Rx_Building_GDI_VehicleFactory(B) != None) return 8;
-	if(Rx_Building_GDI_MoneyFactory(B) != None) return 7;
-	if(Rx_Building_GDI_PowerFactory(B) != None) return 6;
 	if(Rx_Building_GDI_Defense(B) != None) return 1;
 	
 	if(Rx_Building_Nod_InfantryFactory(B) != None) return 4;
 	if(Rx_Building_Nod_VehicleFactory(B) != None) return 2;
-	if(Rx_Building_Nod_MoneyFactory(B) != None) return 7;
-	if(Rx_Building_Nod_PowerFactory(B) != None) return 6;
 	if(Rx_Building_Nod_Defense(B) != None) return 5;
+
+	if(Rx_Building_MoneyFactory(B) != None) return 7;
+	if(Rx_Building_PowerFactory(B) != None) return 6;
+	if(Rx_Building_RepairFacility(B) != None) return 9;
+
 	return -1;
 }
 
@@ -1085,8 +1162,9 @@ DefaultProperties
 	SoundThemes(0)=(ThemeName=default,Theme=UISoundTheme'renxfrontend.Sounds.SoundTheme')
 	TimingMode=TM_Real
 	Priority=10
-	bIgnoreMouseInput = true;
-	bCaptureInput = false;	
+	bIgnoreMouseInput = true
+	bCaptureInput = false	
+	ChatMaxRubberband = 2
 
 	WidgetBindings.Add((WidgetName="mapVoteList",WidgetClass=class'GFxClikWidget'))
 	WidgetBindings.Add((WidgetName="NODPlayerList",WidgetClass=class'GFxClikWidget'))

@@ -80,6 +80,6 @@ DefaultProperties
 	Vet_DamageIncrease(0)=1 //Normal (should be 1)
 	Vet_DamageIncrease(1)=1.10 //Veteran 
 	Vet_DamageIncrease(2)=1.25 //Elite
-	Vet_DamageIncrease(3)=1.5 //Heroic (Gains rockets, doesn't need per-rocket damage)
+	Vet_DamageIncrease(3)=1.5 //Heroic
 
 }

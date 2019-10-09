@@ -1,8 +1,10 @@
 class Rx_BuildingAttachment_BeaconPedestal extends Rx_BuildingAttachment implements (Rx_ObjectTooltipInterface)
 	placeable;
 
-var() byte TeamNum;
-var StaticMeshComponent PedMesh;
+var() byte 								TeamNum;
+var StaticMeshComponent 				PedMesh;
+var(Visuals) MaterialInterface 			TeamMaterials[2];
+var LightEnvironmentComponent LightComp;
 
 event PostBeginPlay()
 {
@@ -13,7 +15,11 @@ event PostBeginPlay()
 simulated function Init( Rx_Building_Internals inBuilding, optional name SocketName )
 {
 	if(CheckPedestalSettings())
+	{
 		super.Init(inBuilding,SocketName);
+		if(TeamMaterials[GetTeamNum()] != None)
+			PedMesh.SetMaterial(0,TeamMaterials[GetTeamNum()]);
+	}
 
 	else
 		Destroy();
@@ -70,7 +76,7 @@ event TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLocatio
 	local Rx_Building B;
 //	`log(Self@" : HIT REGISTERED,@"@InstigatedBy.GetHumanReadableName()@"hits me with"@DamageCauser@"with"@DamageCauser.Base@"as a base");
 
-	if(Rx_Weapon_DeployedBeacon(DamageCauser) != None && EventInstigator.GetTeamNum() != GetTeamNum() && DamageCauser.Base == Self)
+	if(Rx_Weapon_DeployedBeacon(DamageCauser) != None && EventInstigator != None && EventInstigator.GetTeamNum() != GetTeamNum() && DamageCauser.Base == Self)
 	{
 
 		ServerDetonatePedestal(Rx_Weapon_DeployedBeacon(DamageCauser));
@@ -125,8 +131,12 @@ defaultproperties
 
 	// VISUAL PROPERTIES
 	Begin Object Class=DynamicLightEnvironmentComponent Name=MyLightEnvironment
-		bEnabled=TRUE
+		bEnabled                        = True
+		bSynthesizeSHLight              = True
+		bUseBooleanEnvironmentShadowing = False
+		bCastShadows 					= True
 	End Object
+	LightComp = MyLightEnvironment
 	Components.Add(MyLightEnvironment)
 
 	Begin Object Class=StaticMeshComponent Name=PedMeshCmp
@@ -136,11 +146,12 @@ defaultproperties
 		BlockRigidBody               = True
 		BlockZeroExtent              = True
 		BlockNonZeroExtent           = True
-		bCastDynamicShadow           = False
+		bCastDynamicShadow           = True
 		bAcceptsDynamicLights        = True
 		bAcceptsLights               = True
 		bAcceptsDecalsDuringGameplay = True
 		bAcceptsDecals               = True
+		bSelfShadowOnly 			 = True
 		RBCollideWithChannels	=(Default=TRUE,BlockingVolume=TRUE)
 		LightEnvironment = MyLightEnvironment
 		LightingChannels = (bInitialized=True,Dynamic=True,Static=True)
@@ -148,9 +159,12 @@ defaultproperties
 	Components.Add(PedMeshCmp)
 	PedMesh = PedMeshCmp
 
+	TeamMaterials[0] = MaterialInstanceConstant'RX_Deco_BuildingAssets.Materials.MI_EndGamePedistal_GDI'
+	TeamMaterials[1] = MaterialInstanceConstant'RX_Deco_BuildingAssets.Materials.MI_EndGamePedistal_Nod'
+
 	RemoteRole          = ROLE_SimulatedProxy
 	bCollideActors      = True
 	bBlockActors        = True
 	BlockRigidBody      = True
-	bWorldGeometry = true
+	bWorldGeometry 		= true
 }

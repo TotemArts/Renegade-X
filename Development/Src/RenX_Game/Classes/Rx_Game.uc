@@ -31,6 +31,7 @@ var int MapHistoryMax; // Max number of recently played maps to hold in memory
 var config int RecentMapsToExclude;
 var config int MaxMapVoteSize;
 var config int CnCModeTimeLimit;
+var config int DMModeTimeLimit;
 var int VPMilestones[3]; //Config
 var int MaxInitialVeterancy; //Maximum veterancy you can be given at the beginning of a game
 var float CurrentBuildingVPModifier; //Modifier based on number buildings currently destroyed. 1st building kill awards the least, and gradually rises with each kill
@@ -146,7 +147,7 @@ var config bool bAllowPrivateMessaging;
 /** Restrict PMing to just teammates. */
 var config bool bPrivateMessageTeamOnly;
 
-// Determines how teams are organized between matches. 0 = static, 1 = swap, 2 = random swap, 3 = shuffle, 4 = traditional (assign as players connect)
+// Determines how teams are organized between matches. 0 = static, 1 = swap, 2 = random swap, 3 = shuffle, 4 = traditional (assign as players connect), 5 = free real estate (enables swapping freely)
 var config int TeamMode;
 
 var int buildingArmorPercentage; //Always 50 if enabled 
@@ -499,6 +500,11 @@ function bool MapPackageExists (coerce string PackageName)
 
 delegate int MapListSort(Rx_UIDataProvider_MapInfo A, Rx_UIDataProvider_MapInfo B) 
 {
+	if(A.FriendlyName == B.FriendlyName)	// Handepsilon - I spent 4 hours pulling my hair out trying to figure out what was wrong with my game. It turns out this was the culprit. This is never happening again...	
+	{
+		`warn("Fatal Error! Sorting failed due to duplicate FriendlyName : ("$A.FriendlyName$") on 2 or more maps! Please use different names!!");
+	}
+
 	return A.FriendlyName < B.FriendlyName ? 0 : -1;
 }
 
@@ -526,6 +532,7 @@ function PostBeginPlay()
 		TeamAIType[0] = class'UTTeamAI';
 		TeamAIType[1] = class'UTTeamAI';
 		BotClass      = class'RenX_Game.Rx_Bot';
+		DefaultPawnClass = class'Renx_Game.Rx_Pawn_DM'; //Normalized Pawn
 	}
 
 	super.PostBeginPlay();
@@ -854,7 +861,17 @@ function SetTeam(Controller Other, UTTeamInfo NewTeam, bool bNewTeam)
 	local Actor A;
 	local TeamInfo OldTeam;
 
-	if ( Other.PlayerReplicationInfo == None )
+	if(Rx_Bot_Scripted(Other) != None)
+	{
+		Rx_Bot_Scripted(Other).AssignedTeam = Rx_TeamInfo(NewTeam);
+		if(Rx_Pawn_Scripted(Other.Pawn) != None)
+			Rx_Pawn_Scripted(Other.Pawn).TeamNum = Rx_TeamInfo(NewTeam).TeamIndex;
+
+		return;
+	}
+
+
+	if (Other.PlayerReplicationInfo == None )
 	{
 		return;
 	}
@@ -1297,18 +1314,23 @@ event PostLogin( PlayerController NewPlayer )
 	local PlayerReplicationInfo PRI;
 	local int num; 
 	local Rx_Mutator Rx_Mut;
-
+	local Rx_PRI NewPRI; 
+	
 	//if(NewPlayer.bIsPlayer)
 		//`RecordLoginChange(LOGIN, NewPlayer, NewPlayer.PlayerReplicationInfo.PlayerName, NewPlayer.PlayerReplicationInfo.UniqueId, false);
 
+	//Remove the need to cast 50 times in this function
+	NewPRI = Rx_Pri(NewPlayer.PlayerReplicationInfo);
+	
 	if (TeamMode != 4)
 	{
 		SetTeam(NewPlayer, UTTeamInfo(`RxEngineObject.GetInitialTeam(NewPlayer.PlayerReplicationInfo)), false);
 		//`log("Call PostLogin: " @ `RxEngineObject.IsPlayerCommander(NewPlayer.PlayerReplicationInfo));
-		if(bUseStaticCommanders && `RxEngineObject.IsPlayerCommander(NewPlayer.PlayerReplicationInfo) ) ChangeCommander(NewPlayer.GetTeamNum(), Rx_PRI(NewPlayer.PlayerReplicationInfo), true); 
+		if(bUseStaticCommanders && `RxEngineObject.IsPlayerCommander(NewPlayer.PlayerReplicationInfo) ) ChangeCommander(NewPlayer.GetTeamNum(), NewPRI, true); 
 	}
 
 	SteamID = OnlineSub.UniqueNetIdToString(NewPlayer.PlayerReplicationInfo.UniqueId);
+	
 	if (SteamID == `BlankSteamID || SteamID == "")
 		RxLog("PLAYER" `s "Enter;" `s `PlayerLog(NewPlayer.PlayerReplicationInfo) `s "from" `s NewPlayer.GetPlayerNetworkAddress() `s "hwid" `s Rx_Controller(NewPlayer).PlayerUUID `s "nosteam");
 	else
@@ -1318,7 +1340,7 @@ event PostLogin( PlayerController NewPlayer )
 
 	super.PostLogin(NewPlayer);
 				
-	Rx_Pri(NewPlayer.PlayerReplicationInfo).ReplicatedNetworkAddress = NewPlayer.PlayerReplicationInfo.SavedNetworkAddress;
+	NewPRI.ReplicatedNetworkAddress = NewPlayer.PlayerReplicationInfo.SavedNetworkAddress;
 	Rx_Controller(NewPlayer).RequestDeviceUUID();
 	
 	if(bDelayedStart) // we want bDelayedStart, but still want players to spawn immediatly upon connect
@@ -1327,55 +1349,56 @@ event PostLogin( PlayerController NewPlayer )
 	/**Needed anything that happened when a player first joined. If the team is using airdrops, it'll update them correctly **/
 
 	//Nods (Could probably make this cleaner looking, but at the moment I'm just making sure it works)
-	if(Rx_Pri(NewPlayer.PlayerReplicationInfo) != None && (Rx_Pri(NewPlayer.PlayerReplicationInfo).GetTeamNum() == TEAM_NOD) && VehicleManager.bNodIsUsingAirdrops)
+	if(NewPRI != None && (NewPRI.GetTeamNum() == TEAM_NOD) && VehicleManager.bNodIsUsingAirdrops)
 	{
-		if(Rx_Pri(NewPlayer.PlayerReplicationInfo).AirdropCounter == 0)
+		if(NewPRI.AirdropCounter == 0)
 		{
-			Rx_Pri(NewPlayer.PlayerReplicationInfo).AirdropCounter++;
+			NewPRI.AirdropCounter++;
 			//Rx_Pri(NewPlayer.PlayerReplicationInfo).LastAirdropTime=WorldInfo.TimeSeconds;
 		}
 	}
 	//Disable veterancy accordingly for surrenders
-	if(Rx_Pri(NewPlayer.PlayerReplicationInfo) != None && Rx_Pri(NewPlayer.PlayerReplicationInfo).GetTeamNum() == TEAM_Nod && bNodHasSurrendered)
+	if(NewPRI != None && NewPRI.GetTeamNum() == TEAM_Nod && bNodHasSurrendered)
 	{
-		Rx_Pri(NewPlayer.PlayerReplicationInfo).DisableVeterancy(true); 	
+		NewPRI.DisableVeterancy(true); 	
 	}
 			
 	//GDI 
-	if(Rx_Pri(NewPlayer.PlayerReplicationInfo) != None && (Rx_Pri(NewPlayer.PlayerReplicationInfo).GetTeamNum() == TEAM_GDI) && VehicleManager.bGDIIsUsingAirdrops)
+	if(NewPRI != None && (NewPRI.GetTeamNum() == TEAM_GDI) && VehicleManager.bGDIIsUsingAirdrops)
 	{
-		if(Rx_Pri(NewPlayer.PlayerReplicationInfo).AirdropCounter == 0)
+		if(NewPRI.AirdropCounter == 0)
 		{
-			Rx_Pri(NewPlayer.PlayerReplicationInfo).AirdropCounter++;
+			NewPRI.AirdropCounter++;
 			//Rx_Pri(NewPlayer.PlayerReplicationInfo).LastAirdropTime=WorldInfo.TimeSeconds;
 		}
 	}
 
-	Rx_PRI(NewPlayer.PlayerReplicationInfo).bCanRequestCheatBots = CheckCheatBot();
-
+	NewPRI.bCanRequestCheatBots = CheckCheatBot();
+	
 	//Disable veterancy accordingly for surrenders
-	if(Rx_Pri(NewPlayer.PlayerReplicationInfo) != None && Rx_Pri(NewPlayer.PlayerReplicationInfo).GetTeamNum() == TEAM_GDI && bGDIHasSurrendered)
+	if(NewPRI != None && NewPRI.GetTeamNum() == TEAM_GDI && bGDIHasSurrendered)
 	{
-		Rx_Pri(NewPlayer.PlayerReplicationInfo).DisableVeterancy(true); 	
+		NewPRI.DisableVeterancy(true); 	
 	}
 	
 	
-	if( Rx_Pri(NewPlayer.PlayerReplicationInfo) != none)
+	if(!Rx_MapInfo(WorldInfo.GetMapInfo()).bIsDeathmatchMap && NewPRI != none)
 	{
 
 	//Set Commander if they exist
-	if(Rx_PRI(NewPlayer.PlayerReplicationInfo).GetTeamNum() == 0 && Commander_PRI[0] != none) 
-		Rx_PRI(NewPlayer.PlayerReplicationInfo).SetCommander(Commander_PRI[0]) ;
-	else if(Rx_PRI(NewPlayer.PlayerReplicationInfo).GetTeamNum() == 1 && Commander_PRI[1] != none) {
-		Rx_PRI(NewPlayer.PlayerReplicationInfo).SetCommander(Commander_PRI[1]) ;
+	if(NewPRI.GetTeamNum() == 0 && Commander_PRI[0] != none) 
+		NewPRI.SetCommander(Commander_PRI[0]) ;
+	else if(NewPRI.GetTeamNum() == 1 && Commander_PRI[1] != none) {
+		NewPRI.SetCommander(Commander_PRI[1]) ;
 	}
 		
-
+		//Give average veterancy
 		foreach GameReplicationInfo.PRIArray(PRI) 
 		{			
-		if(Rx_PRI(PRI) == none) continue;
+		if(Rx_PRI(PRI) == none) 
+			continue;
 		
-				if (PRI.GetTeamNum() == Rx_Pri(NewPlayer.PlayerReplicationInfo).GetTeamNum()) 
+				if (PRI.GetTeamNum() == NewPRI.GetTeamNum()) 
 				{
 					AvgVeterancy+=Rx_PRI(PRI).Veterancy_Points;
 					num++; 
@@ -1383,7 +1406,7 @@ event PostLogin( PlayerController NewPlayer )
 			
 		}
 		if(num > 0) AvgVeterancy=min(MaxInitialVeterancy,AvgVeterancy/(num+2));
-				Rx_PRI(NewPlayer.PlayerReplicationInfo).InitVP(
+				NewPRI.InitVP(
 				AvgVeterancy,
 				Rx_Game(WorldInfo.Game).VPMilestones[0], 
 				Rx_Game(WorldInfo.Game).VPMilestones[1], 
@@ -1502,8 +1525,19 @@ exec function KillBots()
 
 	foreach WorldInfo.AllControllers(class'UTBot', B)
 	{
-		KillBot(B);
+		if(Rx_Bot_Scripted(B) == None) // so we don't accidentally kill our scripted bots
+			KillBot(B);
 	}
+}
+
+exec function KillScriptedBots()		// ONLY USE THIS AS EXPERIMENTAL TOOL
+{
+	local Rx_Bot_Scripted B;
+
+	foreach WorldInfo.AllControllers(class'Rx_Bot_Scripted', B)
+	{
+		KillBot(B);
+	}	
 }
 
 function String getPlayerStatsStringFromPri(Rx_Pri pri)
@@ -1648,9 +1682,7 @@ event InitGame( string Options, out string ErrorMessage )
 	
 	if(Rx_MapInfo(WorldInfo.GetMapInfo()).bIsDeathmatchMap)
 	{
-		if(TimeLimit != 10)
-			CnCModeTimeLimit = TimeLimit;
-		TimeLimit = 10;
+		TimeLimit = DMModeTimeLimit;
 		bSpawnInTeamArea = false;
 	} else if(CnCModeTimeLimit > 0 && CnCModeTimeLimit != TimeLimit)
 	{
@@ -1868,6 +1900,9 @@ function bool ToggleCheatBot()
 
 function SetPlayerDefaults(Pawn PlayerPawn)
 {
+	if(Rx_Bot_Scripted(PlayerPawn.Controller) != None)
+		return;
+
 	if(Rx_Pri(PlayerPawn.PlayerReplicationInfo) != none)
 	{ 
 		Rx_Pri(PlayerPawn.PlayerReplicationInfo).CharClassInfo = PurchaseSystem.GetStartClass(PlayerPawn.GetTeamNum(), PlayerPawn.PlayerReplicationInfo);
@@ -1879,17 +1914,20 @@ function SetPlayerDefaults(Pawn PlayerPawn)
 	{
 		if(!Rx_MapInfo(WorldInfo.GetMapInfo()).bIsDeathmatchMap) {
 			Rx_Pri(PlayerPawn.PlayerReplicationInfo).CharClassInfo = Rx_Bot(PlayerPawn.Controller).BotBuy(Rx_Bot(PlayerPawn.Controller), true);
-		} else if(PlayerPawn.PlayerReplicationInfo.GetTeamNum() == TEAM_GDI) {
-			Rx_Pri(PlayerPawn.PlayerReplicationInfo).CharClassInfo = PurchaseSystem.GDIInfantryClasses[Rand(PurchaseSystem.GDIInfantryClasses.Length)];
+		} 
+		
+		else if(PlayerPawn.PlayerReplicationInfo.GetTeamNum() == TEAM_GDI) {
+			Rx_Pri(PlayerPawn.PlayerReplicationInfo).CharClassInfo = PurchaseSystem.GDIInfantryClasses[Rand(6)];
 			`LogRxPub("GAME" `s "Spawn;" `s "player" `s `PlayerLog(PlayerPawn.PlayerReplicationInfo) `s "character" `s UTPlayerReplicationInfo(PlayerPawn.PlayerReplicationInfo).CharClassInfo);
 		} else if(PlayerPawn.PlayerReplicationInfo.GetTeamNum() == TEAM_NOD) {
-			Rx_Pri(PlayerPawn.PlayerReplicationInfo).CharClassInfo = PurchaseSystem.NodInfantryClasses[Rand(PurchaseSystem.NodInfantryClasses.Length)];
+			Rx_Pri(PlayerPawn.PlayerReplicationInfo).CharClassInfo = PurchaseSystem.NodInfantryClasses[Rand(6)];
 			`LogRxPub("GAME" `s "Spawn;" `s "player" `s `PlayerLog(PlayerPawn.PlayerReplicationInfo) `s "character" `s UTPlayerReplicationInfo(PlayerPawn.PlayerReplicationInfo).CharClassInfo);
 		}
-		//Rx_Pri(PlayerPawn.PlayerReplicationInfo).CharClassInfo = class'Rx_FamilyInfo_Nod_StealthBlackHand';
-		//Rx_Pri(PlayerPawn.PlayerReplicationInfo).CharClassInfo = class'Rx_FamilyInfo_Nod_RocketSoldier';
+
 		PlayerPawn.NotifyTeamChanged();
-	} else if(Rx_MapInfo(WorldInfo.GetMapInfo()).bIsDeathmatchMap)
+	} 
+	
+	/**else if(Rx_MapInfo(WorldInfo.GetMapInfo()).bIsDeathmatchMap)
 	{
 		if(PlayerPawn.PlayerReplicationInfo.GetTeamNum() == TEAM_GDI) {
 			Rx_Pri(PlayerPawn.PlayerReplicationInfo).CharClassInfo = PurchaseSystem.GDIInfantryClasses[Rand(PurchaseSystem.GDIInfantryClasses.Length)];
@@ -1897,7 +1935,7 @@ function SetPlayerDefaults(Pawn PlayerPawn)
 			Rx_Pri(PlayerPawn.PlayerReplicationInfo).CharClassInfo = PurchaseSystem.NodInfantryClasses[Rand(PurchaseSystem.NodInfantryClasses.Length)];
 		}
 		PlayerPawn.NotifyTeamChanged();
-	}
+	}*/
 	
 	super.SetPlayerDefaults(PlayerPawn);
 
@@ -1907,7 +1945,7 @@ function SetPlayerDefaults(Pawn PlayerPawn)
 		Rx_Controller(PlayerPawn.Controller).SetJustBaughtHavocSakura(false);
 		Rx_Controller(PlayerPawn.Controller).ChangeToSBH(true);	
 	} 
-	else if(Rx_Bot(PlayerPawn.Controller) != None && PurchaseSystem.IsStealthBlackHand( Rx_PRI(PlayerPawn.PlayerReplicationInfo) ) ) 
+	else if(Rx_Bot(PlayerPawn.Controller) != None  && Rx_Bot_Scripted(PlayerPawn.Controller) == None && PurchaseSystem.IsStealthBlackHand( Rx_PRI(PlayerPawn.PlayerReplicationInfo) ) ) 
 	{
 		Rx_Bot(PlayerPawn.Controller).ChangeToSBH(true);
 	} else {
@@ -2415,7 +2453,6 @@ function DetonatePedestal(Rx_Weapon_DeployedBeacon Beacon)
 		}
 	}
 
-	ResetGameSpeed();
 	SetTimer(4, false, 'PedestalEndGame');
 }
 
@@ -2433,6 +2470,14 @@ function CheckBuildingsDestroyed(Actor destroyedBuilding, Rx_Controller StarPC)
 	/*Show message where people will actually see it -Yosh (Remember the outrage when destruction and beacon messages were moved to the middle left? Yeah.. neither do the people that ranted about it.)*/
 	foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
 	{
+		if(!Rx_Building(destroyedBuilding).bSignificant)
+		{
+			if(StarPC != None && PC.GetTeamNum() == StarPC.GetTeamNum())
+				PC.DisseminateVPString("[Team Building Kill Bonus]&" $ class'Rx_VeterancyModifiers'.default.Ev_BuildingDestroyed*Rx_Game(WorldInfo.Game).CurrentBuildingVPModifier $ "&");
+			
+			continue;
+		}
+
 		if (StarPC == none && !bPedestalDetonated)
 			PC.CTextMessage(Caps("The"@destroyedBuilding.GetHumanReadableName()@ "was destroyed!"),'Red', 180);
 		else if (PC.GetTeamNum() == StarPC.GetTeamNum())
@@ -2452,7 +2497,7 @@ function CheckBuildingsDestroyed(Actor destroyedBuilding, Rx_Controller StarPC)
 	if (Role == ROLE_Authority)
 	{
 		CurrentBuildingVPModifier +=0.5;
-		if(!bPedestalDetonated)
+		if(!bPedestalDetonated && Rx_Building(destroyedBuilding).bSignificant)	// don't check victory for insignificant buildings
 		{
 			Check = CheckBuildings();
 			if (Check == BC_GDIDestroyed || Check == BC_NodDestroyed || Check == BC_TeamsHaveNoBuildings)
@@ -2527,7 +2572,7 @@ function BuildingCheck CheckBuildings ()
 
 	foreach AllActors(class'Rx_Building', B)
 	{
-		if(Rx_Building_Techbuilding(B) != None)
+		if(Rx_Building_Techbuilding(B) != None || !B.bSignificant)
 			continue;		
 		if (B.GetTeamNum() == TEAM_GDI && !(B.IsDestroyed()) ) // GDI
 		{
@@ -4883,6 +4928,117 @@ function bool CanSpectate( PlayerController Viewer, PlayerReplicationInfo ViewTa
 	}
 	
 	return true;
+}
+
+/** AddInactivePRI()
+* Add PRI to the inactive list, remove from the active list
+*/
+function AddInactivePRI(PlayerReplicationInfo PRI, PlayerController PC)
+{
+	local int i;
+	local PlayerReplicationInfo NewPRI, CurrentPRI;
+	local bool bIsConsole;
+
+	// don't store if it's an old PRI from the previous level or if it's a spectator
+	if (!PRI.bFromPreviousLevel && !PRI.bOnlySpectator)
+	{
+		NewPRI = PRI.Duplicate();
+		WorldInfo.GRI.RemovePRI(NewPRI);
+
+		// make PRI inactive
+		NewPRI.RemoteRole = ROLE_None;
+
+		// delete after 5 minutes (EDIT: This is fu**ing Renegade... Give them an hour)
+		NewPRI.LifeSpan = 3600; //300;
+
+		// On console, we have to check the unique net id as network address isn't valid
+		bIsConsole = WorldInfo.IsConsoleBuild();
+
+		// make sure no duplicates
+		for (i=0; i<InactivePRIArray.Length; i++)
+		{
+			CurrentPRI = InactivePRIArray[i];
+			if ( (CurrentPRI == None) || CurrentPRI.bDeleteMe ||
+				(!bIsConsole && (CurrentPRI.SavedNetworkAddress == NewPRI.SavedNetworkAddress)) ||
+				(bIsConsole && CurrentPRI.UniqueId == NewPRI.UniqueId) )
+			{
+				InactivePRIArray.Remove(i,1);
+				i--;
+			}
+		}
+		InactivePRIArray[InactivePRIArray.Length] = NewPRI;
+
+		// cap at 16 saved PRIs [What is this plebian nonsense?] we'll make it 64.. and probably crash servers
+		if ( InactivePRIArray.Length > 64 )
+		{
+			InactivePRIArray.Remove(0, InactivePRIArray.Length - 64);
+		}
+	}
+
+	PRI.Destroy();
+	// Readjust the skill rating now that this player has left
+	RecalculateSkillRating();
+}
+
+static event class<GameInfo> SetGameType(string MapName, string Options, string Portal)
+{
+	local string ThisMapPrefix;
+	local int i,pos;
+	local class<GameInfo> NewGameType;
+	local string GameOption;
+
+
+	if (Left(MapName, 9) ~= "EnvyEntry" || Left(MapName, 14) ~= "UDKFrontEndMap" )
+	{
+		return class'UTEntryGame';
+	}
+
+	// allow commandline to override game type setting
+	GameOption = ParseOption( Options, "Game");
+	if ( GameOption != "" )
+	{
+		return Default.class;
+	}
+
+	// strip the UEDPIE_ from the filename, if it exists (meaning this is a Play in Editor game)
+	MapName = StripPlayOnPrefix( MapName );
+
+	// replace self with appropriate gametype if no game specified
+	pos = InStr(MapName,"-");
+	ThisMapPrefix = left(MapName,pos);
+	for (i = 0; i < default.MapPrefixes.length; i++)
+	{
+		if (default.MapPrefixes[i] ~= ThisMapPrefix)
+		{
+			return Default.class;
+		}
+	}
+
+	// change game type
+	for ( i=0; i<Default.DefaultMapPrefixes.Length; i++ )
+	{
+		if ( Default.DefaultMapPrefixes[i].Prefix ~= ThisMapPrefix )
+		{
+			NewGameType = class<GameInfo>(DynamicLoadObject(Default.DefaultMapPrefixes[i].GameType,class'Class'));
+			if ( NewGameType != None )
+			{
+				return NewGameType;
+			}
+		}
+	}
+	for ( i=0; i<Default.CustomMapPrefixes.Length; i++ )
+	{
+		if ( Default.CustomMapPrefixes[i].Prefix ~= ThisMapPrefix )
+		{
+			NewGameType = class<GameInfo>(DynamicLoadObject(Default.CustomMapPrefixes[i].GameType,class'Class'));
+			if ( NewGameType != None )
+			{
+				return NewGameType;
+			}
+		}
+	}
+
+    return Default.class;
 }
 
 DefaultProperties

@@ -128,7 +128,6 @@ simulated event PreBeginPlay()
 //Added from Rx_Weapon_Reloadable - May be used 
 simulated function RestartWeaponFiringAfterReload(byte FireModeNum)
 {
-	//`log("Fire After Reload" @ "FireModeNum"); 
 	GotoState('Active');		
 	StartFire(FireModeNum);  	
 }
@@ -236,7 +235,7 @@ simulated state Active
 		else
 		{
 			//`log("Refire timer active or Secondary reloading ");
-			return !SecondaryReloading && !IsTimerActive('RefireCheckTimer') ;
+			return !SecondaryReloading && !IsTimerActive('SecondaryRefireCheckTimer') ;
 		}
 		 
 	}
@@ -268,25 +267,12 @@ simulated state Active
 			if(CurrentAmmoInClip[0] <= 0 && !PrimaryReloading )
 			{
 				PrimaryReload();
-				
-				/**if(WorldInfo.Netmode == NM_DedicatedServer) 
-				{
-					`log("Call clearPendingFireIn BeginFire");
-				ClearPendingFire(0);
-				}
-				*/
 			}
 			// Go to Reload for Secondary
 			else// if( CurrentFireMode == 1 && CurrentAmmoInClip[1] <= 0 && !SecondaryReloading )
 			if(CurrentAmmoInClip[1] <= 0 && !SecondaryReloading )
 			{
-				SecondaryReload();
-				
-				/**if(WorldInfo.Netmode == NM_DedicatedServer) 
-				{
-				ClearPendingFire(1);
-				}*/
-				
+				SecondaryReload();			
 			}
 
 		}
@@ -295,6 +281,7 @@ simulated state Active
 
 simulated function FireAmmunition()
 {
+	//scripttrace();
 	if(IsReloading(CurrentFireMode)) {
 		//`log("Is Reloading Firemode" @ CurrentFireMode);
 		return;
@@ -313,11 +300,17 @@ simulated state WeaponFiring
 	{
 		if (bDebugWeapon)
 		{
-			//`log("---"@self$" Coming from state"@PreviousState@"to state"@GetStateName());
+			`log("---"@self$" Coming from state"@PreviousState@"to state"@GetStateName());
 		}
-
-		super.BeginState(PreviousState);
+		//scriptrace(); 
+		`LogInv("PreviousStateName:" @ PreviousState);
+		// Fire the first shot right away EDIT: DO NOT DO THAT. WTF. EPIC?!
+		if(bReadyToFire()) 
+			FireAmmunition();
+		
+		TimeWeaponFiring( CurrentFireMode );
 	}
+	
 	// boilerplate debug stuff
 	simulated event EndState( Name NextState )
 	{
@@ -327,6 +320,7 @@ simulated state WeaponFiring
 		}
 		
 		super.EndState(NextState);
+		ClearTimer( nameof(SecondaryRefireCheckTimer) );
 	}
 
 	/**
@@ -358,20 +352,15 @@ simulated state WeaponFiring
 	 */
 	simulated function RefireCheckTimer()
 	{
-		//`log("ShouldRefire:" @ ShouldRefire());
-		
-		// if switching to another weapon, abort firing and put down right away
 		if( bWeaponPutDown )
 		{
-			//`log("Weapon Being Put down");
 			PutDownWeapon();
 			return;
 		}
 
 		// If weapon should keep on firing, then do not leave state and fire again.
-		if( ShouldRefire() )
+		if(CurrentFireMode == 0 && ShouldRefire() )
 		{
-			//`log("Weapon Should Be Refiring");
 			FireAmmunition();
 			return;
 		}
@@ -381,37 +370,41 @@ simulated state WeaponFiring
 		
 			{
 				//`log("Reloading Primary");
-				PrimaryReload();
-				
-				/**if(WorldInfo.Netmode == NM_DedicatedServer) 
-				{
-				//`log("Call clearPendingFireIn RefirceCheckTimer"); 
-				ClearPendingFire(0);
-				}*/
-				
+				PrimaryReload();				
 			}
+			
+			HandleFinishedFiring();
+	}
+	
+	simulated function SecondaryRefireCheckTimer()
+	{
+		if( bWeaponPutDown )
+		{
+			PutDownWeapon();
+			return;
+		}
+
+		// If weapon should keep on firing, then do not leave state and fire again.
+		if(CurrentFireMode == 1 && ShouldRefire() )
+		{
+			FireAmmunition();
+			return;
+		}
+			// if we have no ammo then check to see if we can reload
 			// Go to Reload for Secondary
-			if( !IsReloading(1) && !HasAmmo(1) && !SecondaryReloading )
+			if(!IsReloading(1) && !HasAmmo(1) && !SecondaryReloading )
 			{
 				//`log("Reloading Secondary");
 				SecondaryReload();
-					
-					/**if(WorldInfo.Netmode == NM_DedicatedServer) 
-				{
-				//`log("Call clearPendingFireIn RefirceCheckTimer"); 
-				ClearPendingFire(1);
-				}*/
 			}
 		
-
-		// Otherwise we're done firing
-		HandleFinishedFiring();
+		// We're done firing this weapon, but possibly not our primary
+			HandleFinishedFiring();
 	}
 	
 	simulated function bool bReadyToFire()
 	{
-		//`log("Check Refire - Ammo " @ CurrentAmmoInClip[0]);
-		return !IsTimerActive('RefireCheckTimer') ; 
+		return CurrentFireMode == 0 ? !IsTimerActive('RefireCheckTimer') : !IsTimerActive('SecondaryRefireCheckTimer') ; 
 	}
 }
 
@@ -542,7 +535,6 @@ simulated function SecondaryReloadTimer()
 
 simulated function ReloadWeapon( byte FireMode )
 {
-
 	CurrentAmmoInClip[FireMode] = ClipSize[FireMode];
 	if(ROLE < ROLE_Authority) CurrentAmmoInClipClientSide[FireMode] = ClipSize[FireMode];
 
@@ -558,13 +550,9 @@ simulated function ReloadWeapon( byte FireMode )
 	if(ClientPendingFire[FireMode] ) 
 	{
 		RestartWeaponFiringAfterReload(FireMode); 
-		/**SetCurrentFireMode(FireMode);
-		/`log("Held mouse button detected: fire mode is" @ FireMode);
-		GotoState('WeaponFiring');*/	
 	}
-	else if(!PrimaryReloading && !SecondaryReloading)
+	else if(((FireMode == 0 && !ClientPendingFire[1]) || (FireMode == 1 && !ClientPendingFire[0])) && !PrimaryReloading && !SecondaryReloading)
 	{
-		//`log("No Weapons are reloading");
 		GotoState('Active');
 	}
 	
@@ -792,7 +780,7 @@ simulated function StartFire(byte FireModeNum)
 		
 		ClientPendingFire[FireModeNum]=true; 
 		
-		if(bReadyToFire() && (Role < Role_Authority || WorldInfo.NetMode == NM_StandAlone))
+		if(bReadyToFire() && !IsReloading(FireModeNum) && (Role < Role_Authority || WorldInfo.NetMode == NM_StandAlone))
 		{
 			// if we're a client, synchronize server
 			//`log("Sending Fire Request[Vehicle]"); 
@@ -989,16 +977,28 @@ function PlayWeaponReloadEffects(byte FM)
 		if(CurrentAmmoInClip[FM] > 0)
 			return; 
 			
-		/**
-		if(ReloadAnimName[FM] == '' )
-		{
-			//PlayWeaponAnimation( ReloadAnimName[0], ReloadTime[0] );
-			//PlayArmAnimation( ReloadArmAnimName[0], ReloadTime[0] );
-		}*/
-			
 			if(Role == ROLE_Authority && ReloadSound[FM] != None) {
 				MyVehicle.PlaySound( ReloadSound[FM]);
 		}
+}
+
+simulated function SecondaryRefireCheckTimer()
+{
+	`log("Called Secondary Refire outside of Correct state"); 
+}
+
+simulated function TimeWeaponFiring( byte FireModeNum )
+{
+	// if weapon is not firing, then start timer. Firing state is responsible to stopping the timer.
+	
+	if(FireModeNum == 0 && !IsTimerActive('RefireCheckTimer') )
+	{
+		SetTimer( GetFireInterval(FireModeNum), true, nameof(RefireCheckTimer) );
+	}
+	else if(FireModeNum == 1 && !IsTimerActive('SecondaryRefireCheckTimer') )
+	{
+		SetTimer( GetFireInterval(FireModeNum), true, nameof(SecondaryRefireCheckTimer) );
+	}
 }
 
 DefaultProperties

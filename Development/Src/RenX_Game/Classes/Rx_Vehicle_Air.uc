@@ -55,7 +55,7 @@ reliable server function IncreaseSprintSpeed()
 
 	Super.IncreaseSprintSpeed();
 
-	SprintSpeed_Max = Default.AirSpeed * MinSprintSpeedMultiplier * Vet_SprintSpeedMod[VRank]; //default.AirSpeed * MinSprintSpeedMultiplier; //Default.AirSpeed * MinSprintSpeedMultiplier;
+	SprintSpeed_Max = Default.AirSpeed * MinSprintSpeedMultiplier * Vet_SprintSpeedMod[VRank]  * GetScriptedSpeedModifier(); //default.AirSpeed * MinSprintSpeedMultiplier; //Default.AirSpeed * MinSprintSpeedMultiplier;
 
 	if(PlayerController(Controller) != None)
 	{

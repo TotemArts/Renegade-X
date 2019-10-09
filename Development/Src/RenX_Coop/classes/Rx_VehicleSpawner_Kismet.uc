@@ -70,4 +70,10 @@ DefaultProperties
 	Mesh = SVehicleMesh
 
 	SupportedEvents(6)=class'SeqEvent_VehicleSpawnerEvent'
+
+	RemoteRole            = ROLE_SimulatedProxy
+	bGameRelevant       = True
+	bOnlyDirtyReplication = True
+	
+	NetUpdateFrequency=10.0
 }

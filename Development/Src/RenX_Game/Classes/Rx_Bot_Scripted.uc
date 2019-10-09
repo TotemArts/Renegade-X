@@ -15,6 +15,8 @@ var Rx_ScriptedObj_PatrolPoint PatrolTask;
 var int PatrolNumber;
 var UTGameObjective MyObjective;
 var Rx_Vehicle BoundVehicle;
+var Rx_TeamInfo AssignedTeam;
+var byte VRank;
 
 function InitPlayerReplicationInfo()
 {
@@ -25,15 +27,14 @@ function InitPlayerReplicationInfo()
 	PlayerReplicationInfo = Spawn(class'Rx_PRI', self);
 	Rx_PRI(PlayerReplicationInfo).bIsScripted = true;
 
-	if (PlayerReplicationInfo != none) {
-		PlayerReplicationInfo.SetPlayerTeam(WorldInfo.GRI.Teams[Owner.GetTeamNum()]);
+	if (PlayerReplicationInfo != none && MySpawner != None) {
+		PlayerReplicationInfo.SetPlayerTeam(WorldInfo.GRI.Teams[MySpawner.TeamIndex]);
 	}
 	SetTimer(0.05, false, 'CheckRadarVisibility'); 	
 }
 
 function RxInitialize(float InSkill, const out CharacterInfo BotInfo, UTTeamInfo BotTeam)
 {
-	local UTPlayerReplicationInfo PRI;
 
 	Skill = FClamp(InSkill, 0, 7);
 
@@ -51,12 +52,10 @@ function RxInitialize(float InSkill, const out CharacterInfo BotInfo, UTTeamInfo
 	ResetSkill();
 	//super.Initialize(4.0, BotInfo);
 
-	PRI = UTPlayerReplicationInfo(PlayerReplicationInfo);
-
 	if(Rx_TeamInfo(BotTeam).GetTeamName() == "GDI")
-		PRI.CharClassInfo = CharInfoClass.static.FindFamilyInfo("GDI");
+		Rx_Pawn(Pawn).CurrCharClassInfo = CharInfoClass.static.FindFamilyInfo("GDI");
 	else
-		PRI.CharClassInfo = CharInfoClass.static.FindFamilyInfo("Nod");
+		Rx_Pawn(Pawn).CurrCharClassInfo = CharInfoClass.static.FindFamilyInfo("Nod");
 
 
 //	setStrafingDisabled(true);
@@ -66,6 +65,9 @@ function RxInitialize(float InSkill, const out CharacterInfo BotInfo, UTTeamInfo
 		OurTeamAI = Rx_TeamAI(BotTeam.AI);
 
 }
+function ToggleBotVoice();
+
+
 
 protected event ExecuteWhatToDoNext()
 {
@@ -77,6 +79,12 @@ protected event ExecuteWhatToDoNext()
 		// pawn got destroyed between WhatToDoNext() and now - abort
 		return;
 	}
+
+	if(Pawn.GetTeamNum() != GetTeamNum())
+	{
+		Rx_Pawn_Scripted(Pawn).TeamNum = GetTeamNum();
+	}
+
 	if(MySpawner != None)
 	{
 		if(MySpawner.Skill != Skill)
@@ -95,12 +103,27 @@ protected event ExecuteWhatToDoNext()
 		{
 			RouteGoal = None;
 			MoveTarget = None;
+			if(Rx_Vehicle(Pawn) != None)
+				Rx_Vehicle(Pawn).UpdateThrottleAndTorqueVars();
 		}
 		else if(BoundVehicle.Health <= 0)
 		{
 			BoundVehicle = None;
 		}
 
+	}
+	if(Rx_Pawn(Pawn) != None) 
+	{
+		if(Rx_ScriptedObj_PatrolPoint(MyObjective) != None && Rx_ScriptedObj_PatrolPoint(MyObjective).bWalkingPatrol)
+		{
+			ClearTimer('ConsiderStartSprintTimer');
+			Rx_Pawn(Pawn).SetGroundSpeed(Rx_Pawn(Pawn).WalkingSpeed);
+		}
+		else
+		{
+			SetTimer(0.5,true,'ConsiderStartSprintTimer');
+			Rx_Pawn(Pawn).SetGroundSpeed(Rx_Pawn(Pawn).RunningSpeed);
+		}
 	}
 
 	bHasFired = false;
@@ -132,8 +155,11 @@ protected event ExecuteWhatToDoNext()
 		LoseEnemy();
 	if(Squad != None)
 	{
-		if ( Enemy == None )
+		if ( Enemy == None || !UTSquadAI(Squad).ValidEnemy(Enemy))
+		{
+			Enemy = None;
 			UTSquadAI(Squad).FindNewEnemyFor(self,false);
+		}
 		else if ( !UTSquadAI(Squad).MustKeepEnemy(Enemy) && !LineOfSightTo(Enemy) )
 		{
 			// decide if should lose enemy
@@ -196,6 +222,11 @@ protected event ExecuteWhatToDoNext()
 		
 }
 
+function class<UTFamilyInfo> BotBuy(Rx_Bot Bot, bool bJustRespawned, optional string SpecificOrder)
+{
+	return Rx_PRI(PlayerReplicationInfo).CharClassInfo;
+}
+
 function ForceAssignObjective(UTGameObjective O)
 {
 	if(Squad != None)
@@ -250,7 +281,12 @@ state Patrolling
 Begin:
 	if(Enemy != None && LineOfSightTo(Enemy))
 	{
-		ChooseAttackMode();
+		if(Rx_Vehicle(Pawn) == None)
+			ChooseAttackMode();
+
+		else
+			TimedFireWeaponAtEnemy();
+
 		Focus = Enemy;
 	}
 	else
@@ -282,6 +318,11 @@ Begin:
 	SwitchToBestWeapon();
 
 	WaitForLanding();
+
+	if(Enemy != None)
+	{
+		TimedFireWeaponAtEnemy();
+	}
 
 
 	if(MoveTarget != None)
@@ -348,21 +389,181 @@ function float GetDesiredOffset()
 		return 0.0;
 }
 
-state Dead
+function PawnDied(Pawn inPawn)
 {
-	function BeginState(Name PreviousStateName)
-	{
-		if(MySpawner != None)
-		{
-			MySpawner.BotRemaining -= 1;
-			MySpawner.NotifyPawnDeath(Self);
-		}
+	local int idx;
 
-
-		Destroy();
+	if ( inPawn != Pawn )
+	{	// if that's not our current pawn, leave
+		return;
 	}
+
+	// abort any latent actions
+	TriggerEventClass(class'SeqEvent_Death',self);
+	for (idx = 0; idx < LatentActions.Length; idx++)
+	{
+		if (LatentActions[idx] != None)
+		{
+			LatentActions[idx].AbortFor(self);
+		}
+	}
+	LatentActions.Length = 0;
+
+	if ( Pawn != None )
+	{
+		SetLocation(Pawn.Location);
+		Pawn.UnPossessed();
+	}
+	Pawn = None;
+
+	if(MySpawner != None)
+	{
+		MySpawner.NotifyPawnDeath(Self);
+	}		
+	Destroy();
+}
+
+
+// PRI Replacement functions
+
+function SetChar(class<Rx_FamilyInfo> newFamily, optional bool isFreeClass)
+{
+  	Rx_Pawn_Scripted(Pawn).SetChar(newFamily, isFreeClass);
+}
+
+simulated function byte GetTeamNum()
+{
+	return AssignedTeam.TeamIndex;
+}
+
+function bool HasRepairGun(optional bool bMandatory)
+{
+	local class<UTFamilyInfo> FamInfo;
+
+	FamInfo = Rx_Pawn_Scripted(Pawn).CurrCharClassInfo;
+
+	if( Rx_Game(WorldInfo.Game).PurchaseSystem.DoesHaveRepairGun( FamInfo ) ) 
+	{
+		return true;
+	}
+
+	return false;
+	
+}
+
+event Possess(Pawn inPawn, bool bVehicleTransition)
+{
+	if(Rx_Pawn_Scripted(inPawn) != None)
+		Rx_Pawn_Scripted(inPawn).TeamNum == GetTeamNum();
+
+	super.Possess(inPawn, bVehicleTransition);
+	SetRadarVisibility(RadarVisibility);
+}
+
+function ChooseAttackMode()
+{
+	local float EnemyStrength, WeaponRating, RetreatThreshold;
+
+	
+	if(!IsInState('Defending') && Rx_Pawn_SBH(Pawn) != None && !Rx_SquadAI(Squad).IsStealthDiscovered())
+		return;
+
+	if(Enemy != None && GetOrders() == 'Attack' && CurrentBO == None) 
+	{
+		if(GetTeamNum() == TEAM_GDI) 
+		{
+			if(Obelisk == None) 
+				GetObelisk();
+
+			if(Obelisk != None) 
+			{
+				if(RetreatToAvoidAO(Obelisk.location)) 
+					return;
+			}
+		} 
+
+		else if(GetTeamNum() == TEAM_NOD) 
+		{
+			if(AGT == None) 
+				GetAGT();
+
+			if(AGT != None) 
+			{
+				if(RetreatToAvoidAO(AGT.location)) 
+				{
+					return;
+				}
+			}
+		}
+	}
+
+	GoalString = " ChooseAttackMode last seen "$(WorldInfo.TimeSeconds - LastSeenTime);
+	// should I run away?
+	if ( (Squad == None) || (Enemy == None) || (Pawn == None) )
+		`log("HERE 1 Squad "$Squad$" Enemy "$Enemy$" pawn "$Pawn);
+	EnemyStrength = RelativeStrength(Enemy);
+	if ( EnemyStrength > RetreatThreshold && (AssignedTeam != None) && (FRand() < 0.25)
+		&& (WorldInfo.TimeSeconds - LastInjuredVoiceMessageTime > 45.0) )
+	{
+		LastInjuredVoiceMessageTime = WorldInfo.TimeSeconds;
+		SendMessage(None, 'INJURED', 35);
+	}
+	if ( Vehicle(Pawn) != None )
+	{
+		VehicleFightEnemy(true, EnemyStrength);
+		return;
+	}
+	if ( !bFrustrated && !UTSquadAI(Squad).MustKeepEnemy(Enemy) )
+	{
+		RetreatThreshold = Aggressiveness;
+		if ( UTWeapon(Pawn.Weapon).CurrentRating > 0.5 )
+			RetreatThreshold = RetreatThreshold + 0.35 - skill * 0.05;
+		if ( EnemyStrength > RetreatThreshold )
+		{
+			GoalString = "Retreat";
+			if ( (AssignedTeam != None) && (FRand() < 0.05)
+				&& (WorldInfo.TimeSeconds - LastInjuredVoiceMessageTime > 45.0) )
+			{
+				LastInjuredVoiceMessageTime = WorldInfo.TimeSeconds;
+				SendMessage(None, 'INJURED', 35);
+			}
+			DoRetreat();
+			return;
+		}
+	}
+
+	if ( (UTSquadAI(Squad).PriorityObjective(self) == 0) && (Skill + Tactics > 2) && ((EnemyStrength > -0.3) || (Pawn.Weapon.AIRating < 0.5)) )
+	{
+		if ( Pawn.Weapon.AIRating < 0.5 )
+		{
+			if ( EnemyStrength > 0.3 )
+				WeaponRating = 0;
+			else
+				WeaponRating = UTWeapon(Pawn.Weapon).CurrentRating/2000;
+		}
+		else if ( EnemyStrength > 0.3 )
+			WeaponRating = UTWeapon(Pawn.Weapon).CurrentRating/2000;
+		else
+			WeaponRating = UTWeapon(Pawn.Weapon).CurrentRating/1000;
+
+		// fallback to better pickup?
+		if ( FindInventoryGoal(WeaponRating) )
+		{
+			if ( PickupFactory(RouteGoal) == None )
+				GoalString = "fallback - inventory goal is not pickup but "$RouteGoal;
+			else
+				GoalString = "Fallback to better pickup " $ RouteGoal $ " hidden " $ RouteGoal.bHidden;
+			GotoState('FallBack');
+			return;
+		}
+	}
+
+	GoalString = "ChooseAttackMode FightEnemy";
+	FightEnemy(true, EnemyStrength);
 }
 
 DefaultProperties
 {
+	bCanTalk = false;
+	bIsPlayer = false;
 }

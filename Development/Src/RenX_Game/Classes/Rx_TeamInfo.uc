@@ -103,9 +103,10 @@ function bool AddToTeam( Controller Other )
 function RemoveFromTeam(Controller Other)
 {
 	if (Rx_Bot_Scripted(Other) == None && Other.bIsPlayer)
+	{
 	   ReplicatedSize--;
-   
-	Rx_Game(WorldInfo.Game).TeamCredits[TeamIndex].PlayerRI.RemoveItem(Rx_PRI(Other.PlayerReplicationInfo));
+   		Rx_Game(WorldInfo.Game).TeamCredits[TeamIndex].PlayerRI.RemoveItem(Rx_PRI(Other.PlayerReplicationInfo));
+   	}
 	super.RemoveFromTeam(Other);
 	Size = ReplicatedSize;
 

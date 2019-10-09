@@ -8,6 +8,8 @@ simulated function String GetHumanReadableName()
 
 defaultproperties
 {
+	BuildingInternalsClass  = Rx_Building_AirTower_Internals_Ramps
+
     Begin Object Class=StaticMeshComponent Name=Static_Ramps
         StaticMesh = StaticMesh'RX_BU_AirStrip.Mesh.SM_AirTower_Ramp'
 		CastShadow                      = True

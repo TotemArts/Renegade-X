@@ -91,6 +91,7 @@ simulated function OnBuildingDestroyed()
 function bool PowerLost(optional bool bFromKismet)
 {
 	local int i;
+	
 	if(!super.PowerLost() && !bFromKismet)
 		return false;
 
@@ -122,9 +123,9 @@ function bool PowerRestore()
 		SetupDefences();
 		return true;
 	}
-	else{
-		return false;
-	}
+
+	return false;
+
 	
 }
 

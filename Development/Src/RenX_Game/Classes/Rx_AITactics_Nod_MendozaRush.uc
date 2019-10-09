@@ -16,4 +16,6 @@ defaultproperties
 
 
 	MinimumParticipant = 2;
+
+	TacticName = "Mendoza Rush"
 }

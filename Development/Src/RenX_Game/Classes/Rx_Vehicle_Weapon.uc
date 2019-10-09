@@ -2117,4 +2117,5 @@ DefaultProperties
 	FM1_AVGString = "X/X"
 
 	bOkAgainstLightVehicles=true
+	MaxFinalAimAdjustment=0.85
 	}

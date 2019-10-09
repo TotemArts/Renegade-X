@@ -66,7 +66,12 @@ function Explosion()
 
 	// damage Buildings
 	if(bOnPedestal)
+	{
+		if(WorldInfo.Game != None)
+			WorldInfo.Game.SetGameSpeed(1.0);
+
 		Base.TakeDamage(Damage*Vet_DamageModifier[VRank], InstigatorController, ExplosionLocation, vect(0,0,0), DamageTypeClass != none ? DamageTypeClass : class'UTDmgType_Burning',, self);
+	}
 	else
 	{
 		FlatLocation = Location;
@@ -479,6 +484,9 @@ function DeactivateHealingAbility()
 
 function DramaticSlomo()
 {
+	if(InstigatorController == None || InstigatorController.GetTeamNum() == Rx_BuildingAttachment_BeaconPedestal(Base).GetTeamNum())
+		return;
+
 	if(WorldInfo.Game != None)
 		WorldInfo.Game.SetGameSpeed(0.2);
 }

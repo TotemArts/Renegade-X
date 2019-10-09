@@ -62,6 +62,7 @@ var Rx_GFxPurchaseMenu PTMovie;
 
 var bool bToggleOverviewMap;
 /** GFx movie used for Overview Map */
+var class<Rx_GfxOverviewMap> OverviewMapClass; 
 var Rx_GFxOverviewMap OverviewMapMovie;
 
 var float MaxSpotDistance;
@@ -2010,7 +2011,7 @@ function OpenOverviewMap()
 	bToggleOverviewMap = true;
 
 	//ToggleOverviewMap
-	OverviewMapMovie = new class'Rx_GFxOverviewMap';
+	OverviewMapMovie = new OverviewMapClass;
 	OverviewMapMovie.LocalPlayerOwnerIndex = GetLocalPlayerOwnerIndex();
 	if(Canvas != none)
 		OverviewMapMovie.SetViewport(0,0,Canvas.ClipX, Canvas.ClipY);
@@ -2047,17 +2048,23 @@ exec function SetShowScores(bool bEnableShowScores)
 	if (LeaderboardMovie != None && LeaderboardMovie.bMovieIsOpen)
 		return;
 
+	HandleSetShowScores(bEnableShowScores, false);
+}
+
+function HandleSetShowScores(bool bEnableShowScores, bool bForceHandle)
+{
+
     if(bEnableShowScores)
     {
-        //if ( Scoreboard == None )
-        //{
+        if ( Scoreboard == None )
+        {
             Scoreboard = new class'Rx_GFxUIScoreboard';
 			Scoreboard.LocalPlayerOwnerIndex = GetLocalPlayerOwnerIndex();
 			Scoreboard.SetViewport(0,0,Canvas.ClipX, Canvas.ClipY);
 			Scoreboard.SetViewScaleMode(SM_ExactFit);
 			Scoreboard.SetTimingMode(TM_Real);
 			Scoreboard.ExternalInterface = self;
-		//}
+		}
 
         if (!Scoreboard.bMovieIsOpen)
         {
@@ -2067,12 +2074,13 @@ exec function SetShowScores(bool bEnableShowScores)
 		
 		SetVisible(false);
     }
-    else if (Scoreboard != None && Scoreboard.bMovieIsOpen)
+    else if (Scoreboard != None && Scoreboard.bMovieIsOpen && (!Rx_GRI(PlayerOwner.WorldInfo.GRI).bMatchIsOver || bForceHandle))
 	{
 		Scoreboard.Close(false);
 		Scoreboard = None;
 		SetVisible(true);
 	}
+
 }
 
 
@@ -2416,22 +2424,26 @@ function TogglePauseMenu()
 			// On mobile previewer, close right away
 			CompletePauseMenuClose();
 		}
-	} else {
-		
-		CloseOtherMenus();
+	} 
+	else 
+	{
 
 		// Do not prevent 'escape' to unpause once we finished the game
-		if (Rx_GRI(PlayerOwner.WorldInfo.GRI) != none && Rx_GRI(PlayerOwner.WorldInfo.GRI).bMatchIsOver) {
-			if (Scoreboard != none && Scoreboard.EndGameTime > 0 && (Rx_GRI(PlayerOwner.WorldInfo.GRI).RenEndTime - PlayerOwner.WorldInfo.RealTimeSeconds) > 0) {
+		if (Rx_GRI(PlayerOwner.WorldInfo.GRI) != none && Rx_GRI(PlayerOwner.WorldInfo.GRI).bMatchIsOver) 
+		{
+			if (Scoreboard != none && Scoreboard.EndGameTime > 0 && (Rx_GRI(PlayerOwner.WorldInfo.GRI).RenEndTime - PlayerOwner.WorldInfo.RealTimeSeconds) > 0) 
+			{
 				PlayerOwner.SetPause(false);
 
-				if (RxPauseMenu_FadeSystemMovie == None) {
+				if (RxPauseMenu_FadeSystemMovie == None) 
+				{
 					RxPauseMenu_FadeSystemMovie = new class'Rx_GFxPauseMenu_FadeSystem';
 					RxPauseMenu_FadeSystemMovie.MovieInfo = SwfMovie'RenXPauseMenu.RenXFadeScreen';
 					RxPauseMenu_FadeSystemMovie.LocalPlayerOwnerIndex = class'Engine'.static.GetEngine().GamePlayers.Find(LocalPlayer(PlayerOwner.Player));
 					RxPauseMenu_FadeSystemMovie.SetTimingMode(TM_Real);
 				}
-				if (RxPauseMenuMovie == None) {
+				if (RxPauseMenuMovie == None) 
+				{
 					RxPauseMenuMovie = new RxPauseMenuMovieClass;
 					RxPauseMenuMovie.LocalPlayerOwnerIndex = class'Engine'.static.GetEngine().GamePlayers.Find(LocalPlayer(PlayerOwner.Player));
 					RxPauseMenuMovie.SetTimingMode(TM_Real);
@@ -2445,22 +2457,25 @@ function TogglePauseMenu()
 				//RxPauseMenuMovie.PlayOpenAnimation();
 
 				// Do not prevent 'escape' to unpause if running in mobile previewer
-				if(!WorldInfo.IsPlayInMobilePreview()) {
+				if(!WorldInfo.IsPlayInMobilePreview()) 
+				{
 					RxPauseMenuMovie.AddFocusIgnoreKey('Escape');
 				}
-
-				Scoreboard.RootMC.SetVisible(false);
 			}
-		} else {
+		} 
+		else 
+		{
 			PlayerOwner.SetPause(True);
 
-			if (RxPauseMenu_FadeSystemMovie == None) {
+			if (RxPauseMenu_FadeSystemMovie == None) 
+			{
 				RxPauseMenu_FadeSystemMovie = new class'Rx_GFxPauseMenu_FadeSystem';
 				RxPauseMenu_FadeSystemMovie.MovieInfo = SwfMovie'RenXPauseMenu.RenXFadeScreen';
 				RxPauseMenu_FadeSystemMovie.LocalPlayerOwnerIndex = class'Engine'.static.GetEngine().GamePlayers.Find(LocalPlayer(PlayerOwner.Player));
 				RxPauseMenu_FadeSystemMovie.SetTimingMode(TM_Real);
 			}
-			if (RxPauseMenuMovie == None) {
+			if (RxPauseMenuMovie == None) 
+			{
 				RxPauseMenuMovie = new RxPauseMenuMovieClass;
 				RxPauseMenuMovie.LocalPlayerOwnerIndex = class'Engine'.static.GetEngine().GamePlayers.Find(LocalPlayer(PlayerOwner.Player));
 				RxPauseMenuMovie.SetTimingMode(TM_Real);
@@ -2474,10 +2489,14 @@ function TogglePauseMenu()
 			//RxPauseMenuMovie.PlayOpenAnimation();
 
 			// Do not prevent 'escape' to unpause if running in mobile previewer
-			if(!WorldInfo.IsPlayInMobilePreview()) {
+			if(!WorldInfo.IsPlayInMobilePreview()) 
+			{
 				RxPauseMenuMovie.AddFocusIgnoreKey('Escape');
 			}
 		}
+
+		if(RxPauseMenuMovie != None)
+			CloseOtherMenus();
     }
 	PlayerOwner.Pawn.StopFiring();
 }
@@ -2495,9 +2514,15 @@ function CompletePauseMenuClose()
 	}
 	RxPauseMenuMovie = none;
 	
-	if (Rx_GRI(PlayerOwner.WorldInfo.GRI).bMatchIsOver) {
-		if (Scoreboard != none) {
+	if (Rx_GRI(PlayerOwner.WorldInfo.GRI).bMatchIsOver) 
+	{
+		if (Scoreboard != none) 
+		{
 			Scoreboard.RootMC.SetVisible(true);
+		}
+		else
+		{
+			SetShowScores(true);
 		}
 	}
     SetVisible(true);
@@ -2633,12 +2658,16 @@ exec function bool FlipPageBackward()
 function CloseOtherMenus()
 {
 	super.CloseOtherMenus(); 
-	
+
 	if(Rx_Controller(PlayerOwner) != none) 
 	{
 		Rx_Controller(PlayerOwner).DestroyOldComMenu();
 		Rx_Controller(PlayerOwner).DisableVoteMenu(true);
 	}
+
+	if(Scoreboard != None)
+		HandleSetShowScores(False, True);
+
 }
 
 function SetFadeToBlack (float Time, bool bToBlack)
@@ -2746,4 +2775,6 @@ DefaultProperties
 	Neutral_Heroic = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_Neutral_Heroic', U= 0, V = 0, UL = 64, VL = 64)
 
 	TestFontScale = 1.15
+	
+	OverviewMapClass = class'Rx_GfxOverviewMap'
 }

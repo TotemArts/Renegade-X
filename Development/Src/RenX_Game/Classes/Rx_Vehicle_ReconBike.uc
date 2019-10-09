@@ -66,7 +66,7 @@ DefaultProperties
 //========================================================\\
 
 
-    Health=200
+    Health=250 //200
     bLightArmor=True
     MaxDesireability=0.8
     MomentumMult=0.7
@@ -166,7 +166,7 @@ DefaultProperties
 	
 	SkeletalMeshForPT=SkeletalMesh'RX_VH_ReconBike.Mesh.SK_VH_ReconBike'
 
-	VehicleIconTexture=Texture2D'TS_VH_ReconBike.Materials.T_VehicleIcon_ReconBike'
+	VehicleIconTexture=Texture2D'RX_VH_ReconBike.UI.T_VehicleIcon_ReconBike'
 	MinimapIconTexture=Texture2D'TS_VH_ReconBike.Materials.T_RadarBlip_ReconBike'
 
 //========================================================\\

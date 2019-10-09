@@ -8,4 +8,5 @@ defaultproperties
 
 
 	TacticName = "Chemical Rush"
+	bTimeLimited = False
 }
