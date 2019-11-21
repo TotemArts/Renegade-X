@@ -6,11 +6,12 @@ var bool bAIControl;
 var class<Rx_Defence_Controller> DefenceControllerClass;
 
 var const byte TeamID;
+var Rx_PRI Deployer;
 
 replication
 {
 	if (bNetDirty && Role == ROLE_Authority)
-		bAIControl;
+		bAIControl, Deployer;
 }
 
 simulated function bool CanEnterVehicle(Pawn P)
@@ -76,7 +77,7 @@ simulated function DrivingStatusChanged()
 
 function bool TryToDrive(Pawn P)
 {
-    if(Rx_Controller(P.Controller) != None)
+    if(Rx_Controller(P.Controller) != None || Rx_Bot(P.Controller) != None)
     	return false;
     if( WorldInfo.GRI.OnSameTeam(Self,P)){
         StopFiring();

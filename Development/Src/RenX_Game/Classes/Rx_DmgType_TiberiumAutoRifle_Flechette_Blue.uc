@@ -7,14 +7,14 @@ defaultproperties
     SuicideStatsName=SUICIDES_TiberiumAutoRifle
 
     DamageWeaponFireMode=2
-    VehicleDamageScaling=0.1
+    VehicleDamageScaling=0.0789743589 //0.0733333333
     NodeDamageScaling=0.5
     VehicleMomentumScaling=0.1
 
     CustomTauntIndex=10
-    lightArmorDmgScaling=0.2
-	AircraftDamageScaling=0.35 //Low flying aircraft be damned. 
-    BuildingDamageScaling=0.01
+    lightArmorDmgScaling=0.157948718 //0.1466666667
+	AircraftDamageScaling= 0.2764102564 //0.2566666667 //Low flying aircraft be damned. 
+    BuildingDamageScaling= 0.2764102564 //0.2566666667 //0.0073333333
 	MCTDamageScaling=2.5
 	MineDamageScaling=1.0
 	

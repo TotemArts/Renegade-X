@@ -41,5 +41,6 @@ DefaultProperties
 	ExplosionLightClass=Class'RenX_Game.Rx_Light_Tank_Explosion'
 	
 	StatEffectClass = class'Rx_StatModifierInfo_ChemGrenadeDebuff'; 
+	StatEffectDistance = 300
 }
 

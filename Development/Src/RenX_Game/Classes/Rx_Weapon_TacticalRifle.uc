@@ -170,12 +170,12 @@ defaultproperties
 	WeaponFireTypes(0)=EWFT_InstantHit
 	WeaponFireTypes(1)=EWFT_None
 
-	InstantHitDamage(0)=16
-	InstantHitDamage(1)=16
+	InstantHitDamage(0)=20 //16
+	InstantHitDamage(1)=20 //16
 
-	InstantHitDamageRadius(0)=80
+	InstantHitDamageRadius(0)=40 //80
 	
-	HeadShotDamageMult=2.5
+	HeadShotDamageMult=1.6 //1.5 //2.5
 
 	InstantHitDamageTypes(0)=class'Rx_DmgType_TacticalRifle'
 	InstantHitDamageTypes(1)=class'Rx_DmgType_TacticalRifle'

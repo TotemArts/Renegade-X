@@ -8,6 +8,26 @@ var vector BottomPosition;
 var SoundCue   				  	AscendingSound;
 var SoundCue   				  	DescendingSound;
 var LightEnvironmentComponent   LightComp;
+var repnotify bool				bLiftActivated;
+
+replication
+{
+	if(Role == ROLE_Authority && bNetDirty)
+		bLiftActivated;
+}
+
+simulated event ReplicatedEvent(name VarName)
+{
+	if(VarName == 'bLiftActivated')
+	{
+		if(bLiftActivated)
+		{
+			Ascend();
+		}
+	}
+}
+
+simulated function Ascend();
 
 simulated function PostBeginPlay()
 {
@@ -20,19 +40,24 @@ auto state Bottom
 	simulated function BeginState(Name PreviousStateName)
 	{
 		SetLocation(BottomPosition);
+
+		if(WorldInfo.NetMode == NM_DedicatedServer)
+			bLiftActivated = false;
 	}
 
 	simulated function Bump( Actor Other, PrimitiveComponent OtherComp, vector HitNormal )
 	{
-		if(Pawn(Other) != None)
+		if(Role == ROLE_Authority && Pawn(Other) != None && !IsTimerActive('Ascend'))
 		{
-			`log(Self@": Registered Touch on"@Other);
 			SetTimer(0.5,false,'Ascend');
 		}
 	}
 
 	simulated function Ascend()
 	{
+		if(WorldInfo.NetMode == NM_DedicatedServer)
+			bLiftActivated = true;
+
 		GoToState('Ascending');	
 		PlaySound(AscendingSound,true);
 	}
@@ -114,6 +139,7 @@ DefaultProperties
 {
 
 	RemoteRole          = ROLE_SimulatedProxy
+	bAlwaysRelevant     = True
 	bCollideActors      = True
 	bBlockActors        = True
 	BlockRigidBody      = True

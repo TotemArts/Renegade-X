@@ -62,7 +62,9 @@ struct Buildings
 	var bool status;
 };
 
-var Buildings BuildingsList[12];
+//var Buildings BuildingsList[12];
+var Array<Buildings> GDIBuilding;
+var Array<Buildings> NodBuilding;
 
 var array<GFxObject> VoteList;
 var array<int> VoteListNum;
@@ -85,6 +87,12 @@ var bool bHasFadeIn;
 var string CommanderName[2]; 
 var bool bHasInitialized;
 var float ChatMaxRubberband;
+var int BeepPoint;
+
+
+//Caches
+var int LastGDIScore, LastNodScore;
+
 
 function bool Start(optional bool StartPaused = false)
 {
@@ -94,9 +102,11 @@ function bool Start(optional bool StartPaused = false)
 
     super.Start();
     Advance(0.f);
+
+    LastGDIScore = -1;
+    LastNodScore = -1;
 	
 	LoadGfxObjects();
-	LoadBuildings();
 
 	if(RxGRI.bMatchIsOver)
 		EndGameMode();
@@ -124,7 +134,7 @@ function LoadGfxObjects()
 
 	//Root
 	RootMC = GetVariableObject("root1.rootMC");
-	Scoreboard = RootMC.GetObject("sb");
+	
 	
 	//Root objects	
 	rootdebugtimertext = RootMC.GetObject("namedtest");
@@ -138,12 +148,14 @@ function LoadGfxObjects()
 
 	ResultMC.SetVisible(false);
 
-	if(!RxGRI.bMatchIsOver)
-		SetBuildingGfxObjects(Scoreboard);
-	else {
-		RootMC.GotoAndStopI(10);		
-		SetBuildingGfxObjects(EndGameScoreBoard);
-	}
+	if(RxGRI.bMatchIsOver)
+		RootMC.GotoAndStopI(10);	
+
+	else
+		Scoreboard = RootMC.GetObject("sb");	
+//	{		
+//		SetBuildingGfxObjects(EndGameScoreBoard);
+//	}
 
 	if(debugScoreboardUI)
 		rootdebugtimertext.SetVisible(true);
@@ -161,6 +173,8 @@ function InitScoreboard()
 		ServerName.SetText("Skirmish Session");
 	else
 		ServerName.SetText(RxGRI.ServerName);
+
+	LoadBuildings();
 
 }
 
@@ -187,85 +201,189 @@ function bool ShouldUpdate()
 function LoadBuildings()
 {
 	local Rx_Building B;
+	local Array<Rx_Building> BList;
+	local Buildings TempBuilding;
 
-	local int buildingIndex, i;
+	local int buildingIndex;
+	local ASDisplayInfo DI;
+	local float GDIYPos, NodYPos;
+
+	//empty these out
+	GDIBuilding.Length = 0;
+	NodBuilding.Length = 0;
 
 	foreach PC.AllActors(class'Rx_Building', B)
 	{
 		if(!B.bSignificant)
 			continue;
 
-		buildingIndex = GetBuildingIndex(B);
+		BList.AddItem(B);
+	}
 
-		`logd("Rx_GFxUIScoreBoard::LoadBuildings"@`ShowVar(buildingIndex),true,'DevGFxUI');
+	BList.Sort(SortBuildingDelegate);
 
+	foreach BList(B)
+	{
+		BuildingIndex = GetBuildingIndex(B);
 		if(buildingIndex == -1)
 			continue;
+
+		if(B.GetTeamNum() == 0)
+		{
+			if(StatsGDI == None) // if there's no movie here, drop
+				continue;
+
+
+			TempBuilding.containerMC = StatsGDI.AttachMovie("StatsBuilding","Building"$(GDIBuilding.Length + 1));
+
+			if(!RxGRI.bMatchIsOver)
+			{
+				if(GDIBuilding.Length > 0)
+					GDIYPos += 96; 
+				else
+					GDIYPos = 64;
+
+				TempBuilding.containerMC.SetPosition(-64.f,GDIYPos);
+
+			}
+			else
+				TempBuilding.containerMC.SetPosition(-64.f - (98 * ((GDIBuilding.Length + 3) % 3)),(64.f + (128.f * FFLoor(GDIBuilding.Length / 3))));
+
+
+			
+		}
+		else if(B.GetTeamNum() == 1)
+		{
+			if(StatsNod == None) // if there's no movie here, drop
+				continue;			
+
+			TempBuilding.containerMC = StatsNod.AttachMovie("StatsBuilding","Building"$(NodBuilding.Length + 1));
+
+			if(GDIBuilding.Length > 0)
+				NodYPos += 96; 
+			else
+				NodYPos = 64;
+			
+			if(!RxGRI.bMatchIsOver)
+			{
+				TempBuilding.containerMC.SetPosition(64.f,NodYPos);
+			}
+			else
+				TempBuilding.containerMC.SetPosition(64.f + (98 * ((NodBuilding.Length + 3) % 3)),(64.f + (128.f * FFLoor(NodBuilding.Length / 3))));
+
+			
+		}
+
+		TempBuilding.building = B;
+
+		TempBuilding.hpMC = TempBuilding.containerMC.GetObject("hp");
+		TempBuilding.armorMC = TempBuilding.containerMC.GetObject("ap");
+		TempBuilding.iconMC = TempBuilding.containerMC.GetObject("icon");	
+
+		`logd("Rx_GFxUIScoreBoard::LoadBuildings"@`ShowVar(buildingIndex),true,'DevGFxUI');
 		
-		BuildingsList[buildingIndex].containerMC.SetVisible(true); //building exists on map, show on Scoreboard.
-		BuildingsList[buildingIndex].iconIndex = GetBuildingPicIndex(B);
-		BuildingsList[buildingIndex].iconMC.GotoAndStopI(BuildingsList[buildingIndex].iconIndex);
-		BuildingsList[buildingIndex].building = B;
+		TempBuilding.iconIndex = GetBuildingPicIndex(B);
+		TempBuilding.iconMC.GotoAndStopI(TempBuilding.iconIndex);
+
+		if(RxGRI.bMatchIsOver)
+		{
+			TempBuilding.hp = 100;
+			TempBuilding.armor = 100;
+		}
+		if(B.GetTeamNum() == 0)
+		{
+			GDIBuilding.AddItem(TempBuilding);
+		}
+		else
+		{
+			NodBuilding.AddItem(TempBuilding);
+		}
 	}
 
 	// Reset our cached values for buildings as we are moving to endgame scoreboard.
-	if(RxGRI.bMatchIsOver)
+	if(!RxGRI.bMatchIsOver)	
 	{
-		for(i = 0; i < 12; i++)
+		if(GDIBuilding.Length > 5)
 		{
-			BuildingsList[i].hp = 100;
-			BuildingsList[i].armor = 100;
+			DI.HasXScale = True;
+			DI.HasYScale = True;
+			DI.YScale = 100.f * 6 / GDIBuilding.Length;
+			DI.XScale = DI.YScale;
+
+			StatsGDI.SetDisplayInfo(DI);
+		}
+
+		if(NodBuilding.Length > 5)
+		{
+			DI.HasXScale = True;
+			DI.HasYScale = True;
+			DI.YScale = 100.f * 6 / NodBuilding.Length;
+			DI.XScale = DI.YScale;
+
+			StatsNod.SetDisplayInfo(DI);
 		}
 	}
 }
 
 function UpdateBuildings(bool force) 
 {
-	local int health, armor, i;
 
-	for (i = 0; i < 12; i++)
+	if(GDIBuilding.Length > 0)
+		UpdateBuildingGFx(GDIBuilding,force);
+
+	if(NodBuilding.Length > 0);
+		UpdateBuildingGFx(NodBuilding,force);
+
+}
+
+function UpdateBuildingGFx(Array<Buildings> BList, bool force)
+{
+	local int health, armor, i;
+	local Buildings TempBuilding;
+
+	foreach BList(TempBuilding, i)
 	{
 		`logd("Rx_GFxUIScoreBoard::UpdateBuildings"@`ShowVar(i),true,'DevGFxUI');
 
-		if(BuildingsList[i].building == none) //building doesnt exist on map.
+		if(TempBuilding.building == none) //building doesnt exist on map.
 			continue;
 
-		`logd("Rx_GFxUIScoreBoard::UpdateBuildings"@`ShowVar(BuildingsList[i].building),true,'DevGFxUI');
+		`logd("Rx_GFxUIScoreBoard::UpdateBuildings"@`ShowVar(TempBuilding.building),true,'DevGFxUI');
 
-		`logd("Rx_GFxUIScoreBoard::UpdateBuildings"@`ShowVar(BuildingsList[i].building.GetArmor())@`ShowVar(BuildingsList[i].building.GetMaxArmor())@`ShowVar(BuildingsList[i].building.GetArmor()/BuildingsList[i].building.GetMaxArmor()*100.0),true,'DevGFxUI');
+		`logd("Rx_GFxUIScoreBoard::UpdateBuildings"@`ShowVar(TempBuilding.building.GetArmor())@`ShowVar(TempBuilding.building.GetMaxArmor())@`ShowVar(TempBuilding.building.GetArmor()/TempBuilding.building.GetMaxArmor()*100.0),true,'DevGFxUI');
 		
 
 		// Get health and armor levels as percentage
-		health = float(BuildingsList[i].building.GetHealth())/float(BuildingsList[i].building.GetTrueMaxHealth())*100.0;
-		if(BuildingsList[i].building.GetMaxArmor() != 0)
-			armor = float(BuildingsList[i].building.GetArmor())/float(BuildingsList[i].building.GetMaxArmor())*100.0; 
+		health = float(TempBuilding.building.GetHealth())/float(TempBuilding.building.GetTrueMaxHealth())*100.0;
+		if(TempBuilding.building.GetMaxArmor() != 0)
+			armor = float(TempBuilding.building.GetArmor())/float(TempBuilding.building.GetMaxArmor())*100.0; 
 
-		`logd("Rx_GFxUIScoreBoard::UpdateBuildings"@`ShowVar(health)@`ShowVar(BuildingsList[i].hp)@`ShowVar(armor),true,'DevGFxUI');
+		`logd("Rx_GFxUIScoreBoard::UpdateBuildings"@`ShowVar(health)@`ShowVar(TempBuilding.hp)@`ShowVar(armor),true,'DevGFxUI');
 
-		if(health <= 0 && (BuildingsList[i].hp != 0 || force)) // Building is destroyed, if BuildingsList[i].hp is already 0, we have already updated flash.
+		if(TempBuilding.building.IsDestroyed() && (TempBuilding.hp != 0 || force)) // Building is destroyed, if TempBuilding.hp is already 0, we have already updated flash.
 		{
-			BuildingsList[i].hp = 0;
-			BuildingsList[i].containerMC.GotoAndStopI(2); //swap building symbol to destroyed frame.
+			TempBuilding.hp = 0;
+			TempBuilding.containerMC.GotoAndStopI(2); //swap building symbol to destroyed frame.
 			
 			// regrab icon movie clip & reset icon, as we have changed frame.
-			BuildingsList[i].iconMC = BuildingsList[i].containerMC.GetObject("icon");	
-			BuildingsList[i].iconMC.GotoAndStopI(BuildingsList[i].iconIndex);
+			TempBuilding.iconMC = TempBuilding.containerMC.GetObject("icon");	
+			TempBuilding.iconMC.GotoAndStopI(TempBuilding.iconIndex);
 		}
-		else if (health > 0) // Update health and armor levels on UI.
+		else if (!TempBuilding.building.IsDestroyed()) // Update health and armor levels on UI.
 		{
 			 //check our cached health to see if it has changed.
-			if(force || health != BuildingsList[i].hp)
+			if(force || health != TempBuilding.hp)
 			{
-				BuildingsList[i].hpMC.GotoAndStopI(health);
-				BuildingsList[i].hp = health;
+				TempBuilding.hpMC.GotoAndStopI(health);
+				TempBuilding.hp = Max(1,health); // we get here only because we're alive. if the hp is 0, that means we're dead
 			}
-			if(force || armor != BuildingsList[i].armor)
+			if(force || armor != TempBuilding.armor)
 			{
-				BuildingsList[i].armorMC.GotoAndStopI(armor);
-				BuildingsList[i].armor = armor;
+				TempBuilding.armorMC.GotoAndStopI(armor);
+				TempBuilding.armor = armor;
 			}
 		}
-	}
+	}	
 }
 
 function UpdateScoreTotals()
@@ -274,9 +392,19 @@ function UpdateScoreTotals()
 	local int nodScore;
 
 	gdiScore = Rx_TeamInfo(PC.WorldInfo.GRI.Teams[TEAM_GDI]).GetRenScore();
+	if(LastGDIScore != gdiScore)
+	{
+		ScoreGDI.SetText(gdiScore);		
+		LastGDIScore = gdiScore;
+	}
+
 	nodScore = Rx_TeamInfo(PC.WorldInfo.GRI.Teams[TEAM_NOD]).GetRenScore();
-	ScoreGDI.SetText(gdiScore);	
-	ScoreNod.SetText(nodScore);	
+	if(LastNodScore != nodScore)
+	{
+		ScoreNod.SetText(nodScore);	
+		LastNodScore = nodScore;
+	}
+
 }
 
 function UpdatePlayers()
@@ -440,14 +568,15 @@ function TickEndGameScoreboard()
 		TimeLeft = RxGRI.RenEndTime - PC.WorldInfo.RealTimeSeconds; //work out countdown for map voting/till next map load
 		if (int(TimeLeft) < 10) 
 		{
+			if(TimeLeft < BeepPoint)
+			{
+				BeepPoint = FFloor(TimeLeft);
+				PlayTickSound();
+			}
+
+
 			if(TimeLeft > 0)
 			{
-				if(!PC.IsTimerActive('PlayTickSound',self))
-				{
-					PlayTickSound();
-					PC.SetTimer(1, true, 'PlayTickSound',self);
-				}
-
 				NextRound.GotoAndStopI(10); // swap nextround countdown to red.		
 				NextRound.SetText(Left(string(TimeLeft), InStr(string(TimeLeft), ".") + 2));
 			}
@@ -456,7 +585,7 @@ function TickEndGameScoreboard()
 				NextRound.SetVisible(false);
 				NextLoadingMap.GotoAndStopI(10); // swap NextLoadingMap to red.
 				NextLoadingMap.SetText("Loading Map...");
-				`GameObject.ClearTimer('PlayTickSound', self);
+				PC.ClearTimer('PlayTickSound', self);
 			}		
 		} 
 		else
@@ -530,8 +659,6 @@ function InitEndGameScoreboard()
 	CursorMC.SetVisible(true);
 	
 	// swap building status icon layout
-	StatsNod.GotoAndStopI(2);
-	StatsGDI.GotoAndStopI(2);
 
 	LoadBuildings();
 
@@ -1096,30 +1223,8 @@ function string GetMapFriendlyName(string Map)
 
 function SetBuildingGfxObjects(GFXObject obj)
 {
-	local int i;
+//	local int i;
 
-	//set buildings 0-5 in our array to buildings 1-6 under the StatsGDI symbol
-	for(i = 0; i <= 5; i++)
-	{
-		BuildingsList[i].containerMC = StatsGDI.GetObject("building" $ (i+1));
-		BuildingsList[i].hpMC = BuildingsList[i].containerMC.GetObject("hp");
-		BuildingsList[i].armorMC = BuildingsList[i].containerMC.GetObject("ap");
-		BuildingsList[i].iconMC = BuildingsList[i].containerMC.GetObject("icon");	
-	}
-
-	//set buildings 6-11 in our array to buildings 1-6 under the StatsNOD symbol
-	for(i = 6; i <= 11; i++)
-	{
-		BuildingsList[i].containerMC = StatsNod.GetObject("building" $ (i-5));
-		BuildingsList[i].hpMC = BuildingsList[i].containerMC.GetObject("hp");
-		BuildingsList[i].armorMC = BuildingsList[i].containerMC.GetObject("ap");
-		BuildingsList[i].iconMC = BuildingsList[i].containerMC.GetObject("icon");	
-	}
-
-	for (i = 0; i < 12 ; i++)
-	{
-		BuildingsList[i].containerMC.SetVisible(false);
-	}
 }
 
 function int SortPriDelegate( coerce PlayerReplicationInfo pri1, coerce PlayerReplicationInfo pri2 )
@@ -1135,6 +1240,20 @@ function int SortPriDelegate( coerce PlayerReplicationInfo pri1, coerce PlayerRe
 	}
 	return 0;
 }
+
+function int SortBuildingDelegate( coerce Rx_Building B1, coerce Rx_Building B2 )
+{
+	if (B1.myBuildingType > B2.myBuildingType)
+		return 1;
+	else if (B1.myBuildingType == B2.myBuildingType)
+		return 0;
+	else
+		return -1;
+
+
+	return 0;
+}
+
 
 function UpdateCommanderNames(){ 
 	local PlayerReplicationInfo pri; 
@@ -1193,4 +1312,6 @@ DefaultProperties
 	WidgetBindings.Add((WidgetName="MVPNODOffense",WidgetClass=class'GFxClikWidget'))
 	WidgetBindings.Add((WidgetName="MVPNODDefense",WidgetClass=class'GFxClikWidget'))
 	WidgetBindings.Add((WidgetName="MVPNODSupport",WidgetClass=class'GFxClikWidget'))
+
+	BeepPoint = 10
 }

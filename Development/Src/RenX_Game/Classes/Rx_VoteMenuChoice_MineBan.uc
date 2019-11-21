@@ -105,7 +105,17 @@ function int FindPlayerIDfromName (string Pname)
 
 function string ComposeTopString()
 {	
-	return super.ComposeTopString() $ " wants to ban" @ ComC.PlayerReplicationInfo.PlayerName @ "from Mining" ;	
+	local string FontColor;
+	
+	if(ComC.GetTeamNum() == 0)
+		FontColor = GDIColor;
+	else if(ComC.GetTeamNum() == 1)
+		FontColor = NodColor;
+	else
+		FontColor = HostColor;
+
+
+	return super.ComposeTopString() $ " wants to ban" @ "<font color='" $FontColor $"'>"$ ComC.PlayerReplicationInfo.PlayerName$"</font>" @ "from Mining" ;	
 }
 
 function string ParametersLogString()

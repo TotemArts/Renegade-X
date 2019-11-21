@@ -21,6 +21,7 @@ var int Mod_SniperKill;
 //Infantry or Vehicle 
 var int Mod_DefenseKill;
 var int Mod_UnfairAdvantage; //VRank > the person killed. 
+var int Mod_BlueprintKill;
 
 //Infantry 
 var int Mod_MineKill;
@@ -72,7 +73,7 @@ DefaultProperties
 
 	//Negative
 	Mod_DefenseKill = -3
-
+	Mod_BlueprintKill = -5
 	Mod_UnfairAdvantage = -2 //Per VRank level above the target
 
 	//Events 

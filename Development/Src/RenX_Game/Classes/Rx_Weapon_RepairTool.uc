@@ -202,6 +202,7 @@ DefaultProperties
 	InventoryMovieGroup=37
 
 	WeaponIconTexture=Texture2D'RX_WP_RepairGun.UI.T_WeaponIcon_RepairTool'
+	PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Weapon_RepairTool'
 
 	MuzzleFlashSocket="MuzzleFlashSocket"
 	MuzzleFlashPSCTemplate=ParticleSystem'RX_WP_RepairGun.Effects.P_RepairGun_MuzzleFlash_1P_Small'
@@ -228,4 +229,6 @@ DefaultProperties
 	/**********************/
 	
 	bUseClientAmmo = false ;
+
+	Price = 200
 }

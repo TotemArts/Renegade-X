@@ -20,10 +20,10 @@ defaultproperties
 	MCTDamageScaling=2.5
 	
 	////Infantry Armour Types//////
-	Inf_FLAKDamageScaling = 0.90 //0.9    //FLAK infantry armour (Standard rule is splash damage does  30% less, while gun damage does 30% more)
-	Inf_KevlarDamageScaling = 0.90 //0.9	//Kevlar (General rule is 15% less damage from direct hits/bullets, but no penalties) - EDIT: 20%
-	Inf_LazarusDamageScaling = 0.90 //0.9  // Lazarus SBH armour, standard rule is +40% to Electrical damage but likely no other damage modifiers.
-	Inf_NoArmourDamageScaling = 0.90
+	Inf_FLAKDamageScaling = 1.0//0.90 //0.9    //FLAK infantry armour (Standard rule is splash damage does  30% less, while gun damage does 30% more)
+	Inf_KevlarDamageScaling = 1.0 //0.90 //0.9	//Kevlar (General rule is 15% less damage from direct hits/bullets, but no penalties) - EDIT: 20%
+	Inf_LazarusDamageScaling = 1.0 //0.90 //0.9  // Lazarus SBH armour, standard rule is +40% to Electrical damage but likely no other damage modifiers.
+	Inf_NoArmourDamageScaling = 1.0 //0.90
 	
 	
 	MineDamageScaling=2.0

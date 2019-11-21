@@ -7,28 +7,28 @@ defaultproperties
     SuicideStatsName=SUICIDES_TACTICALRIFLE
 
     DamageWeaponFireMode=2
-    VehicleDamageScaling=0.15 //0.375
+    VehicleDamageScaling=0.11 //0.12 //0.1 //0.375
     NodeDamageScaling=0.5
     VehicleMomentumScaling=0.1
     bBulletHit=false
 
     CustomTauntIndex=10
-    lightArmorDmgScaling=0.3//0.375
-	AircraftDamageScaling=0.5 //Better, but still just barely able to 1-clip an Apache... and the projectile is dodgeable. Patch can't be good at EVERYTHING
+    lightArmorDmgScaling=0.22 //0.24 //0.2 //0.375
+	AircraftDamageScaling=0.363636 //0.4 //0.3333333333 //Better, but still just barely able to 1-clip an Apache... and the projectile is dodgeable. Patch can't be good at EVERYTHING
     
-	BuildingDamageScaling=0.4
+	BuildingDamageScaling= 0.2909090909 //0.32 //0.2666666667
 	MCTDamageScaling=2.0
 	
 	MineDamageScaling=2.0
 	////Infantry Armour Types//////
-	Inf_FLAKDamageScaling = 1.3    //FLAK infantry armour (Standard rule is explosive weapons does  30% less, while gun damage does 30% more)
+	Inf_FLAKDamageScaling = 1.15    //FLAK infantry armour (Standard rule is explosive weapons does  30% less, while gun damage does 30% more)
 	Inf_KevlarDamageScaling = 0.7	//Kevlar (General rule is 15% less damage from direct hits/bullets, but no penalties)
 	Inf_LazarusDamageScaling = 1.0  // Lazarus SBH armour, standard rule is +40% to Electrical damage but likely no other damage modifiers.
 	
 	AlwaysGibDamageThreshold=98
 	bNeverGibs=True
 	
-	BleedDamageFactor=0.2
+	BleedDamageFactor=0.1
 	BleedCount=4
 	
 	KDamageImpulse=5000

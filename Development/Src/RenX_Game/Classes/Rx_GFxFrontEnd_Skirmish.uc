@@ -101,6 +101,7 @@ struct GameModeInfo
 };
 
 var config array<GameModeInfo> GameModes;
+var array <GameModeInfo> AvailableGameModes;
 
 
 var config array<int> TimeLimitPresets;
@@ -126,6 +127,7 @@ function OnViewLoaded(Rx_GFXFrontEnd FrontEnd)
 {
 	MainFrontEnd = FrontEnd;
 	MapDataProviderList = Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList;
+    GetAvailableGameModes();
     GetAvailableMapDataProviders();
 	SkirmishMapSettings =  AvailableMapDataProviders[0];
 
@@ -134,13 +136,30 @@ function OnViewLoaded(Rx_GFXFrontEnd FrontEnd)
 	ActionScriptVoid("validateNow");
 }
 
+function GetAvailableGameModes()
+{
+    local int i,j;
+
+    for(j = 0; j < GameModes.Length; j++)
+    {
+        for (i = 0; i < MapDataProviderList.Length; i++) 
+        {
+            if(Mid(MapDataProviderList[i].MapName,0,Len(GameModes[j].Prefix)) ~= GameModes[j].Prefix)
+            {
+                AvailableGameModes.AddItem(GameModes[j]);
+                break;
+            }
+        } 
+    }      
+}
+
 function GetAvailableMapDataProviders()
 {
     local int i;
 
     for (i = 0; i < MapDataProviderList.Length; i++) 
     {
-        if(Mid(MapDataProviderList[i].MapName,0,Len(GameModes[LastGameModeItemPosition].Prefix)) ~= GameModes[LastGameModeItemPosition].Prefix)
+        if(Mid(MapDataProviderList[i].MapName,0,Len(AvailableGameModes[LastGameModeItemPosition].Prefix)) ~= AvailableGameModes[LastGameModeItemPosition].Prefix)
         {
             AvailableMapDataProviders.AddItem(MapDataProviderList[i]);
         }
@@ -477,17 +496,28 @@ function SetUpDataProvider(GFxClikWidget Widget)
 
         case (GameModeDropDown):
             k = 0;
-            for(i = 0; i < GameModes.Length; i++)
+
+            if(AvailableGameModes.Length <= 0)
             {
-                for (j = 0; j < MapDataProviderList.Length; j++) 
+                for(i = 0; i < GameModes.Length; i++)
                 {
-                    if(Mid(MapDataProviderList[j].MapName,0,Len(GameModes[i].Prefix)) ~= GameModes[i].Prefix)
+                    for (j = 0; j < MapDataProviderList.Length; j++) 
                     {
-                        DataProvider.SetElementString(k, Caps(GameModes[i].GameModeName));
-                        k++;
-                        break;
+                        if(Mid(MapDataProviderList[j].MapName,0,Len(GameModes[i].Prefix)) ~= GameModes[i].Prefix)
+                        {
+                            DataProvider.SetElementString(k, Caps(GameModes[i].GameModeName));
+                            k++;
+                            break;
+                        }
                     }
                 }
+            }
+            else
+            {
+                for(i = 0; i < AvailableGameModes.Length; i++)
+                {
+                    DataProvider.SetElementString(i, Caps(AvailableGameModes[i].GameModeName));
+                }                
             }
             //DataProvider.SetElementString(1, "C&C Assault");
             break;
@@ -500,7 +530,7 @@ function SetUpDataProvider(GFxClikWidget Widget)
             {            
                 for (i = 0; i < MapDataProviderList.Length; i++) 
                 {
-                    if(Mid(MapDataProviderList[i].MapName,0,Len(GameModes[LastGameModeItemPosition].Prefix)) ~= GameModes[LastGameModeItemPosition].Prefix)
+                    if(Mid(MapDataProviderList[i].MapName,0,Len(AvailableGameModes[LastGameModeItemPosition].Prefix)) ~= AvailableGameModes[LastGameModeItemPosition].Prefix)
                     {
                         AvailableMapDataProviders.AddItem(MapDataProviderList[i]);
 				        `log("Name - " $ MapDataProviderList[i].FriendlyName);
@@ -513,7 +543,7 @@ function SetUpDataProvider(GFxClikWidget Widget)
             {                
                 for (i = 0; i < MapDataProviderList.Length; i++) 
                 {
-                    if(Mid(MapDataProviderList[i].MapName,0,Len(GameModes[LastGameModeItemPosition].Prefix)) ~= GameModes[LastGameModeItemPosition].Prefix)
+                    if(Mid(MapDataProviderList[i].MapName,0,Len(AvailableGameModes[LastGameModeItemPosition].Prefix)) ~= AvailableGameModes[LastGameModeItemPosition].Prefix)
                     {
                         AvailableMapDataProviders.AddItem(MapDataProviderList[i]);
                         `log("Name - " $ MapDataProviderList[i].FriendlyName);

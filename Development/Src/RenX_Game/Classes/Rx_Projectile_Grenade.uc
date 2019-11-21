@@ -7,6 +7,7 @@ var bool bExplodeOnPawnImpact;
 
 var int	PopVelocity; //Velocity Z to pop off of the ground before exploding for maximum explodey effectiveness [e.g bouncing betty style]
 var	class<Rx_StatModifierInfo>	StatEffectClass ; 
+var int StatEffectDistance; //Distance you have to be from the grenade to invoke its status effects 
 
 /**
  * Set the initial velocity and cook time
@@ -149,7 +150,7 @@ simulated function bool HurtRadius
 		if ( (Victim != IgnoredActor) && (Victim.bCanBeDamaged || Victim.bProjTarget) )
 		{
 			Victim.TakeRadiusDamage(InstigatedByController, DamageAmount, InDamageRadius, DamageType, Momentum, HurtOrigin, bDoFullDamage, self);
-			if(StatEffectClass != none) 
+			if(StatEffectClass != none && VSizeSq(Victim.location - location) <= StatEffectDistance*StatEffectDistance)  
 			{
 				if(Rx_Controller(Victim.Controller) != none) Rx_Controller(Victim.Controller).AddActiveModifier(StatEffectClass);
 				else
@@ -215,6 +216,7 @@ DefaultProperties
     LifeSpan=2.0
     Damage=150 //100
     DamageRadius=450//350
+	StatEffectDistance = 300
     MomentumTransfer=50000
 
     bCollideComplex=true

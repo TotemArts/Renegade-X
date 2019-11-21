@@ -2,6 +2,8 @@ class Rx_Game_Survival extends Rx_Game_Cooperative
 	config(Survival);
 
 var int RemainingEnemy;
+var int TotalEnemyInCurrentWave;
+var Array<Rx_Bot_Survival> CurrentEnemies;
 var int WaveNumber;
 var config float TimeBeforeCountdown;
 var config float WaveGraceTime;
@@ -40,6 +42,14 @@ function PreBeginPlay()
 		if(O.myBuilding.GetTeamNum() == GetPlayerTeam())
 			BuildingObjectives.AddItem(O);
 	}
+}
+
+function HandleScriptedDeath(Rx_Bot_Scripted B)
+{
+	if(Rx_Bot_Survival(B) != None && B.GetTeamNum() != GetPlayerTeam())
+		NotifyEnemyDeath(Rx_Bot_Survival(B));
+
+	super.HandleScriptedDeath(B);	
 }
 
 function CheckBuildingsDestroyed(Actor destroyedBuilding, Rx_Controller StarPC)
@@ -97,7 +107,7 @@ function ReduceDamage(out int Damage, pawn injured, Controller instigatedBy, vec
 
 	TempDifficulty = WorldInfo.Game.GameDifficulty;
 	WorldInfo.Game.GameDifficulty = 5.0;
-	super(UTGame).ReduceDamage(Damage,injured,instigatedBy,HitLocation,Momentum,DamageType,DamageCauser);
+	super(UTTeamGame).ReduceDamage(Damage,injured,instigatedBy,HitLocation,Momentum,DamageType,DamageCauser);
 	WorldInfo.Game.GameDifficulty = TempDifficulty;
 }
 
@@ -171,8 +181,8 @@ function InitializeWave()
 
 		Spawns.Number = CalculateSpawnNumber(BaseNum,Mult);
 
-		Spawns.DamageDealtMultiplier = SurvivalInfo.Wave[WaveNumber].InfantryWaves[i].DamageDealtMultiplier;
-		Spawns.DamageTakenMultiplier = SurvivalInfo.Wave[WaveNumber].InfantryWaves[i].DamageTakenMultiplier;
+		Spawns.DamageDealtMultiplier = CalculateSpawnMod(SurvivalInfo.Wave[WaveNumber].InfantryWaves[i].DamageDealtMultiplier,SurvivalInfo.Wave[WaveNumber].InfantryWaves[i].PerPlayerDamageDealtMod);
+		Spawns.DamageTakenMultiplier = CalculateSpawnMod(SurvivalInfo.Wave[WaveNumber].InfantryWaves[i].DamageTakenMultiplier,SurvivalInfo.Wave[WaveNumber].InfantryWaves[i].PerPlayerDamageTakenMod);
 
 		CurrentWaveSpawns.AddItem(Spawns);
 	}
@@ -191,8 +201,8 @@ function InitializeWave()
 
 		Spawns.Number = CalculateSpawnNumber(BaseNum,Mult);
 
-		Spawns.DamageDealtMultiplier = SurvivalInfo.Wave[WaveNumber].VehicleWaves[i].DamageDealtMultiplier;
-		Spawns.DamageTakenMultiplier = SurvivalInfo.Wave[WaveNumber].VehicleWaves[i].DamageTakenMultiplier;
+		Spawns.DamageDealtMultiplier = CalculateSpawnMod(SurvivalInfo.Wave[WaveNumber].VehicleWaves[i].DamageDealtMultiplier, SurvivalInfo.Wave[WaveNumber].VehicleWaves[i].PerPlayerDamageDealtMod);
+		Spawns.DamageTakenMultiplier = CalculateSpawnMod(SurvivalInfo.Wave[WaveNumber].VehicleWaves[i].DamageTakenMultiplier, SurvivalInfo.Wave[WaveNumber].VehicleWaves[i].PerPlayerDamageTakenMod);
 
 		CurrentWaveSpawns.AddItem(Spawns);
 	}
@@ -203,11 +213,23 @@ function int CalculateSpawnNumber(int BaseNumber, float Multiplier)
 {
 	local int PlayerMultiplier;
 
-	PlayerMultiplier = FFloor(Multiplier * Teams[GetPlayerTeam()].Size);
+	PlayerMultiplier = FFloor(Multiplier * Teams[GetPlayerTeam()].Size * 0.75);
 	if(PlayerMultiplier <= 0)
 		return BaseNumber;
 
 	return BaseNumber * PlayerMultiplier;
+}
+
+function float CalculateSpawnMod(float BaseMod, float Multiplier)
+{
+	local float Modifier;
+
+	if(Teams[GetPlayerTeam()].Size <= 1)
+		return BaseMod;
+
+	Modifier = Multiplier ** (Teams[GetPlayerTeam()].Size - 1);
+
+	return BaseMod * Modifier;	
 }
 
 function StartWaveCountdown()
@@ -219,16 +241,23 @@ function StartWaveCountdown()
 
 function WaveCount()
 {
-	if(WaveCountdown > 0)
+	if(bGameEnded)
 	{
-		CTextBroadcast(255,"Next Wave in"@WaveCountdown,,30);
-		WaveCountdown -= 1;
+		ClearTimer('WaveCount');
 	}
 	else
 	{
-		InitializeWave();	// we do it here so any newcomers when the countdown is over will be considered
-		ClearTimer('WaveCount');
-		SetTimer(1.0, true, 'BatchSpawn');
+		if(WaveCountdown > 0)
+		{
+			CTextBroadcast(255,"Next Wave in"@WaveCountdown,,30);
+			WaveCountdown -= 1;
+		}
+		else
+		{
+			InitializeWave();	// we do it here so any newcomers when the countdown is over will be considered
+			ClearTimer('WaveCount');
+			SetTimer(1.0, true, 'BatchSpawn');
+		}
 	}
 }
 
@@ -237,6 +266,12 @@ function BatchSpawn()
 	local Rx_SurvivalSpawner S;
 	local int i;
 
+	if(bGameEnded)
+	{
+		ClearTimer('BatchSpawn');
+		return;
+	}
+
 	foreach Spawners(S)
 	{
 		if(CurrentWaveSpawns.Length <= 0 || SurvivalInfo == None || (RemainingEnemy >= MaximumEnemy && MaximumEnemy > 0))
@@ -244,6 +279,9 @@ function BatchSpawn()
 			ClearTimer('BatchSpawn');
 			return;
 		}
+
+		if(FRand() > 0.75)
+			continue;
 
 		i = Rand(CurrentWaveSpawns.Length);
 
@@ -269,6 +307,7 @@ function BatchSpawn()
 		if(CurrentWaveSpawns[i].Number <= 0)
 			CurrentWaveSpawns.Remove(i,1);
 		
+		TotalEnemyInCurrentWave++;
 		RemainingEnemy++;
 
 	}
@@ -313,7 +352,9 @@ function bool SpawnInfantry(class<Rx_FamilyInfo> InfClass, Rx_SurvivalSpawner Sp
 	B.UpdateModifiedStats();
 	B.Skill = WorldInfo.Game.GameDifficulty;
 	B.ResetSkill();
+	B.Enemy = None;
 
+	CurrentEnemies.AddItem(B);
 	return true;
 
 }
@@ -324,6 +365,7 @@ function bool SpawnVehicle(class<Rx_Vehicle> VehClass, Rx_SurvivalSpawner Spawne
 	local Rx_Vehicle V;
 	local Rx_Pawn_SurvivalEnemy P;
 	local Rx_TeamAI TeamAI;
+	local Vector PawnLoc;
 
 	TeamAI = Rx_TeamAI(Teams[1-GetPlayerTeam()].AI);
 
@@ -338,10 +380,16 @@ function bool SpawnVehicle(class<Rx_Vehicle> VehClass, Rx_SurvivalSpawner Spawne
 	if(V == None)
 		return false;
 
-	P = Spawn(class'Rx_Pawn_SurvivalEnemy',,,Spawner.location + (vect(0,0,1) * 10000),Spawner.rotation);
+	PawnLoc = V.Location;
+	PawnLoc.z += 1000;
+
+	P = Spawn(class'Rx_Pawn_SurvivalEnemy',,,PawnLoc,Spawner.rotation);
 
 	if(P == None)
+	{
+		V.Destroy();
 		return false;
+	}
 
 	P.TeamNum = 1 - GetPlayerTeam();
 	B = Spawn(class'Rx_Bot_Survival');
@@ -369,13 +417,16 @@ function bool SpawnVehicle(class<Rx_Vehicle> VehClass, Rx_SurvivalSpawner Spawne
 			V.Mesh.WakeRigidBody();
 
 		B.BoundVehicle = V;
+		V.DriverEnter(P);
 	}
 
 	B.UpdateModifiedStats();
 
 	B.Skill = WorldInfo.Game.GameDifficulty;
 	B.ResetSkill();
+	B.Enemy = None;
 
+	CurrentEnemies.AddItem(B);
 	return true;
 
 }
@@ -412,26 +463,69 @@ function bool CanSpawnHere(class<Pawn> PawnClass, Rx_SurvivalSpawner CurrentSpaw
 
 function NotifyEnemyDeath(Rx_Bot_Survival B)
 {
+	CurrentEnemies.RemoveItem(B);
 	RemainingEnemy--;
 
-	if(RemainingEnemy < MaximumEnemy && CurrentWaveSpawns.Length > 0 && !IsTimerActive('BatchSpawn'))
+	if(bGameEnded)
+		return;
+
+	if(!IsTimerActive('BatchSpawn'))
 	{
-		SetTimer(1.0, true, 'BatchSpawn');
+		if(RemainingEnemy < MaximumEnemy && CurrentWaveSpawns.Length > 0)
+		{
+			SetTimer(1.0, true, 'BatchSpawn');
+		}
+		else if (CurrentWaveSpawns.Length <= 0)
+		{
+			if(RemainingEnemy <= 0)
+			{
+				WaveNumber++;
+
+				if(SurvivalInfo.Wave.Length <= WaveNumber)
+				{
+					EndRxGame("Successful Defense",GetPlayerTeam());
+				}
+				else
+				{
+					CTextBroadcast(255,"Wave"@WaveNumber@"CLEAR!",'Green',120);
+					GiveTeamCredits(100.f * WaveNumber,GetPlayerTeam());
+
+					if(WaveGraceTime > 0)
+						SetTimer(WaveGraceTime, false, 'StartWaveCountdown');
+
+					else
+						StartWaveCountdown();
+				}
+
+				TotalEnemyInCurrentWave = 0;
+				CurrentEnemies.length = 0;
+				ClearTimer('CleanUpBots');
+			}
+
+			else if(!IsTimerActive('CleanUpBots') && RemainingEnemy < Round(TotalEnemyInCurrentWave * 0.15))
+			{
+				SetTimer(10.0, true, 'CleanUpBots');
+			}
+		}
 	}
-	else if(RemainingEnemy <= 0 && CurrentWaveSpawns.Length <= 0)
+}
+
+function CleanUpBots()
+{
+	local Rx_Bot_Survival B;
+
+	foreach CurrentEnemies(B)
 	{
-		if(SurvivalInfo.Wave.Length <= WaveNumber)
-		{
-			EndRxGame("Successful Defense",GetPlayerTeam());
-		}
-		else
-		{
-			WaveNumber++;
+		if (B.Pawn.PlayerCanSeeMe())
+			return;
+	}
 
-			CTextBroadcast(255,"Wave"@WaveNumber@"CLEAR!",'Green',120);
+	foreach CurrentEnemies(B)
+	{
+		if(Vehicle(B.Pawn) != None)
+			B.Pawn.SetTimer(0.5, false, 'Destroy');
 
-			SetTimer(WaveGraceTime, false, 'StartWaveCountdown');
-		}
+		B.Pawn.Suicide();
 	}
 }
 
@@ -561,15 +655,11 @@ State MatchInProgress
 		else
 			StartWaveCountdown();
 	}
-
-	function EndState( Name NextStateName )
-	{
-		super.EndState(NextStateName);
-	}
 }
 
 DefaultProperties
 {
+	PurchaseSystemClass        = class'Rx_PurchaseSystem_Survival'
 	TeamAIType(0)              = class'Rx_TeamAI_Survival'
 	TeamAIType(1)              = class'Rx_TeamAI_Survival'
 }

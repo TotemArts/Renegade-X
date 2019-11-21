@@ -135,10 +135,10 @@ DefaultProperties
     WeaponFireTypes(0)=EWFT_InstantHit
     WeaponFireTypes(1)=EWFT_None
 
-    InstantHitDamage(0)=15
+    InstantHitDamage(0)=20 //22 //15
     InstantHitDamage(1)=0
 	
-	HeadShotDamageMult=2.0
+	HeadShotDamageMult=1.5 //1.4 //2.0
    
 //    BotDamagePercentage = 0.6;
 

@@ -132,7 +132,7 @@ DefaultProperties
     LeftStickDirDeadZone=0.1
     TurnTime=18
     ViewPitchMin=-13000
-    HornIndex=1
+    HornIndex=0
     COMOffset=(x=25.0,y=0.0,z=-55.0)
     bUsesBullets = true
     bOkAgainstBuildings=false

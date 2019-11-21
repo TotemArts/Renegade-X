@@ -403,12 +403,17 @@ simulated function int GetItemPrices(byte teamID, int charid)
 {
 	if (teamID == TEAM_GDI)
 	{
-		return GDIItemPrices[charid];
+		return GDIItemClasses[charid].static.GetPrice(teamID);
 	} 
 	else
 	{
-		return NodItemPrices[charid];
+		return NodItemClasses[charid].static.GetPrice(teamID);
 	}
+}
+
+simulated function bool IsItemBuyable (Rx_Controller Player, byte teamID, int charid)
+{
+	return GetItemClass(teamID, charid).static.IsBuyable(Player);
 }
 
 simulated function class<Rx_FamilyInfo> GetFamilyClass(byte teamID, int charid)

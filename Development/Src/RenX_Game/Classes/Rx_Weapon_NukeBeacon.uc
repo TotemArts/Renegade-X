@@ -33,6 +33,6 @@ DefaultProperties
 	InventoryMovieGroup=18
 
 	WeaponIconTexture=Texture2D'RX_WP_Nuke.UI.T_WeaponIcon_NukeBeacon'
-
+	PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_NukeBeacon'
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_NukeBeacon'
 }

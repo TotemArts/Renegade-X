@@ -107,6 +107,9 @@ var RX_TeamAI OurTeamAI;
 
 var class<Rx_FamilyInfo> DefaultClass[2];
 
+//DEBUG
+var string FireAssessment; // debug stuff
+
 function RxInitialize(float InSkill, const out CharacterInfo BotInfo, UTTeamInfo BotTeam)
 {
 	local UTPlayerReplicationInfo PRI;
@@ -667,6 +670,9 @@ event bool HandlePathObstruction(Actor BlockedBy)
 	if(Rx_BuildingAttachment_Door(BlockedBy) != None)
 		return true;		// We can always pass the door, unless somebody had the idea to make locked doors for whatever reason
 
+	if(Rx_Defence(BlockedBy) != None)
+		return false;		// I think this is how bots were still able to get inside turrets
+
 	if(Rx_DestroyableObstacle(BlockedBy) != None)
 	{
 		Destructible = Rx_DestroyableObstacle(BlockedBy);
@@ -851,13 +857,23 @@ function bool CanAttack(Actor Other)
 	else if (Rx_Vehicle(Pawn) != None)
 	{
 		if(Rx_Building(Other) != None && !Rx_Vehicle_Weapon(Pawn.Weapon).bOkAgainstBuildings)
+		{
+			FireAssessment = "CANNOT ATTACK BUILDING - Weapon not eligible";
 			return false;
-
+		}
 
 	}
 
 	ret = super.CanAttack(Other);
 	
+	if(!ret)
+	{
+		if(Other == None)
+			FireAssessment = "No Target....";
+		else
+			FireAssessment = "CANNOT ATTACK - Weapon cannot attack"@Other;
+	}
+
 	return ret;
 }
 
@@ -979,6 +995,10 @@ function bool DefendedBuildingNeedsHealing()
 	if(CurrentBO != None && CurrentBO.DefenderTeamIndex == GetTeamNum() && CurrentBO.NeedsHealing()) 
 	{
 		return true;
+	}
+	if(CurrentBO.bIsDisabled)
+	{
+		OurTeamAI.FindNewObjectives(CurrentBO);
 	}
 	return false;
 }
@@ -1432,12 +1452,12 @@ function bool IsCurrentlyInvisible()
 
 	if(P != None)
 	{
-		if(!P.IsInState('BeenShot') && P.IsInvisible())
+		if(!P.IsInState('BeenShot') && P.IsInvisible() && VSizeSq(Enemy.Location - Pawn.Location) > 250000)
 			return true;
 	}
 	else if (V != None)
 	{
-		if(!V.IsInState('BeenShot') && V.IsInvisible())
+		if(!V.IsInState('BeenShot') && V.IsInvisible() && VSizeSq(Enemy.Location - Pawn.Location) > 250000)
 			return true;
 	}
 
@@ -1594,13 +1614,16 @@ function Rotator GetAdjustedAimFor( Weapon InWeapon, vector projStart )
 
 		if( !bClean )
 		{
-			// try head
- 			FireSpot.Z = GetEnemyHeadLocation().Z;
  			bClean = FastTrace(FireSpot, ProjStart);
 		}
-		if (!bClean && (Focus == Enemy) && bEnemyInfoValid)
+		if (!bClean && Focus == Enemy && bEnemyInfoValid)
 		{
-			FireSpot = LastSeenPos;
+
+			FireSpot = LastSeenPos;		
+			// try head
+			if(Rx_Pawn(Enemy) != None)
+	 			FireSpot.Z = GetEnemyHeadLocation().Z;
+
 			if ( Pawn.Location.Z >= LastSeenPos.Z )
 				FireSpot.Z -= 0.4 * TargetHeight;
 	 		HitActor = Trace(HitLocation, HitNormal, FireSpot, ProjStart, false);
@@ -1644,7 +1667,7 @@ function Rotator GetAdjustedAimFor( Weapon InWeapon, vector projStart )
 function vector GetEnemyHeadLocation()
 {
 	if(Enemy != None && Focus == Enemy)
-		return Rx_Pawn(Focus).Mesh.GetBoneLocation(Rx_Pawn(Focus).HeadBone) + vect(0,0,1) * Rx_Pawn(Focus).HeadHeight;
+		return Rx_Pawn(Enemy).Mesh.GetBoneLocation(Rx_Pawn(Enemy).HeadBone) + vect(0,0,1) * Rx_Pawn(Enemy).HeadHeight;
 	else if (Pawn(Focus) != None)
 		return GetFocalPoint() + (vect(0,0,1) * 0.9 * Pawn(Focus).GetCollisionHeight());
 	else
@@ -2605,17 +2628,31 @@ function bool WeaponFireAgain(bool bFinishedFire)
 
 function bool ShouldFire()
 {
-	if(Pawn.Weapon == None || !CanAttack(Focus))
+	if(Pawn.Weapon == None)
+	{
+		FireAssessment = "CANNOT ATTACK - Weapon doesn't exist";
 		return false;
+	}
+	if(!CanAttack(Focus))
+	{
+		return false;
+	}
 
 	if(Rx_WeaponAbility(Pawn.Weapon) != None)
-		return true;
-
-	if(!Pawn.NeedToTurn(GetFocalPoint()))
 	{
+		FireAssessment = "SUCCESS ABILITY ATTACK";
+
 		return true;
 	}
 
+	if(!Pawn.NeedToTurn(GetFocalPoint()))
+	{
+		FireAssessment = "SUCCESS ATTACK";
+		return true;
+	}
+
+
+	FireAssessment = "CANNOT ATTACK - Angle is not correct yet";
 	return false;
 }
 
@@ -3139,41 +3176,44 @@ exec function SwitchToBestWeapon(optional bool bForceNewWeapon)
 
 	IM = Rx_InventoryManager(Pawn.InvManager);
 
-	//	Smoke grenade - Try to choose if needed to disorient enemy
-
-	if(IM != None && Enemy != None && Focus == Enemy && (Rx_Pawn(Pawn).Armor < Rx_Pawn(Pawn).ArmorMax * 0.25 || Skill >= 6.0))
+	if(IM.AbilityWeapons.Length > 0)
 	{
-		if((Rx_WeaponAbility_SmokeGrenade(Pawn.Weapon) != None && Rx_Weapon_SmokeGrenade_Rechargeable(Pawn.Weapon).bReadyToFire()))
-			return;
 
-		if(FRand() >= 2/Skill)
-		{	
-			if(IM.AbilityWeapons[0] != None)
+
+	//	Smoke grenade - Try to choose if needed to disorient enemy
+		if(IM != None && Enemy != None && Focus == Enemy && (Rx_Pawn(Pawn).Armor < Rx_Pawn(Pawn).ArmorMax * 0.25 || Skill >= 6.0))
+		{
+			if((Rx_WeaponAbility_SmokeGrenade(Pawn.Weapon) != None && Rx_Weapon_SmokeGrenade_Rechargeable(Pawn.Weapon).bReadyToFire()))
+				return;
+
+			if(FRand() >= 2/Skill)
+			{	
 				Smoke = Rx_WeaponAbility_SmokeGrenade(IM.AbilityWeapons[0]);
 
-			if(Smoke != None && Smoke.bReadyToFire())
-			{
-				IM.SwitchToWeaponAbility(0);
-				return;
+				if(Smoke != None && Smoke.bReadyToFire())
+				{
+					IM.SwitchToWeaponAbility(0);
+					return;
+				}
 			}
 		}
-	}
 
-	//	EMP grenade - Try to choose if needed to disorient enemy
+		//	EMP grenade - Try to choose if needed to disorient enemy
 
-	if(IM != None && Rx_Vehicle(Focus) != None && Rx_Defence(Focus) == None && Rx_Defence_Emplacement(Focus) == None)
-	{
-		if((Rx_WeaponAbility_EMPGrenade(Pawn.Weapon) != None && Rx_Weapon_EMPGrenade_Rechargeable(Pawn.Weapon).bReadyToFire()))
-			return;
-
-		if(FRand() >= 1.4/Skill)
+		if(IM != None && Rx_Vehicle(Focus) != None && Rx_Defence(Focus) == None && Rx_Defence_Emplacement(Focus) == None)
 		{
-			EMP = Rx_WeaponAbility_EMPGrenade(IM.GetIndexedAbility(0));
-
-			if(EMP != None && EMP.bReadyToFire())
-			{
-				IM.SwitchToWeaponAbility(0);
+			if((Rx_WeaponAbility_EMPGrenade(Pawn.Weapon) != None && Rx_Weapon_EMPGrenade_Rechargeable(Pawn.Weapon).bReadyToFire()))
 				return;
+
+			if(FRand() >= 1.4/Skill)
+			{
+				EMP = Rx_WeaponAbility_EMPGrenade(IM.GetIndexedAbility(0));
+
+				if(EMP != None && EMP.bReadyToFire())
+				{
+					IM.SwitchToWeaponAbility(0);
+					return;
+				}
 			}
 		}
 	}
@@ -3264,6 +3304,11 @@ function bool NeedWeapon()
 //	All function regarding bot communcations go here
 //
 //
+
+function SendMessage(PlayerReplicationInfo Recipient, name MessageType, float Wait, optional class<DamageType> DamageType)
+{
+	//nullified
+}
 
 function MsgCooldown()
 {

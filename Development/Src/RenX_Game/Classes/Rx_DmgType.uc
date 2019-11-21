@@ -16,6 +16,7 @@ var string IconTextureName;
 var Texture2D IconTexture;
 
 var bool bUnsourcedDamage;
+var localized string WeaponName;
 
 static function float VehicleDamageScalingFor(Vehicle V)
 {

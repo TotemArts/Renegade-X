@@ -29,6 +29,7 @@ function bool CheckSquadObjectives(UTBot B)
 	local vector DesiredLocation;
 	local Float Dist;
 
+
 	if(Rx_Weapon_DeployedActor(B.Focus) != None && Rx_Bot(B).IsHealing(false) && Rx_Bot(B).IsInState('Defending'))		// Handepsilon - To prevent the ADHD tendencies when repping Beacon etc.
 		return true;
 

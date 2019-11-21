@@ -17,7 +17,7 @@ DefaultProperties
     
     CameraLag=0.1 //0.2
     LookForwardDist=200
-    HornIndex=1
+    HornIndex=0
     COMOffset=(x=0.0,y=0.0,z=-55.0)
     
     bUsesBullets = true

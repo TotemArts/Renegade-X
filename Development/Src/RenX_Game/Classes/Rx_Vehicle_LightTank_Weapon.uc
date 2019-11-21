@@ -113,5 +113,5 @@ DefaultProperties
 	bOkAgainstBuildings = True
 	
 	FM0_ROFTurnover = 2; //9 for most automatics. Single shot weapons should be more, except the shotgun
-	
+	CloseRangeAimAdjustRange=600
 }

@@ -22,4 +22,5 @@ DefaultProperties
 	InventoryMovieGroup=32
 
 	WeaponIconTexture=Texture2D'RX_WP_Binoculars.UI.T_WeaponIcon_AC130'
+	PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_Airstrike_AC130'
 }

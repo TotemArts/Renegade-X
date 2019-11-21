@@ -12,6 +12,7 @@ static function string GetString(
 {
 	local Rx_Mutator RxMut;
 	local string customMessage;
+	local Rx_CrateTeleportManager CTM;
 	
 	// This allows us to overwrite the message displayed to everyone when picking up a crate
 	if ( class'WorldInfo'.static.GetWorldInfo() != None && class'WorldInfo'.static.GetWorldInfo().NetMode == NM_DedicatedServer )
@@ -25,7 +26,21 @@ static function string GetString(
 		}
 	}
 
-	return Repl(default.PickupBroadcastMessages[Switch], "`PlayerName`", RelatedPRI_1.PlayerName);
+	if(Switch == 21)
+	{
+		foreach RelatedPRI_1.AllActors(class'Rx_CrateTeleportManager',CTM)
+		{
+			if(CTM != None && CTM.bIsEnabled)
+			{
+				return Repl(CTM.PickupBroadcastMessage, "`PlayerName`", RelatedPRI_1.PlayerName);
+			}
+		}
+
+		if(CTM == None)
+			return Repl(default.PickupBroadcastMessages[Switch], "`PlayerName`", RelatedPRI_1.PlayerName);
+	}
+	else
+		return Repl(default.PickupBroadcastMessages[Switch], "`PlayerName`", RelatedPRI_1.PlayerName);
 }
 
 DefaultProperties

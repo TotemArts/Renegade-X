@@ -39,21 +39,6 @@ simulated function bool UsesClientSideProjectiles(byte CurrFireMode)
 	return true;
 }
 
-simulated function GetFireStartLocationAndRotation(out vector SocketLocation, out rotator SocketRotation) {
-    
-    super.GetFireStartLocationAndRotation(SocketLocation, SocketRotation);    
-    
-    if( (Rx_Bot(MyVehicle.Controller) != None) && (Rx_Bot(MyVehicle.Controller).GetFocus() != None) ) {
-
-    	if(CloseRangeAimAdjustRange != 0.0 
-        		&& class'Rx_Utils'.static.OrientationOfLocAndRotToB(SocketLocation,SocketRotation,Rx_Bot(MyVehicle.Controller).GetFocus()) > 0.9) {
-        			MaxFinalAimAdjustment = 0.450;	
-        } else {
-            MaxFinalAimAdjustment = 0.990;
-        }
-    }
-}
-
 simulated function SetWeaponRecoil() {
 	
 	DeltaPitchX = 0.0;
@@ -208,4 +193,7 @@ DefaultProperties
 	bOkAgainstLightVehicles = True
 	bOkAgainstArmoredVehicles = True
 	bOkAgainstBuildings = True
+	CloseRangeAimAdjustRange= 600
+	
+	bSimultaneousFire = false
 }

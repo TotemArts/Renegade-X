@@ -122,7 +122,7 @@ DefaultProperties
     LeftStickDirDeadZone=0.1
     TurnTime=18
     ViewPitchMin=-13000
-    HornIndex=1
+    HornIndex=0
     COMOffset=(x=0.0,y=0.0,z=-300.0)
 	ExitOffset=(Z=-200.0)
 	ExtraReachDownThreshold=450.0

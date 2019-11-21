@@ -47,7 +47,7 @@ function SetupDefences()
 		turrets[i].Team = TeamID;
 
 		v = BuildingSkeleton.GetBoneLocation(MGBones[i]);
-		v.Z -= 30;
+		v.Z -= 100;
 		turrets[i].setlocation(v);
 		turrets[i].Initialize();
 		turrets[i].SController.TargetWaitTime = 6;
@@ -75,6 +75,7 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 	}   
 }
 
+/*
 simulated function OnBuildingDestroyed()
 {
 	local int i;
@@ -128,6 +129,8 @@ function bool PowerRestore()
 
 	
 }
+
+*/
 
 DefaultProperties
 {

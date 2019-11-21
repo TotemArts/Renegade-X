@@ -68,14 +68,11 @@ function SpawnGDIVehicle(Rx_VehicleSpawner Spawner)
 			GDI_QueueCoop.Remove(0, 1);
 			if (GDI_QueueCoop.Length > 0)
 			{
-				SetTimer(GDI_QueueCoop[0].Manager.Cooldown,false,'NextGDIQueue');
-
 				SetTimer(4.5f,false,'DelayedGDIConstructionWarn');
 			}
 		}
 	}
 }
-
 
 function SpawnNodVehicle(Rx_VehicleSpawner Spawner)
 {
@@ -89,8 +86,6 @@ function SpawnNodVehicle(Rx_VehicleSpawner Spawner)
 			NOD_QueueCoop.Remove(0, 1);
 			if (NOD_QueueCoop.Length > 0)
 			{
-				SetTimer(Nod_QueueCoop[0].Manager.Cooldown,false,'NextNodQueue');
-				
 				SetTimer(4.5f,false,'DelayedNodConstructionWarn');
 			}
 		}
@@ -111,7 +106,7 @@ function bool IsAllowedToQueueUpAnotherVehicle(Rx_PRI Buyer)
 	} 
 	else if(Buyer.GetTeamNum() == TEAM_GDI) 
 	{
-		for (I = 0; I < GDI_Queue.Length; I++)
+		for (I = 0; I < GDI_QueueCoop.Length; I++)
 		{
 			if (GDI_QueueCoop[I].Buyer == Buyer) 
 				Count++;

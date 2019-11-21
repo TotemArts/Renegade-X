@@ -158,7 +158,7 @@ DefaultProperties
     CameraLag=0.1 //0.05
     AirSpeed=3000.0
     MaxSpeed=2000
-    HornIndex=1
+    HornIndex=0
     COMOffset=(x=-50.0,y=0.0,z=0.0)
     bUsesBullets = true
     

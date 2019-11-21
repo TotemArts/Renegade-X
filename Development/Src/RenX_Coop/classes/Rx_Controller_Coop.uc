@@ -25,4 +25,5 @@ function bool ValidPTUse(Rx_BuildingAttachment_PT PT)	// we don't always have PT
 DefaultProperties
 {
 	PTMenuClass = class'Rx_GFxPurchaseMenu_Coop'
+	VoteHandlerClass = class'Rx_VoteMenuHandler_Coop'
 }

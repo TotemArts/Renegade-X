@@ -7,13 +7,13 @@ defaultproperties
     SuicideStatsName=SUICIDES_CHEMICALTHROWER
 
     DamageWeaponFireMode=2
-    VehicleDamageScaling=0.3 //0.25 //0.335						// 2.64 hp per shot
+    VehicleDamageScaling=0.2475 //0.3 //0.25 //0.335						// 2.64 hp per shot
     NodeDamageScaling=0.5
     VehicleMomentumScaling=0.1
 
     CustomTauntIndex=10
-    lightArmorDmgScaling=0.35		// 0.495		// 3.96 hp per shot
-    BuildingDamageScaling=0.5 //0.33		// 0.495		// 3.96 hp per shot
+    lightArmorDmgScaling=0.28875 //0.35		// 0.495		// 3.96 hp per shot
+    BuildingDamageScaling=0.4125 //0.5 //0.33		// 0.495		// 3.96 hp per shot
 	MCTDamageScaling=2.0 //2.45 //2.8 //3.0
 	
 	////Infantry Armour Types//////

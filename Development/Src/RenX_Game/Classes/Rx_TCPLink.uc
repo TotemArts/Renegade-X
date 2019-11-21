@@ -29,7 +29,6 @@ var array<Rx_TCPLink> Children;
 var bool TickChildren;
 
 var privatewrite ESocketState SocketState;
-var privatewrite bool KillMe;
 
 /** Internals */
 
@@ -183,8 +182,6 @@ event Opened();
 /** Marks the TCPLink object to be destroyed (dereferenced) */
 final function Destroy()
 {
-	KillMe = true;
-
 	if (Parent != None)
 		Parent.KillChild(self);
 }
@@ -463,10 +460,10 @@ final function Tick(float DeltaTime)
 		if (SocketState == STATE_Connected) // Check incoming data
 		{
 			count = ReadBinary(ArrayCount(m_internal_read_buffer), m_internal_read_buffer);
-			if (count == 0) // No data to process
-				return;
-
-			if (LinkMode == MODE_Binary)
+			if (count == 0) {
+				// No data to process; do nothing
+			}
+			else if (LinkMode == MODE_Binary)
 				ReceivedBinary(count, m_internal_read_buffer);
 			else if (LinkMode == MODE_Text)
 			{

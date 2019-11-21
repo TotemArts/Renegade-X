@@ -18,21 +18,6 @@ var Rx_Vehicle BoundVehicle;
 var Rx_TeamInfo AssignedTeam;
 var byte VRank;
 
-function InitPlayerReplicationInfo()
-{
-	if(PlayerReplicationInfo != none)
-	{
-		CleanupPRI();
-	}
-	PlayerReplicationInfo = Spawn(class'Rx_PRI', self);
-	Rx_PRI(PlayerReplicationInfo).bIsScripted = true;
-
-	if (PlayerReplicationInfo != none && MySpawner != None) {
-		PlayerReplicationInfo.SetPlayerTeam(WorldInfo.GRI.Teams[MySpawner.TeamIndex]);
-	}
-	SetTimer(0.05, false, 'CheckRadarVisibility'); 	
-}
-
 function RxInitialize(float InSkill, const out CharacterInfo BotInfo, UTTeamInfo BotTeam)
 {
 
@@ -66,6 +51,24 @@ function RxInitialize(float InSkill, const out CharacterInfo BotInfo, UTTeamInfo
 
 }
 function ToggleBotVoice();
+
+
+function ResetSkill()
+{
+	Super(UTBot).ResetSkill();
+
+	if(Skill >= 9)
+	{
+		bCheetozBotz = true;
+		Aggressiveness = 1;
+		BaseAggressiveness = Aggressiveness;
+		Accuracy = 5;
+		StrafingAbility = 5;
+		Tactics = 5;
+		ReactionTime = 5;
+		RefillDelay = 0.1;
+	}
+}
 
 
 
@@ -215,7 +218,7 @@ protected event ExecuteWhatToDoNext()
 		}
 
 		GoalString @= "- Wander or Camp at" @ WorldInfo.TimeSeconds;
-		bShortCamp = UTPlayerReplicationInfo(PlayerReplicationInfo).bHasFlag;
+		bShortCamp = false;
 		WanderOrCamp();
 	}
 
@@ -224,7 +227,12 @@ protected event ExecuteWhatToDoNext()
 
 function class<UTFamilyInfo> BotBuy(Rx_Bot Bot, bool bJustRespawned, optional string SpecificOrder)
 {
-	return Rx_PRI(PlayerReplicationInfo).CharClassInfo;
+	if(Rx_Pawn(Pawn) != None)
+	{
+		return Rx_Pawn(Pawn).CurrCharClassInfo;
+	}
+
+	return None;
 }
 
 function ForceAssignObjective(UTGameObjective O)
@@ -399,7 +407,6 @@ function PawnDied(Pawn inPawn)
 	}
 
 	// abort any latent actions
-	TriggerEventClass(class'SeqEvent_Death',self);
 	for (idx = 0; idx < LatentActions.Length; idx++)
 	{
 		if (LatentActions[idx] != None)
@@ -415,13 +422,75 @@ function PawnDied(Pawn inPawn)
 		Pawn.UnPossessed();
 	}
 	Pawn = None;
-
-	if(MySpawner != None)
-	{
-		MySpawner.NotifyPawnDeath(Self);
-	}		
+	
 	Destroy();
 }
+
+function InitPlayerReplicationInfo()
+{
+	if(PlayerReplicationInfo != none)
+	{
+		CleanupPRI();
+	}
+	PlayerReplicationInfo = Spawn(class'Rx_ScriptedBotPRI', self);
+
+	if (PlayerReplicationInfo != none) 
+	{
+		if(GetTeamNum() == 0)
+			PlayerReplicationInfo.SetPlayerName("A GDI Soldier");
+
+		else
+			PlayerReplicationInfo.SetPlayerName("A Nod Soldier");
+
+		PlayerReplicationInfo.SetPlayerTeam(WorldInfo.GRI.Teams[GetTeamNum()]);
+	}
+
+//	SetTimer(0.05, false, 'CheckRadarVisibility'); 	
+}
+
+function bool ShouldStrafeTo(Actor WayPoint)
+{
+	local NavigationPoint N;
+
+	if ( (UTVehicle(Pawn) != None) && !UTVehicle(Pawn).bFollowLookDir )
+		return true;
+
+	if ( (Skill + StrafingAbility < 3))
+		return false;
+
+	if ( WayPoint == Enemy )
+	{
+		if ( Pawn.Weapon != None && Pawn.Weapon.bMeleeWeapon )
+			return false;
+		return ( Skill + StrafingAbility > 5 * FRand() - 1 );
+	}
+	else if ( PickupFactory(WayPoint) == None )
+	{
+		N = NavigationPoint(WayPoint);
+		if ( (N == None) || N.bNeverUseStrafing )
+			return false;
+
+		if ( N.FearCost > 200 )
+			return true;
+		if ( N.bAlwaysUseStrafing && (FRand() < 0.8) )
+			return true;
+	}
+	if ( (Pawn(WayPoint) != None) || ((UTSquadAI(Squad).SquadLeader != None) && (WayPoint == UTSquadAI(Squad).SquadLeader.MoveTarget)) )
+		return ( Skill + StrafingAbility > 5 * FRand() - 1 );
+
+	if ( Skill + StrafingAbility < 6 * FRand() - 1 )
+		return false;
+
+	if ( !bFinalStretch && Enemy == None )
+		return ( FRand() < 0.4 );
+
+	if ( (WorldInfo.TimeSeconds - LastUnderFire < 2) )
+		return true;
+	if ( (Enemy != None) && LineOfSightTo(Enemy) )
+		return ( FRand() < 0.85 );
+	return ( FRand() < 0.6 );
+}
+
 
 
 // PRI Replacement functions
@@ -457,7 +526,9 @@ event Possess(Pawn inPawn, bool bVehicleTransition)
 		Rx_Pawn_Scripted(inPawn).TeamNum == GetTeamNum();
 
 	super.Possess(inPawn, bVehicleTransition);
-	SetRadarVisibility(RadarVisibility);
+//	SetRadarVisibility(RadarVisibility);
+
+	InitPlayerReplicationInfo();
 }
 
 function ChooseAttackMode()
@@ -506,7 +577,6 @@ function ChooseAttackMode()
 		&& (WorldInfo.TimeSeconds - LastInjuredVoiceMessageTime > 45.0) )
 	{
 		LastInjuredVoiceMessageTime = WorldInfo.TimeSeconds;
-		SendMessage(None, 'INJURED', 35);
 	}
 	if ( Vehicle(Pawn) != None )
 	{
@@ -525,7 +595,6 @@ function ChooseAttackMode()
 				&& (WorldInfo.TimeSeconds - LastInjuredVoiceMessageTime > 45.0) )
 			{
 				LastInjuredVoiceMessageTime = WorldInfo.TimeSeconds;
-				SendMessage(None, 'INJURED', 35);
 			}
 			DoRetreat();
 			return;
@@ -560,6 +629,11 @@ function ChooseAttackMode()
 
 	GoalString = "ChooseAttackMode FightEnemy";
 	FightEnemy(true, EnemyStrength);
+}
+
+function bool ShouldSurviveVehicleDeath()
+{
+	return (mySpawner != None && mySpawner.bDriverSurvives);
 }
 
 DefaultProperties

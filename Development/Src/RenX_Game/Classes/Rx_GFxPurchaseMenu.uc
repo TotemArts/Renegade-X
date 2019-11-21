@@ -361,7 +361,8 @@ function Initialize(LocalPlayer player, Rx_BuildingAttachment_PT PTOwner)
 	//  [ASSIGN CHARACTERS]
 	// 	[ASSIGN CHATBOX]
 
-	for (i = 0; i < 10; i++) {
+	for (i = 0; i < 10; i++) 
+	{
 		
 		GetVariableObject("_root.mainDrawer.tween.btnMenu"$i).GotoAndStopI(TeamID == TEAM_GDI? 1 : 2);
 		GetVariableObject("_root.classDrawer.tween.btnMenu"$i).GotoAndStopI(TeamID == TEAM_GDI? 1 : 2);
@@ -405,7 +406,7 @@ function Initialize(LocalPlayer player, Rx_BuildingAttachment_PT PTOwner)
 		*/
 		//Enable the first 8 items in item menu, disable the rest
 		if (i < 8) {
-			AssignButtonData(ItemMenuButton[i], TeamID == TEAM_GDI ? GDIItemMenuData[i] : NodItemMenuData[i], i);
+			AssignItemData(ItemMenuButton[i], i);
 			ItemMenuButton[i].SetObject("group", ItemMenuGroup);
 		} else {
 			ItemMenuButton[i].SetBool("enable", false);
@@ -621,7 +622,6 @@ function AddWidgetEvents()
 	EquipExplosivesList.AddEventListener('CLIK_itemClick', OnExplosivesListItemClick);
 
 }
-
 function AssignButtonData(GFxClikWidget widget, PTMenuBlock menuData, byte i)
 {
 	local GFxObject Type;
@@ -704,6 +704,45 @@ function AssignButtonData(GFxClikWidget widget, PTMenuBlock menuData, byte i)
 		}
 }
 
+function AssignItemData(GFxClikWidget widget, byte i)
+{
+	local array<class<Rx_Weapon> > CurrentItemList;
+	local GFxObject Type;
+
+	if(TeamID == 0)
+		CurrentItemList = rxPurchaseSystem.GDIItemClasses;
+
+	else
+		CurrentItemList = rxPurchaseSystem.NodItemClasses;
+
+	if(i >= CurrentItemList.Length)
+	{
+		widget.SetBool("enabled", false);
+		widget.SetBool("visible", false);
+		return;
+	}
+
+	widget.SetBool("enabled", true);
+	widget.SetString("hotkeyLabel", string(i+1));
+	widget.SetString("data", "" $ i);
+	widget.SetString("label", CurrentItemList[i].static.GetPurchaseTitle());
+
+	if (rxPurchaseSystem.GetItemPrices(TeamID, i) > 0) 
+	{
+		widget.SetString("costLabel", "$" $ rxPurchaseSystem.GetItemPrices(TeamID, i));
+	} 
+	else 
+	{
+		widget.SetString("costLabel", "FREE");
+	}
+	widget.SetBool("toggle", true);
+
+	Type = widget.GetObject("type");
+	LoadTexture("img://" $ PathName(CurrentItemList[i].default.PTIconTexture), Type.GetObject("icon"));
+	Type.GotoAndStopI(1);
+
+	widget.SetString("sublabel", CurrentItemList[i].static.GetPurchaseDescription());
+}
 
 function uLog(string s)
 {
@@ -1309,7 +1348,7 @@ function TickHUD()
 						continue;
 					}
 				}
-				if (PlayerCredits > rxPurchaseSystem.GetItemPrices(TeamID, data) && !rxPurchaseSystem.IsEquiped(rxPC, TeamID, data, CLASS_ITEM)){
+				if (rxPurchaseSystem.IsItemBuyable(rxPC, TeamID, data) && PlayerCredits > rxPurchaseSystem.GetItemPrices(TeamID, data) && !rxPurchaseSystem.IsEquiped(rxPC, TeamID, data, CLASS_ITEM)){
 					ItemMenuButton[i].SetBool("enabled", true);
 				} else {
 					ItemMenuButton[i].SetBool("enabled", false);

@@ -12,4 +12,5 @@ DefaultProperties
 	InventoryMovieGroup=31
 
 	WeaponIconTexture=Texture2D'RX_WP_Binoculars.UI.T_WeaponIcon_A10'
+	PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_Airstrike_A10'
 }

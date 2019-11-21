@@ -33,6 +33,6 @@ DefaultProperties
 	InventoryMovieGroup=17
 
 	WeaponIconTexture=Texture2D'RX_WP_IonCannon.UI.T_WeaponIcon_IonCannonBeacon'
-
+	PTIconTexture=Texture2D'RenXPurchaseMenu.T_Icon_Item_IonCannonBeacon'
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_IonCannonBeacon'
 }

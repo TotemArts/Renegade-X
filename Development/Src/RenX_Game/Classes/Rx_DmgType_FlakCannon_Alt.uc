@@ -2,10 +2,10 @@ class Rx_DmgType_FlakCannon_Alt extends Rx_DmgType_FlakCannon;
 
 defaultproperties
 {
-    VehicleDamageScaling=0.1			// 1.2
+    VehicleDamageScaling=0.0866666667 //0.1			// 1.2
     VehicleMomentumScaling=0.21
-    lightArmorDmgScaling=0.21			// 2.5
-    BuildingDamageScaling=0.2
+    lightArmorDmgScaling=0.182 //0.21			// 2.5
+    BuildingDamageScaling=0.1733333333 //0.2
 	MCTDamageScaling=2.0 //20 damage in a full clip
 	MineDamageScaling=2.0
 		////Infantry Armour Types//////

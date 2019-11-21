@@ -804,7 +804,7 @@ Begin:
 	else if (DefendedBuildingNeedsHealing())
 	{
 		Focus = CurrentBO.MyBuilding.GetMCT();
-		if(CurrentBO.MyBuilding != None && !CurrentBO.bAlreadyReported)
+		if(CurrentBO.MyBuilding != None && !CurrentBO.bAlreadyReported && CurrentBO.myBuilding.GetArmor() < CurrentBO.myBuilding.GetMaxArmor() * 0.75)
 		{
 			CurrentBO.AIReported();
 			BroadcastBuildingSpotMessages(CurrentBO.MyBuilding);
@@ -845,9 +845,9 @@ Healing:
 		While((Focus == CurrentBO.myBuilding.GetMCT() && DefendedBuildingNeedsHealing()) || (GetNearbyDeployables(false) != None && Focus == DetectedDeployable))
 		{
 
-			if(Enemy != None && Vehicle(Enemy) == None && LineOfSightTo(Enemy))
+			if(Enemy != None && LineOfSightTo(Enemy))
 			{
-				if(CanAttack(Focus))
+				if(CanHeal(Focus))
 					DoTacticalMove();
 			}
 
@@ -2240,19 +2240,31 @@ Moving:
 		VehicleReconsiderObjective();
 
 
-	if(!CanAttack(CurrentBO.myBuilding)) 
+	
+	if (Enemy != None && VehicleShouldAttackEnemyInRush())
+	{
+		if(CanAttack(CurrentBO.myBuilding) && (!CanAttack(Enemy)))
+		{
+			if(IsRushing() && Rx_SquadAI(Squad).bTacticsCommenced)
+				FireWeaponAt(CurrentBO.myBuilding);
+			else
+				DoRangedAttackOn(CurrentBO.MyBuilding);
+		}
+		else
+		{
+			sleep(0.1);
+			ChooseAttackMode();
+		}
+	}
+	else if(!CanAttack(CurrentBO.myBuilding)) 
 		MoveToward(MoveTarget,FaceActor(1),GetDesiredOffset(),ShouldStrafeTo(MoveTarget));
-	else if(CanAttack(CurrentBO.myBuilding) && (Enemy == None || !CanAttack(Enemy)))
+
+	else 
 	{
 		if(IsRushing() && Rx_SquadAI(Squad).bTacticsCommenced)
 			FireWeaponAt(CurrentBO.myBuilding);
 		else
 			DoRangedAttackOn(CurrentBO.MyBuilding);
-	}	
-	if (Enemy != None && VehicleShouldAttackEnemyInRush())
-	{
-		sleep(0.1);
-		ChooseAttackMode();
 	}
 
 	if((Enemy == None || VSizeSq(Enemy.Location - Pawn.Location) > 250000) && HasABeacon() && VSizeSq(CurrentBO.myBuilding.Location - Pawn.Location) < 90000)
@@ -2322,9 +2334,6 @@ Moving:
 		}
 	}
 
-	MoveToward(MoveTarget,FaceActor(1),GetDesiredOffset(),ShouldStrafeTo(MoveTarget));
-
-
 	if(CanAttack(CurrentBO.myBuilding) && (Enemy == None || !CanAttack(Enemy)))
 	{
 		if(Rx_SquadAI(Squad).CurrentTactics != None && Rx_SquadAI(Squad).CurrentTactics.bIsRush && Rx_SquadAI(Squad).bTacticsCommenced)
@@ -2346,6 +2355,8 @@ Moving:
 		StopFiring();
 		GoToState('VehicleRush','Begin');
 	}
+
+	MoveToward(MoveTarget,FaceActor(1),GetDesiredOffset(),ShouldStrafeTo(MoveTarget));
 
 	GoalString = "Charging with Vehicle towards "@CurrentBO.myBuilding.GetBuildingName()@" - Enemy Engaged";
 

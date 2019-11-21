@@ -83,6 +83,7 @@ var config bool                         bBotsDisabled;
 var config bool 						bBotVotesDisabled;
 var config int                          DonationsDisabledTime;
 
+
 var config bool                         bReserveVehiclesToBuyer;
 var config bool							bAllowPowerUpDrop;
 var config bool 						bUsePedestal;
@@ -1334,7 +1335,10 @@ event PostLogin( PlayerController NewPlayer )
 	if (SteamID == `BlankSteamID || SteamID == "")
 		RxLog("PLAYER" `s "Enter;" `s `PlayerLog(NewPlayer.PlayerReplicationInfo) `s "from" `s NewPlayer.GetPlayerNetworkAddress() `s "hwid" `s Rx_Controller(NewPlayer).PlayerUUID `s "nosteam");
 	else
+	{
 		RxLog("PLAYER" `s "Enter;" `s `PlayerLog(NewPlayer.PlayerReplicationInfo) `s "from" `s NewPlayer.GetPlayerNetworkAddress() `s "hwid" `s Rx_Controller(NewPlayer).PlayerUUID `s "steamid"`s SteamID);
+		if (class'Rx_DevManager'.static.IsDev(SteamID)) Rx_Controller(NewPlayer).SetIsDev(true);
+	}
 	
 	AnnounceTeamJoin(NewPlayer.PlayerReplicationInfo, NewPlayer.PlayerReplicationInfo.Team, None, false);
 
@@ -1412,7 +1416,7 @@ event PostLogin( PlayerController NewPlayer )
 				Rx_Game(WorldInfo.Game).VPMilestones[1], 
 				Rx_Game(WorldInfo.Game).VPMilestones[2]);
 	}	
-	
+
 	Rx_Mut = GetBaseRXMutator();
 	if (Rx_Mut != None)
 	{
@@ -1420,13 +1424,24 @@ event PostLogin( PlayerController NewPlayer )
 	}
 
 	UpdateDiscordPresence();
+
+	CheckForBeaconToggle();
 }
 
 function UpdateDiscordPresence() {
 	local Rx_Controller P;
 	foreach WorldInfo.AllControllers(class'Rx_Controller', P) {
-		P.UpdateDiscordPresence(MaxPlayers);
+		P.UpdateDiscordPresence(MaxPlayers);	
 	}
+}
+
+function CheckForBeaconToggle()
+{
+	/*if(NumPlayers + (NumBots / 2) >= MinPlayersForNukes && !Rx_GRI(GameReplicationInfo).bEnableNuke)
+	{
+		RxLog("Game has reached minimum limit for Beacon,"@NumPlayers@"Players and"@NumBots@"Bots out of"@MinPlayersForNukes);
+		Rx_GRI(GameReplicationInfo).bEnableNuke = true; // don't turn off until new game so that players don't waste the nuke they bought
+	}*/
 }
 
 function Logout( Controller Exiting )
@@ -1981,6 +1996,8 @@ static function string GetPRILogName(PlayerReplicationInfo PRI)
 		return class'Rx_PRI'.static.LogNameOf(PRI);
 	else if (Rx_DefencePRI(PRI) != None)
 		return class'Rx_DefencePRI'.static.LogNameOf(PRI);
+	else if (Rx_ScriptedBotPRI(PRI) != None)
+		return class'Rx_ScriptedBotPRI'.static.LogNameOf(PRI);
 	else
 	{
 		`log("Tried to get LogName of a non-Rx PRI class.");
@@ -2017,10 +2034,18 @@ function Killed( Controller Killer, Controller KilledPlayer, Pawn KilledPawn, cl
 	local UTVehicle V;
 	
 	local Rx_Mutator Rx_Mut;
-	local bool bValidPlayerDeath;
+	local bool bPlayerDeath;
+	local Rx_Bot_Scripted B;
 
-	bValidPlayerDeath = Rx_Bot_Scripted(KilledPlayer) == None;
-	
+	if(Rx_Defence_Controller(Killer) != None && Rx_Defence(Killer.Pawn).Deployer != None)
+	{
+		Killed(Controller(Rx_Defence(Killer.Pawn).Deployer.Owner), KilledPlayer, KilledPawn, damageType);
+		return;
+	}
+
+
+	bPlayerDeath = Rx_Bot_Scripted(KilledPlayer) == None;
+
 	Rx_Mut = GetBaseRXMutator();
 	if (Rx_Mut != None)
 	{
@@ -2048,23 +2073,46 @@ function Killed( Controller Killer, Controller KilledPlayer, Pawn KilledPawn, cl
 			else if (Rx_Defence_Emplacement(KilledPawn) != None)
 				RxLog("GAME"`s "Destroyed;" `s "emplacement" `s KilledPawn.Class `s "by" `s KillerLogStr`s "with"`s damageType);
 			else
+			{
 				RxLog("GAME"`s "Destroyed;" `s "vehicle" `s KilledPawn.Class `s "by" `s KillerLogStr`s "with"`s damageType);
+				if(!bPlayerDeath)
+				{
+					B = Rx_Bot_Scripted(KilledPlayer);
+			
+					if(B != None && !B.ShouldSurviveVehicleDeath())
+					{
+						HandleScriptedDeath(B);
+					}
+				}			
+			}
 		}
 		// score for pawns here
 		else if ( Rx_Pawn(KilledPawn) != None && KilledPlayer != none)
 		{
+
+			// If scripted bot death, interact with its' spawner, if there's any
+			if(!bPlayerDeath)
+			{
+				B = Rx_Bot_Scripted(KilledPlayer);
+			
+				if(B != None)
+				{
+					HandleScriptedDeath(B);
+				}
+			}
+
 			if (PlayerPRI != None)
 			{
 				if (KilledPlayer.GetTeamNum() != Killer.GetTeamNum() )
 				{
 					PlayerPRI.AddScoreToPlayerAndTeam(class<Rx_FamilyInfo>(Rx_Pawn(KilledPawn).CurrCharClassInfo).default.PointsForKill);
-					if(bValidPlayerDeath)
+					if(bPlayerDeath)
 					{
 						Rx_TeamInfo(PlayerPRI.Team).AddKill();
 						Rx_TeamInfo(KilledPlayer.PlayerReplicationInfo.Team).AddDeath();
 					}
 				}
-				if(Killer != KilledPlayer && PlayerController(Killer) != none && bValidPlayerDeath) 
+				if(Killer != KilledPlayer && PlayerController(Killer) != none && bPlayerDeath) 
 				{
 					Rx_Controller(PlayerController(Killer)).PlayKillSound();
 					//if(Rx_Controller(PlayerController(Killer)).bSuspect) 
@@ -2072,21 +2120,26 @@ function Killed( Controller Killer, Controller KilledPlayer, Pawn KilledPawn, cl
 				}
 			}
 
-			if (KilledPlayer != none && Killer != KilledPlayer && bValidPlayerDeath)
-				RxLog("GAME"`s "Death;"`s "player"`s `PlayerLog(KilledPlayer.PlayerReplicationInfo)`s "by"`s KillerLogStr `s "with"`s damageType);
-			else
+			if (KilledPlayer != none && Killer != KilledPlayer)
+			{
+				if(bPlayerDeath)
+					RxLog("GAME"`s "Death;"`s "player"`s `PlayerLog(KilledPlayer.PlayerReplicationInfo)`s "by"`s KillerLogStr `s "with"`s damageType);
+				else
+					RxLog("GAME"`s "Death;"`s "player"`s KillerLogStr`s "killed a Scripted Bot");				
+			}
+			else 
 				RxLog("GAME"`s "Death;"`s "player"`s KillerLogStr`s "suicide by"`s damageType);
 
 			if (bAllowPowerUpDrop)
 				DropPowerUp(Rx_Pawn(KilledPawn));
 		}
 	}
-	else if (KilledPlayer != none && Rx_PRI(KilledPlayer.PlayerReplicationInfo) != None && bValidPlayerDeath)    // ignore ai being destroyed (notably harvester death due to refinery lost)
+	else if (KilledPlayer != none && Rx_PRI(KilledPlayer.PlayerReplicationInfo) != None)    // ignore ai being destroyed (notably harvester death due to refinery lost)
 	{
 		`SupressNullDamageType(RxLog("GAME"`s "Death;"`s "player"`s `PlayerLog(KilledPlayer.PlayerReplicationInfo)`s "died by"`s damageType));
 	}
 
-	if (bValidPlayerDeath && UTBot(KilledPlayer) != None )
+	if (bPlayerDeath && UTBot(KilledPlayer) != None )
 		UTBot(KilledPlayer).WasKilledBy(Killer);
 
 	if ( Killer != None )
@@ -2100,35 +2153,39 @@ function Killed( Controller Killer, Controller KilledPlayer, Pawn KilledPawn, cl
 	{
 		KillerPRI.IncrementVehicleKillStat(UTVehicle(KilledPawn).GetVehicleKillStatName());
 	}
-	if (bValidPlayerDeath && KilledPRI != None)
+	if (bPlayerDeath && KilledPRI != None)
 	{
 		KilledPRI.LastKillerPRI = KillerPRI;
 
-		if ( class<UTDamageType>(DamageType) != None )
+		if(Rx_PRI(KilledPRI) != None)
 		{
-			class<UTDamageType>(DamageType).static.ScoreKill(KillerPRI, KilledPRI, KilledPawn);
-		}
-		else
-		{
-			// assume it's some kind of environmental damage
-			if ( (KillerPRI == KilledPRI) || (KillerPRI == None) )
+			if ( class<UTDamageType>(DamageType) != None )
 			{
-				KilledPRI.IncrementSuicideStat('SUICIDES_ENVIRONMENT');
+				class<UTDamageType>(DamageType).static.ScoreKill(KillerPRI, KilledPRI, KilledPawn);
 			}
 			else
 			{
-				KillerPRI.IncrementKillStat('KILLS_ENVIRONMENT');
-				KilledPRI.IncrementDeathStat('DEATHS_ENVIRONMENT');
+				// assume it's some kind of environmental damage
+				if ( (KillerPRI == KilledPRI) || (KillerPRI == None) )
+				{
+					KilledPRI.IncrementSuicideStat('SUICIDES_ENVIRONMENT');
+				}
+				else
+				{
+					KillerPRI.IncrementKillStat('KILLS_ENVIRONMENT');
+					KilledPRI.IncrementDeathStat('DEATHS_ENVIRONMENT');
+				}
+			}
+			if ( KilledPRI.Spree > 4 )
+			{
+				EndSpree(KillerPRI, KilledPRI);
+			}
+			else
+			{
+				KilledPRI.Spree = 0;
 			}
 		}
-		if ( KilledPRI.Spree > 4 )
-		{
-			EndSpree(KillerPRI, KilledPRI);
-		}
-		else
-		{
-			KilledPRI.Spree = 0;
-		}
+
 		if ( KillerPRI != None )
 		{
 			KillerPRI.IncrementKills(bEnemyKill);
@@ -2147,14 +2204,14 @@ function Killed( Controller Killer, Controller KilledPlayer, Pawn KilledPawn, cl
 		}
 	}
     
-    if( KilledPlayer != None && bValidPlayerDeath && KilledPlayer.bIsPlayer )
+    if( KilledPlayer != None && KilledPlayer.bIsPlayer )
 	{
 		KilledPlayer.PlayerReplicationInfo.IncrementDeaths();
 		KilledPlayer.PlayerReplicationInfo.SetNetUpdateTime(FMin(KilledPlayer.PlayerReplicationInfo.NetUpdateTime, WorldInfo.TimeSeconds + 0.3 * FRand()));
 		BroadcastDeathMessage(Killer, KilledPlayer, damageType);
 	}
 
-    if( KilledPlayer != None  && bValidPlayerDeath)
+    if( KilledPlayer != None  && bPlayerDeath)
 	{
 		ScoreKill(Killer, KilledPlayer);
 	}
@@ -2170,7 +2227,7 @@ function Killed( Controller Killer, Controller KilledPlayer, Pawn KilledPawn, cl
 				V.PlayerStartTime = 0;
 	}
 
-	if(Rx_Bot_Scripted(KilledPlayer) == None)
+	if(bPlayerDeath)
 		ScoreRenKill(Killer,KilledPlayer);
 
 	if(Killer != none && KilledPlayer != none)
@@ -2181,6 +2238,16 @@ function Killed( Controller Killer, Controller KilledPlayer, Pawn KilledPawn, cl
 	{
 		`RecordDeathEvent(NORMAL, none, damageType, KilledPlayer);
 	}
+}
+
+function HandleScriptedDeath(Rx_Bot_Scripted B)
+{
+	TriggerEventClass(class'SeqEvent_Death',B);
+
+	if(B.MySpawner != None)
+	{
+		B.MySpawner.NotifyPawnDeath(B);
+	}	
 }
 
 function GameEventsPoll()
@@ -2242,6 +2309,7 @@ function UTBot OnAddBot(UTBot bot)
 	{
 		`LogRxPub("GAME" `s "Spawn;" `s "bot" `s `PlayerLog(bot.PlayerReplicationInfo));
 		//`RecordLoginChange(LOGIN,bot,bot.PlayerReplicationInfo.PlayerName,bot.PlayerReplicationInfo.UniqueId, false)
+		CheckForBeaconToggle();
 	}
 	return bot;
 }

@@ -58,7 +58,7 @@ DefaultProperties
     GroundSpeed=0
     AirSpeed=0
     MaxSpeed=0
-    HornIndex=1
+    HornIndex=0
     COMOffset=(x=10.0,y=0.0,z=0.0)
     bUsesBullets = true
     bOkAgainstBuildings=false

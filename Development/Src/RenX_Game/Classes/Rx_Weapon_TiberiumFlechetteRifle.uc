@@ -82,10 +82,10 @@ DefaultProperties
 	WeaponFireTypes(0)=EWFT_InstantHit
 	WeaponFireTypes(1)=EWFT_None
 
-	InstantHitDamage(0)=10 //14
-	InstantHitDamage(1)=10 //14
+	InstantHitDamage(0)=16 //10 //14
+	InstantHitDamage(1)=16 //10 //14
 	
-	HeadShotDamageMult=3.0
+	HeadShotDamageMult=1.67 //3.0
 
 	InstantHitDamageTypes(0)=class'Rx_DmgType_TiberiumFlechetteRifle'
 	InstantHitDamageTypes(1)=class'Rx_DmgType_TiberiumFlechetteRifle'

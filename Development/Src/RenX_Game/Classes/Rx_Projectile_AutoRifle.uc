@@ -37,9 +37,9 @@ DefaultProperties
     MaxSpeed=18000	//14000 / 9000
     AccelRate=0
     LifeSpan=0.3305	//0.425	/0.65 
-    Damage=8
+    Damage=16 //8
     DamageRadius=0
-	HeadShotDamageMult=4.0 //3.0
+	HeadShotDamageMult=1.5 //1.75 //4.0 //3.0
     MomentumTransfer=10000
     bAttachExplosionToVehicles=false
     bCheckProjectileLight=false

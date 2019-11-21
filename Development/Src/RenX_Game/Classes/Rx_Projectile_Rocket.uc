@@ -93,8 +93,11 @@ simulated function ShutDownBeforeEndOfLife()
 	
 	if ( !bShuttingDown )
 		{
-		HurtRadius(Damage, DamageRadius, MyDamageType, MomentumTransfer, location,,,false); 
+			HurtRadius(Damage, DamageRadius, MyDamageType, MomentumTransfer, location,,,false); 
 		}
+	
+	if(AmbientSound != none)
+		CleanupAmbientSound();
 	
 	Shutdown();
 }
@@ -311,6 +314,9 @@ simulated function SpawnExplosionEffects(vector HitLocation, vector HitNormal)
 		
 	if (WorldInfo.NetMode != NM_DedicatedServer)
 	{
+		if(AmbientSound != none)
+			CleanupAmbientSound();
+		
 		foreach LocalPlayerControllers(class'PlayerController', PC)
 		{
 			Distance = VSizeSq(PC.ViewTarget.Location - HitLocation);
@@ -398,6 +404,18 @@ simulated function SetWeaponInstigator(Weapon SetTo)
 simulated function Weapon GetWeaponInstigator()
 {
 	return MyWeaponInstigator; 
+}
+
+simulated function CleanupAmbientSound()
+{
+	local AudioComponent AudioCues;
+	
+	if(AmbientSound != none){
+		foreach ComponentList(class'AudioComponent',AudioCues){
+			if(AudioCues.SoundCue == AmbientSound )
+				AudioCues.Stop(); 
+		}
+	}
 }
 
 DefaultProperties

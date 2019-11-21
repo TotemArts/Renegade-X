@@ -455,7 +455,8 @@ private function DrawFocusedIcon(Actor inActor)
 	local float FullScale; 
 	local float distanceAway;
 	
-	if(!IsActorInView(inActor)) return; //Behind us, don't bother
+	if(!IsActorInView(inActor) || RenxHud.PlayerOwner.Pawn == none) 
+		return; //Behind us, don't bother
 	
 	if(Rx_Pawn(inActor) != none) 
 	{
@@ -581,7 +582,7 @@ simulated function DrawAttackT(Pawn P, byte TNumber, float InitialTime)
 					HUD.Canvas.DrawColor.R=255;
 					HUD.Canvas.DrawColor.G=255;
 					HUD.Canvas.DrawColor.B=255;*/
-					`log("Distance FAde: "  @ DistanceFade);
+					//`log("Distance FAde: "  @ DistanceFade);
 					HUD.Canvas.DrawColor.A=Fmax(MinFadeAlpha, Fmin(255*DistanceFade*5,255));
 			
 					HUD.Canvas.DrawIcon(MyIcon,AttackVector.X-((MyIcon.UL/2)*IconScale),AttackVector.Y-((MyIcon.VL/2)*IconScale),IconScale);
@@ -639,21 +640,30 @@ function DrawSupportPawns()
 	// ResScaleX, ResScaleY
 	HUD=RenxHud; 
 	IconScale=HUD.Canvas.SizeY/720.0; 
-	MidscreenVector.X=HUD.Canvas.SizeX/2;
-	MidscreenVector.Y=HUD.Canvas.SizeY/2;
+	MidscreenVector.X=HUD.Canvas.SizeX*0.5;
+	MidscreenVector.Y=HUD.Canvas.SizeY*0.5;
 
 
 	MinFadeAlpha=210; 
-	
+	MyIcon = TI_Attack;
 	//foreach Renxhud.WorldInfo.AllActors(class'Rx_CommanderWaypoint', Waypoint)
 	foreach Renxhud.WorldInfo.AllActors(class'Rx_BasicPawn', Waypoint)
 	{
 		if(!Waypoint.bDrawLocation || WayPoint.Health <= 0 || RenxHud.PlayerOwner.Pawn == None) 
 			continue; 
 		
-		if(Waypoint.GetTeamNum() == HUD.PlayerOwner.GetTeamNum()) MyIcon = TI_Defend;
+		if(Waypoint.GetTeamNum() == HUD.PlayerOwner.GetTeamNum()) 
+		{
+			HUD.Canvas.DrawColor.R=0;
+			HUD.Canvas.DrawColor.G=255;
+			HUD.Canvas.DrawColor.B=0;
+		}
 		else
-		MyIcon = TI_Attack ; 
+		{
+			HUD.Canvas.DrawColor.R=255;
+			HUD.Canvas.DrawColor.G=0;
+			HUD.Canvas.DrawColor.B=0;
+		}
 					
 		bIsBehindMe = class'Rx_Utils'.static.OrientationOfLocAndRotToBLocation(RenxHud.PlayerOwner.ViewTarget.Location,RenxHud.PlayerOwner.Rotation,Waypoint.location) < -0.5;
 		if(!bIsBehindMe) 
@@ -666,14 +676,14 @@ function DrawSupportPawns()
 						
 			FullWayPointStr = WayPoint.ActorName @ "[" $ round(VSize(RenxHud.PlayerOwner.Pawn.location - Waypoint.location)/52.5)$"m]" ; 
 						
-			//Set our color for the box
-			HUD.Canvas.DrawColor.R=255;
-			HUD.Canvas.DrawColor.G=255;
-			HUD.Canvas.DrawColor.B=255;
+			//Set our alpha for the box
 			HUD.Canvas.DrawColor.A=Fmax(MinFadeAlpha, Fmin(255*DistanceFade*5,255));
 			//HUD.Canvas.DrawColor.A=Fmax(255-(GDI_Targets[i].T_Defend[j].T_Age*80)-50,0);
 			HUD.Canvas.DrawIcon(MyIcon,WayPointVector.X-((MyIcon.UL/2)*IconScale),WayPointVector.Y-((MyIcon.UL/2)*IconScale),IconScale);
-						
+			
+			HUD.Canvas.DrawColor.R=255;
+			HUD.Canvas.DrawColor.G=255;
+			HUD.Canvas.DrawColor.B=255;	
 			HUD.Canvas.Font = Font'RenXHud.Font.ScoreBoard_Small';
 			HUD.Canvas.StrLen(FullWayPointStr, XLen, YLen);
 			HUD.Canvas.SetPos((WayPointVector.x-MyIcon.UL/4*IconScale)-(XLen*0.25), WayPointVector.y-MyIcon.VL/4*IconScale-12);

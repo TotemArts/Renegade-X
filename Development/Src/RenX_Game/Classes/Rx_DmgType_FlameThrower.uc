@@ -7,7 +7,7 @@ defaultproperties
     SuicideStatsName=SUICIDES_FLAMETHROWER
 
     DamageWeaponFireMode=2
-    VehicleDamageScaling=0.3		// 1.65 hp per shot
+    VehicleDamageScaling=0.275 //0.3		// 1.65 hp per shot
     NodeDamageScaling=0.5
     VehicleMomentumScaling=0.1
 
@@ -19,8 +19,8 @@ defaultproperties
 	
 	
     CustomTauntIndex=10
-    lightArmorDmgScaling=0.3		// 2.64 hp per shot
-    BuildingDamageScaling=0.32 //0.4 //0.2	// 2.00 hp per shot
+    lightArmorDmgScaling=0.275 //0.3		// 2.64 hp per shot
+    BuildingDamageScaling=0.2933333333 //0.32 //0.4 //0.2	// 2.00 hp per shot
 	MCTDamageScaling=2.4 //3.0
 	MineDamageScaling=2.0
 	

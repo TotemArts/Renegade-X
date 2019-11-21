@@ -437,7 +437,10 @@ function UTGameObjective GetAllInRushObjectiveFor(UTSquadAI AnAttackSquad, Contr
 
 	if(EnemyBO.Length <= 0 && !Rx_Game(WorldInfo.Game).bPedestalDetonated)
 	{
-		`warn(Self@" : Enemy team has no buildings or is missing Rx_BuildingObjective! Unable to resolve AllIn attack!");
+		if(Rx_SquadAI_Scripted(AnAttackSquad) == None)
+			`warn(Self@" : Enemy team has no buildings or is missing Rx_BuildingObjective! Unable to resolve AllIn attack!");
+
+		return None;
 	}
 
 	if(Vehicle(InController.Pawn) == None && TowerBO != None)
@@ -472,7 +475,6 @@ function UTGameObjective GetPriorityAttackObjectiveFor(UTSquadAI AnAttackSquad, 
 	local int importanceTemp;
 	local int NumAggressors;
 	local Rx_Building B;
-
 
 	if(Rx_SquadAI(AnAttackSquad) != None && Rx_SquadAI(AnAttackSquad).CurrentTactics != None && (Rx_SquadAI(AnAttackSquad).CurrentTactics.bIsRush || Rx_SquadAI(AnAttackSquad).CurrentTactics.bIsBeaconRush))
 		return GetAllInRushObjectiveFor(AnAttackSquad,InController);
@@ -918,15 +920,21 @@ function RequestDisarm(Rx_Controller Requester, Rx_Weapon_DeployedActor D)
 function CriticalObjectiveWarning(UTGameObjective G, Pawn NewEnemy)
 {
 	local UTSquadAI S;
+	local UTBot B;
 
 	for (S = Squads; S != None; S = S.NextSquad)
 	{
 		if(S.GetOrders() != 'DEFEND')
 			continue;
 
+		for (B = S.SquadMembers; B != None; B = B.NextSquadMember)
+		{
+			if(B.Pawn != None)
+				S.CheckSquadObjectives(B);
+		}
 
-		S.CheckSquadObjectives(S.SquadMembers);
-		S.AddEnemy(NewEnemy);
+		if(NewEnemy != None)
+			S.AddEnemy(NewEnemy);
 	}
 }
 

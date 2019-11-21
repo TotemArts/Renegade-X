@@ -63,6 +63,7 @@ var float   NextNameChangeTime;
 
 /** one1: Vote related stuff. */
 var string VoteCommandText;
+var class<Rx_VoteMenuHandler> VoteHandlerClass;
 var Rx_VoteMenuHandler VoteHandler;
 var string VoteTopString;
 var byte VotesYes;
@@ -336,6 +337,16 @@ simulated event ReplicatedEvent(name VarName)
 exec function ToggleADSSens()
 {
 	Rx_PlayerInput(PlayerInput).ToggleADSSens();
+}
+
+exec function ToggleDevFlag()
+{
+	Rx_PlayerInput(PlayerInput).ToggleDevFlag();
+}
+
+reliable client function bool UseDevFlag()
+{
+	return Rx_PlayerInput(PlayerInput).UseDevFlag;
 }
 
 function PlayHitMarkerSound(optional bool bIsHeadshot = false)
@@ -745,7 +756,7 @@ function EnableVoteMenu(bool donate)
 	}
 
 	if (donate) VoteHandler = new (self) class'Rx_CreditDonationHandler';
-	else VoteHandler = new (self) class'Rx_VoteMenuHandler';
+	else VoteHandler = new (self) VoteHandlerClass;
 	VoteHandler.Enabled(self);
 }
  
@@ -1574,7 +1585,12 @@ function AdjustAirstrikeRotation(float X, float Y)
 	local Rx_Weapon_Airstrike aw;
 
 	aw = Rx_Weapon_Airstrike(Pawn.Weapon);
-	if (aw == none) return;
+	if (aw == none) 
+	{
+		if(Rx_Weapon_Blueprint(Pawn.Weapon) != None)
+			Rx_Weapon_Blueprint(Pawn.Weapon).AdjustRotation(X, Y);
+		return;
+	}
 
 	aw.AdjustRotation(X, Y);
 }
@@ -2263,7 +2279,7 @@ state Dead
 		SetViewTarget( A, TransitionParams );
 	}
 
-	event PlayerTick( float DeltaTime )
+	event PlayerTick( float DeltaTime ) 
 	{
 		super.PlayerTick(DeltaTime);
         if(LastHitLoc != vect(0,0,0) && LastHitLocBlendPct < 2.0f)
@@ -2272,6 +2288,16 @@ state Dead
         if(LastHitLoc != vect(0,0,0) && LastHitLocBlendPct < 1.0f && DesiredFOV > 10.0f)	
         	DesiredFOV -= DeltaTime * (VSize(LastHitLoc - Viewtarget.location) / 100.0f);	
 
+		if ( Rx_HUD(myHUD) != None && !IsSpectating() && (MinRespawnDelay+1 - GetTimerCount() > 1) && (MinRespawnDelay - GetTimerCount()) <= MinRespawnDelay)
+		{
+			Rx_HUD(myHUD).HudMovie.GameplayTipsText.SetVisible(true);
+			Rx_HUD(myHUD).HudMovie.GameplayTipsText.SetString("htmlText", "Respawn available in"@ int(MinRespawnDelay+1 - GetTimerCount()));
+		} 
+		else if(Rx_HUD(myHUD) != None)
+		{
+			Rx_HUD(myHUD).HudMovie.GameplayTipsText.SetString("htmlText", "");
+			Rx_HUD(myHUD).HudMovie.GameplayTipsText.SetVisible(false);
+		} 	
 	}
 
 	/** one: added. */
@@ -4761,7 +4787,7 @@ function NotifyTakeHit(Controller InstigatedBy, vector HitLocation, int Damage, 
 	iDam = Clamp(Damage,0,250);
 	if ( (iDam > 0 || bGodMode) && (Pawn != None) )
 	{
-		if(class<Rx_DmgType_Explosive>(damageType) != None)
+		if(class<Rx_DmgType_Explosive>(damageType) != None || InstigatedBy == None || InstigatedBy.Pawn == None)
 		    ClientPlayTakeHit(hitLocation - Pawn.Location, iDam, damageType);
 		else
 		    ClientPlayTakeHit(InstigatedBy.Pawn.Location - Pawn.Location, iDam, damageType);
@@ -5444,9 +5470,9 @@ ignores SeePlayer, HearNoise, KilledBy, NotifyBump, HitWall, NotifyHeadVolumeCha
 				Rx_HUD(myHUD).SetShowScores(true);
 			else
 			{
+				Rx_HUD(myHUD).Scoreboard.Start();
 				Rx_HUD(myHUD).Scoreboard.EndGameScoreboard.SetVisible(true);
 				Rx_HUD(myHUD).Scoreboard.ServerName.SetVisible(true);
-				Rx_HUD(myHUD).Scoreboard.Start();
 			}
 		}
 		
@@ -5772,21 +5798,6 @@ event PlayerTick( float DeltaTime )
 		bDisplayingAirdropReadyMsg = true;
 	else
 		bDisplayingAirdropReadyMsg = false;	
-		
-	if(IsInState('Dead'))
-	{
-		if ( Rx_HUD(myHUD) != None && !IsSpectating() && (MinRespawnDelay+1 - GetTimerCount() > 1) && (MinRespawnDelay - GetTimerCount()) <= MinRespawnDelay)
-		{
-			Rx_HUD(myHUD).HudMovie.GameplayTipsText.SetVisible(true);
-			Rx_HUD(myHUD).HudMovie.GameplayTipsText.SetString("htmlText", "Respawn available in"@ int(MinRespawnDelay+1 - GetTimerCount()));
-		} 
-		else if(Rx_HUD(myHUD) != None)
-		{
-			Rx_HUD(myHUD).HudMovie.GameplayTipsText.SetString("htmlText", "");
-			Rx_HUD(myHUD).HudMovie.GameplayTipsText.SetVisible(false);
-		} 	
-	}
-	
 	
 }
 
@@ -6839,6 +6850,25 @@ super.SetAudioGroupVolume(GroupName, Volume);
 
 }
 
+exec function UpdateAllAudioVolumes(){
+		//Load our Audio Settings
+		super.SetAudioGroupVolume('UI', Rx_HUD(myHUD).SystemSettingsHandler.UIVolume);
+		super.SetAudioGroupVolume('Item', Rx_HUD(myHUD).SystemSettingsHandler.ItemVolume);
+		super.SetAudioGroupVolume('Vehicle', Rx_HUD(myHUD).SystemSettingsHandler.VehicleVolume);
+		super.SetAudioGroupVolume('Weapon', Rx_HUD(myHUD).SystemSettingsHandler.WeaponVolume);
+		super.SetAudioGroupVolume('SFX', Rx_HUD(myHUD).SystemSettingsHandler.SFXVolume);
+		super.SetAudioGroupVolume('Character', Rx_HUD(myHUD).SystemSettingsHandler.CharacterVolume);
+		super.SetAudioGroupVolume('Music', Rx_HUD(myHUD).SystemSettingsHandler.MusicVolume);
+		super.SetAudioGroupVolume('Announcer', Rx_HUD(myHUD).SystemSettingsHandler.AnnouncerVolume);
+		super.SetAudioGroupVolume('MovieVoice', Rx_HUD(myHUD).SystemSettingsHandler.MovieVoiceVolume);
+		super.SetAudioGroupVolume('WeaponBulletEffects', Rx_HUD(myHUD).SystemSettingsHandler.WeaponBulletEffectsVolume);
+		super.SetAudioGroupVolume('OptionVoice', Rx_HUD(myHUD).SystemSettingsHandler.OptionVoiceVolume);
+		super.SetAudioGroupVolume('MovieEffects', Rx_HUD(myHUD).SystemSettingsHandler.MovieEffectsVolume);
+		super.SetAudioGroupVolume('Ambient', Rx_HUD(myHUD).SystemSettingsHandler.AmbientVolume);
+		super.SetAudioGroupVolume('UnGrouped', Rx_HUD(myHUD).SystemSettingsHandler.UnGroupedVolume);
+		super.SetAudioGroupVolume('Voice', Rx_HUD(myHUD).SystemSettingsHandler.CharacterVolume);
+}
+
 function AddToKeyString (coerce string KeyInput)
 {
 
@@ -7444,12 +7474,6 @@ reliable server function ServerCommandHarvester(byte AbilityNumber)
 	
 	if(AbilityNumber == 0)
 	{
-		if(!CheckHarvesterPath(TeamHarvesterController))
-		{
-			CTextMessage("Command Failed : Harvester cannot reach halted point!",'Red');
-			return;
-		}
-
 		bCommandSuccess = TeamHarvesterController.ToggleHaltHarv(self);
 		
 		if(bCommandSuccess)
@@ -8094,6 +8118,7 @@ DefaultProperties
 	RefillCooldownTime=8
 	bRotateMiniMap=true
 	InputClass=class'RenX_Game.RX_PlayerInput'
+	VoteHandlerClass=class'RenX_Game.Rx_VoteMenuHandler'
 	currentCharIndex=1	
 	camMode = ThirdPerson
 	pressedDodgeDirection = EMPTY

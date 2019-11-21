@@ -227,11 +227,15 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 			{
 				TempAttacker.PPRI=EventInstigator.PlayerReplicationInfo;
 				TempAttacker.DamageDone = Min(DamageAmount - Armor, Health);
+
+				if(Rx_PRI(EventInstigator.PlayerReplicationInfo) != None)
+				{
 				
-				//Give the remaining Armour in Armour damage 
-				Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingArmourDamage(Armor);
-				//Give Health damage points where they are due 
-				Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingDamage(FMin(DamageAmount - Armor, Health));
+					//Give the remaining Armour in Armour damage 
+					Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingArmourDamage(Armor);
+					//Give Health damage points where they are due 
+					Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingDamage(FMin(DamageAmount - Armor, Health));
+				}
 				
 				DamagingParties.AddItem(TempAttacker);
 			}
@@ -240,16 +244,23 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 				if(CurDmg <= float(Health+Armor))
 				{
 					DamagingParties[InstigatorIndex].DamageDone+=Min(DamageAmount-Armor, GetMaxArmor()+GetMaxHealth()+10);	
+			
+					if(Rx_PRI(EventInstigator.PlayerReplicationInfo) != None)
+					{					
+						Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingArmourDamage(FMin(DamageAmount-Armor, GetMaxArmor()));
 					
-					Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingArmourDamage(FMin(DamageAmount-Armor, GetMaxArmor()));
-					
-					Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingDamage(FMin(DamageAmount-Armor, GetMaxHealth()+10));
+						Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingDamage(FMin(DamageAmount-Armor, GetMaxHealth()+10));
+					}
 				}
 				else
 				{
 					DamagingParties[InstigatorIndex].DamageDone+=Health+Armor;
-					Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingArmourDamage(Armor);
-					Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingDamage(float(Health));
+
+					if(Rx_PRI(EventInstigator.PlayerReplicationInfo) != None)
+					{					
+						Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingArmourDamage(Armor);
+						Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingDamage(float(Health));
+					}
 				}
 				
 			}
@@ -268,7 +279,9 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 		}	
 		else // Damaging only armor
 		{
-			Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingArmourDamage(DamageAmount);
+			if(Rx_PRI(EventInstigator.PlayerReplicationInfo) != None)
+				Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingArmourDamage(DamageAmount);
+		
 			Scr = float(DamageAmount) * ADamagePointsScale;
 		}
 			
@@ -284,7 +297,9 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 		{
 			TempAttacker.PPRI=EventInstigator.PlayerReplicationInfo;
 			TempAttacker.DamageDone = FMin(DamageAmount, Health);
-			Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingDamage(FMin(DamageAmount, Health)); 
+
+			if(Rx_PRI(EventInstigator.PlayerReplicationInfo) != None)
+				Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingDamage(FMin(DamageAmount, Health)); 
 			
 			DamagingParties.AddItem(TempAttacker) ;
 		}
@@ -293,12 +308,16 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 			if(CurDmg <= float(Health+Armor))
 				{
 					DamagingParties[InstigatorIndex].DamageDone+=DamageAmount;
-					Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingDamage(DamageAmount); 
+
+					if(Rx_PRI(EventInstigator.PlayerReplicationInfo) != None)
+						Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingDamage(DamageAmount); 
 				}				
 			else
 				{
 					DamagingParties[InstigatorIndex].DamageDone+=Health;
-					Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingDamage(float(Health)); 
+
+					if(Rx_PRI(EventInstigator.PlayerReplicationInfo) != None)
+						Rx_PRI(EventInstigator.PlayerReplicationInfo).AddBuildingDamage(float(Health)); 
 				}
 				
 		}
@@ -339,8 +358,14 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 		{
 			if (PRII.PPRI != none)
 			{
-				Rx_PRI(PRII.PPRI).AddScoreToPlayerAndTeam( default.Destroyed_Score*(PRII.DamageDone/TrueHealthMax)) ;
-				
+
+
+				if(Rx_PRI(PRII.PPRI) != None)
+					Rx_PRI(PRII.PPRI).AddScoreToPlayerAndTeam( default.Destroyed_Score*(PRII.DamageDone/TrueHealthMax)) ;
+				else
+					Rx_TeamInfo(PRII.PPRI.Team).AddRenScore(default.Destroyed_Score*(PRII.DamageDone/TrueHealthMax));
+
+
 				if(Rx_Controller(PRII.PPRI.Owner) != none && Rx_Pawn( Rx_Controller(PRII.PPRI.Owner).Pawn) != none) Rx_Pawn( Rx_Controller(PRII.PPRI.Owner).Pawn).
 					SetTimer(2.0,false,'PlayBuildingKillTimer');
 					

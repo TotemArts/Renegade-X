@@ -174,6 +174,9 @@ simulated function Shutdown()
 
 	SetPhysics(PHYS_None);
 
+	if(AmbientSound != none)
+		CleanupAmbientSound(); 
+	
 	if (ProjEffects!=None)
 	{
 		ProjEffects.DeactivateSystem();
@@ -564,8 +567,6 @@ simulated function bool HurtRadius( float DamageAmount,
 {
 	local bool bCausedDamage, bResult;
 	local class<DamageType>	TrueDamageType; 
-
-	//`log("HURT RADIUS--");
 	
 	if ( bHurtEntry )
 		return false;
@@ -575,25 +576,26 @@ simulated function bool HurtRadius( float DamageAmount,
 	{
 		InstigatedByController = InstigatorController;
 	}
-
-	//Do we have a specific damage type for blast radius?  
-	if(ExplosionDamageType != none){
-		TrueDamageType = ExplosionDamageType; 
-	}
-	else
-		TrueDamageType = DamageType; 
-		
+	
 		//`log("True:" @ TrueDamageType);
 	
 	// if ImpactedActor is set, we actually want to give it full damage, and then let him be ignored by super.HurtRadius()
 	if ( (ImpactedActor != None) && (ImpactedActor != self) && Rx_Building(ImpactedActor) == None )
 	{
 		if(!TryHeadshot(ImpactedActor, HurtOrigin, Velocity, Damage)) {
-			ImpactedActor.TakeRadiusDamage(InstigatedByController, DamageAmount, InDamageRadius, TrueDamageType, Momentum, HurtOrigin, true, self);
+			ImpactedActor.TakeRadiusDamage(InstigatedByController, DamageAmount, InDamageRadius, DamageType, Momentum, HurtOrigin, true, self);
 		}
 		bCausedDamage = ImpactedActor.bProjTarget;
 	}
 
+	//Do we have a specific damage type for the actual explosion?  
+	if(ExplosionDamageType != none){
+		TrueDamageType = ExplosionDamageType; 
+	}
+	else
+		TrueDamageType = DamageType; 
+		
+	
 	bResult = Super(Actor).HurtRadius(DamageAmount, InDamageRadius, TrueDamageType, Momentum, HurtOrigin, ImpactedActor, InstigatedByController, bDoFullDamage);
 	return ( bResult || bCausedDamage );
 }
@@ -625,9 +627,26 @@ simulated function bool isAirstrikeProjectile()
 
 simulated function Explode(vector HitLocation, vector HitNormal)
 {
+	CleanupAmbientSound();
+	
 	if (bLogExplosion && WorldInfo.NetMode != NM_Client)
 		`LogRxPub("GAME"`s "ProjectileExploded;" `s self.Class `s "at" `s HitLocation `s "by" `s `PlayerLog(InstigatorController.PlayerReplicationInfo));
+	
+	
+	
 	super.Explode(HitLocation, HitNormal);
+}
+
+simulated function CleanupAmbientSound()
+{
+	local AudioComponent AudioCues;
+	
+	if(AmbientSound != none){
+		foreach ComponentList(class'AudioComponent',AudioCues){
+			if(AudioCues.SoundCue == AmbientSound )
+				AudioCues.Stop(); 
+		}
+	}
 }
 
 /** returns the maximum distance this projectile can travel */

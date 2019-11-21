@@ -66,20 +66,24 @@ simulated function OnBuildingDestroyed()
 		Rx_SentinelWeapon_Obelisk(laserSentinel.SWeapon).ClearTimer('crystalChargingGlow');
 		Rx_SentinelWeapon_Obelisk(laserSentinel.SWeapon).CrystalGlowMIC.SetScalarParameterValue('Obelisk_Glow', 0.0); 
 		Rx_SentinelWeapon_Obelisk(laserSentinel.SWeapon).FiringState=0;
-		laserSentinel.SController.Cannon.Destroy();
-		laserSentinel.Destroy();
+//		laserSentinel.SController.Cannon.Destroy();
+//		laserSentinel.Destroy();
 	}
 }
 
 function bool PowerLost(optional bool bFromKismet)
 {
-	if((bFromKismet || super.PowerLost()) && laserSentinel != none) 
+	if(super.PowerLost(bFromKismet) && laserSentinel != none) 
 	{
-		laserSentinel.SController.Cannon.Destroy();
-		laserSentinel.Destroy();
+//		laserSentinel.SController.Cannon.Destroy();
+//		laserSentinel.Destroy();
+
+		Rx_SentinelWeapon_Obelisk(laserSentinel.SWeapon).ClearTimer('crystalChargingGlow');
+		Rx_SentinelWeapon_Obelisk(laserSentinel.SWeapon).CrystalGlowMIC.SetScalarParameterValue('Obelisk_Glow', 0.0); 
+		Rx_SentinelWeapon_Obelisk(laserSentinel.SWeapon).FiringState=0;
 
 		BuildingVisuals.TriggerEventClass(Class'Rx_SeqEvent_DefenseEvent',None,0);
-		bNoPower = true;
+//		bNoPower = true;
 
 		return true;
 	}
@@ -89,6 +93,7 @@ function bool PowerLost(optional bool bFromKismet)
 	return false;
 }
 
+/*
 //PowerRestore function
 function bool PowerRestore()
 {
@@ -104,3 +109,4 @@ function bool PowerRestore()
 		return false;
 	}
 }
+*/

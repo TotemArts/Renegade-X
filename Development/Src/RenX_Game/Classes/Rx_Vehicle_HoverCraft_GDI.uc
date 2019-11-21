@@ -702,7 +702,7 @@ DefaultProperties
 	GroundSpeed=600
 	AirSpeed=2000
 	MaxSpeed=800
-	HornIndex=1
+	HornIndex=0
 	COMOffset=(x=0.0,y=0.0,z=0.0)
 
 	UprightLiftStrength=30.0

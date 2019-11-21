@@ -14,13 +14,13 @@ defaultproperties
 	
 //    DamageWeaponClass=class'Rx_Weapon_Pistol'
     DamageWeaponFireMode=2
-    VehicleDamageScaling=0.016f
+    VehicleDamageScaling=0.008f
     NodeDamageScaling=0.5
     VehicleMomentumScaling=0.1
 
     CustomTauntIndex=10
-    lightArmorDmgScaling=0.16
-    BuildingDamageScaling=0.002
+    lightArmorDmgScaling=0.08
+    BuildingDamageScaling=0.001
 	MCTDamageScaling=100.0
 	
 	KDamageImpulse=1000

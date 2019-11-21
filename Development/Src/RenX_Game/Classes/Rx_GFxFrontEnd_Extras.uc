@@ -107,6 +107,7 @@ DefaultProperties
 	CreditContent.Add("Sarah 'buttons' Evans")
 	CreditContent.Add("Randy 'SonnyX' von der Weide")
 	CreditContent.Add("Isa 'Handepsilon' Handoyo")
+	CreditContent.Add("Daniil 'UsedC' Mitrofanov")
 	CreditContent.Add("Mike Geig")
 	CreditContent.Add("one1")
 	CreditContent.Add("Kil")

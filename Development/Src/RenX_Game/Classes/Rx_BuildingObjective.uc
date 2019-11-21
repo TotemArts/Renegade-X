@@ -113,7 +113,17 @@ function bool Shootable()
 simulated function bool NeedsHealing()
 {
 
-		return (!bIsDisabled && myBuilding.GetArmor() < myBuilding.GetMaxArmor());
+		if (!bIsDisabled)
+		{
+			if(GetObjectiveProgress() <= 0)
+			{
+				bIsDisabled = true;
+				return false;
+			}
+			return (myBuilding.GetArmor() < myBuilding.GetMaxArmor());
+		}	
+
+		return false;	
 }
 
 function Actor GetShootTarget(UTBot B)
@@ -604,6 +614,9 @@ function bool KillEnemyFirstBeforeHealing(UTBot B)
 function bool KillEnemyFirstBeforeAttacking(UTBot B)
 {
 	
+	if (B.Enemy == None) // you can't kill something that doesn't exist
+
+		return false;
 	//use bUnderAttack aswell ?
 	if(B.Enemy.Health <= 0 || !B.CanAttack(B.Enemy))
 		return false;

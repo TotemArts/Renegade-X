@@ -6,7 +6,6 @@ var bool bFocusOnEnemy;
 
 function RxInitialize(float InSkill, const out CharacterInfo BotInfo, UTTeamInfo BotTeam)
 {
-	local UTPlayerReplicationInfo PRI;
 
 	Skill = FClamp(InSkill, 0, 7);
 
@@ -23,14 +22,6 @@ function RxInitialize(float InSkill, const out CharacterInfo BotInfo, UTTeamInfo
 
 	ResetSkill();
 	//super.Initialize(4.0, BotInfo);
-
-	PRI = UTPlayerReplicationInfo(PlayerReplicationInfo);
-
-	if(Rx_TeamInfo(BotTeam).GetTeamName() == "GDI")
-		PRI.CharClassInfo = CharInfoClass.static.FindFamilyInfo("GDI");
-	else
-		PRI.CharClassInfo = CharInfoClass.static.FindFamilyInfo("Nod");
-
 
 //	setStrafingDisabled(true);
 	SetTimer(0.5,true,'ConsiderStartSprintTimer');
@@ -165,28 +156,15 @@ protected event ExecuteWhatToDoNext()
 		}
 
 		GoalString @= "- Wander or Camp at" @ WorldInfo.TimeSeconds;
-		bShortCamp = UTPlayerReplicationInfo(PlayerReplicationInfo).bHasFlag;
+		bShortCamp = false;
 
-		if(Rx_SquadAI(Squad).SquadLeader != Self)
-			Rx_SquadAI(Squad).TellBotToFollow(Self,Rx_SquadAI(Squad).SquadLeader);
+		if(Rx_SquadAI(Squad).SquadLeader != Self && Rx_SquadAI(Squad).TellBotToFollow(Self,Rx_SquadAI(Squad).SquadLeader))
+			return;
 		else
 			WanderOrCamp();
 	}
 
 		
-}
-
-function PawnDied(Pawn inPawn)
-{
-	if(inPawn == Pawn)
-	{
-		if(Rx_Game_Survival(WorldInfo.Game) != None)
-		{
-			Rx_Game_Survival(WorldInfo.Game).NotifyEnemyDeath(Self);
-		}
-	}
-
-	Super.PawnDied(inPawn);
 }
 
 function bool AssignSquadResponsibility()
@@ -198,4 +176,9 @@ function bool AssignSquadResponsibility()
 		
 		return false;
 	}
+}
+
+function bool ShouldSurviveVehicleDeath()
+{
+	return false;
 }

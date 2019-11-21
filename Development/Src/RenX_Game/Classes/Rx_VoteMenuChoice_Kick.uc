@@ -67,7 +67,19 @@ function ServerSecondTick(Rx_Game game)
 
 function string ComposeTopString()
 {
-	return super.ComposeTopString() $ " wants to kick " $ KickC.PlayerReplicationInfo.PlayerName;
+	local string FontColor;
+
+	if(KickC == VoteInstigator)
+		return super.ComposeTopString() $ "wants to get out of the game";
+
+	if(KickC.GetTeamNum() == 0)
+		FontColor = GDIColor;
+	else if(KickC.GetTeamNum() == 1)
+		FontColor = NodColor;
+	else
+		FontColor = HostColor;
+
+	return super.ComposeTopString() $ " wants to kick " $"<font color='" $FontColor $"'>"$ KickC.PlayerReplicationInfo.PlayerName$"</font>";
 }
 
 function string ParametersLogString()

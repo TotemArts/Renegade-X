@@ -134,6 +134,7 @@ var string FM1_AVGString; //String to send to controller when requested
 var bool bOkAgainstBuildings;
 var bool bOkAgainstLightVehicles;
 var bool bOkAgainstArmoredVehicles;
+var float CloseRangeAimAdjustment;
 
 replication
 {
@@ -2057,6 +2058,25 @@ reliable client function ReplicateVRank(byte rank)
 	CachedMaxRange = 0 ; //Recache range
 }
 
+simulated function GetFireStartLocationAndRotation(out vector SocketLocation, out rotator SocketRotation) {
+    
+    super.GetFireStartLocationAndRotation(SocketLocation, SocketRotation);    
+    
+    if( (Rx_Bot(MyVehicle.Controller) != None) && (Rx_Bot(MyVehicle.Controller).GetFocus() != None) ) 
+    {
+
+    	if(VSizeSq(SocketLocation - Rx_Bot(MyVehicle.Controller).GetFocus().Location) < Square(CloseRangeAimAdjustRange)
+        		&& class'Rx_Utils'.static.OrientationOfLocAndRotToB(SocketLocation,SocketRotation,Rx_Bot(MyVehicle.Controller).GetFocus()) > 0.9) 
+    	{
+        			MaxFinalAimAdjustment = CloseRangeAimAdjustment;	
+        } 
+        else 
+        {
+            MaxFinalAimAdjustment = Default.MaxFinalAimAdjustment;
+        }
+    }
+}
+
 DefaultProperties
 {
 	InventoryGroup=0
@@ -2117,5 +2137,5 @@ DefaultProperties
 	FM1_AVGString = "X/X"
 
 	bOkAgainstLightVehicles=true
-	MaxFinalAimAdjustment=0.85
+	CloseRangeAimAdjustment=0.6
 	}

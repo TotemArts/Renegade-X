@@ -72,9 +72,9 @@ DefaultProperties
     MaxSpeed=18000 //14000 //9000
     AccelRate=0
     LifeSpan=0.45 //0.512 //0.8
-    Damage=10 //8
+    Damage=16 //10 //8
     DamageRadius=0
-	HeadShotDamageMult=3.0 // 2.0
+	HeadShotDamageMult=1.5 //3.0 // 2.0
     MomentumTransfer=10000
     bSuppressExplosionFX=True // Do not spawn hit effect in mid air
 	

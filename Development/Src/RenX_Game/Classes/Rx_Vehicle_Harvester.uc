@@ -239,7 +239,9 @@ function BroadcastDestroyed()
 			else
 			{
 				PC.CTextMessage(Caps("Enemy Harvester Destroyed"),'Green',180,1);
-				PC.DisseminateVPString("[Team Harvester Kill Bonus]&" $ class'Rx_VeterancyModifiers'.default.Ev_HarvesterDestroyed $ "&");
+				//If we were actually being hit by the enemy team, give the team bonus 
+				if(DamagingParties.length > 0)
+					PC.DisseminateVPString("[Team Harvester Kill Bonus]&" $ class'Rx_VeterancyModifiers'.default.Ev_HarvesterDestroyed $ "&");
 			}
 		}
 
@@ -328,7 +330,7 @@ DefaultProperties
     LeftStickDirDeadZone=0.1
     TurnTime=18
      ViewPitchMin=-13000
-    HornIndex=1
+    HornIndex=0
     COMOffset=(x=-19.0,y=0.0,z=-40.0)
 	bAlwaysRegenerate = true 
 	

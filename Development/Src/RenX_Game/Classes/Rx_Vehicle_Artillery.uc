@@ -89,7 +89,7 @@ DefaultProperties
     LeftStickDirDeadZone=0.1
     TurnTime=18
     ViewPitchMin=-13000
-    HornIndex=1
+    HornIndex=0
     COMOffset=(x=-10.0,y=0.0,z=-60.0)
     bSecondaryFireTogglesFirstPerson=true
 	SpeedAtWhichToApplyReducedTurningThrottle=220

@@ -587,16 +587,15 @@ DefaultProperties
 	//WeaponFireTypes(1)=EWFT_Custom
 	ShotCost(0)=1
 	ShotCost(1)=1
+
+	Price = 800
 	
 	ThirdPersonWeaponPutDownAnim="H_M_Beacon_PutDown"
 	ThirdPersonWeaponEquipAnim="H_M_Beacon_Equip"
 	
-	ReloadAnimName(0) = "weaponreload"
-	ReloadAnimName(1) = "weaponreload"
+
 	ReloadAnim3PName(0) = "H_M_Beacon_Equip"
 	ReloadAnim3PName(1) = "H_M_Beacon_Equip"
-	ReloadArmAnimName(0) = "weaponreload"
-	ReloadArmAnimName(1) = "weaponreload"
 
 	
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_Airstrike_GDI'

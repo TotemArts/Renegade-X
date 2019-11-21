@@ -39,9 +39,9 @@ DefaultProperties
     MaxSpeed=6000//6000
     AccelRate=0
     LifeSpan=0.53
-    Damage= 13 //14 //12
+    Damage=15 //13 //14 //12
     DamageRadius=0
-	HeadShotDamageMult=1.5 //2.0 //2.25
+	HeadShotDamageMult=1.25 //1.5 //2.0 //2.25
     MomentumTransfer=5000
 	
 //	TossZ=100.0

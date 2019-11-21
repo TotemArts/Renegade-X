@@ -156,8 +156,7 @@ function bool PurchaseVehicle(Rx_PRI Buyer, int TeamID, int VehicleID )
 	if(VehicleSpawnerManagers.length <= 0 && !GetVehicleSpawners())
 		return false;
 
-	Super.PurchaseVehicle(Buyer,TeamID,VehicleID);
-
+	return Super.PurchaseVehicle(Buyer,TeamID,VehicleID);
 }
 
 simulated function UpdateMapSpecificVehicleClasses(){

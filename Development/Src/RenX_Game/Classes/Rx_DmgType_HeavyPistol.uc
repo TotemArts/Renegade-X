@@ -7,7 +7,7 @@ defaultproperties
     SuicideStatsName=SUICIDES_HEAVYPISTOL
 
     DamageWeaponFireMode=2
-    VehicleDamageScaling=0.1
+    VehicleDamageScaling=0.075
     NodeDamageScaling=0.5
     VehicleMomentumScaling=0.1
     bBulletHit=false
@@ -18,8 +18,8 @@ defaultproperties
 	Inf_LazarusDamageScaling = 1.0  // Lazarus SBH armour, standard rule is +40% to Electrical damage but likely no other damage modifiers.
 	
     CustomTauntIndex=10
-    lightArmorDmgScaling=0.25
-    BuildingDamageScaling=0.1
+    lightArmorDmgScaling=0.1875
+    BuildingDamageScaling=0.075
 	MCTDamageScaling=5.0
 	MineDamageScaling=2.0
 	

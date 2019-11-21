@@ -14,6 +14,7 @@ class Rx_PlayerInput extends UTPlayerInput config(Input);
 var Rx_Pawn rxp;
 var float aBaseYTemp;
 var() config bool UseADSSens;
+var() config bool UseDevFlag;
 var() config bool bThreadedVehReverseSteeringInverted;
 var() config bool bClickToGoOutOfADS;
 var() config bool bToggleCrouch;
@@ -123,6 +124,12 @@ function assureMinimalMouseMovement()
 function ToggleADSSens()
 {
 	UseADSSens = !UseADSSens;
+	SaveConfig();
+}
+
+function ToggleDevFlag()
+{
+	UseDevFlag = !UseDevFlag;
 	SaveConfig();
 }
 

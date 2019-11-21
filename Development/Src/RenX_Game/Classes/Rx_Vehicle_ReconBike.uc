@@ -65,6 +65,12 @@ DefaultProperties
 //************** Vehicle Physics Properties **************\\
 //========================================================\\
 
+    Begin Object Name=CollisionCylinder
+    CollisionHeight=40.0
+    CollisionRadius=100.0
+    Translation=(X=0.0,Y=0.0,Z=0.0)
+    End Object
+
 
     Health=250 //200
     bLightArmor=True
@@ -78,7 +84,7 @@ DefaultProperties
     GroundSpeed=1100
     AirSpeed=1100
     MaxSpeed=2000 //1600 compensate for Veterancy increase 
-    HornIndex=1
+    HornIndex=0
     COMOffset=(x=0.0,y=0.0,z=-75.0)
     bUsesBullets = false
     bOkAgainstBuildings=true
@@ -106,7 +112,7 @@ DefaultProperties
         MaxBrakeTorque=10.0
         StopThreshold=100
 
-        MaxSteerAngleCurve=(Points=((InVal=0,OutVal=70),(InVal=675.0,OutVal=45.0), (InVal=1000.0,OutVal=16.0)))
+        MaxSteerAngleCurve=(Points=((InVal=0,OutVal=70),(InVal=675.0,OutVal=45.0), (InVal=1000.0,OutVal= 25.0))) //16.0)))
         SteerSpeed=150
 
         LSDFactor=0.4

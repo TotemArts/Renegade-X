@@ -165,10 +165,10 @@ defaultproperties
     WeaponFireTypes(1)=EWFT_None
     WeaponRange=1200 //800.0
 
-    InstantHitDamage(0)=10 //12//16
+    InstantHitDamage(0)=13 //10 //12//16
 //    InstantHitDamage(1)=16
 	
-	HeadShotDamageMult=1.5 //1.25 //1.5
+	HeadShotDamageMult=1.25//1.5 //1.25 //1.5
 	
     InstantHitDamageTypes(0)=class'Rx_DmgType_Shotgun'
 //    InstantHitDamageTypes(1)=class'Rx_DmgType_Shotgun'

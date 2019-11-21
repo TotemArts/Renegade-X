@@ -843,6 +843,7 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 	local Controller C; 
 	local int	SavedHealth, SavedArmour; 
 	local Rx_PRI InstigatorPRI; 
+	local Controller DefenseOwner;
 	
 	//`log("Took Damage"); 
 		
@@ -1038,9 +1039,23 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 		
 		//Get VP modifiers and build the string to go along with it
 
-		if(Rx_Defence_Controller(Killer) != none) //Just give defences VP, nothing else
-		{
-			Rx_Defence_Controller(Killer).GiveVeterancy(GetRxFamilyInfo().default.VPReward[VRank]);	
+		if(Rx_Defence_Controller(Killer) != none) //Check if the defence is owned by a player. If not, just give defences VP, nothing else
+		{	
+			if(Rx_Defence(Killer.Pawn).Deployer == None)
+			{
+				Rx_Defence_Controller(Killer).GiveVeterancy(GetRxFamilyInfo().default.VPReward[VRank]);	
+			}
+
+			else
+			{
+				// Half out the reward for the defense and the owning player
+				Rx_Defence_Controller(Killer).GiveVeterancy(GetRxFamilyInfo().default.VPReward[VRank] / 2);
+
+				DefenseOwner = Controller(Rx_Defence(Killer.Pawn).Deployer.Owner);
+
+				if(Rx_Controller(DefenseOwner) != None)
+					Rx_Controller(DefenseOwner).DisseminateVPString(BuildDeathVPString(DefenseOwner, DamageType, bHeadshot, true));
+			}
 		}
 		
 		if(EventInstigator != none && RX_PRI(EventInstigator.PlayerReplicationInfo) != none)
@@ -1277,7 +1292,7 @@ function AdjustDamage(out int InDamage, out vector Momentum, Controller Instigat
 	
 }
 
-function string BuildDeathVPString(Controller Killer, class<DamageType> DamageType, bool Headshot)
+function string BuildDeathVPString(Controller Killer, class<DamageType> DamageType, bool Headshot, optional bool bUsingBlueprint)
 {
 	local string VPString;
 	local int IntHolder; //Hold current number we'll be using 
@@ -1463,6 +1478,13 @@ function string BuildDeathVPString(Controller Killer, class<DamageType> DamageTy
 		
 		VPString = VPString $ "[Defensive Kill]&" $ IntHolder $ "&";
 	} 
+	if( bUsingBlueprint)
+	{
+		IntHolder = class'Rx_VeterancyModifiers'.default.Mod_BlueprintKill;	// I mean.... guard tower and turret really really makes things easy
+			
+		BaseVP+=IntHolder;		
+		VPString = VPString $ "[Defense Emplacement Kill]&" $ IntHolder $ "&";
+	}
 		
 	BaseVP=fmax(1.0, BaseVP); //Offer at least 1 VP cuz... why not ? Consolation prize
 		
@@ -2111,26 +2133,30 @@ simulated function Tick(float DeltaTime)
 	if(Rx_Controller(Controller) == none)
 	{
 		TickParachute(DeltaTime);
-		super.Tick(DeltaTime); 
+		//Do handy stuff
+		if((WorldInfo.NetMode != NM_DedicatedServer && (bTickHandIK || WorldInfo.IsPlayingDemo()))) 
+		{
+			TickHandIK(DeltaTime); //Calculate all of the hand IK repositioning crap.
+			bTickHandIK = false; //Reset, as we don't need to do this constantly
+		}
 		
-		if (Stamina < MaxStamina && !bExhausted) //Tick Stamina appropriately
+		super.Tick(DeltaTime); 
+		return; //Ignore all of this if we're not the pawn we need to be concerned with. 
+	}
+	
+	if((WorldInfo.NetMode != NM_DedicatedServer)) //For ourselves, just always tick Hand IK
+	{
+		TickHandIK(DeltaTime); //Calculate all of the hand IK repositioning crap.
+	}
+	
+	if (Stamina < MaxStamina && !bExhausted) //Tick Stamina appropriately
 		{
 			Stamina += (StaminaRegenRate * DeltaTime);
 			if (Stamina > MaxStamina) 
 				{
 					Stamina = MaxStamina;
 				}
-		}
-		
-		return; //Ignore all of this if we're not the pawn we need to be concerned with. 
-	}
-	
-	if((WorldInfo.NetMode != NM_DedicatedServer && (bTickHandIK || Rx_Controller(Controller) != none )) || WorldInfo.IsPlayingDemo()) 
-	{
-		TickHandIK(DeltaTime); //Calculate all of the hand IK repositioning crap.
-		bTickHandIK = false; //Reset, as we don't need to do this constantly
-	}
-		
+		}	
 	
 	if (bSprinting && Worldinfo.Netmode != NM_DedicatedServer && DrivenVehicle == None)
 	{
@@ -3743,14 +3769,14 @@ simulated function DoingDeathAnim()
 	if(!SlotSeqNode.bPlaying || bStopAnim)
 	{
         Mesh.PhysicsWeight = 1.0;
+        
 		SetPhysics(PHYS_RigidBody);
 		Mesh.PhysicsAssetInstance.SetAllMotorsAngularPositionDrive(false, false);
 		HipBodyInst = Mesh.PhysicsAssetInstance.FindBodyInstance('b_Spine_1', Mesh.PhysicsAsset);
 		HipBodyInst.EnableBoneSpring(FALSE, FALSE, DummyMatrix);
 
 		// Ensure we have ragdoll collision on at this point
-		SetPawnRBChannels(TRUE);
-
+		SetPawnRBChannels(TRUE);	
 		ClearTimer('DoingDeathAnim');
 		//ThrowWeaponOnDeath();
 	}

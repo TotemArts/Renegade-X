@@ -500,9 +500,9 @@ DefaultProperties
     
     WeaponRange=3000.0
 
-    InstantHitDamage(0)=10
+    InstantHitDamage(0)=14 //10
 	
-	HeadShotDamageMult=2.0
+	HeadShotDamageMult=1.25 //2.0
 	
     InstantHitMomentum(0)=10000.0
 

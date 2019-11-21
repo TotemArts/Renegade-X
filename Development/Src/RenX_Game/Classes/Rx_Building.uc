@@ -62,7 +62,7 @@ simulated event ReplicatedEvent(name VarName)
 {
 	if ( VarName == 'BuildingInternals' ) 
 	{
-		BuildingInternalsReplicated();
+		BuildingInternalsReplicated(); 
 	}
 	else
 		super.ReplicatedEvent(VarName);
@@ -396,6 +396,14 @@ function OnToggle(SeqAct_Toggle Action)
 	else
 		TeamInternals.PowerLost(true);
 	
+}
+
+function bool Unpowered()
+{
+	if(IsDestroyed())
+		return true;
+	if(Rx_Building_Team_Internals(BuildingInternals) != None)
+		return Rx_Building_Team_Internals(BuildingInternals).bNoPower;
 }
 
 defaultproperties

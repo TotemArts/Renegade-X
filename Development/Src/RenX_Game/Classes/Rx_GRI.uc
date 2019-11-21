@@ -37,6 +37,7 @@ var string MVP[2], BestOP[2], BestDP[2], BestSP[2];
 var bool bPureServer;
 var bool bEnableCommanders;
 var bool bEnableBotVotes;
+var bool bEnableNuke;
 
 var array<class<Rx_StatModifierInfo> >		StatClasses; 
 var array<MaterialInstanceConstant> CustomWeaponMICs; 
@@ -47,7 +48,7 @@ var array<Actor> TechBuildingArray; //Array to hold map tech buildings (Optimiza
 replication
 {
 	if (bNetDirty)
-		WinnerTeamNum,WinnerReason,MapVotes,PurchaseSystem,MapVoteList,NextMap,buildingArmorPercentage, WinBySurrender, MVP, BestOP, BestDP, BestSP, bEnableCommanders, bEnableBotVotes;
+		WinnerTeamNum,WinnerReason,MapVotes,PurchaseSystem,MapVoteList,NextMap,buildingArmorPercentage, WinBySurrender, MVP, BestOP, BestDP, BestSP, bEnableCommanders, bEnableBotVotes, bEnableNuke;
 }
 
 simulated event PostBeginPlay()

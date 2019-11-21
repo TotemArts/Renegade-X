@@ -46,6 +46,10 @@ var array<class<Rx_Weapon> > AvailableExplosiveWeapons;
 var array<class<Rx_Weapon> > AvailableSecondaryWeapons;
 var array<class<Rx_Weapon> > AvailableItems;
 var array<class<Rx_WeaponAbility> > AvailableAbilityWeapons; //
+
+//Inversely...
+var array<class<Rx_Weapon> > ForbiddenItems;
+
 var Weapon LastWeapon; 
 
 event PreBeginPlay()
@@ -74,6 +78,9 @@ simulated function array<class<Rx_Weapon> > GetAvailableSidearmWeapons() { retur
 simulated function array<class<Rx_Weapon> > GetAvailableExplosiveWeapons() { return default.AvailableExplosiveWeapons; }
 simulated function array<class<Rx_Weapon> > GetAvailableItems() { return default.AvailableItems; }
 
+// Inverse of above
+simulated function array<class<Rx_Weapon> > GetForbiddenItems() { return default.ForbiddenItems; }
+
 /** one1: Call to determine if this character is permitted to have the wanted weapon. */
 simulated function bool IsPrimaryWeaponAllowed(class<Rx_Weapon> w) { return IsClassifiedWeaponAllowed(w, GetAvailablePrimaryWeapons()); }
 simulated function bool IsSecondaryWeaponAllowed(class<Rx_Weapon> w) { return IsClassifiedWeaponAllowed(w, GetAvailableSecondaryWeapons()); }
@@ -86,10 +93,24 @@ private simulated function bool IsClassifiedWeaponAllowed(class<Rx_Weapon> w, ar
 	local int i;
 
 	for (i = 0; i < a.length; i++)
-		if (a[i] == w) return true;
+		if (ClassIsChildOf(w,a[i]) && !IsClassifiedWeaponForbidden(w,GetForbiddenItems())) return true;
 
 	return false;
 }
+
+private simulated function bool IsClassifiedWeaponForbidden(class<Rx_Weapon> w, array<class<Rx_Weapon> > a)
+{
+	local int i;
+
+	if(a.length <= 0)
+		return false;
+
+	for (i = 0; i < a.length; i++)
+		if (ClassIsChildOf(w,a[i])) return true;
+
+	return false;
+}
+
 
 /** one1: Return current weapon classes of specified class index in inventory. 
  *  For class index, check classification in Rx_Weapon class. */
@@ -1085,6 +1106,7 @@ defaultproperties
 	AvailableItems(2) = class'Rx_Weapon_Airstrike_GDI'
 	AvailableItems(3) = class'Rx_Weapon_Airstrike_Nod'
 	AvailableItems(4) = class'Rx_Weapon_RepairTool'
+	AvailableItems(5) = class'Rx_Weapon_Blueprint'
 
 	SidearmWeapons[0] = class'Rx_Weapon_Pistol_Unsilenced' //class'Rx_Weapon_Pistol'
 	ExplosiveWeapons[0] = class'Rx_Weapon_TimedC4'

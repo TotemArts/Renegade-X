@@ -47,6 +47,14 @@ DefaultProperties
         Scale=1.0
     End Object
 	
+	//Burst Fire Variables//
+	bBurstFire = true  //If true, the weapon will use burst fire mechanics
+	TimeBetweenBursts = 0.06
+	bConstantFire = false 
+	BurstNum = 1
+	Burst_Cooldown(0) = 0.1
+	Burst_Cooldown(1) = 0.1
+	
 	PlayerViewOffset=(X=5.0,Y=0.0,Z=-1.0)		// (X=6.0,Y=2.0,Z=-2.0)
 	
 	FireOffset=(X=0,Y=4,Z=-3)

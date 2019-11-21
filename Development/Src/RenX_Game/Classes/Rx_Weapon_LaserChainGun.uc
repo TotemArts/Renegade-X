@@ -149,7 +149,7 @@ DefaultProperties
     InstantHitDamage(0)=16
     InstantHitDamage(1)=0
 	
-	HeadShotDamageMult= 1.4 //2.0 I cry 
+	HeadShotDamageMult= 1.25 //1.4 //2.0 I cry 
     
 //	BotDamagePercentage = 0.6;
 

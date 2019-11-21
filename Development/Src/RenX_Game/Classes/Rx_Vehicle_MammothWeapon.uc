@@ -19,21 +19,6 @@ simulated function bool UsesClientSideProjectiles(byte CurrFireMode)
 	return CurrFireMode == 0;
 }
 
-simulated function GetFireStartLocationAndRotation(out vector SocketLocation, out rotator SocketRotation) {
-    
-    super.GetFireStartLocationAndRotation(SocketLocation, SocketRotation);    
-    
-    if( (Rx_Bot(MyVehicle.Controller) != None) && (Rx_Bot(MyVehicle.Controller).GetFocus() != None) ) {
-        //Dist = VSize(Rx_Bot(MyVehicle.Controller).GetFocus().location - MyVehicle.location);
-    	if(CloseRangeAimAdjustRange != 0.0 
-        		&& class'Rx_Utils'.static.OrientationOfLocAndRotToB(SocketLocation,SocketRotation,Rx_Bot(MyVehicle.Controller).GetFocus()) > 0.9) {
-        			MaxFinalAimAdjustment = 0.450;	
-        } else {
-            MaxFinalAimAdjustment = 0.990;
-        }
-    }
-}
-
 simulated function SetWeaponRecoil() {
 	DeltaPitchX = 0.0;
 	if(CurrentFireMode == 0) {
@@ -95,6 +80,8 @@ DefaultProperties
 {
     InventoryGroup=14
     
+	//bSimultaneousFire = false 
+	
     SecondaryLockingDisabled=false
     
     ClipSize(0) = 2
@@ -115,7 +102,7 @@ DefaultProperties
 	
 	RecoilImpulse = -1.0f
     
-	CloseRangeAimAdjustRange = 600  
+	CloseRangeAimAdjustRange = 900  
 	bCheckIfBarrelInsideWorldGeomBeforeFiring = true  
  
     // gun config
@@ -174,53 +161,55 @@ DefaultProperties
     bTargetLockingActive = true
     bHasRecoil = true
 	
-/***********************/
-/*Veterancy*/
-/**********************/
-Vet_ClipSizeModifier(0)=0 //Normal +X
-Vet_ClipSizeModifier(1)=0 //Veteran 
-Vet_ClipSizeModifier(2)=0 //Elite
-Vet_ClipSizeModifier(3)=0 //Heroic
+	/***********************/
+	/*Veterancy*/
+	/**********************/
+	Vet_ClipSizeModifier(0)=0 //Normal +X
+	Vet_ClipSizeModifier(1)=0 //Veteran 
+	Vet_ClipSizeModifier(2)=0 //Elite
+	Vet_ClipSizeModifier(3)=0 //Heroic
 
 
-Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
-Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
-Vet_ReloadSpeedModifier(2)=0.90 //Elite
-Vet_ReloadSpeedModifier(3)=0.85 //Heroic
+	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
+	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_ReloadSpeedModifier(2)=0.90 //Elite
+	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
 
-Vet_SecondaryClipSizeModifier(0)=0 //Normal +X
-Vet_SecondaryClipSizeModifier(1)=0 //Veteran 
-Vet_SecondaryClipSizeModifier(2)=0 //Elite
-Vet_SecondaryClipSizeModifier(3)=2 //Heroic
-
-
-Vet_SecondaryReloadSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
-Vet_SecondaryReloadSpeedModifier(1)=0.95 //Veteran 
-Vet_SecondaryReloadSpeedModifier(2)=0.9 //Elite
-Vet_SecondaryReloadSpeedModifier(3)=0.8 //Heroic
-
-//Cannon
-Vet_ROFSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
-Vet_ROFSpeedModifier(1)=1 //Veteran 
-Vet_ROFSpeedModifier(2)=1 //Elite
-Vet_ROFSpeedModifier(3)=1 //Heroic
-
-//Missiles
-Vet_SecondaryROFSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
-Vet_SecondaryROFSpeedModifier(1)=1 //Veteran 
-Vet_SecondaryROFSpeedModifier(2)=1 //Elite
-Vet_SecondaryROFSpeedModifier(3)=0.8 //Heroic 
-
-/***********************************/
-
-SF_Tolerance = 8
+	Vet_SecondaryClipSizeModifier(0)=0 //Normal +X
+	Vet_SecondaryClipSizeModifier(1)=0 //Veteran 
+	Vet_SecondaryClipSizeModifier(2)=0 //Elite
+	Vet_SecondaryClipSizeModifier(3)=2 //Heroic
 
 
-FM0_ROFTurnover = 2; //9 for most automatics. Single shot weapons should be more, except the shotgun
-FM1_ROFTurnover = 4; 
+	Vet_SecondaryReloadSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
+	Vet_SecondaryReloadSpeedModifier(1)=0.95 //Veteran 
+	Vet_SecondaryReloadSpeedModifier(2)=0.9 //Elite
+	Vet_SecondaryReloadSpeedModifier(3)=0.8 //Heroic
 
-bOkAgainstLightVehicles = True
-bOkAgainstArmoredVehicles = True
-bOkAgainstBuildings = True
+	//Cannon
+	Vet_ROFSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
+	Vet_ROFSpeedModifier(1)=1 //Veteran 
+	Vet_ROFSpeedModifier(2)=1 //Elite
+	Vet_ROFSpeedModifier(3)=1 //Heroic
+
+	//Missiles
+	Vet_SecondaryROFSpeedModifier(0)=1 //Normal (should be 1) Reverse *X
+	Vet_SecondaryROFSpeedModifier(1)=1 //Veteran 
+	Vet_SecondaryROFSpeedModifier(2)=1 //Elite
+	Vet_SecondaryROFSpeedModifier(3)=0.8 //Heroic 
+
+	/***********************************/
+
+	SF_Tolerance = 8
+
+
+	FM0_ROFTurnover = 2; //9 for most automatics. Single shot weapons should be more, except the shotgun
+	FM1_ROFTurnover = 4; 
+
+	bOkAgainstLightVehicles = True
+	bOkAgainstArmoredVehicles = True
+	bOkAgainstBuildings = True
+	
+	
 }
 

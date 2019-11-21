@@ -85,7 +85,7 @@ DefaultProperties
     GroundSpeed=1100
     AirSpeed=1100
     MaxSpeed=2000 //1600 compensate for Veterancy increase 
-    HornIndex=1
+    HornIndex=0
     COMOffset=(x=0.0,y=0.0,z=-55.0)
     bUsesBullets = false
     bOkAgainstBuildings=true

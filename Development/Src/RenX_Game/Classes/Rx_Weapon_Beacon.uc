@@ -415,6 +415,23 @@ function DropFrom(vector StartLocation, vector StartVelocity)
 	SetTimer(10.0, false, 'Destroy');
 }
 
+simulated static function bool IsBuyable(Rx_Controller C)
+{
+	local Rx_GRI GRI;
+
+	if(C.WorldInfo.NetMode == NM_Standalone)
+		return true;
+
+	GRI = Rx_GRI(C.WorldInfo.GRI);
+
+	if(GRI == None)
+	{
+		return false;
+	}
+
+	return GRI.bEnableNuke;
+}
+
 defaultproperties
 {
 	bCanCharge = true
@@ -462,4 +479,6 @@ defaultproperties
 	InitalNumClips = 1
 	MaxClips = 1
 	bUseClientAmmo = false
+
+	Price = 1000
 }

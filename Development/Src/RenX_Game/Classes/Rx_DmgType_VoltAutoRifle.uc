@@ -48,18 +48,18 @@ defaultproperties
     SuicideStatsName=SUICIDES_VOLTAUTORIFLE
 
     DamageWeaponFireMode=2
-    VehicleDamageScaling=0.4
+    VehicleDamageScaling=0.2857142857 //0.4
     NodeDamageScaling=0.5
     VehicleMomentumScaling=0.1
 
     CustomTauntIndex=10
-    lightArmorDmgScaling=0.4
-	AircraftDamageScaling=0.6 //Low flying aircraft be damned. 
-    BuildingDamageScaling=0.4
+    lightArmorDmgScaling=0.2857142857 //0.4
+	AircraftDamageScaling=0.4285714286 //0.6 //Low flying aircraft be damned. 
+    BuildingDamageScaling=0.2857142857 //0.4
 	MCTDamageScaling=3.0
 	MineDamageScaling=1.0
 	////Infantry Armour Types//////
-	Inf_LazarusDamageScaling = 1.3  // Lazarus SBH armour, standard rule is +30% to Electrical damage but likely no other damage modifiers.
+	Inf_LazarusDamageScaling = 1.15 //1.3  // Lazarus SBH armour, standard rule is +30% to Electrical damage but likely no other damage modifiers.
 	
 	
 	BleedDamageFactor=0.2

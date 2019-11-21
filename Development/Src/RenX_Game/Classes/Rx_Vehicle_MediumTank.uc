@@ -14,23 +14,113 @@
 *********************************************************/
 class Rx_Vehicle_MediumTank extends Rx_Vehicle_Treaded
     placeable;
-
 	
 var SkeletalMeshComponent AntennaMeshL;
 var SkeletalMeshComponent AntennaMeshR;
 
+var SkeletalMeshComponent DevFlag;
+var AudioComponent FlagAmbient;
+var repnotify Texture2D DevFlagTexture;
+var MaterialInstanceConstant FlagMIC;
+
 /** Firing sounds */
 var() AudioComponent FiringAmbient;
 var() SoundCue FiringStopSound;
+var repnotify bool bPlayingAmbientFireSound; 
 
 /** The Cantilever Beam that is the Antenna itself*/
 var UTSkelControl_CantileverBeam AntennaBeamControl;
 
+replication
+{
+    if (bNetDirty)
+        DevFlagTexture;
+	
+	if(bNetDirty && !bNetOwner)
+		bPlayingAmbientFireSound;
+}
+
+simulated event ReplicatedEvent(Name VarName)
+{
+    if (VarName == 'DevFlagTexture')
+    {
+        UpdateDevFlag(DevFlagTexture);
+    } 
+	else if (VarName == 'bPlayingAmbientFireSound')
+	{
+		if(bPlayingAmbientFireSound)
+			FiringAmbient.Play();
+		else
+		{
+			PlaySound(FiringStopSound, TRUE, FALSE, FALSE, Location, FALSE);
+			FiringAmbient.Stop();
+		}
+	}
+    else 
+		super.ReplicatedEvent(VarName);
+}
+
+
+
+function bool DriverEnter(Pawn P)
+{
+    local string SteamID;
+    local OnlineSubsystem OnlineSub;
+
+    OnlineSub = Class'GameEngine'.static.GetOnlineSubsystem();
+    SteamID = OnlineSub.UniqueNetIdToString(P.Controller.PlayerReplicationInfo.UniqueId);
+
+    DevFlagTexture = class'Rx_DevManager'.static.GetFlagTexture(SteamID, Rx_Controller(P.Controller).bIsDev);
+
+    if (DevFlagTexture != None && Rx_Controller(P.Controller).UseDevFlag())
+    {
+        UpdateDevFlag(DevFlagTexture);
+    }
+    else
+    {
+        UpdateDevFlag(None);
+    }
+
+    return super.DriverEnter(P);
+}
+
+simulated function UpdateDevFlag(Texture2D NewFlagTexture)
+{
+    if (NewFlagTexture == None)
+    {
+        DevFlag.SetHidden(true);
+        DevFlag.SetEnableClothSimulation(false);
+
+        FlagAmbient.Stop();
+    }
+
+    else
+    {
+        DevFlag.SetHidden(false);
+        DevFlag.SetEnableClothSimulation(true);
+
+        if (FlagMIC == None) FlagMIC = DevFlag.CreateAndSetMaterialInstanceConstant(0);
+        FlagMIC.SetTextureParameterValue('FlagTexture', NewFlagTexture);
+
+        FlagAmbient.Play();
+    }
+}
+
+event bool DriverLeave(bool bForceLeave)
+{   
+    DevFlagTexture = None;
+
+    return super.DriverLeave(bForceLeave);
+}
 
 /** This bit here will attach all of the seperate antennas and towing rings that jiggle about when the vehicle moves **/
 simulated function PostBeginPlay()
 {
 	Super.PostBeginPlay();
+
+    Mesh.AttachComponentToSocket(DevFlag, 'AntennaSocket_R');
+    FlagAmbient = CreateAudioComponent(SoundCue'RX_Deco_Flag.banner.Sound.SC_Flag', false, true, true);
+    Mesh.AttachComponentToSocket(FlagAmbient, 'AntennaSocket_R');
 
 	Mesh.AttachComponentToSocket(AntennaMeshL,'AntennaSocket_L');
 	Mesh.AttachComponentToSocket(AntennaMeshR,'AntennaSocket_R');
@@ -38,8 +128,7 @@ simulated function PostBeginPlay()
 	AntennaBeamControl = UTSkelControl_CantileverBeam(AntennaMeshL.FindSkelControl('Beam'));
 	AntennaBeamControl = UTSkelControl_CantileverBeam(AntennaMeshR.FindSkelControl('Beam'));
 
-
-	if(AntennaBeamControl != none)
+	if (AntennaBeamControl != none)
 	{
 		AntennaBeamControl.EntireBeamVelocity = GetVelocity;
 	}
@@ -55,21 +144,21 @@ simulated function vector GetEffectLocation(int SeatIndex)
 {
 
     local vector SocketLocation;
-   local name FireTriggerTag;
+    local name FireTriggerTag;
 
-    if ( Seats[SeatIndex].GunSocket.Length <= 0 )
+    if (Seats[SeatIndex].GunSocket.Length <= 0)
         return Location;
 
-   //`Log("GetEffectLocation called",, '_Mammoth_Debug');
-
-   FireTriggerTag = Seats[SeatIndex].GunSocket[GetBarrelIndex(SeatIndex)];
-
-   Mesh.GetSocketWorldLocationAndRotation(FireTriggerTag, SocketLocation);
-
-    //if (Weapon.CurrentFireMode == 0)
-    //   ShotCount = ShotCounts >= 255 ? 0 : ShotCounts + 1;
-   //  else
-   //     AltShotCounts = AltShotCounts >= 255 ? 0 : AltShotCounts + 1;
+    //`Log("GetEffectLocation called",, '_Mammoth_Debug');
+    
+    FireTriggerTag = Seats[SeatIndex].GunSocket[GetBarrelIndex(SeatIndex)];
+    
+    Mesh.GetSocketWorldLocationAndRotation(FireTriggerTag, SocketLocation);
+    
+     //if (Weapon.CurrentFireMode == 0)
+     //   ShotCount = ShotCounts >= 255 ? 0 : ShotCounts + 1;
+    //  else
+    //     AltShotCounts = AltShotCounts >= 255 ? 0 : AltShotCounts + 1;
     return SocketLocation;
 }
 
@@ -117,6 +206,11 @@ simulated function VehicleWeaponFired( bool bViaReplication, vector HitLocation,
     if(SeatIndex == 0) {
         super.VehicleWeaponFired(bViaReplication,HitLocation,SeatIndex);
     }
+	
+	if(ROLE == ROLE_Authority && Weapon.CurrentFireMode == 1)
+	{
+		bPlayingAmbientFireSound = true; 
+	}
 }
 
 simulated function VehicleWeaponStoppedFiring( bool bViaReplication, int SeatIndex )
@@ -139,6 +233,11 @@ simulated function VehicleWeaponStoppedFiring( bool bViaReplication, int SeatInd
 			PlaySound(FiringStopSound, TRUE, FALSE, FALSE, Location, FALSE);
 			FiringAmbient.Stop();
 		}
+	
+	if(ROLE == ROLE_Authority && Weapon.CurrentFireMode == 1)
+	{
+		bPlayingAmbientFireSound = false; 
+	}
 		
 }
 	
@@ -171,7 +270,7 @@ DefaultProperties
     LeftStickDirDeadZone=0.1
     TurnTime=18
     ViewPitchMin=-13000
-    HornIndex=1
+    HornIndex=0
     COMOffset=(x=-21.0,y=0.0,z=-42.0)
 	
 	SprintTrackTorqueFactorDivident=1.05
@@ -283,6 +382,18 @@ DefaultProperties
 		LightEnvironment = MyLightEnvironment
 	End Object
 	AntennaMeshR=SAntennaMeshR
+
+    Begin Object Class=SkeletalMeshComponent Name=SDevFlag
+        SkeletalMesh=SkeletalMesh'RX_Deco_Flag.banner.Mesh.SK_Flag_WarBanner'
+        bEnableClothSimulation=false
+        bClothAwakeOnStartup=false
+        bClothWindRelativeToOwner=true
+        ClothWind=(X=10,Y=-50,Z=-10)
+        Rotation=(Yaw=49152)
+        LightEnvironment = MyLightEnvironment
+        HiddenGame=true
+    End Object
+    DevFlag=SDevFlag
 
 	VehicleIconTexture=Texture2D'RX_VH_MediumTank.UI.T_VehicleIcon_MediumTank'
 	MinimapIconTexture=Texture2D'RX_VH_MediumTank.UI.T_MinimapIcon_MediumTank'

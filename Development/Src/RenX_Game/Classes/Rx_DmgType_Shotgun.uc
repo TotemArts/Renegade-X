@@ -8,13 +8,13 @@ defaultproperties
 
 //    DamageWeaponClass=class'Rx_Weapon_Shotgun'
     DamageWeaponFireMode=2
-    VehicleDamageScaling=0.015f
+    VehicleDamageScaling=0.01f
     NodeDamageScaling=0.5
     VehicleMomentumScaling=0.025
 
     CustomTauntIndex=10
-    lightArmorDmgScaling=0.2
-    BuildingDamageScaling=0.002
+    lightArmorDmgScaling=0.1333333
+    BuildingDamageScaling=0.0013333333
 	MCTDamageScaling=150.0
 	MineDamageScaling=1.0
 

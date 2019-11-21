@@ -45,6 +45,7 @@ var array<Pawn> SeenButCoveredPawns;
 
 var Rx_SmokeScreen DummyActor;
 var Vector DummyHitLoc, DummyHitNorm;
+var bool bHasSpawned;
 
 function PostBeginPlay()
 {
@@ -165,6 +166,7 @@ function CannonSpawning()
  */
 function CannonSpawned()
 {
+	bHasSpawned = true;
 	ChangeBehaviourTo(IdleBehaviour);
 }
 
@@ -190,7 +192,10 @@ function SeePlayer(Pawn Seen)
 	//halo2pac - added check to make sure Seen != None to prevent logs from filling up.
 	if (Seen == None)
 		return;
-	
+
+	if(Cannon.MyBuilding.IsDestroyed() || Cannon.MyBuilding.Unpowered())
+		return;
+
 	if(Cannon != None && (Cannon.IsSameTeam(Seen) || (Rx_Pawn(Seen) != None && Rx_Pawn(Seen).isSpy()))) { // added spy exception
 	//	`log("Return cuz none ish?");
 		return;
@@ -228,6 +233,12 @@ function NotVisibleTimer()
 
 function Tick(float DeltaTime)
 {
+	if(Cannon.MyBuilding.IsDestroyed() || Cannon.MyBuilding.Unpowered())
+		ChangeBehaviourTo(NoBehaviour);
+	else if(bHasSpawned && CurrentBehaviour == NoBehaviour && !Cannon.MyBuilding.IsDestroyed())
+		ChangeBehaviourTo(IdleBehaviour);
+		
+
 	CurrentBehaviour.ComponentTick();
 }
 

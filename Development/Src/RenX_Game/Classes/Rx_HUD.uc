@@ -34,6 +34,7 @@ var class<Rx_Hud_TargetingBox> TargetingBoxClass;
 var class<Rx_Hud_PlayerNames> PlayerNamesClass;
 var class<Rx_HUD_CaptureProgress> CaptureProgressClass;
 var class<Rx_HUD_CTextComponent> CommandTextClass;
+var class<Rx_GFxUIScoreboard> ScoreboardClass;
 //var class<Rx_HUD_ObjectiveVisuals> C_VisualsClass;
 
 var Rx_HUD_TargetingBox TargetingBox;
@@ -141,6 +142,8 @@ var CanvasIcon Neutral_Recruit, Neutral_Veteran, Neutral_Elite, Neutral_Heroic;
 
 var bool bEnableFade;
 var float FadePercentage,FadePerSecond;
+
+var config int KillFeedMode;
 
 function Actor GetActorAtScreenCentre()
 {
@@ -2058,7 +2061,7 @@ function HandleSetShowScores(bool bEnableShowScores, bool bForceHandle)
     {
         if ( Scoreboard == None )
         {
-            Scoreboard = new class'Rx_GFxUIScoreboard';
+            Scoreboard = new ScoreboardClass;
 			Scoreboard.LocalPlayerOwnerIndex = GetLocalPlayerOwnerIndex();
 			Scoreboard.SetViewport(0,0,Canvas.ClipX, Canvas.ClipY);
 			Scoreboard.SetViewScaleMode(SM_ExactFit);
@@ -2111,22 +2114,22 @@ function LocalizedMessage
 		{
 			if (switch == 1)    // Suicide
 			{
-				AddKillMessage(RelatedPRI_2, RelatedPRI_2);
+				AddKillMessage(RelatedPRI_2, RelatedPRI_2, class<Rx_DmgType>(OptionalObject));
 				if (RelatedPRI_2 == PlayerOwner.PlayerReplicationInfo)
-					AddDeathMessage(RelatedPRI_2, class<DamageType>(OptionalObject));
+					AddDeathMessage(RelatedPRI_2, class<Rx_DmgType>(OptionalObject));
 			}
 			else   // Died
 			{
-				AddKillMessage(None, RelatedPRI_2);
+				AddKillMessage(None, RelatedPRI_2, class<Rx_DmgType>(OptionalObject));
 				if (RelatedPRI_2 == PlayerOwner.PlayerReplicationInfo)
-					AddDeathMessage(None, class<DamageType>(OptionalObject));
+					AddDeathMessage(None, class<Rx_DmgType>(OptionalObject));
 			}
 		}
 		else
 		{
-			AddKillMessage(RelatedPRI_1, RelatedPRI_2);
+			AddKillMessage(RelatedPRI_1, RelatedPRI_2, class<Rx_DmgType>(OptionalObject));
 			if (RelatedPRI_2 == PlayerOwner.PlayerReplicationInfo)
-				AddDeathMessage(RelatedPRI_1, class<DamageType>(OptionalObject));
+				AddDeathMessage(RelatedPRI_1, class<Rx_DmgType>(OptionalObject));
 		}
 	}
 	else if (InMessageClass == class'Rx_Message_Vehicle')
@@ -2136,7 +2139,7 @@ function LocalizedMessage
 	else if (InMessageClass == class'Rx_Message_Buildings')
 	{
 		if (Switch == 0)
-			AddBuildingKillMessage(RelatedPRI_1, Rx_Building_Team_Internals(OptionalObject));
+			AddBuildingKillMessage(RelatedPRI_1, Rx_Building_Team_Internals(OptionalObject), class<Rx_DmgType>(OptionalObject));
 	}
 	else if (InMessageClass == class'Rx_Message_TechBuilding')
 	{
@@ -2186,7 +2189,40 @@ function LocalizedMessage
 
 }
 
-function AddKillMessage(PlayerReplicationInfo Killer, PlayerReplicationInfo Killed )
+function AddKillMessage(PlayerReplicationInfo Killer, PlayerReplicationInfo Killed, optional class<Rx_DmgType> DmgType)
+{
+	local string htmlMsg;
+
+	if(KillFeedMode < 2)
+		htmlMsg = GetSimpleKillMessage(Killer, Killed, DmgType);
+
+	else
+	{
+		if(DmgType == None || (Killer == Killed && DmgType.default.MaleSuicide == "") || (Killer != Killed && DmgType.default.DeathString == ""))
+			htmlMsg = GetSimpleKillMessage(Killer, Killed);
+
+		else if(Killer != None)
+		{
+			if (Killer != Killed)
+			{
+				htmlMsg = Repl(DmgType.default.DeathString,"`k",GetColouredName(Killer));
+				htmlMsg = Repl(htmlMsg,"`o",GetColouredName(Killed));
+			}
+			else
+			{
+				htmlMsg = Repl(DmgType.default.MaleSuicide,"`o",GetColouredName(Killed));
+			}
+		}
+		else
+		{
+			htmlMsg = Repl(DmgType.default.MaleSuicide,"`o",GetColouredName(Killed));
+		}
+	}
+
+	HudMovie.AddGameEventMessage(htmlMsg);
+}
+
+function string GetSimpleKillMessage(PlayerReplicationInfo Killer, PlayerReplicationInfo Killed, optional class<Rx_DmgType> DmgType)
 {
 	local string htmlMsg;
 
@@ -2195,19 +2231,42 @@ function AddKillMessage(PlayerReplicationInfo Killer, PlayerReplicationInfo Kill
 		htmlMsg = GetColouredName(Killer);
 
 		if (Killer != Killed)
+		{
 			htmlMsg @= "killed" @ GetColouredName(Killed);
+
+			if(KillFeedMode == 1 && DmgType != None && DmgType.default.WeaponName != "")
+				htmlMsg @= "("$DmgType.default.WeaponName$")";
+
+		}
 		else
-			htmlMsg @= "suicided";	
+		{
+			htmlMsg @= "suicided";
+
+			if(KillFeedMode == 1 && DmgType != None && DmgType.default.WeaponName != "")
+				htmlMsg @= "("$DmgType.default.WeaponName$")";	
+					
+		}
 	}
 	else
+	{
 		htmlMsg = GetColouredName(Killed) @ "died";
-	
-	HudMovie.AddGameEventMessage(htmlMsg);
+
+		if(KillFeedMode == 1 && DmgType != None && DmgType.default.WeaponName != "")
+			htmlMsg @= "("$DmgType.default.WeaponName$")";
+
+
+	}
+
+	return htmlMsg;
 }
 
-function AddBuildingKillMessage(PlayerReplicationInfo Killer, Rx_Building_Team_Internals Building)
+function AddBuildingKillMessage(PlayerReplicationInfo Killer, Rx_Building_Team_Internals Building, optional class<Rx_DmgType> DmgType)
 {
-	HudMovie.AddGameEventMessage("* "$ GetColouredName(Killer) $" destroyed the <font color='"$ GetTeamColour(Building.TeamID) $"'>"$ Building.BuildingName $"</font> *");
+	if(KillFeedMode == 1 && DmgType != None && DmgType.default.WeaponName != "")
+		HudMovie.AddGameEventMessage("* "$ GetColouredName(Killer) $" destroyed the <font color='"$ GetTeamColour(Building.TeamID) $"'>"$ Building.BuildingName $"</font> ("$DmgType.default.WeaponName$")*");
+
+	else
+		HudMovie.AddGameEventMessage("* "$ GetColouredName(Killer) $" destroyed the <font color='"$ GetTeamColour(Building.TeamID) $"'>"$ Building.BuildingName $"</font> *");
 }
 
 function AddTechBuildingCaptureMessage(PlayerReplicationInfo Capturer, Rx_Building_Team_Internals Building, byte CapturingTeam)
@@ -2738,10 +2797,11 @@ DefaultProperties
 	LC_White = (R=1.0, G=1.0, B=1.0, A=1.0)
 
 	HudMovieClass = class 'Rx_GFxHud'
-	TargetingBoxClass = class 'Rx_Hud_TargetingBox';
-	PlayerNamesClass = class 'Rx_Hud_PlayerNames';
-	CaptureProgressClass = class 'Rx_HUD_CaptureProgress';
-	CommandTextClass = class 'Rx_HUD_CTextComponent';
+	TargetingBoxClass = class 'Rx_Hud_TargetingBox'
+	PlayerNamesClass = class 'Rx_Hud_PlayerNames'
+	CaptureProgressClass = class 'Rx_HUD_CaptureProgress'
+	CommandTextClass = class 'Rx_HUD_CTextComponent'
+	ScoreboardClass = class'Rx_GFxUIScoreboard'
 	//C_VisualsClass = class 'Rx_HUD_ObjectiveVisuals';
 	
 	RxPauseMenuMovieClass = class'Rx_GFxPauseMenu'

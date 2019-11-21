@@ -35,9 +35,9 @@ DefaultProperties
     MaxSpeed=20000 //18000 //14000
     AccelRate=0
     LifeSpan=0.4 //0.777
-    Damage=16
-    DamageRadius=80
-	HeadShotDamageMult=2.5
+    Damage=22 //20 //16
+    DamageRadius=40 //80
+	HeadShotDamageMult=1.5 //1.6 //2.5
     MomentumTransfer=10000
     bAttachExplosionToVehicles=false
     bCheckProjectileLight=false
@@ -46,6 +46,8 @@ DefaultProperties
     ProjectileLightClass=class'Rx_Light_Bullet_GDI'
     ExplosionLightClass=class'Rx_Light_AutoRifle_MuzzleFlash'
     MyDamageType=class'Rx_DmgType_TacticalRifle'
+	ExplosionDamageType = class'Rx_DmgType_TacticalRifle_Explosion'
+
 	
 	/*************************/
 	/*VETERANCY*/

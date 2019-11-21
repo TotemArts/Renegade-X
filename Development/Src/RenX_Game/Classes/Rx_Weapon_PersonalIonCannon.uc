@@ -6,7 +6,7 @@ simulated function FireAmmunition()
 {
 	super.FireAmmunition();
 	WeaponPlaySound( WeaponDistantFireSnd );
-	WeaponPlaySound( WeaponFireSnd[1] ); /*Small Hack for the PIC, as its reload sound clips off its fire sound for... reasons*/
+	//WeaponPlaySound( WeaponFireSnd[1] ); /*Small Hack for the PIC, as its reload sound clips off its fire sound for... reasons*/
 }
 
 /**simulated state BoltActionReloading
@@ -58,6 +58,13 @@ DefaultProperties
 	RightHandIK_Offset=(X=0,Y=0,Z=0)
 	LeftHandIK_Relaxed_Offset = (X=2.0,Y=-2.5,Z=4.0)
 
+	//Burst Fire Variables//
+	bBurstFire = true  //If true, the weapon will use burst fire mechanics
+	TimeBetweenBursts = 0.06
+	bConstantFire = false 
+	BurstNum = 1
+	Burst_Cooldown(0) = 0.1
+	Burst_Cooldown(1) = 0.1
 	
 	//-------------- Recoil
 	RecoilDelay = 0.07
@@ -159,7 +166,7 @@ DefaultProperties
 	bCharge = true
 	
 	
-    WeaponFireSnd[0]=none //SoundCue'RX_WP_PersonalIonCannon.Sounds.SC_PIC_Fire'
+    WeaponFireSnd[0]=SoundCue'RX_WP_PersonalIonCannon.Sounds.SC_PIC_Fire' //SoundCue'RX_WP_PersonalIonCannon.Sounds.SC_PIC_Fire'
     WeaponFireSnd[1]=SoundCue'RX_WP_PersonalIonCannon.Sounds.SC_PIC_Fire'
 	
 	WeaponDistantFireSnd=SoundCue'RX_WP_PersonalIonCannon.Sounds.SC_PersonalIonCannon_DistantFire'

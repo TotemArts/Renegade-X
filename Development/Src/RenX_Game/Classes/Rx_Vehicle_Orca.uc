@@ -732,7 +732,7 @@ defaultproperties
 	PushForce=50000.0
 	HUDExtent=140.0
 
-	HornIndex=1
+	HornIndex=0
 	
 	CustomGravityScaling=1.0	// 0.35
 	

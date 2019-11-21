@@ -10,11 +10,26 @@ var private bool subscribed;
 var private int reconnect_delay;
 var private bool reconnect_pending;
 var private float reconnect_time_remaining;
+var private float timeout_time_remaining;
 
 function connect()
 {
 	reconnect_pending = false;
 	Resolve(address);
+}
+
+function ResetTimeout() {
+	timeout_time_remaining = default.timeout_time_remaining;
+}
+
+function CheckTimeout() {
+	if (timeout_time_remaining < 0.0) {
+		`log("RCON: Connection to DevBot timed out. Closing; will attempt to reconnect immediately");
+		Close();
+
+		// Reconnect immediately, since it's already been 2 minutes since we last received any communication
+		reconnect_time_remaining = 0.0;
+	}
 }
 
 event Resolved(IpAddr Addr)
@@ -41,20 +56,29 @@ event Opened()
 event Closed()
 {
 	super.Closed();
+
 	if (reconnect_delay >= 0)
 	{
 		reconnect_pending = true;
 		reconnect_time_remaining = reconnect_delay;
 	}
+
+	ResetTimeout();
 }
 
 event OnTick(float DeltaTime)
 {
+	CheckTimeout();
+
 	if (SocketState == STATE_Uninitialized && reconnect_pending)
 	{
 		reconnect_time_remaining -= DeltaTime;
 		if (reconnect_time_remaining <= 0.0) // time to reconnect
 			connect();
+	}
+	else if (SocketState == STATE_Connected) {
+		// Update timeout time remaining
+		timeout_time_remaining -= DeltaTime;
 	}
 }
 
@@ -109,8 +133,13 @@ event ReceivedLine( string Text )
 	local string type;
 	local string temp;
 
+	// We've received data; reset timeout
+	ResetTimeout();
+
+	// Get message type
 	type = `PacketType(Text);
 	
+	// Process message based on type
 	if (type == `AUTH)
 	{
 		`LogRxObject("RCON"`s "Authenticated;" `s ConnectionID);
@@ -184,6 +213,7 @@ DefaultProperties
 	subscribed = false
 	reconnect_delay = 120;
 	reconnect_pending = false;
+	timeout_time_remaining = 120.0;
 	LinkMode = MODE_Line;
 	InLineMode = LMODE_UNIX;
 	OutLineMode = LMODE_UNIX;

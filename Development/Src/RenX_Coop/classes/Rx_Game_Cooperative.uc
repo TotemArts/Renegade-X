@@ -52,23 +52,35 @@ event PostLogin( PlayerController NewPlayer )
 	local PlayerReplicationInfo PRI;
 	local int num, index; 
 	local Rx_Mutator Rx_Mut;
-	local PlayerAccount PA;
+	local Rx_PRI NewPRI; 
 
-	ID = `WorldInfoObject.Game.OnlineSub.UniqueNetIdToString(NewPlayer.PlayerReplicationInfo.UniqueId);
-	if (ID == `BlankSteamID || ID == "")
-		ID = NewPlayer.PlayerReplicationInfo.PlayerName;
-
+	NewPRI = Rx_Pri(NewPlayer.PlayerReplicationInfo);
+	ID = `WorldInfoObject.Game.OnlineSub.UniqueNetIdToString(NewPRI.UniqueId);
+	
 	SetTeam(NewPlayer, Teams[GetPlayerTeam()], false);
-	index = PlayersArray.Find('PlayersID',ID);
 
-	if (index >= 0)
-		Rx_Pri(NewPlayer.PlayerReplicationInfo).OldRenScore = PlayersArray[index].PlayerAggregateScore;
-	else
+	if(GetPlayerTeam() == TEAM_GDI)
 	{
-		PA.PlayersID = ID;
-		PlayersArray.AddItem(PA);
-	}
+		index = `RxEngineObject.GDIPlayers.Find('PlayersID',ID);
 
+		if (index >= 0)
+			NewPRI.OldRenScore = `RxEngineObject.GDIPlayers[index].PlayerAggregateScore;
+		else
+		{
+			`RxEngineObject.AddGDIPlayer(NewPRI);
+		}
+	}
+	else if(GetPlayerTeam() == TEAM_Nod)
+	{
+		index = `RxEngineObject.NodPlayers.Find('PlayersID',ID);
+
+		if (index >= 0)
+			NewPRI.OldRenScore = `RxEngineObject.NodPlayers[index].PlayerAggregateScore;
+		else
+		{
+			`RxEngineObject.AddNodPlayer(NewPRI);
+		}
+	}
 		//`log("Call PostLogin: " @ `RxEngineObject.IsPlayerCommander(NewPlayer.PlayerReplicationInfo));
 	if(bUseStaticCommanders && `RxEngineObject.IsPlayerCommander(NewPlayer.PlayerReplicationInfo) ) 
 		ChangeCommander(NewPlayer.GetTeamNum(), Rx_PRI(NewPlayer.PlayerReplicationInfo), true); 
@@ -281,7 +293,7 @@ function EndRxGame(string Reason, byte WinningTeamNum )
 	
 	// Make sure end game is a valid reason, and then verify the game is over.
 	//Yosh: Added Surrender on the off chance we can get that built into the flash for the end-game screen
-	if ( ((Reason ~= "Objective Completion") || (Reason ~= "Objective Failure")) && !bGameEnded) {
+	if ( ((Reason ~= "Objective Completion") || (Reason ~= "Objective Failure") || (Reason ~= "triggered")) && !bGameEnded) {
 		// From super(), manualy integrated.
 		bGameEnded = true;
 		//EndTime = WorldInfo.RealTimeSeconds + EndTimeDelay;
@@ -308,8 +320,16 @@ function EndRxGame(string Reason, byte WinningTeamNum )
 			Rx_GRI(WorldInfo.GRI).WinBySurrender=false;
 			Rx_GRI(WorldInfo.GRI).WinnerReason = "Mission Accomplished";
 		}
-			
-
+		else if(Reason ~= "Objective Failure") 
+		{
+			Rx_GRI(WorldInfo.GRI).WinBySurrender=false;
+			Rx_GRI(WorldInfo.GRI).WinnerReason = "Mission Failed";
+		}			
+		else if(Reason ~= "Triggered")
+		{
+			Rx_GRI(WorldInfo.GRI).WinBySurrender=false;
+			Rx_GRI(WorldInfo.GRI).WinnerReason = "Voted Out";
+		}	
 		// Set everyone's camera focus
 		SetTimer(EndgameCamDelay,false,nameof(SetEndgameCam));
 

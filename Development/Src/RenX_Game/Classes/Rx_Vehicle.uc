@@ -1119,7 +1119,7 @@ function bool TryToDrive(Pawn P)
 	}	
 
 	// disallow entering scripted bot's vehicle
-	if(Rx_Bot_Scripted(Controller) != None)
+	if(Rx_Pawn_Scripted(Driver) != None || Rx_Bot_Scripted(Controller) != None)
 	{
 		PC.clientmessage("This vehicle is being controlled by an NPC!");
 		return false;
@@ -1697,7 +1697,7 @@ function bool Died(Controller Killer, class<DamageType> DamageType, vector HitLo
 				{
 					bStopDeathCamera = true;
 				}
-				else if(Rx_Bot_Scripted(Seats[i].SeatPawn.Controller) == None || (Rx_Bot_Scripted(Seats[i].SeatPawn.Controller).mySpawner != None && Rx_Bot_Scripted(Seats[i].SeatPawn.Controller).mySpawner.bDriverSurvives))
+				else if(Rx_Bot_Scripted(Seats[i].SeatPawn.Controller) == None || Rx_Bot_Scripted(Seats[i].SeatPawn.Controller).ShouldSurviveVehicleDeath())
 					Seats[i].SeatPawn.DriverLeave(true);
 			}
 		}
@@ -1830,9 +1830,20 @@ simulated function bool CanEnterVehicle(Pawn P)
 	local int i;
 	local bool bSeatAvailable, bIsHuman;
 	local PlayerReplicationInfo SeatPRI;
+	local Rx_Bot_Scripted SB;
 
 	if (Rx_Pawn(P) != None && !Rx_Pawn(P).CanEnterVehicles)
 		return false;
+
+	if(Rx_Pawn_Scripted(Driver) != None)
+	{
+		SB = Rx_Bot_Scripted(P.Controller);
+
+		if(SB != None && SB.BoundVehicle == Self)
+			SB.BoundVehicle = None;
+
+		return false;
+	}
 
 	// Vehicle is locked after purchase
 	if(buyerPri != none)

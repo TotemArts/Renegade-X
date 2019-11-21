@@ -209,4 +209,7 @@ DefaultProperties
 	DefaultCrateTypes[13] = class'Rx_CrateType_ClassicVehicle'
 	DefaultCrateTypes[14] = class'Rx_CrateType_EpicCharacter'
 	DefaultCrateTypes[15] = class'Rx_CrateType_Kamikaze'
+	DefaultCrateTypes[16] = class'Rx_CrateType_Teleport'	
+	DefaultCrateTypes[17] = class'Rx_CrateType_DMRandomWeapon'
+	DefaultCrateTypes[18] = class'Rx_CrateType_RandomWeapon'
 }

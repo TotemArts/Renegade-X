@@ -12,6 +12,7 @@ var array<Rx_Controller> Yes, No;
 var string TopString;
 var Rx_Controller VoteInstigator;
 var bool bPendingDelete;
+var string 	GDIColor, NodColor, HostColor;
 
 // configurable
 
@@ -161,7 +162,16 @@ function UpdatePlayers(WorldInfo wi)
 
 function string ComposeTopString()
 {
-	return VoteInstigator.PlayerReplicationInfo.PlayerName;
+	local string FontColor;
+
+	if(VoteInstigator.GetTeamNum() == 0)
+		FontColor = GDIColor;
+	else if (VoteInstigator.GetTeamNum() == 1)
+		FontColor = NodColor;
+	else
+		FontColor = HostColor;
+
+	return "<font color='"$FontColor$"'>"$VoteInstigator.PlayerReplicationInfo.PlayerName$"<font>";
 }
 
 /** Syntax: [ key | value [... | key | value ] ] */
@@ -299,4 +309,7 @@ DefaultProperties
 
 	TimeLeft = 30 // seconds
 	ToTeam = -1
+	NodColor            = "#FF0000"
+	GDIColor            = "#FFC600"
+	HostColor           = "#22BBFF"
 }

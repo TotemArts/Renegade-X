@@ -63,19 +63,22 @@ simulated function NotifyTeamChanged()
 	// Make sure physics is in the correct state.
 	// Rebuild array of bodies to not apply joint drive to.
 	NoDriveBodies.length = 0;
-	for( i=0; i<Mesh.PhysicsAsset.BodySetup.Length; i++)
+	if(Mesh.PhysicsAsset != None)
 	{
-		if(Mesh.PhysicsAsset.BodySetup[i].bAlwaysFullAnimWeight)
+		for( i=0; i<Mesh.PhysicsAsset.BodySetup.Length; i++)
 		{
-			NoDriveBodies.AddItem(Mesh.PhysicsAsset.BodySetup[i].BoneName);
+			if(Mesh.PhysicsAsset.BodySetup[i].bAlwaysFullAnimWeight)
+			{
+				NoDriveBodies.AddItem(Mesh.PhysicsAsset.BodySetup[i].BoneName);
+			}
 		}
 	}
 
 	// Reset physics state.
 	bIsHoverboardAnimPawn = FALSE;
 
-//	if(WorldInfo.NetMode != NM_DedicatedServer)
-	ResetCharPhysState();
+	if(WorldInfo.NetMode != NM_DedicatedServer)
+		ResetCharPhysState();
 
 
 	if (!bReceivedValidTeam)

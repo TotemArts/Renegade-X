@@ -485,7 +485,7 @@ function bool CanHeal(Actor Other)
 
 function bool CanAttack(Actor Other)
 {
-	if(VSizeSq(Instigator.GetWeaponStartTraceLocation() - Other.Location) <= Square(WeaponRange - 100))
+	if(VSizeSq(Instigator.GetWeaponStartTraceLocation() - Other.Location) > Square(WeaponRange - 100))
 		return false;
 		
 	if(Rx_Weapon_DeployedActor(Other) != None)

@@ -326,7 +326,7 @@ DefaultProperties
 	RepairDistance = 300
 
 	// How much HP to repair the vehicle per 0.1 second when power is online. RepairRate * 10 = Repair Per Second
-	RepairRate = 50
+	RepairRate = 20
 
 	// Ignore this, do not change
 	IgnoreHiddenCollidingActors = true

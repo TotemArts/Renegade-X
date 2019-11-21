@@ -7,13 +7,13 @@ defaultproperties
     SuicideStatsName=SUICIDES_TiberiumFlechetteRifle
 
     DamageWeaponFireMode=2
-    VehicleDamageScaling=0.1
+    VehicleDamageScaling=0.0493827161
     NodeDamageScaling=0.5
     VehicleMomentumScaling=0.1
 
     CustomTauntIndex=10
-    lightArmorDmgScaling=0.2
-    BuildingDamageScaling=0.1
+    lightArmorDmgScaling=0.0987654321
+    BuildingDamageScaling=0.0493827161
 	MCTDamageScaling=5.0
     
 	////Infantry Armour Types//////
@@ -23,7 +23,7 @@ defaultproperties
 	
     bPiercesArmor=false
 	
-	BleedDamageFactor=0.25
+	BleedDamageFactor=0.10 //0.25
 	BleedCount=5
 	
 	KDamageImpulse=100

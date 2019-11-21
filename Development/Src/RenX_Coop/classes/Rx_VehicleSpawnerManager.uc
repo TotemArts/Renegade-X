@@ -55,6 +55,7 @@ function StartSpawn()
 
 		CurrentSpawner.ProcessQueue();
 		ProcessedQueue += 1;
+
 	}
 	SetTimer(Cooldown,false,'CoolingDown');
 }
@@ -67,6 +68,7 @@ function CoolingDown()
 		StartSpawn();
 	else if (Team == 1 && VehicleManager.Nod_QueueCoop.Length > ProcessedQueue)
 		StartSpawn();
+
 }
 
 function SpawnVehicleAtSpawnPoint(Rx_VehicleSpawner Spawner)

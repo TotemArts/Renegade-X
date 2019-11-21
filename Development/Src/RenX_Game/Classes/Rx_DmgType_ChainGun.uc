@@ -8,13 +8,13 @@ DefaultProperties
 
     // DamageWeaponClass=class'RxWeapon_AutoRifle' // need to set this if we want to have weapon killicons
     DamageWeaponFireMode=2
-    VehicleDamageScaling=0.06f
-    NodeDamageScaling=0.5
+    VehicleDamageScaling=0.03f
+    NodeDamageScaling=0.25
     VehicleMomentumScaling=0.1
     CustomTauntIndex=10
-    lightArmorDmgScaling=0.25//0.2333331
-	AircraftDamageScaling=0.55 //This is only used by a damage type if the value is greater than 0, otherwise it treats an aircraft like Light armour.
-    BuildingDamageScaling=0.0035
+    lightArmorDmgScaling=0.125//0.2333331
+	AircraftDamageScaling=0.275 //This is only used by a damage type if the value is greater than 0, otherwise it treats an aircraft like Light armour.
+    BuildingDamageScaling=0.00175
 	MCTDamageScaling=150.0
 	
 	MineDamageScaling=2.0

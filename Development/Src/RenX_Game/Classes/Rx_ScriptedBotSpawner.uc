@@ -96,6 +96,7 @@ function StartSpawning (optional bool bForced)
 	local int I, VI;
 	local Actor BestSpawn;
 	local Rx_InventoryManager PawnIM;
+	local Vector PawnLoc;
 
 	if(!bActive && !bForced)
 		return;
@@ -125,7 +126,11 @@ function StartSpawning (optional bool bForced)
 		{
 			V = Spawn(VehicleTypes[VI],,,BestSpawn.location,BestSpawn.rotation);
 			if(V != None)
-				P = Spawn(class'Rx_Pawn_Scripted',,,BestSpawn.location + (vect(0,0,1) * 10000),BestSpawn.rotation,,true);
+			{
+				PawnLoc = V.Location;
+				PawnLoc.z += 1000;
+				P = Spawn(class'Rx_Pawn_Scripted',,,PawnLoc,BestSpawn.rotation,,true);
+			}
 		}
 		else
 		{
@@ -172,8 +177,6 @@ function StartSpawning (optional bool bForced)
 		else
 			AffiliatedSquad.AddBot(B);
 
-		AffiliatedSquad.Spawner = self;
-
 		if(V != None)
 		{
 			V.DropToGround();
@@ -182,6 +185,7 @@ function StartSpawning (optional bool bForced)
 				V.Mesh.WakeRigidBody();
 
 			B.BoundVehicle = V;
+			V.DriverEnter(P);
 		}
 
 		B.UpdateModifiedStats();

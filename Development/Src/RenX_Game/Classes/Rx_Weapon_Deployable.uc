@@ -267,5 +267,5 @@ defaultproperties
 	
 	bUseHandIKWhenRelax=false
 	bByPassHandIK=true
-	
+	bLimitAmmoForScripted=true
 }

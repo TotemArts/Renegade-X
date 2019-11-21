@@ -7,11 +7,16 @@ struct InfantryWaveStruct
 	var() float PerPlayerMultiplier;
 	var() float DamageTakenMultiplier;
 	var() float DamageDealtMultiplier;
+	var() float PerPlayerDamageTakenMod;
+	var() float PerPlayerDamageDealtMod;
+
 
 	structdefaultproperties
 	{
 		DamageTakenMultiplier=1.f
 		DamageDealtMultiplier=1.f
+		PerPlayerDamageTakenMod=1.f
+		PerPlayerDamageDealtMod=1.f
 	}
 };
 
@@ -22,12 +27,16 @@ struct VehicleWaveStruct
 	var() float PerPlayerMultiplier;
 	var() float DamageTakenMultiplier;
 	var() float DamageDealtMultiplier;
+	var() float PerPlayerDamageTakenMod;
+	var() float PerPlayerDamageDealtMod;
 
 
 	structdefaultproperties
 	{
 		DamageTakenMultiplier=1.f
 		DamageDealtMultiplier=1.f
+		PerPlayerDamageTakenMod=1.f
+		PerPlayerDamageDealtMod=1.f
 	}
 };
 

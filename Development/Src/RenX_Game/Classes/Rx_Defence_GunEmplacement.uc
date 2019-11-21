@@ -18,10 +18,34 @@ class Rx_Defence_GunEmplacement extends Rx_Defence_Emplacement
 /** Firing sounds */
 var() AudioComponent FiringAmbient;
 var() SoundCue FiringStopSound;
+var	repnotify bool bPlayingAmbientFireSound; 
 
 var GameSkelCtrl_Recoil    Recoil_R1, Recoil_R2, Recoil_Gattling;
 
 var int missleBayToggle;
+
+replication{
+	if(bNetDirty && !bNetOwner)
+		bPlayingAmbientFireSound; 
+}
+
+simulated event ReplicatedEvent(name VarName)
+{
+	if (VarName == 'bPlayingAmbientFireSound')
+	{
+		if(bPlayingAmbientFireSound)
+			FiringAmbient.Play();
+		else
+		{
+			PlaySound(FiringStopSound, TRUE, FALSE, FALSE, Location, FALSE);
+			FiringAmbient.Stop();
+		}
+			
+	}
+	else
+		super.ReplicatedEvent(VarName); 
+}
+
 
 /** added recoil */
 simulated event PostInitAnimTree(SkeletalMeshComponent SkelComp)
@@ -89,21 +113,20 @@ simulated function VehicleWeaponFireEffects(vector HitLocation, int SeatIndex)
 	Super.VehicleWeaponFireEffects(HitLocation, SeatIndex);
 	
 	//VehicleEvent('GattlingGun');
-    
-    if (Weapon.CurrentFireMode == 0)
-	{
+
+	FireTriggerTag = Seats[SeatIndex].GunSocket[GetBarrelIndex(SeatIndex)];
+
+   if(Weapon != None) {
+	   
+       if (Weapon.CurrentFireMode == 0)
+       {
+		  
 		if (!FiringAmbient.bWasPlaying)
 		{
 			FiringAmbient.Play();
 		}
-	}
-	
-	FireTriggerTag = Seats[SeatIndex].GunSocket[GetBarrelIndex(SeatIndex)];
-
-   if(Weapon != None) {
-       if (Weapon.CurrentFireMode == 0)
-       {
-           switch(FireTriggerTag)
+		   
+          switch(FireTriggerTag)
           {
           case 'GattlingGun':
              Recoil_Gattling.bPlayRecoil = TRUE;
@@ -130,11 +153,17 @@ simulated function VehicleWeaponFired( bool bViaReplication, vector HitLocation,
 {
     if(SeatIndex == 0) {
         super.VehicleWeaponFired(bViaReplication,HitLocation,SeatIndex);
-    }
+	}
+	
+	if(ROLE == ROLE_Authority && Weapon.CurrentFireMode == 0)
+	{
+		bPlayingAmbientFireSound = true; 
+	}
 }
 
 simulated function VehicleWeaponStoppedFiring( bool bViaReplication, int SeatIndex )
 {
+	//`log("Stopped firing"); 
     if(SeatIndex == 0) {
         super.VehicleWeaponStoppedFiring(bViaReplication,SeatIndex);
     }
@@ -149,10 +178,15 @@ simulated function VehicleWeaponStoppedFiring( bool bViaReplication, int SeatInd
     }
 	
 	
-	if (Weapon.CurrentFireMode == 0)
+	if (Weapon != none && Weapon.CurrentFireMode == 0)
 	{
 		PlaySound(FiringStopSound, TRUE, FALSE, FALSE, Location, FALSE);
 		FiringAmbient.Stop();
+	}
+	
+	if(ROLE == ROLE_Authority &&  Weapon.CurrentFireMode == 0)
+	{
+		bPlayingAmbientFireSound = false; 
 	}
 }
 

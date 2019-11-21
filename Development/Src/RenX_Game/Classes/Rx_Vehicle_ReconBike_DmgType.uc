@@ -6,7 +6,7 @@ defaultproperties
     DeathStatsName=DEATHS_ATTACKCYCLE
     SuicideStatsName=SUICIDES_ATTACKCYCLE
 
-    VehicleDamageScaling=1.0
+    VehicleDamageScaling=0.88 //1.0
 	lightArmorDmgScaling=1.0
 	AircraftDamageScaling=1.0
     BuildingDamageScaling=0.96f

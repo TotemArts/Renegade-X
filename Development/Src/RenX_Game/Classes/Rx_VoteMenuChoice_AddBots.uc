@@ -144,13 +144,13 @@ function string ComposeTopString()
 	switch (BotsToTeam)
 	{
 	case 1:
-		str = str $ "GDI";
+		str = str $ "<font color='" $GDIColor $"'>"$"GDI"$"</font>";
 		break;
 	case 2:
-		str = str $ "NOD";
+		str = str $ "<font color='" $NodColor $"'>"$"NOD"$"</font>";
 		break;
 	case 3:
-		str = str $ "both teams";
+		str = str $ "<font color='" $HostColor $"'>"$"both teams"$"</font>";
 		break;
 	}
 

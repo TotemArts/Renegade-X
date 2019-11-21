@@ -1081,7 +1081,7 @@ function UpdateDefensiveScore()
 
 function UpdateSupportScore()
 {
-	 Score_Support=((Vehicle_Repairs/100.0) + (Infantry_Repairs/50.0) + (Beacon_Damage/10.0) + (Tech_Captures*15.0) + (Mines_Disarmed) + (Vehicle_EMPs*3.0)) ;
+	 Score_Support=((Vehicle_Repairs/75.0) + (Infantry_Repairs/50.0) + (Beacon_Damage/10.0) + (Tech_Captures*15.0) + (Mines_Disarmed) + (Vehicle_EMPs*3.0)) ;
 }
 
 function UpdateAllScores(optional out float Difference)

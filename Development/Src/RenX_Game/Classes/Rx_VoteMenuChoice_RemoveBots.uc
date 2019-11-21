@@ -104,18 +104,20 @@ function string ComposeTopString()
 	else str = "all";
 
 	str = super.ComposeTopString() $ " wants to remove " $ str $ " bots from ";
+
 	switch (BotsToTeam)
 	{
 	case 1:
-		str = str $ "GDI";
+		str = str $ "<font color='" $GDIColor $"'>"$"GDI"$"</font>";
 		break;
 	case 2:
-		str = str $ "NOD";
+		str = str $ "<font color='" $NodColor $"'>"$"NOD"$"</font>";
 		break;
 	case 3:
-		str = str $ "both teams";
+		str = str $ "<font color='" $HostColor $"'>"$"both teams"$"</font>";
 		break;
 	}
+
 
 	return str;
 }
@@ -157,6 +159,9 @@ function Execute(Rx_Game game)
 			killed = false;
 			foreach game.AllActors(class'UTBot', bot)
 			{
+				if(Rx_Bot_Scripted(bot) != None)
+					continue;
+
 				if (bot.PlayerReplicationInfo.Team.TeamIndex == 0)
 				{
 					game.KillBot(bot);
@@ -176,6 +181,9 @@ function Execute(Rx_Game game)
 			killed = false;
 			foreach game.AllActors(class'UTBot', bot)
 			{
+				if(Rx_Bot_Scripted(bot) != None)
+					continue;
+
 				if (bot.PlayerReplicationInfo.Team.TeamIndex == 1)
 				{
 					game.KillBot(bot);

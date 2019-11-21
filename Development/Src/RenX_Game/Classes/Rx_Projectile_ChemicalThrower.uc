@@ -43,7 +43,7 @@ DefaultProperties
     MaxSpeed=1750 //2000
     AccelRate=0
     LifeSpan=0.80
-    Damage=13.2
+    Damage=16 //13.2
     DamageRadius=0 //50 //150 //Needs no damage radius. Use SprayRadii vector to make he spray more shapes
 	HeadShotDamageMult=1.10//1.2//1.0 //1.3
     MomentumTransfer=1

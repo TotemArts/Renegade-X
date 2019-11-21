@@ -40,7 +40,7 @@ simulated function GetFireStartLocationAndRotation(out vector SocketLocation, ou
         if(class'Rx_Utils'.static.OrientationOfLocAndRotToB(SocketLocation,SocketRotation,Rx_Bot(MyVehicle.Controller).GetFocus()) > 0.6) {
 			MaxFinalAimAdjustment = 0.450;	
         } else {
-            MaxFinalAimAdjustment = 0.990;
+            MaxFinalAimAdjustment = Default.MaxFinalAimAdjustment;
         }
     }
 }

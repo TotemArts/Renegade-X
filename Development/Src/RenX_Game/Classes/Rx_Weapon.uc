@@ -65,6 +65,14 @@ var() float SlowHeadshotScale;
 /** headshot scale factor when running or falling */
 var() float RunningHeadshotScale;
 
+// Purchase Terminal Setup
+var(Purchase) Texture PTIconTexture;
+var(Purchase) int Price;
+var localized string PurchaseDesc;
+
+
+
+
 var array<float> InstantHitDamageRadius;
 var array<bool> InstantHitDamageRadiusDoFull;
 var array<bool> InstantHitDamageRadiusIgnoreTeam;
@@ -218,7 +226,11 @@ var bool bIgnoreHitDist; //Ignore the distance from which you hit a target (Used
 var float WeaponSpeedModifier; 
 
 var float ActionToReadyTime; //Time (if any) that this weapon becomes fire-able/reloadable after finished an action (Sprinting/Dodging/Vaulting)
-var bool  bRecoveringFromAction; 
+var bool  bRecoveringFromAction;
+
+// Muzzle heat
+var float MuzzleHeatClamp, MuzzleHeatPerShot, MuzzleHeatCooldownTimeInterval, MuzzleHeatCooldownAmount, MinMuzzleHeatRequired, MuzzleHeatCooldownWaitTime, MuzzleHeat;
+var MaterialInstanceConstant MuzzleHeatMIC, MuzzleHeatMICAttachment;
 
 replication
 {
@@ -1082,6 +1094,11 @@ simulated function FireAmmunition()
 	local int Year, Month, DayOfWeek, Day, Hour, Min, Sec, MSec, i ; 
 	local float ROFTotal; 
 	
+	if (MuzzleHeatPerShot > 0.0)
+	{
+		UpdateMuzzleHeat(MuzzleHeatPerShot);
+		SetTimer(MuzzleHeatCooldownWaitTime, false, nameof(StartMuzzleHeatCooldownTick));
+	}
 	
 	if(Rx_Controller(Instigator.Controller) != none) 
 	if(Rx_Controller(Instigator.Controller) != none) 
@@ -1839,7 +1856,7 @@ reliable server function ServerALRadiusDamage(Actor Target, vector HurtOrigin, b
 
 	Momentum = ProjectileClass.default.MomentumTransfer;
 	
-	if(ProjectileClass.default.ExplosionDamageType != none)
+	if(ProjectileClass.default.ExplosionDamageType != none && !bFullDamage) //Full damage IMPLIES this is actually the impacted actor
 		DamageType = ProjectileClass.default.ExplosionDamageType;
 	else
 		DamageType = ProjectileClass.default.MyDamageType;
@@ -2505,6 +2522,92 @@ simulated function RecoverFromActionTimer(){
 	}
 }
 
+simulated function SetMuzzleMICs()
+{
+	if (MuzzleHeatMIC == None)
+		MuzzleHeatMIC = Mesh.CreateAndSetMaterialInstanceConstant(0);
+
+	if (MuzzleHeatMICAttachment == None)
+		MuzzleHeatMICAttachment = Rx_Pawn(Instigator).CurrentWeaponAttachment.Mesh.CreateAndSetMaterialInstanceConstant(0);
+}
+
+simulated function UpdateMuzzleHeatParameter(float NewHeat)
+{
+	if (MuzzleHeatMIC == None || MuzzleHeatMICAttachment == None)
+		SetMuzzleMICs();
+
+	MuzzleHeatMIC.SetScalarParameterValue('GunBarrelGlowFactor', NewHeat);
+	MuzzleHeatMICAttachment.SetScalarParameterValue('GunBarrelGlowFactor', NewHeat);
+}
+
+simulated function StartMuzzleHeatCooldownTick()
+{
+	SetTimer(MuzzleHeatCooldownTimeInterval, true, nameof(MuzzleHeatCooldownTick));
+}
+
+simulated function MuzzleHeatCooldownTick()
+{
+	if (MuzzleHeatCooldownAmount > GetMuzzleHeat() || GetMuzzleHeat() == 0)
+	{
+		ResetMuzzleHeat();
+		ClearTimer(nameof(MuzzleHeatCooldownTick));
+	}
+
+	else
+	{
+		UpdateMuzzleHeat(MuzzleHeatCooldownAmount);
+	}
+}
+
+simulated function UpdateMuzzleHeat(float AmountToAdd)
+{
+	MuzzleHeat += AmountToAdd;
+
+	if (MuzzleHeat < MinMuzzleHeatRequired && AmountToAdd > 0) return;
+
+	UpdateMuzzleHeatParameter(FClamp(MuzzleHeat - MinMuzzleHeatRequired, 0, 1));
+}
+
+simulated function float GetMuzzleHeat()
+{
+	local float OutVal;
+
+	MuzzleHeatMIC.GetScalarParameterValue('GunBarrelGlowFactor', OutVal);
+
+	return OutVal;
+}
+
+simulated function ResetMuzzleHeat()
+{
+	MuzzleHeat = 0;
+
+	UpdateMuzzleHeatParameter(0);
+}
+
+//PT stuff
+
+simulated static function bool IsBuyable(Rx_Controller C)
+{
+	return true;
+}
+
+simulated static function int GetPrice(byte TeamID)
+{
+	return default.Price;
+}
+
+simulated static function string GetPurchaseTitle()
+{
+	return Caps(default.ItemName);
+}
+
+simulated static function string GetPurchaseDescription()
+{
+	return default.PurchaseDesc;
+}
+
+//PT stuff ends here
+
 DefaultProperties
 {
 	RightHandIK_Offset=(X=0,Y=0,Z=0)
@@ -2653,6 +2756,15 @@ DefaultProperties
 	
 	// Carry weight 
 	WeaponSpeedModifier = 0.0 //Negatives lower speed. 
+
+	// Muzzle heat
+	MuzzleHeatClamp = 1.0f					// Max heat
+	MuzzleHeatPerShot = 0.0f				// Heat increase per shot
+	MuzzleHeatCooldownTimeInterval = 0.025f	// Time between each decrease tick
+	MuzzleHeatCooldownAmount = -0.010f		// Amount to decrease per cooldown tick
+	MinMuzzleHeatRequired = 0.8f			// Minimum heat required for it to be shown
+	MuzzleHeatCooldownWaitTime = 0.5f		// Time between firing and starting decrease ticks
+	MuzzleHeat = 0f							// Current heat. (Don't touch this)
 }
 
 

@@ -74,7 +74,7 @@ var bool bRefillonPromotion;
 var int Ammo_Increment; //1 by default. This is used by ammo boxes and veterancy to multiply how many extra clips are given to a weapon on promotion or picking up ammo
 
 var bool bOverrideFireIntervalForReload; //If FALSE then this will wait until the length of fire interval to reload after firing the last shot in the clip
-
+var bool bLimitAmmoForScripted;
 
 //returns partial bot damage
 simulated function float GetBotDamagePercentage()
@@ -415,7 +415,7 @@ simulated state Reloading
 			`log("---"@self$"."$GetStateName()$".ReloadWeapon()");
 		}
 
-		if (bHasInfiniteAmmo || Rx_Pawn_Scripted(Owner) != None) 
+		if (bHasInfiniteAmmo || (Rx_Pawn_Scripted(Owner) != None && !bLimitAmmoForScripted)) 
 		{
 			AmmoCount = MaxAmmoCount;
 			CurrentAmmoInClip = ClipSize ; // default.ClipSize;
