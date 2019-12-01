@@ -10,6 +10,21 @@ placeable;
 var bool bUseInfantryArmour;
 var int	 Armour, ArmourMax;  
 var DynamicLightEnvironmentComponent    LightEnvironment;
+
+struct DamageInstance
+{
+	var float DamageAmount;
+	var class<DamageType> DmgType;
+	var float WorldTime;
+};
+
+var float TotalDamageTaken;
+var int TotalHitsTaken;
+var float DPS;
+var float PeakDPS;
+
+var array<DamageInstance> DamageInstances;
+
 //Comment
 function float ParseArmor(float AdjustedDamage, class<Rx_DmgType> RXDT)
 {
@@ -65,6 +80,7 @@ simulated event TakeDamage(int DamageAmount, Controller EventInstigator, vector 
 	local class<Rx_DmgType> RXDT;
 	local string KillersName;
 	local int	 ArmourTemp; 
+	local DamageInstance DmgInstance;
 	
 	if(EventInstigator.GetTeamNum() == GetTeamNum()) return; 
 	
@@ -100,6 +116,14 @@ simulated event TakeDamage(int DamageAmount, Controller EventInstigator, vector 
 	    }
 		
 		super(Actor).TakeDamage(DamageAmount,EventInstigator,HitLocation,Momentum,DamageType,HitInfo,DamageCauser);
+
+		DmgInstance.DamageAmount = DamageAmount;
+		DmgInstance.DmgType = DamageType;
+		DmgInstance.WorldTime = WorldInfo.TimeSeconds;
+		DamageInstances.AddItem(DmgInstance);
+
+		TotalDamageTaken += DamageAmount;
+		TotalHitsTaken++;
 		
 	//`log(DamageAmount @ SavedDmg @ RXDT); 
 	}
@@ -140,6 +164,28 @@ simulated event TakeDamage(int DamageAmount, Controller EventInstigator, vector 
 		}
 		
 		BasicPawnKilled(KillersName);
+	}
+}
+
+function Tick(float DeltaTime)
+{
+	local DamageInstance DmgInstance;
+	super.Tick(DeltaTime);
+
+	DPS = 0;
+
+	ForEach DamageInstances(DmgInstance)
+	{
+		if (DmgInstance.WorldTime - WorldInfo.TimeSeconds < -1)
+		{
+			DamageInstances.RemoveItem(DmgInstance);
+			continue;
+		}
+
+		DPS += DmgInstance.DamageAmount;
+
+		if (DPS > PeakDPS)
+			PeakDPS = DPS;
 	}
 }
 

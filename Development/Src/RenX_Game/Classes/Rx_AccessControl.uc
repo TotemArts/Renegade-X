@@ -276,7 +276,7 @@ function bool KickPlayer(PlayerController C, string KickReason)
 {
 	C = Rx_Controller(C);
 	if (KickReason != "" && KickReason != DefaultKickReason)
-	KickReason = "You were kicked from the server for: " $ KickReason;
+		KickReason = "You were kicked from the server for: " $ KickReason;
 	// Do not kick logged admins
 	if (C != None && !IsAdmin(C) && NetConnection(C.Player)!=None )
 	{

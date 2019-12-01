@@ -51,8 +51,9 @@ var(RenegadeX_Map_Properties) int VehicleLimit;
 var(RenegadeX_Map_Properties) int MineLimit;
 var(RenegadeX_Map_Properties) float AirStrikeCoolDown;
 var(RenegadeX_Map_Properties) float BaseCreditsPerTick;
-var(RenegadeX_Map_Properties) BotType MapBotType<ToolTip=The class of bot to use on the map. Navmesh is newer but in alpha.>;
+var(RenegadeX_Map_Properties) BotType MapBotType<ToolTip=The class of bot to use on the map. Navmesh is newer but in alpha>;
 var(RenegadeX_Map_Properties) bool DisableMusicAutoPlay<ToolTip=Dont play music automatically when the map starts>;
+var(RenegadeX_Map_Properties) ParticleSystem PrecipitationParticleSystemTemplate<ToolTip=A particle system that will follow the player around>;
 var(RenegadeX_OutOfBounds) bool EnablePostProcessing;
 var(RenegadeX_OutOfBounds) float SceneDesaturation;
 var(RenegadeX_OutOfBounds) float SceneTonemapperScale;
@@ -67,11 +68,11 @@ var(RenegadeX_Map_Properties) int OverviewScale;
 DefaultProperties
 {
 	bAircraftDisabled=True
-	GlobalParticleValue=1.0;
-	GlobalSecondaryParticleValue=1.0;
-	GlobalStealthAddTranslucencyBias=0.0;
-	GlobalStealthEffectMultiplier=1.0;
-	GlobalStealthVisibilityMultiplier=1.0;
+	GlobalParticleValue=1.0
+	GlobalSecondaryParticleValue=1.0
+	GlobalStealthAddTranslucencyBias=0.0
+	GlobalStealthEffectMultiplier=1.0
+	GlobalStealthVisibilityMultiplier=1.0
 	CharacterGdiBrightness=1.0
 	CharacterNodBrightness=1.0
 	CharacterReflection=(R=1,G=1,B=1,A=1)
@@ -82,15 +83,15 @@ DefaultProperties
 	VehicleReflectionTexture=TextureCube'WP_All.Materials.M_WP_All_EnvMap01'
 	GdiCamoColour=(R=1,G=1,B=1,A=1)
 	NodCamoColour=(R=1,G=1,B=1,A=1)
-	HarvesterHarvestTimeMultiplier = 1.0
-	NightVisionMultiplier=200.0;
-	NightVisionContrast=2.0;
-	MinimapTextureScale=128;
-	NumCratesToBeActive=2;
-	SoftLevelBoundaryCornerTimeThreshold=0.0;
-	MinimapCurrentZoom=32;
-	MinimapNormalZoom=44;
-	MinimapRadius=124;
+	HarvesterHarvestTimeMultiplier=1.0
+	NightVisionMultiplier=200.0
+	NightVisionContrast=2.0
+	MinimapTextureScale=128
+	NumCratesToBeActive=2
+	SoftLevelBoundaryCornerTimeThreshold=0.0
+	MinimapCurrentZoom=32
+	MinimapNormalZoom=44
+	MinimapRadius=124
 	OverviewScale=1
 	NodAirstripDropoffHeightOffset=0
 	VehicleLimit=8
@@ -100,12 +101,13 @@ DefaultProperties
 	AirVehicleShadowBoundsScale=0.35
 	CharacterShadowBoundsScale=0.2
 	BaseCreditsPerTick=0.5
-	DisableMusicAutoPlay=false;
-	MapBotType=Waypoints;
-	SceneDesaturation=1.0;
-	SceneTonemapperScale=0.2;
-	SceneInterpolationDuration=1.0;
-	EnablePostProcessing=true;
+	DisableMusicAutoPlay=false
+	MapBotType=Waypoints
+	SceneDesaturation=1.0
+	SceneTonemapperScale=0.2
+	SceneInterpolationDuration=1.0
+	EnablePostProcessing=true
+	PrecipitationParticleSystemTemplate=None
 	
 	GDIVehicleArray[0]   = class'RenX_Game.Rx_Vehicle_GDI_Humvee_PTInfo'
 	GDIVehicleArray[1]   = class'RenX_Game.Rx_Vehicle_GDI_APC_PTInfo'

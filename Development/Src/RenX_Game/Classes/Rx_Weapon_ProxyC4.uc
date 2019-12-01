@@ -73,8 +73,8 @@ simulated function DrawCrosshair( Hud HUD )
 		return;
 	
 	
-	MineNum=Rx_HUD(H).HudMovie.CurrentNumMines;
-	MaxMineNum=Rx_HUD(H).HudMovie.CurrentMaxMines;
+	MineNum=Rx_HUD(H).GIHudMovie.CurrentNumMines;
+	MaxMineNum=Rx_HUD(H).GIHudMovie.CurrentMaxMines;
 	
 	CrosshairWidth = default.CrosshairWidth + RecoilSpread*RecoilSpreadCrosshairScaling;	
 	CrosshairHeight = default.CrosshairHeight + RecoilSpread*RecoilSpreadCrosshairScaling;
@@ -266,6 +266,80 @@ simulated function PerformRefill()
 function bool CanAttack(Actor Other)
 {
 	return false; //temporarily don't let bots use this
+}
+
+simulated function string GetWeaponTips()
+{
+	local int CurMines, MaxMines;
+	local Rx_PRI RxPRI;
+	local string TempString;
+
+	RxPRI = Rx_PRI(Pawn(Owner).PlayerReplicationInfo);
+
+	if(RxPRI == None)
+		return "";
+
+	MaxMines = Rx_TeamInfo(RxPRI.Team).MineLimit;
+	CurMines = Rx_TeamInfo(RxPRI.Team).MineCount;
+
+	TempString = "MINE COUNT: "$CurMines$"/"$MaxMines;
+
+	return TempString;
+}
+
+simulated function LinearColor GetTipsColor()
+{
+	local Rx_PRI RxPRI;
+	local int CurMines, MaxMines;
+
+	RxPRI = Rx_PRI(Pawn(Owner).PlayerReplicationInfo);
+
+	if(RxPRI == None)
+		return super.GetTipsColor();
+
+	if(!RxPRI.bCanMine)
+		return MakeLinearColor(1.0,0.0,0.0,1.0);
+
+	MaxMines = Rx_TeamInfo(RxPRI.Team).MineLimit;
+	CurMines = Rx_TeamInfo(RxPRI.Team).MineCount;
+
+	if(MaxMines <= CurMines)
+	{
+		return MakeLinearColor(1.0,0.0,0.0,1.0);
+	}
+	else if(MaxMines - 5 <= CurMines)
+	{
+		return MakeLinearColor(1.0,1.0,0.0,1.0);
+	}
+
+	return MakeLinearColor(0.0,1.0,0.0,1.0);
+}
+
+simulated function string GetWeaponSecondaryTips()
+{
+	local int CurMines, MaxMines;
+	local Rx_PRI RxPRI;
+
+	RxPRI = Rx_PRI(Pawn(Owner).PlayerReplicationInfo);
+
+	if(RxPRI == None)
+		return "";
+
+	if(!RxPRI.bCanMine)
+		return ">>BANNED FROM MINING<<";
+
+	MaxMines = Rx_TeamInfo(RxPRI.Team).MineLimit;
+	CurMines = Rx_TeamInfo(RxPRI.Team).MineCount;
+
+	if(MaxMines <= CurMines)
+		return ">>>>LIMIT REACHED<<<<";
+
+	return "";
+}
+
+simulated function LinearColor GetSecondTipsColor()
+{
+	return MakeLinearColor(1.0,0.0,0.0,1.0);
 }
 
 DefaultProperties

@@ -6,6 +6,12 @@ simulated function String GetHumanReadableName()
 	return "GDI Silo";
 }
 
+function bool ShouldSpawnHarvester()
+{
+	return false;	
+}
+
+
 defaultproperties
 {
    TeamID = TEAM_GDI
@@ -106,6 +112,8 @@ defaultproperties
 	End Object
 	Components.Add(SpotLightComponent5)
 	SpotLightComponents.Add(SpotLightComponent5)
+
+	IconTexture = Texture2D'RenxHud.T_Tech_Silo_GDI'
 }
 
 

@@ -289,7 +289,9 @@ function UpdateTargetHealthPercent ()
 	/*Ensure higher class objects come 1st*/
 	if (Rx_Pawn(TargetedActor) != none)
 	{
-		TargetHealthPercent =  (float(Rx_Pawn(TargetedActor).Health) + float(Rx_Pawn(TargetedActor).Armor)) / max(1,float(Rx_Pawn(TargetedActor).HealthMax) + float(Rx_Pawn(TargetedActor).ArmorMax));
+		TargetHealthPercent =  (float(Rx_Pawn(TargetedActor).Health)) / max(1,float(Rx_Pawn(TargetedActor).HealthMax + Rx_Pawn(TargetedActor).ArmorMax));
+		TargetArmorPercent = float(Rx_Pawn(TargetedActor).Armor) / max(1,float(Rx_Pawn(TargetedActor).HealthMax + Rx_Pawn(TargetedActor).ArmorMax)); 
+		TargetHealthMaxPercent = float(Rx_Pawn(TargetedActor).HealthMax) / max(1,float(Rx_Pawn(TargetedActor).HealthMax + Rx_Pawn(TargetedActor).ArmorMax));
 	}
 	else if (Rx_BasicPawn(TargetedActor) != none)
 	{
@@ -688,17 +690,34 @@ private function DrawHealthBar()
 				
 				
 			}
-		} else
+		} 
+		else
 		{
-			if (TargetHealthPercent < HealthBarRedThreshold)			
-				HealthCell = HealthCellRed;
-			else if (TargetHealthPercent < HealthBarYellowThreshold)
-				HealthCell = HealthCellYellow;
-			else 
-				HealthCell = HealthCellGreen;
+
 	
-			
+			if(Rx_Pawn(TargetedActor) != None)
+			{
+				if (TargetHealthPercent < HealthBarRedThreshold * TargetHealthMaxPercent)			
+					HealthCell = HealthCellRed;
+				else if (TargetHealthPercent < HealthBarYellowThreshold * TargetHealthMaxPercent)
+					HealthCell = HealthCellYellow;
+				else 
+					HealthCell = HealthCellGreen;
+				ArmorBarsToDraw = RoundUp(TargetArmorPercent * float(HealthBarCells)) ;
+				HealthBarsToDraw = RoundUp(TargetHealthPercent * float(HealthBarCells));
+				BarsToDraw = ArmorBarsToDraw + HealthBarsToDraw;
+			}
+			else
+			{
+				if (TargetHealthPercent < HealthBarRedThreshold)			
+					HealthCell = HealthCellRed;
+				else if (TargetHealthPercent < HealthBarYellowThreshold)
+					HealthCell = HealthCellYellow;
+				else 
+					HealthCell = HealthCellGreen;
+
 				BarsToDraw = RoundUp(TargetHealthPercent * float(HealthBarCells) );
+			}
 		
 			X = VisualBoundsCenterX + HealthBarXOffset;
 	
@@ -706,14 +725,31 @@ private function DrawHealthBar()
 				Y = VisualBoundingBox.Min.Y + HealthBarYOffset;
 			else
 				Y = VisualBoundingBox.Max.Y + HealthBarYOffset;
-	if (TargetHealthPercent > 0) //Don't bother drawing anything if it's already dead  
+
+			if (TargetHealthPercent > 0) //Don't bother drawing anything if it's already dead  
 			{
-				for (i = 0; i < BarsToDraw; i++)
+				if(ArmorBarsToDraw > 0)
 				{
-					Canvas.DrawIcon(HealthCell,X,Y);
-					X += HealthBarCellSpacing;
+					for (i = 0; i < HealthBarsToDraw; i++)
+					{
+						Canvas.DrawIcon(HealthCell,X,Y);
+						X += HealthBarCellSpacing;
+					}					
+					for (i = HealthBarsToDraw; i < ArmorBarsToDraw + HealthBarsToDraw; i++)
+					{
+						Canvas.DrawIcon(ArmorCellBlue,X,Y);
+						X += HealthBarCellSpacing;
+					}
 				}
-		
+				else 
+				{
+					for (i = 0; i < BarsToDraw; i++)
+					{
+						Canvas.DrawIcon(HealthCell,X,Y);
+						X += HealthBarCellSpacing;
+					}	
+				}
+
 				Canvas.DrawColor = ColorGreyedOut;
 				for (i = 0; i < HealthBarCells - BarsToDraw; i++)
 				{
@@ -742,6 +778,7 @@ private function DrawHealthPercent()
 {
 	local float X,Y; //,f1,f2;
 	local int iHealthPercent;
+	local float TargetHealthTotalPercent;
 	
 	//Also draws the health / armour icon if building armour is enabled.
 	
@@ -839,6 +876,23 @@ private function DrawHealthPercent()
 			
 			
 		} 
+		else if(Rx_Pawn(TargetedActor) != None) //probably pawn
+		{
+			TargetHealthTotalPercent = FMin((TargetHealthPercent + TargetArmorPercent),1);
+
+			if (TargetHealthTotalPercent < HealthBarRedThreshold)
+				Canvas.DrawColor = ColorRed;
+			else if (TargetHealthTotalPercent < HealthBarYellowThreshold)
+				Canvas.DrawColor = ColorYellow;
+			else 
+				Canvas.DrawColor = ColorGreen;
+	
+			iHealthPercent = int(TargetHealthTotalPercent * 100);
+	
+			Canvas.Font = PercentageFont;
+			Canvas.SetPos(X,Y,0);
+			Canvas.DrawText(iHealthPercent $ "%");			
+		}
 		else
 		{
 			if (TargetHealthPercent < HealthBarRedThreshold)

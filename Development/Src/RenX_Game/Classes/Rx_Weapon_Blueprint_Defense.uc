@@ -11,8 +11,110 @@ reliable server function DeployBlueprint(vector DeployLoc, rotator DeployRot)
 		return;
 
 	SpawnedDefense.Deployer = Rx_PRI(Instigator.PlayerReplicationInfo);
-
+	SpawnedDefense.bOwnedDefence = true;
+	Rx_PRI(Instigator.PlayerReplicationInfo).DeployedDefenses.AddItem(SpawnedDefense);
+	Rx_PRI(Instigator.PlayerReplicationInfo).DeployedDefenseNumber += 1;
 	Super.DeployBlueprint(DeployLoc, DeployRot);
+}
+
+simulated function bool PlacementAllowed()
+{
+	if(!bValidPlacement)
+	{
+		Rx_Controller(Instigator.Controller).CTextMessage("Cannot deploy here",'Red',120);
+		return false;
+	}
+	if(TooManyDefenses())
+	{
+		Rx_Controller(Instigator.Controller).CTextMessage("Maximum defenses quota reached",'Red',120);
+		return false;
+	}
+	else
+		return true;
+		
+}
+
+
+simulated function string GetWeaponTips()
+{
+	local int CurDef, MaxDef;
+	local Rx_PRI RxPRI;
+	local string TempString;
+
+	RxPRI = Rx_PRI(Pawn(Owner).PlayerReplicationInfo);
+
+	if(RxPRI == None)
+		return "";
+
+	MaxDef = RxPRI.DeployedDefenseLimit;
+	CurDef = RxPRI.DeployedDefenseNumber;
+
+	TempString = "DEFENSES COUNT: "$CurDef$"/"$MaxDef;
+
+	return TempString;
+}
+
+simulated function LinearColor GetTipsColor()
+{
+	local int CurDef, MaxDef;
+	local Rx_PRI RxPRI;
+
+	RxPRI = Rx_PRI(Pawn(Owner).PlayerReplicationInfo);
+
+	if(RxPRI == None)
+		return MakeLinearColor(0.0,1.0,0.0,1.0);
+
+	MaxDef = RxPRI.DeployedDefenseLimit;
+	CurDef = RxPRI.DeployedDefenseNumber;
+
+	if(MaxDef <= CurDef)
+	{
+		return MakeLinearColor(1.0,0.0,0.0,1.0);
+	}
+
+	return MakeLinearColor(0.0,1.0,0.0,1.0);
+}
+
+simulated function string GetWeaponSecondaryTips()
+{
+	local int CurDef, MaxDef;
+	local Rx_PRI RxPRI;
+
+	RxPRI = Rx_PRI(Pawn(Owner).PlayerReplicationInfo);
+
+	if(RxPRI == None)
+		return "";
+
+	MaxDef = RxPRI.DeployedDefenseLimit;
+	CurDef = RxPRI.DeployedDefenseNumber;
+
+	if(MaxDef <= CurDef)
+		return ">>>>LIMIT REACHED<<<<";
+
+	return "";
+}
+
+simulated function LinearColor GetSecondTipsColor()
+{
+	return MakeLinearColor(1.0,0.0,0.0,1.0);
+}
+
+// iterator is needed sadly, because I can't for the life of me figure out how to use Dynamic Array for this
+simulated function bool TooManyDefenses() 
+{
+	local Rx_Defence Def;
+	local int i;
+
+	foreach WorldInfo.AllPawns(class'Rx_Defence',Def)
+	{
+		if(Def.Deployer == Rx_PRI(Instigator.PlayerReplicationInfo))
+			i++;
+
+		if(i >= 4)
+			return true;
+	}
+
+	return false;
 }
 
 simulated function Vector GetBlueprintModelLocation()

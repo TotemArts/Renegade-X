@@ -30,6 +30,9 @@ var config bool ShowBasicTips;
 var class<Rx_GFxHud> HudMovieClass;
 var Rx_GFxHud HudMovie;
 
+var class<Rx_GFxGameinfoHud> GIHudMovieClass;
+var Rx_GFxGameinfoHud GIHudMovie;
+
 var class<Rx_Hud_TargetingBox> TargetingBoxClass;
 var class<Rx_Hud_PlayerNames> PlayerNamesClass;
 var class<Rx_HUD_CaptureProgress> CaptureProgressClass;
@@ -71,6 +74,7 @@ var array<Actor> UnmarkTargets;
 
 /** Debug flag to show AI information */
 var bool bShowAllAI;
+var bool bShowAIFireline;
 var	const color	YellowColor;
 var	const color	BlueColor;
 
@@ -103,6 +107,7 @@ var float LastScoreboardRenderTime;
 var array<PlayerReplicationInfo> PRIArray;
 var Rx_Vehicle_Harvester GDI_Harvester;
 var Rx_Vehicle_Harvester Nod_Harvester;
+var string LastEndScoreboardChats;
 
 var private const float DefaultTargettingRange;
 
@@ -144,6 +149,11 @@ var bool bEnableFade;
 var float FadePercentage,FadePerSecond;
 
 var config int KillFeedMode;
+var bool bShowScorePanel;
+
+//cache data for GFxObjects, if necessary...
+var Array<Rx_Building_TechBuilding> TechBuildings;
+var Array<Rx_Building_Team_Internals> TeamBuildingInternals;
 
 function Actor GetActorAtScreenCentre()
 {
@@ -253,10 +263,10 @@ function float GetWeaponRange()
 }
 
 //Handles drawing for log, chat, kill and EVA messages
-function Message( PlayerReplicationInfo PRI, coerce string Msg, name MsgType, optional float LifeTime )
+function Message( PlayerReplicationInfo PRI, coerce string Msg, name MsgType, optional float LifeTime = 60)
 {
 	local string cName, fMsg, rMsg;
-	local bool bEVA;
+	local int MessageType; // 0 = global, 1 = team, 2 = EVA, 3 = Radio
 
 	if (Len(Msg) == 0)
 		return;
@@ -271,7 +281,8 @@ function Message( PlayerReplicationInfo PRI, coerce string Msg, name MsgType, op
 	else
 		cName = "Host";
 	
-	if (MsgType == 'Say') {
+	if (MsgType == 'Say') 
+	{
 		if (PRI == None)
 			fMsg = "<font color='" $HostColor$"'>" $cName$"</font>: <font color='#FFFFFF'>"$CleanHTMLMessage(Msg)$"</font>";
 		else if (PRI.Team.GetTeamNum() == TEAM_GDI)
@@ -280,6 +291,7 @@ function Message( PlayerReplicationInfo PRI, coerce string Msg, name MsgType, op
 			fMsg = "<font color='" $NodColor $"'>" $cName $"</font>: " $ CleanHTMLMessage(Msg);
 		PublicChatMessageLog $= "\n" $ fMsg;
 		rMsg = cName $": "$ Msg;
+		MessageType = 0;
 	}
 	else if (MsgType == 'TeamSay') {
 		if (PRI.GetTeamNum() == TEAM_GDI)
@@ -287,12 +299,14 @@ function Message( PlayerReplicationInfo PRI, coerce string Msg, name MsgType, op
 			fMsg = "<font color='" $GDIColor $"'>" $ cName $": "$ CleanHTMLMessage(Msg) $"</font>";
 			PublicChatMessageLog $= "\n" $ fMsg;
 			rMsg = cName $": "$ Msg;
+			MessageType = 1;
 		}
 		else if (PRI.GetTeamNum() == TEAM_NOD)
 		{
 			fMsg = "<font color='" $NodColor $"'>" $ cName $": "$ CleanHTMLMessage(Msg) $"</font>";
 			PublicChatMessageLog $= "\n" $ fMsg;
 			rMsg = cName $": "$ Msg;
+			MessageType = 1;
 		}
 	}
 	else if (MsgType == 'Radio') 
@@ -304,6 +318,7 @@ function Message( PlayerReplicationInfo PRI, coerce string Msg, name MsgType, op
 			fMsg = HighlightStructureNames(fMsg); 
 			//PublicChatMessageLog $= "\n" $ fMsg;
 			rMsg = cName $": "$ Msg;
+			MessageType = 3;
 		}
 	else if (MsgType == 'Commander') 
 		{
@@ -321,6 +336,7 @@ function Message( PlayerReplicationInfo PRI, coerce string Msg, name MsgType, op
 			fMsg = "<b><font color='" $CommandTextColor $"'>" $ "[Commander]"$ cName $": "$ CleanHTMLMessage(Msg) $"</font></b>";
 			//PublicChatMessageLog $= "\n" $ fMsg;
 			rMsg = cName $": "$ Msg;
+			MessageType = 1;
 		}
 	else if (MsgType == 'System') {
 		if(InStr(Msg, "entered the game") >= 0)
@@ -328,6 +344,7 @@ function Message( PlayerReplicationInfo PRI, coerce string Msg, name MsgType, op
 		fMsg = Msg;
 		PublicChatMessageLog $= "\n" $ fMsg;
 		rMsg = Msg;
+		MessageType = 0;
 	}
 	else if (MsgType == 'PM') {
 		if (PRI != None)
@@ -336,35 +353,69 @@ function Message( PlayerReplicationInfo PRI, coerce string Msg, name MsgType, op
 			fMsg = "<font color='"$HostColor$"'>Private from "$cName$": "$CleanHTMLMessage(Msg)$"</font>";
 		PrivateChatMessageLog $= "\n" $ fMsg;
 		rMsg = "Private from "$ cName $": "$ Msg;
+		MessageType = 0;
 	}
 	else if (MsgType == 'PM_Loopback') {
 		fMsg = "<font color='"$PrivateToColor$"'>Private to "$cName$": "$CleanHTMLMessage(Msg)$"</font>";
 		PrivateChatMessageLog $= "\n" $ fMsg;
 		rMsg = "Private to "$ cName $": "$ Msg;
+		MessageType = 0;
+	}
+	else if (MsgType == 'CTEXT')
+		MessageType = 4;
+	else if (MsgType == 'AdminMsg' || MsgType == 'PM_AdminMsg') {
+		MessageType = 5;
+		// TODO: This should go through to the HUD somewhere
+		fMsg = "<font color='#FFFFFF' size='25'>Admin Message</font><br><br><font color='#FFFFFF' size='20'>"@Msg@"<br><br>Press <font color='#ff0000' size='20'>[Enter]</font> to confirm</font>";
+	}
+	else if (MsgType == 'AdminWarn' || MsgType == 'PM_AdminWarn') {
+		MessageType = 5;
+		fMsg = "<font color='#E67451' size='25'>You received a Warning from an Admin</font><br><br><font color='#E67451' size='20'>"@Msg@"<br><br>Press <font color='#ff0000' size='20'>[Enter]</font> to confirm</font>";
 	}
 	else
-		bEVA = true;
+		MessageType = 2;
 
 	// Add to currently active GUI | Edit by Yosh : Don't bother spamming the non-HUD chat logs with radio messages... it's pretty pointless for them to be there. 
-	if (bEVA)
+
+	if(HudMovie != none && HudMovie.bMovieIsOpen)
 	{
-		if (HudMovie != none && HudMovie.bMovieIsOpen)
+		if (MessageType == 0) {
+			HudMovie.AddChatMessage(fMsg, rMsg);
+		}
+		else if (MessageType == 1) {
+			HudMovie.AddChatMessage(fMsg, rMsg);
+		}
+		else if (MessageType == 2) {
 			HudMovie.AddEVAMessage(Msg);
-	}
+		}
+		else if (MessageType == 3) {
+			HudMovie.AddRadioMessage(fMsg, rMsg);
+		}
+		else if (MessageType == 4) {
+			HudMovie.AddCTextMessage(Msg,LifeTime);	
+		}
+		else if (MessageType == 5) {
+			HudMovie.PushAdminMessage(fMsg);
+			PlayerOwner.ClientAdminMessage(Msg);
+		}
+	}	
 	else
 	{
-		if (HudMovie != none && HudMovie.bMovieIsOpen)
-			HudMovie.AddChatMessage(fMsg, rMsg);
-
-		if (Scoreboard != none && MsgType != 'Radio' && Scoreboard.bMovieIsOpen) {
-			if (PlayerOwner.WorldInfo.GRI.bMatchIsOver) {
+		if (Scoreboard != none && MsgType != 'Radio' && Scoreboard.bMovieIsOpen) 
+		{
+			if (PlayerOwner.WorldInfo.GRI.bMatchIsOver) 
+			{
 				Scoreboard.AddChatMessage(fMsg, rMsg);
 			}
-		}
-		
+		}		
 		if (RxPauseMenuMovie != none && MsgType != 'Radio' && RxPauseMenuMovie.bMovieIsOpen) {
-			if (RxPauseMenuMovie.ChatView != none) {
+			if (RxPauseMenuMovie.ChatView != none) 
+			{
 				RxPauseMenuMovie.ChatView.AddChatMessage(fMsg, rMsg, MsgType=='PM' || MsgType=='PM_Loopback');
+			}
+			if(Rx_GRI(PlayerOwner.WorldInfo.GRI).bMatchIsOver)
+			{
+				LastEndScoreboardChats $= fMsg $ "\n";
 			}
 		}
 
@@ -375,17 +426,11 @@ function string GetColouredName(PlayerReplicationInfo PRI)
 {
 	if (PRI.GetTeamNum() == TEAM_GDI)
 	{
-		if (!Rx_PRI(PRI).bIsScripted)
 			return "<font color='" $GDIColor $"'>" $CleanHTMLMessage(PRI.PlayerName)$"</font>";
-		else
-			return "<font color='" $GDIColor $"'>" $CleanHTMLMessage("A GDI Trooper")$"</font>";
 	}
 	else if (PRI.GetTeamNum() == TEAM_NOD)
 	{
-		if (!Rx_PRI(PRI).bIsScripted)
 			return "<font color='" $NodColor$"'>" $CleanHTMLMessage(PRI.PlayerName)$"</font>";
-		else
-			return "<font color='" $NodColor$"'>" $CleanHTMLMessage("A Nod Trooper")$"</font>";			
 	}
 	else return CleanHTMLMessage(PRI.PlayerName);
 }
@@ -410,6 +455,8 @@ function string CleanHTMLMessage(string msg)
 
 simulated function PostBeginPlay() 
 {
+	local Rx_Building B;
+
 	super.PostBeginPlay();
 	if (SystemSettingsHandler == none) {
 		SystemSettingsHandler = class'WorldInfo'.static.GetWorldInfo().Spawn(class'Rx_SystemSettingsHandler');
@@ -443,6 +490,16 @@ simulated function PostBeginPlay()
 				}
 			}
 		}
+	}
+
+	// a cache for things to come
+	foreach class'WorldInfo'.static.GetWorldInfo().AllActors(class'Rx_Building',B)
+	{
+		if(Rx_Building_TechBuilding(B) != None)
+			TechBuildings.AddItem(Rx_Building_TechBuilding(B));
+
+		else if(Rx_Building_Team_Internals(B.BuildingInternals) != None)
+			TeamBuildingInternals.AddItem(Rx_Building_Team_Internals(B.BuildingInternals));
 	}
 // 
 // 	GetPC().WorldInfo.MusicComp.bAutoDestroy = false;
@@ -486,10 +543,19 @@ function MusicPlayerOnAudioFinished(AudioComponent AC)
 	}
 }
 
+function bool IsMainMenu()
+{
+	return (Rx_Game(PlayerOwner.WorldInfo.Game) != None && Rx_Game(PlayerOwner.WorldInfo.Game).GameType == 0);
+}
+
 //Create and initialize the UI Interface.
 function CreateUIInterface()
 {
+	if(IsMainMenu())
+		return;
+
 	CreateDamageSystemMovie();
+	CreateGIHUDMovie();
 	CreateHUDMovie();
 	CreateHudCompoenents();
 }
@@ -508,6 +574,21 @@ function CreateHUDMovie()
 	HudMovie.SetAlignment(Align_TopLeft);
 
 	HudMovie.RenxHud = self;
+}
+
+function CreateGIHUDMovie()
+{
+	//Create a STGFxHUD for HudMovie
+	GIHudMovie = new GIHudMovieClass;
+	//Set the timing mode to TM_Real - otherwide things get paused in menus
+	GIHudMovie.SetTimingMode(TM_Real);
+	//Call HudMovie's Initialise function
+	GIHudMovie.Initialize();
+	GIHudMovie.SetTimingMode(TM_Real);
+	GIHudMovie.SetViewScaleMode(SM_NoBorder);
+	GIHudMovie.SetAlignment(Align_TopLeft);
+
+	GIHudMovie.RenxHud = self;
 }
 
 
@@ -618,6 +699,13 @@ function RemoveMovies()
 		}
 		HudMovie = None;
 	}
+	if( GIHudMovie != None) {
+		`log("GIHudMovie.bMovieIsOpen? " $ GIHudMovie.bMovieIsOpen);
+		if (GIHudMovie.bMovieIsOpen) {
+			GIHudMovie.close(true);
+		}
+		GIHudMovie = None;
+	}
 	if (OverviewMapMovie != None) {
 		if (OverviewMapMovie.bMovieIsOpen) {
 			OverviewMapMovie.Close(true);
@@ -661,9 +749,16 @@ event PostRender()
 {
 	local float XL, YL, YPos;
 	local font TempFont;
+	local Rx_RangeDummy_NoArmour Dummy;
+	local LocalPlayer LP;
+	local Vector2d EnemyScreenPos;
+	local bool bIsInFrontOfMe;
 
 	if(HudMovie != None && HudMovie.bMovieIsOpen && DrawFlashHUD)
 		HudMovie.TickHUD(); //Draw flash HUD
+	if(GIHudMovie != None && GIHudMovie.bMovieIsOpen && DrawFlashHUD)	
+		GIHudMovie.TickHUD();
+
 	if(Scoreboard != None && Scoreboard.bMovieIsOpen)
 		Scoreboard.Draw(); 	
 	
@@ -688,7 +783,7 @@ event PostRender()
 		
 	UTGRI = UTGameReplicationInfo(WorldInfo.GRI);
 
-	if (!WorldInfo.IsPlayingDemo())
+	if (!WorldInfo.IsPlayingDemo() && !IsMainMenu())
 	{
 		TempFont = Canvas.Font;
 		DisplayRadioCommands();
@@ -740,7 +835,7 @@ event PostRender()
 	if(DrawCText)	
 		CommandText.Draw(); 
 	
-   if(PlayerOwner.Pawn != None || PlayerOwner.PlayerReplicationInfo.bIsSpectator) 
+   if((PlayerOwner.Pawn != None || PlayerOwner.PlayerReplicationInfo.bIsSpectator) && bShowScorePanel) 
       DrawNewScorePanel();
 	
 	if (bShowDebugInfo)
@@ -757,6 +852,29 @@ event PostRender()
 
 	if (bShowAllAI)
 		DrawAIOverlays();
+	else if(bShowAIFireline) // don't render if ShowAllAI is active
+		DrawAIFirelineOverlays();
+
+	ForEach WorldInfo.AllActors(class'Rx_RangeDummy_NoArmour', Dummy)
+	{
+		if (Dummy.DPS == 0) continue;
+
+		LP = LocalPlayer(PlayerOwner.Player);
+		Canvas.SetDrawColor(255,255,255,200);
+		Canvas.Font = Font'RenxHud.Font.AgentConDB';
+	
+		// Convert self and enemy world location to screen-space 2d coordinates
+		EnemyScreenPos = LP.Project(Dummy.Location);
+	
+		Canvas.SetPos(EnemyScreenPos.X * Canvas.SizeX, EnemyScreenPos.Y * Canvas.SizeY);
+	
+		// Don't draw lines into the middle of nowhere because enemy isn't in view
+		bIsInFrontOfMe = class'Rx_Utils'.static.OrientationOfLocAndRotToBLocation(Dummy.Location, PlayerOwner.Rotation, PlayerOwner.Pawn.Location) < -0.5;
+	
+		if (!bIsInFrontOfMe) return;
+		
+		Canvas.DrawText("Peak DPS:"@Dummy.PeakDPS$"\nDPS:"@Dummy.DPS$"\nTotal Dmg:"@Dummy.TotalDamageTaken$"\nTotal Hits:"@Dummy.TotalHitsTaken,,0.7,0.7);
+	}
 }
 
 function DisplayCapturePoint(Rx_CapturePoint CP)
@@ -865,6 +983,11 @@ exec function ShowAllAI()
 	bShowAllAI = !bShowAllAI;
 }
 
+exec function ShowAIFireline()
+{
+	bShowAIFireline = !bShowAIFireline;
+}
+
 //draws AI goal overlays over each AI pawn
 function DrawAIOverlays()
 {
@@ -910,7 +1033,49 @@ function DrawAIOverlays()
 	}
 }
 
+function DrawAIFirelineOverlays()
+{
+	local UTBot B;
+	local vector Pos;
+	local float XL, YL;
+	local string Text;
 
+	Canvas.Font = GetFontSizeIndex(0);
+
+	foreach WorldInfo.AllControllers(class'UTBot', B)
+	{
+		if (B.Pawn != None)
+		{
+			// draw route
+			DrawRoute(B.Pawn);
+			
+			// draw fire line string
+			if ((vector(PlayerOwner.Rotation) dot (B.Pawn.Location - PlayerOwner.ViewTarget.Location)) > 0.f)
+			{
+				Pos = Canvas.Project(B.Pawn.Location + B.Pawn.GetCollisionHeight() * vect(0,0,1.1));
+				Text = Rx_Bot(B).FireAssessment;
+				Canvas.StrLen(Text, XL, YL);
+				Pos.X = FClamp(Pos.X, 0.f, Canvas.ClipX - XL);
+				Pos.Y = FClamp(Pos.Y, 0.f, Canvas.ClipY - YL);
+				Canvas.SetPos(Pos.X, Pos.Y);
+				
+				if (B.PlayerReplicationInfo != None && B.PlayerReplicationInfo.Team != None)
+				{
+					Canvas.DrawColor = UTTeaminfo(B.PlayerReplicationInfo.Team).GetHUDColor();
+					// brighten the color a bit
+					Canvas.DrawColor.R = Min(Canvas.DrawColor.R + 64, 255);
+					Canvas.DrawColor.G = Min(Canvas.DrawColor.G + 64, 255);
+					Canvas.DrawColor.B = Min(Canvas.DrawColor.B + 64, 255);
+				}
+				else
+					Canvas.DrawColor = ConsoleColor;
+				
+				Canvas.DrawColor.A = (WorldInfo.TimeSeconds - B.Pawn.LastRenderTime < 0.1) ? 255 : 128;
+				Canvas.DrawText(Text);
+			}
+		}
+	}
+}
 
 function DoSpotting()
 {
@@ -1065,7 +1230,7 @@ function AddCommanderSpotTarget(actor SpotTarget)
 function DrawNewScorePanel()
 {
 	local float YL, SizeSX, SizeSY;
-	local int  FirstTeamID, I;
+	local int /*  FirstTeamID ,*/ I;
 	local PlayerReplicationInfo PRI;	
 	local FontRenderInfo FontInfo;
 	local Vector2D GlowRadius;
@@ -1102,9 +1267,10 @@ function DrawNewScorePanel()
     FontInfo.GlowInfo.bEnableGlow = true;
     FontInfo.GlowInfo.GlowOuterRadius = GlowRadius;	
 
-	DrawScorePanelTitle(true);
+	//DrawScorePanelTitle(true);
 	YL = ScorePanelY + SizeSY + 10.0f*ResScaleY;
-	FirstTeamID = 0;
+/*	FirstTeamID = 0;
+
 
 	// draw the teams
 	switch (ScorePanelMode)
@@ -1155,7 +1321,7 @@ function DrawNewScorePanel()
 		default:
 			break;
 	}
-
+*/
 	YL += SizeSY + 10.0f*ResScaleY;
 	//YL += SizeSY + 4.0f*ResScaleY;
 	DrawScorePanelTitle(,YL - ScorePanelY*ResScaleY);
@@ -1992,10 +2158,12 @@ function DisplayHit(vector HitDir, int Damage, class<DamageType> damageType)
 //chain the toggle from the Rx_Controller to the GFx Hud object where it occurs
 function ToggleScoreboard()
 {
-	if (ScorePanelMode == 2) 
-		ScorePanelMode = 1;
-	else 
-		ScorePanelMode = 2;
+//	if (ScorePanelMode == 2) 
+//		ScorePanelMode = 1;
+//	else 
+//		ScorePanelMode = 2;
+
+	bShowScorePanel = !bShowScorePanel;
 }
 
 function ToggleOverviewMap()
@@ -2079,9 +2247,15 @@ function HandleSetShowScores(bool bEnableShowScores, bool bForceHandle)
     }
     else if (Scoreboard != None && Scoreboard.bMovieIsOpen && (!Rx_GRI(PlayerOwner.WorldInfo.GRI).bMatchIsOver || bForceHandle))
 	{
+		if(Rx_GRI(PlayerOwner.WorldInfo.GRI).bMatchIsOver)
+			LastEndScoreboardChats = Scoreboard.Chatlog;
+
+
 		Scoreboard.Close(false);
 		Scoreboard = None;
-		SetVisible(true);
+
+		iF(!Rx_GRI(PlayerOwner.WorldInfo.GRI).bMatchIsOver)
+			SetVisible(true);
 	}
 
 }
@@ -2160,8 +2334,14 @@ function LocalizedMessage
 		}
 	}
 	else if (InMessageClass == class'Rx_CratePickup'.default.MessageClass)
-	{ 
-		HudMovie.AddEVAMessage(CriticalString);
+	{
+		if(RelatedPRI_1 != PlayerOwner.PlayerReplicationInfo)
+		{ 	
+			if(RelatedPRI_1.GetTeamNum() != PlayerOwner.GetTeamNum())
+				HudMovie.AddEVAMessage("<font color='#ff0000'>"$CriticalString$"</font>");
+			else
+				HudMovie.AddEVAMessage("<font color='#00ff00'>"$CriticalString$"</font>");
+		}
 	} 
 	else if (InMessageClass == class'Rx_Message_Deployed')
 	{
@@ -2584,7 +2764,8 @@ function CompletePauseMenuClose()
 			SetShowScores(true);
 		}
 	}
-    SetVisible(true);
+	else
+	    SetVisible(true);
 }
 function FadeScreenClose()
 {
@@ -2772,7 +2953,7 @@ DefaultProperties
 	BlueColor=(R=0,G=0,B=255,A=255)
 	ConsoleMessagePosY=0.08f // 0.8f
 	MaxSpotDistance = 8000;
-	ScorePanelY = 40.0f; // constant as it will be always on the right top
+	ScorePanelY = 60.0f; // constant as it will be always on the right top
 	
 	DistText(0) = 70.0f
 	DistText(1) = 10.0f
@@ -2797,6 +2978,7 @@ DefaultProperties
 	LC_White = (R=1.0, G=1.0, B=1.0, A=1.0)
 
 	HudMovieClass = class 'Rx_GFxHud'
+	GIHudMovieClass = class 'Rx_GFxGameinfoHud'
 	TargetingBoxClass = class 'Rx_Hud_TargetingBox'
 	PlayerNamesClass = class 'Rx_Hud_PlayerNames'
 	CaptureProgressClass = class 'Rx_HUD_CaptureProgress'

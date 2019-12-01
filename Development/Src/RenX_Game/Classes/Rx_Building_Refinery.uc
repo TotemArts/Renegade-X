@@ -1,5 +1,5 @@
 class Rx_Building_Refinery extends Rx_Building
-   abstract;
+	abstract;
 
 var private repnotify bool bDocking;
 var repnotify bool bHarvEMPd;
@@ -157,6 +157,11 @@ simulated function SimulateHarvDump(float DeltaTime)
 	{
 		if(RxPC.GetTeamNum() == GetTeamNum()) Rx_PRI(RxPC.PlayerReplicationInfo).AddCredits(fmin((HarvesterCreditDump / HarvesterUnloadTime) * DeltaTime  , CreditsToDump));
 	}
+}
+
+function bool ShouldSpawnHarvester()
+{
+	return true;	
 }
 
 defaultproperties
@@ -360,4 +365,6 @@ defaultproperties
 	*/
 
 	SupportedEvents.Add(class'Rx_SeqEvent_RefineryEvent')
+	IconTexture=Texture2D'RenxHud.T_BuildingIcon_Refinery_Normal'
+
 }

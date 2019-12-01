@@ -197,6 +197,37 @@ function byte BestMode()
 	return 0;
 }
 
+simulated function string GetWeaponTips()
+{
+
+	if(Rx_PRI(Pawn(Owner).Controller.PlayerReplicationInfo) != None)
+		return "REMOTE C4 COUNT: "$Rx_PRI(Pawn(Owner).Controller.PlayerReplicationInfo).RemoteC4Number$"/4";
+
+	return "";
+}
+
+simulated function string GetWeaponSecondaryTips()
+{
+
+	if(Rx_PRI(Pawn(Owner).Controller.PlayerReplicationInfo) != None && Rx_PRI(Pawn(Owner).Controller.PlayerReplicationInfo).RemoteC4Number >= 4)
+		return ">>>>LIMIT REACHED<<<<";
+
+	return "";
+}
+
+simulated function LinearColor GetTipsColor()
+{
+		if(Rx_PRI(Pawn(Owner).Controller.PlayerReplicationInfo) != None && Rx_PRI(Pawn(Owner).Controller.PlayerReplicationInfo).RemoteC4Number < 4)
+		return MakeLinearColor(0.0,1.0,0.0,1.0);
+
+	return MakeLinearColor(1.0,1.0,0.0,1.0);
+}
+
+simulated function LinearColor GetSecondTipsColor()
+{
+	return MakeLinearColor(1.0,1.0,0.0,1.0);
+}
+
 DefaultProperties
 {
 	DeployedActorClass=class'Rx_Weapon_DeployedRemoteC4'

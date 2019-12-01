@@ -35,6 +35,24 @@ function Broadcast( Actor Sender, coerce string Msg, optional name Type )
 		else
 			`LogRx("CHAT" `s "HostSay;" `s "said:" `s Msg);
 	}
+	else if (Type == 'AdminMsg') {
+		// Log broadcast
+		if (Sender != None) {
+			`LogRx("CHAT"`s "AdminMsg;" `s `PlayerLog(PRI)`s "said:" `s Msg);
+		}
+		else {
+			`LogRx("CHAT" `s "HostAdminMsg;" `s "said:" `s Msg);
+		}
+	}
+	else if (Type == 'AdminWarn') {
+		// Log broadcast
+		if (Sender != None) {
+			`LogRx("CHAT"`s "AdminWarn;" `s `PlayerLog(PRI)`s "said:" `s Msg);
+		}
+		else {
+			`LogRx("CHAT" `s "HostAdminWarn;" `s "said:" `s Msg);
+		}
+	}
 	// EDIT END.
 
 	foreach WorldInfo.AllControllers(class'PlayerController', P)
@@ -117,24 +135,62 @@ function BroadcastAdmin( Controller Sender, coerce string Msg )
 }
 
 /** */
-function BroadcastPM( PlayerController Sender, PlayerController Recipent, coerce string Msg)
+function BroadcastPM( PlayerController Sender, PlayerController Recipient, coerce string Msg, optional name Type)
 {
+	local PlayerReplicationInfo SenderPRI;
+
 	// see if allowed (limit to prevent spamming)
 	if ( Sender != None && !AllowsBroadcast(Sender, Len(Msg)) )
 		return;
 
+	// Get PRI of sender (may be None)
+	if (Sender != None) {
+		SenderPRI = Sender.PlayerReplicationInfo;
+	}
+
+	// Filter message based on server rules
 	Msg = CleanMessage(Msg);
 	Msg = ApplyChatFilter(Msg);
 
-	if (Sender != None)
-	{
-		BroadcastText(Sender.PlayerReplicationInfo, Recipent, Msg, 'PM');
-		Recipent.ClientPlaySound(PMSound);
-		// Also send back to Sender, to confirm that it went thru (given that it was an unreliable call)
-		BroadcastText(Recipent.PlayerReplicationInfo, Sender, Msg, 'PM_Loopback');
+	// Fire off log (if needed) and set Type
+	if (Type == 'PM_AdminMsg') {
+		// Admin message
+		if (SenderPRI != None) {
+			`LogRx("CHAT"`s "PAdminMsg;" `s `PlayerLog(SenderPRI) `s "to" `s `PlayerLog(Recipient.PlayerReplicationInfo) `s "said:" `s Msg);
+		}
+		else {
+			`LogRx("CHAT"`s "HostPAdminMsg;" `s `PlayerLog(Recipient.PlayerReplicationInfo) `s "message:" `s Msg);
+		}
 	}
-	else
-		BroadcastText(None, Recipent, Msg, 'PM');
+	else if (Type == 'PM_AdminWarn') {
+		// Admin message
+		if (SenderPRI != None) {
+			`LogRx("CHAT"`s "PAdminWarn;" `s `PlayerLog(SenderPRI) `s "to" `s `PlayerLog(Recipient.PlayerReplicationInfo) `s "said:" `s Msg);
+		}
+		else {
+			`LogRx("CHAT"`s "HostPAdminWarn;" `s `PlayerLog(Recipient.PlayerReplicationInfo) `s "message:" `s Msg);
+		}
+	}
+	else {
+		// PM from Host
+		if (SenderPRI == None) {
+			`LogRx("CHAT"`s "HostPMsg;" `s `PlayerLog(Recipient.PlayerReplicationInfo) `s "message:" `s Msg);
+		}
+		// else // logging player-to-player PMs seems unethical, so if you're thinking about it, don't.
+
+		Type = 'PM';
+	}
+
+	// Send to recipient
+	BroadcastText(SenderPRI, Recipient, Msg, Type);
+
+	// Play PM sound
+	Recipient.ClientPlaySound(PMSound);
+
+	// Send message back to sender to confirm that it was sent successfully (messages are considered unreliable)
+	if (Sender != None) {
+		BroadcastText(Recipient.PlayerReplicationInfo, Sender, Msg, 'PM_Loopback');
+	}
 }
 
 function string ApplyChatFilter(string Msg)

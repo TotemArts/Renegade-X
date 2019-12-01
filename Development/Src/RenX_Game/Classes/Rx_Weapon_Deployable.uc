@@ -154,15 +154,20 @@ simulated function CustomFire()
 	}
 }
 
-function OvermineBroadcast()
+function OvermineBroadcast(string OldMineLocationString)
 {
 	local Rx_Controller PC;
 	local string Message;
 
 	Message = Instigator.Controller.PlayerReplicationInfo.PlayerName $ " is over-mining " $ Rx_Controller(Instigator.Controller).GetSpottargetLocationInfo(self);
 	foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
-		if (Instigator.GetTeamNum() == PC.GetTeamNum())
+		if (Instigator.GetTeamNum() == PC.GetTeamNum() && Instigator.Controller != PC)
 			PC.ClientMessage(Message, 'EVA');
+
+	if(Rx_Controller(Instigator.Controller) != None)
+	{
+		Rx_Controller(Instigator.Controller).CTextMessage("OVERMINED - Removing mine"@OldMineLocationString, 'Red',120.0,,,true);
+	}
 
 	`LogRx("GAME" `s "OverMine;" `s `PlayerLog(Instigator.Controller.PlayerReplicationInfo) `s "near" `s Rx_Controller(Instigator.Controller).GetSpottargetLocationInfo(self));
 }
@@ -171,6 +176,7 @@ function destroyOldMinesIfMinelimitReached() {
 
 	local Rx_TeamInfo teamInfo;
 	local Rx_Weapon_DeployedC4 mine, oldestMine;
+	local string OldMineLocationString;
 
 	teamInfo = Rx_TeamInfo(Rx_Game(WorldInfo.Game).Teams[Instigator.GetTeamNum()]);
 	if(teamInfo.MineLimit <= teamInfo.mineCount)
@@ -191,8 +197,10 @@ function destroyOldMinesIfMinelimitReached() {
 				oldestMine = mine;
 			}
 		}
+		if(Rx_Controller(Instigator.Controller) != None)
+			OldMineLocationString = Rx_Controller(Instigator.Controller).GetSpottargetLocationInfo(oldestMine);
 		oldestMine.Destroy();
-		OvermineBroadcast();
+		OvermineBroadcast(OldMineLocationString);
 	}
 }
 

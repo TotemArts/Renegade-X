@@ -30,4 +30,6 @@ defaultproperties
 
 	SupportedEvents.Empty
 	SupportedEvents.Add(class'Rx_SeqEvent_TechCapture')
+
+	IconTexture = Texture2D'RenxHud.T_Tech_EMP' //just random stuff...
 }

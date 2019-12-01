@@ -50,6 +50,7 @@ function bool CheckSquadObjectives(UTBot B)
 		// hold position as ordered (position specified by DefensePoint)
 	}
 
+/*	
 	if (Vehicle(B.Pawn) != None  && B.Pawn.bStationary)
 	{
 		if ( UTHoldSpot(B.DefensePoint) != None )
@@ -61,6 +62,7 @@ function bool CheckSquadObjectives(UTBot B)
 			}
 		}
 	}
+*/
 	V = Vehicle(B.Pawn);
 
 	UTObjective = UTGameObjective(SquadObjective);
@@ -125,8 +127,9 @@ function bool CheckSquadObjectives(UTBot B)
 		}
 		if(DesiredPosition == UTObjective) 
 		{
-			DesiredLocation = Rx_BuildingObjective(UTObjective).InfiltrationPoint.location;
-		} else 
+			DesiredLocation = Rx_BuildingObjective(UTObjective).GetInfiltrationPoint().location;
+		} 
+		else 
 		{
 			DesiredLocation = DesiredPosition.location;
 		} 
@@ -144,12 +147,15 @@ function bool CheckSquadObjectives(UTBot B)
 				&& (UTVehicle(B.Pawn) == None || !UTVehicle(B.Pawn).bKeyVehicle) )
 			{
 				Dist = VSizeSq(B.location - B.Enemy.location);
-				if(!Rx_Bot(B).HasRepairGun()) {
+				if(!Rx_Bot(B).HasRepairGun()) 
+				{
 					B.FightEnemy(BotsEnemyIsCloserToObjective(B), 0); 
 					return true;	
-				} else if(Dist < 6760000 && (SquadObjective == None || Rx_BuildingObjective(SquadObjective) == None 
+				} 
+				else if(Dist < 6760000 && (SquadObjective == None || Rx_BuildingObjective(SquadObjective) == None 
 							|| !Rx_BuildingObjective(SquadObjective).NeedsHealing() 
-							|| Rx_BuildingObjective(SquadObjective).KillEnemyFirstBeforeHealing(B))) {
+							|| Rx_BuildingObjective(SquadObjective).KillEnemyFirstBeforeHealing(B))) 
+				{
 					B.FightEnemy(false, 0);
 					return true;	
 				}
@@ -237,8 +243,10 @@ function NavigationPoint FindDefensivePositionFor(UTBot B)
 		{
 			Center = Rx_BuildingObjective(SquadObjective).myBuilding.GetMCT();
 		}
-		if(Rx_BuildingObjective(SquadObjective).InfiltrationPoint != None && Rx_BuildingObjective(SquadObjective).NeedsHealing())
-			return Rx_BuildingObjective(SquadObjective).InfiltrationPoint;
+		if(Rx_BuildingObjective(SquadObjective).GetInfiltrationPoint() != None && Rx_BuildingObjective(SquadObjective).NeedsHealing())
+		{
+			return Rx_BuildingObjective(SquadObjective).GetInfiltrationPoint();
+		}
 		if(Center != None) 
 		{
 			foreach WorldInfo.RadiusNavigationPoints(class'PathNode', N, Center.Location, 2500)
@@ -271,8 +279,8 @@ function NavigationPoint FindDefensivePositionFor(UTBot B)
 
 function bool BotsEnemyIsCloserToObjective(UTBot B) 
 {
-	if(SquadObjective != None && VSizeSq(B.location - Rx_BuildingObjective(SquadObjective).InfiltrationPoint.location) 
-			> VSizeSq(B.Enemy.location - Rx_BuildingObjective(SquadObjective).InfiltrationPoint.location)) 
+	if(SquadObjective != None && VSizeSq(B.location - Rx_BuildingObjective(SquadObjective).GetInfiltrationPoint().location) 
+			> VSizeSq(B.Enemy.location - Rx_BuildingObjective(SquadObjective).GetInfiltrationPoint().location)) 
 	{
 		return true;
 	}
@@ -932,7 +940,7 @@ function bool IsOnPathToSquadObjective(Actor Goal)
 
 			if(Rx_BuildingObjective(SquadObjective) != None)
 			{
-				if(Nav == Rx_BuildingObjective(SquadObjective).InfiltrationPoint)
+				if(Nav == Rx_BuildingObjective(SquadObjective).GetInfiltrationPoint())
 					return true;
 				If(Goal == Rx_BuildingObjective(SquadObjective).myBuilding.GetMCT())
 					return true;
@@ -1059,7 +1067,7 @@ function bool FindPathToObjective(UTBot B, Actor O)
 			if(Rx_Bot(B) != None && Rx_Bot(B).bInfiltrating && Rx_Bot(B).LineOfSightTo(BO.myBuilding.GetMCT()))
 				return B.SetRouteToGoal(BO.myBuilding.GetMCT());
 
-			return B.SetRouteToGoal(BO.InfiltrationPoint);
+			return B.SetRouteToGoal(BO.GetInfiltrationPoint());
 		}
 		else
 			return B.SetRouteToGoal(O);
@@ -1143,7 +1151,7 @@ function bool LeaveVehicleToReachObjective(UTBot B, Actor O)
 		BO = Rx_BuildingObjective(O);
 
 		if(BO != None)
-			B.RouteGoal = BO.InfiltrationPoint;
+			B.RouteGoal = BO.GetInfiltrationPoint();
 		else
 			B.RouteGoal = O;
 

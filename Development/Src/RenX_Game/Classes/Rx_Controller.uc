@@ -293,6 +293,9 @@ var bool bJumpReleased;
 var bool bDodgePressed;
 var bool bUseDoubleClickDodge; //Use legacy double-tap dodge (False by default )
 
+var UTParticleSystemComponent WorldWeatherParticleSystem;
+var SkeletalMeshComponent ComponentWeatherLastAttachedTo;
+
 replication
 {
 	// Things the server should send to the client.
@@ -308,6 +311,39 @@ event ClearOnlineDelegates()
 {
 	`RxGameObject.ServiceBrowser.ClearDelegates();
 	super.ClearOnlineDelegates();
+}
+
+state PlayerFlying
+{
+	ignores SeePlayer, HearNoise, Bump;
+	
+		function PlayerMove(float DeltaTime)
+		{
+			local vector X,Y,Z;
+
+			if (Pawn.AirSpeed != 1000) Pawn.AirSpeed = 1000;
+	
+			GetAxes(Rotation,X,Y,Z);
+	
+			Pawn.Acceleration = PlayerInput.aForward*X + PlayerInput.aStrafe*Y + PlayerInput.aUp*vect(0,0,1);;
+			Pawn.Acceleration = (Pawn.AccelRate + 2500) * Normal(Pawn.Acceleration);
+	
+			if (bCheatFlying && (Pawn.Acceleration == vect(0,0,0)))
+				Pawn.Velocity = vect(0,0,0);
+			// Update rotation.
+			UpdateRotation(DeltaTime);
+	
+			if (Role < ROLE_Authority) // then save this move and replicate it
+				ReplicateMove(DeltaTime, Pawn.Acceleration, DCLICK_None, rot(0,0,0));
+			else
+				ProcessMove(DeltaTime, Pawn.Acceleration, DCLICK_None, rot(0,0,0));
+		}
+	
+		event BeginState(Name PreviousStateName)
+		{
+			Pawn.SetPhysics(PHYS_Flying);
+			Pawn.AirSpeed = 1000;
+		}
 }
 
 simulated event ReplicatedEvent(name VarName)
@@ -448,37 +484,27 @@ simulated function PostBeginPlay()
 {
 	super.PostBeginPlay();
 
-	if(Worldinfo.NetMode != NM_DedicatedServer) {
+	if(WorldInfo.NetMode != NM_DedicatedServer) 
+	{
 		SetTimer(CPCheckTime,true,'CheckTouchingCapturePoints');
-		//SetTimer(1.0,false,'CheckAuthentication');     
+
+		if (WorldWeatherParticleSystem == None && Rx_MapInfo(WorldInfo.GetMapInfo()).PrecipitationParticleSystemTemplate != None)
+		{
+			WorldWeatherParticleSystem = new(Outer) class'UTParticleSystemComponent';
+			WorldWeatherParticleSystem.SetTemplate(Rx_MapInfo(WorldInfo.GetMapInfo()).PrecipitationParticleSystemTemplate);
+			WorldWeatherParticleSystem.SetIgnoreOwnerHidden(true);
+		} 
 	}
+
 	SetTimer(15.0f,true,'resetRadioCommandCountTimer');
 
-	/**if(myORI == none)
-		{
-		SetTimer(0.01,true,'FindORI'); 
-		}
-		*/
-		//Catch initial spawns for visibility on radar
 	if(ROLE == ROLE_Authority)
 	{
-	SetTimer(0.05, false, 'CheckRadarVisibility');
-	SetTimer(0.1,true,'CheckActiveModifiers'); 
-	/**if(PlayerReplicationInfo != none) Rx_PRI(PlayerReplicationInfo).InitVP(
-				Rx_Game(WorldInfo.Game).VPMilestones[0], 
-				Rx_Game(WorldInfo.Game).VPMilestones[1], 
-				Rx_Game(WorldInfo.Game).VPMilestones[2]);*/
-
-	
-				
+		SetTimer(0.05, false, 'CheckRadarVisibility');
+		SetTimer(0.1,true,'CheckActiveModifiers'); 
 	}
 	
-	/**
-	if(InStr(string(WorldInfo.GetPackageName()), "CNC-Complex") == 0 && ((WorldInfo.NetMode == NM_Client) || (WorldInfo.NetMode == NM_Standalone)))
-		SetTimer(0.2f,true,'AdjustHdrToneMappingScale');  
-	*/
-	
-	if(Worldinfo.NetMode != NM_Standalone)
+	if(WorldInfo.NetMode != NM_Standalone)
 		Rx_PRI(PlayerReplicationInfo).ResetAFKTimer();
 	
 	UpdateDiscordPresence(0);
@@ -2283,7 +2309,7 @@ state Dead
 	{
 		super.PlayerTick(DeltaTime);
         if(LastHitLoc != vect(0,0,0) && LastHitLocBlendPct < 2.0f)
-        	LastHitLocBlendPct += 2.5f * DeltaTime;
+        	LastHitLocBlendPct += 0.8f * DeltaTime + (LastHitLocBlendPct * DeltaTime * 3.0f);
 
         if(LastHitLoc != vect(0,0,0) && LastHitLocBlendPct < 1.0f && DesiredFOV > 10.0f)	
         	DesiredFOV -= DeltaTime * (VSize(LastHitLoc - Viewtarget.location) / 100.0f);	
@@ -2316,7 +2342,7 @@ state Dead
 	  
 	        if(POVRotation != targetRot && LastHitLocBlendPct < 1.0f)
 	        {
-	            POVRotation = RLerp(POVRotation,  targetRot, LastHitLocBlendPct);
+	            POVRotation = RLerp(POVRotation,  targetRot, LastHitLocBlendPct, true);
 	        }
 	        else if(LastHitLocBlendPct < 2.0f)
 	        {
@@ -2859,11 +2885,11 @@ reliable server function PerformVehicleLockPressed()
 		if (BoundVehicle.ToggleDriverLock())
 		{
 			ReceiveLocalizedMessage(class'Rx_Message_Vehicle',VM_Driver_Locked,,,BoundVehicle.Class);	
-			CTextMessage("-Locked Vehicle-",'LightGreen');
+//			CTextMessage("-Locked Vehicle-",'LightGreen');
 		}
 		else
 		{
-			CTextMessage("-Unlocked Vehicle-",'LightGreen');
+//			CTextMessage("-Unlocked Vehicle-",'LightGreen');
 			ReceiveLocalizedMessage(class'Rx_Message_Vehicle',VM_Driver_Unlocked,,,BoundVehicle.Class);	
 		}
 			
@@ -2896,7 +2922,7 @@ function BindVehicle(Rx_Vehicle NewVehicle)
 		Saved = BoundVehicle;
 		if (BoundVehicle.UnBind(self))
 		{
-			CTextMessage("-Unbound Vehicle-",'LightGreen');
+//			CTextMessage("-Unbound Vehicle-",'LightGreen');
 			ReceiveLocalizedMessage(class'Rx_Message_Vehicle',VM_Unbound,,,Saved.Class);	
 		}
 			
@@ -2906,7 +2932,7 @@ function BindVehicle(Rx_Vehicle NewVehicle)
 		if (NewVehicle.Bind(self))
 		{
 			ReceiveLocalizedMessage(class'Rx_Message_Vehicle',VM_Bound,,,BoundVehicle.Class);	
-			CTextMessage("-Bound Vehicle-",'LightGreen');
+//			CTextMessage("-Bound Vehicle-",'LightGreen');
 		}
 			
 	}
@@ -2946,7 +2972,8 @@ exec function Spotting()
 	
 	if(isTimerActive('QHeldTimer')) ClearTimer('QHeldTimer');
 	
-	if(Com_Menu != none && Com_Menu.MenuTab != none && Com_Menu.MenuTab.bQCast) SetTimer(0.5,false,'QHeldTimer');
+	if(Com_Menu != none && Com_Menu.MenuTab != none && Com_Menu.MenuTab.bQCast) 
+		SetTimer(0.5,false,'QHeldTimer');
 	
 	if(!bCanFocusSpot) 
 	{
@@ -3005,6 +3032,17 @@ reliable server function ServerAdminRecord()
 		Rx_Game(WorldInfo.Game).AdminDemoRec(self);
 }
 
+simulated function bool SellThisDefence()
+{
+	if(IsTargetSellable())
+	{
+		Rx_PRI(PlayerReplicationInfo).AttemptToSell(Rx_Defence(Rx_HUD(myHUD).TargetingBox.TargetedActor));
+		return true;
+	}
+
+	return false;
+}
+
 exec function ReportSpotted()
 {
 	local Rx_Building Building;
@@ -3015,7 +3053,10 @@ exec function ReportSpotted()
 	local int	nr; 
 	local byte UIS; 
 	
-	if(isTimerActive('QHeldTimer')) ClearTimer('QHeldTimer');
+	if(isTimerActive('QHeldTimer')) 
+		ClearTimer('QHeldTimer');
+	
+
 	if(Com_Menu != none && Com_Menu.MenuTab != none && Com_Menu.MenuTab.bQCast && !bQHeld) 
 	{
 		Com_Menu.MenuTab.QCast(false); 
@@ -3620,13 +3661,25 @@ function BroadcastEnemySpotMessages()
 		{
 
 //			NumInfs++;
-			if(UTPlayerReplicationInfo(Rx_Pawn(SpotTarget).PlayerReplicationInfo) == None)
+			if(UTPlayerReplicationInfo(Rx_Pawn(SpotTarget).PlayerReplicationInfo) == None && Rx_ScriptedBotPRI(Rx_Pawn(SpotTarget).PlayerReplicationInfo) == None)
 				continue; 
 //			PRI = UTPlayerReplicationInfo(Rx_Pawn(SpotTarget).PlayerReplicationInfo);
 			
-			Rx_PRI(Rx_Pawn(SpotTarget).PlayerReplicationInfo).SetSpotted(10.0); 
+			if(Rx_PRI(Rx_Pawn(SpotTarget).PlayerReplicationInfo) != None)
+			{
+				Rx_PRI(Rx_Pawn(SpotTarget).PlayerReplicationInfo).SetSpotted(10.0); 
+
 				if((bCommandSpotting || bPlayerIsCommander()) && SpotTarget == FirstSpotTarget)  
 					SetPlayerCommandSpotted(Rx_PRI(Rx_Pawn(SpotTarget).PlayerReplicationInfo).PlayerID); //Rx_PRI(Rx_Pawn(SpotTarget).PlayerReplicationInfo).SetAsTarget(1);
+			}
+
+			else if(Rx_ScriptedBotPRI(Rx_Pawn(SpotTarget).PlayerReplicationInfo) != None)
+			{
+				Rx_ScriptedBotPRI(Rx_Pawn(SpotTarget).PlayerReplicationInfo).SetSpotted(10.0);
+
+				if((bCommandSpotting || bPlayerIsCommander()) && SpotTarget == FirstSpotTarget)  
+					SetPlayerCommandSpotted(Rx_ScriptedBotPRI(Rx_Pawn(SpotTarget).PlayerReplicationInfo).Scripted_ID, true); //Rx_PRI(Rx_Pawn(SpotTarget).PlayerReplicationInfo).SetAsTarget(1);
+			}
 /*			
 			if(PRI.CharClassInfo == class'Rx_FamilyInfo_GDI_Soldier') {
 				SpottedInfs[0]++;
@@ -3700,7 +3753,10 @@ function BroadcastEnemySpotMessages()
 				CurrentSpot.SpottedName = Rx_Pawn(SpotTarget).GetCharacterClassName();
 				CurrentSpot.Amount = 1;
 				CurrentSpot.Team = SpotTarget.GetTeamNum();
-				CurrentSpot.bSpy = Rx_PRI(Rx_Pawn(SpotTarget).PlayerReplicationInfo).IsSpy();
+				if(Rx_PRI(Rx_Pawn(SpotTarget).PlayerReplicationInfo) != None)
+					CurrentSpot.bSpy = Rx_PRI(Rx_Pawn(SpotTarget).PlayerReplicationInfo).IsSpy();
+				else
+					CurrentSpot.bSpy = false;
 				if(CurrentSpot.bSpy)
 				{
 					CurrentSpot.SpottedName = "SPY" @ CurrentSpot.SpottedName;
@@ -3712,7 +3768,7 @@ function BroadcastEnemySpotMessages()
 			{
 				for(i=0; i < SpottedList.Length; i++)
 				{
-					if(IsSpotNameMatching(SpotTarget,SpottedList[i].SpottedName,Rx_PRI(Rx_Pawn(SpotTarget).PlayerReplicationInfo).IsSpy()) && SpottedList[i].Team == SpotTarget.GetTeamNum())
+					if(IsSpotNameMatching(SpotTarget,SpottedList[i].SpottedName,(Rx_PRI(Rx_Pawn(SpotTarget).PlayerReplicationInfo) != None && Rx_PRI(Rx_Pawn(SpotTarget).PlayerReplicationInfo).IsSpy()) ) && SpottedList[i].Team == SpotTarget.GetTeamNum())
 					{
 						bItemFound = true;
 						SpottedList[i].Amount += 1;
@@ -3738,9 +3794,12 @@ function BroadcastEnemySpotMessages()
 			
 		if (Rx_Pawn(SpotTarget) != none)
 		{
-			SetPlayerSpotted(Rx_Pawn(SpotTarget).PlayerReplicationInfo.PlayerID);
+			if(Rx_ScriptedBotPRI(Rx_Pawn(SpotTarget).PlayerReplicationInfo) != None)
+				SetPlayerSpotted(Rx_ScriptedBotPRI(Rx_Pawn(SpotTarget).PlayerReplicationInfo).Scripted_ID, true);
+			else
+				SetPlayerSpotted(Rx_Pawn(SpotTarget).PlayerReplicationInfo.PlayerID);
 		}
-		else if (Rx_Vehicle(SpotTarget) != none && (Rx_PRI(Rx_Vehicle(SpotTarget).PlayerReplicationInfo) != none || Rx_DefencePRI(Rx_Vehicle(SpotTarget).PlayerReplicationInfo) != none))
+		else if (Rx_Vehicle(SpotTarget) != none && (Rx_PRI(Rx_Vehicle(SpotTarget).PlayerReplicationInfo) != none || Rx_DefencePRI(Rx_Vehicle(SpotTarget).PlayerReplicationInfo) != none || Rx_ScriptedBotPRI(Rx_Vehicle(SpotTarget).PlayerReplicationInfo) != none))
 		{
 			if(Rx_PRI(Rx_Vehicle(SpotTarget).PlayerReplicationInfo) != none)
 			{
@@ -3758,6 +3817,15 @@ function BroadcastEnemySpotMessages()
 				if((bCommandSpotting || bPlayerIsCommander()) && SpotTarget == FirstSpotTarget) 
 					SetPlayerCommandSpotted(Rx_DefencePRI(Rx_Vehicle(SpotTarget).PlayerReplicationInfo).PlayerID);
 			}
+			else
+			if(Rx_ScriptedBotPRI(Rx_Vehicle(SpotTarget).PlayerReplicationInfo) != none)
+			{
+				//`log("Set Defense Spotted");
+				SetPlayerSpotted(Rx_ScriptedBotPRI(Rx_Vehicle(SpotTarget).PlayerReplicationInfo).Scripted_ID, true);
+				
+				if((bCommandSpotting || bPlayerIsCommander()) && SpotTarget == FirstSpotTarget) 
+					SetPlayerCommandSpotted(Rx_ScriptedBotPRI(Rx_Vehicle(SpotTarget).PlayerReplicationInfo).Scripted_ID, true);
+			}			
 			/**foreach WorldInfo.AllPawns(class'Pawn', P)
 			{
 				if(P.DrivenVehicle == Rx_Vehicle(SpotTarget))
@@ -4259,6 +4327,7 @@ exec function OpenTauntMenu()
 	
 	if(!bCanTaunt) 
 	{
+		myHUD.Message(PlayerReplicationInfo,"Next Taunt available in"@FCeil(GetRemainingTimeForTimer('ResetCanTaunt')),'EVA');
 		ClientPlaySound(WeaponSwitchSoundCue); 
 		return; 	
 	}
@@ -4479,8 +4548,11 @@ simulated function SetBehindView(bool bNewBehindView) //Originally not simulated
 
 function EnableRunningAnimsTimer()
 {
-	Rx_Weapon(Pawn.weapon).PlayWeaponAnimation(Rx_Pawn(pawn).WeaponSprintAnim, 0.0,true);
-	Rx_Weapon(Pawn.weapon).PlayArmAnimation(Rx_Pawn(pawn).WeaponSprintAnim, 0.0,,true);		
+	if(Pawn.Weapon != None)
+	{
+		Rx_Weapon(Pawn.weapon).PlayWeaponAnimation(Rx_Pawn(pawn).WeaponSprintAnim, 0.0,true);
+		Rx_Weapon(Pawn.weapon).PlayArmAnimation(Rx_Pawn(pawn).WeaponSprintAnim, 0.0,,true);		
+	}
 }
 
 reliable server function ServerSetBehindView(bool bNewBehindView)
@@ -4508,7 +4580,7 @@ simulated function UTWeapon GetNextWeapon(UTWeapon CurWeapon)
 simulated function UTWeapon GetWeapon(int Direction)
 {
 	local Rx_InventoryManager invManager;
-	local UTWeapon	CurrentWeapon;
+	local UTWeapon	CurrentWeapon, UTWeap;
 	local array<UTWeapon> WeaponList;
 	local int i, Index;	
 	
@@ -4525,6 +4597,12 @@ simulated function UTWeapon GetWeapon(int Direction)
    	if (WeaponList.length == 0)   	
    		return None;
 
+   	foreach WeaponList(UTWeap)
+   	{
+   		if(Rx_WeaponAbility(UTWeap) != None)
+   			WeaponList.RemoveItem(UTWeap);
+   	}
+
 	
 	for (i = 0; i < WeaponList.Length; i++)
 	{
@@ -4534,13 +4612,16 @@ simulated function UTWeapon GetWeapon(int Direction)
 			break;
 		}
 	}
-	Index += Direction*-1;
+	Index -= Direction;
 
 	if (Index < 0)	
-		Index = WeaponList.Length - 1;	
+		Index = WeaponList.Length + Index;	
 
-	else if (Index >= WeaponList.Length || Rx_WeaponAbility(CurrentWeapon) != none)
-		Index = 0;	
+	else
+	{
+		While(Index >= WeaponList.Length)
+			Index -= WeaponList.Length;	
+	}
 	
 	if (Index >= 0)
 		return WeaponList[Index];
@@ -4591,10 +4672,10 @@ reliable server function ServerPerformRefill(Rx_BuildingAttachment_PT PT)
 		Rx_Game(WorldInfo.Game).GetPurchaseSystem().PerformRefill(self);
 }
 
-function SetPlayerSpotted( int playerID )
+function SetPlayerSpotted( int playerID , optional bool bIsScriptedBot)
 {
 	//loginternal("client spotted"$playerID);
-	ServerSetPlayerSpotted(playerID);	
+	ServerSetPlayerSpotted(playerID, bIsScriptedBot);	
 }
 
 function SetPlayerFocused(int PlayerID)
@@ -4631,7 +4712,7 @@ reliable server function ServerSetPlayerFocused( int playerID )
 	}
 }
 
-reliable server function ServerSetPlayerSpotted( int playerID )
+reliable server function ServerSetPlayerSpotted( int playerID , optional bool bIsScriptedBot)
 {
 	local int i;
 
@@ -4647,7 +4728,7 @@ reliable server function ServerSetPlayerSpotted( int playerID )
 			}
 		}
 		else
-		if(Rx_DefencePri(WorldInfo.GRI.PRIArray[i]) != None)
+		if(!bIsScriptedBot && Rx_DefencePri(WorldInfo.GRI.PRIArray[i]) != None)
 		{
 			if (Rx_DefencePri(WorldInfo.GRI.PRIArray[i]).Defence_ID == playerID)
 			{
@@ -4656,16 +4737,25 @@ reliable server function ServerSetPlayerSpotted( int playerID )
 			}
 		}
 		else
+		if(Rx_ScriptedBotPri(WorldInfo.GRI.PRIArray[i]) != None)
+		{
+			if (Rx_ScriptedBotPri(WorldInfo.GRI.PRIArray[i]).Scripted_ID == playerID)
+			{
+				Rx_ScriptedBotPri(WorldInfo.GRI.PRIArray[i]).SetSpotted(10.0);
+				return;
+			}
+		}
+		else
 		continue;
 	}
 }
 
-function SetPlayerCommandSpotted( int playerID )
+function SetPlayerCommandSpotted( int playerID , optional bool bIsScriptedBot)
 {
-	ServerSetPlayerCommandSpotted(playerID);	
+	ServerSetPlayerCommandSpotted(playerID, bIsScriptedBot);	
 }
 
-reliable server function ServerSetPlayerCommandSpotted(int playerID) //Use Defence_ID for RX_Defences, since they don't have player IDs
+reliable server function ServerSetPlayerCommandSpotted(int playerID , optional bool bIsScriptedBot) //Use Defence_ID for RX_Defences, since they don't have player IDs
 {
 		local int i;
 
@@ -4682,11 +4772,20 @@ reliable server function ServerSetPlayerCommandSpotted(int playerID) //Use Defen
 			}
 		}
 		else
-		if(Rx_DefencePri(WorldInfo.GRI.PRIArray[i]) != None)
+		if(!bIsScriptedBot && Rx_DefencePri(WorldInfo.GRI.PRIArray[i]) != None)
 		{
 			if (Rx_DefencePri(WorldInfo.GRI.PRIArray[i]).Defence_ID == playerID)
 			{
 				Rx_DefencePri(WorldInfo.GRI.PRIArray[i]).SetAsTarget(1);
+				return;
+			}
+		}
+		else
+		if(Rx_ScriptedBotPri(WorldInfo.GRI.PRIArray[i]) != None)
+		{
+			if (Rx_ScriptedBotPri(WorldInfo.GRI.PRIArray[i]).Scripted_ID == playerID)
+			{
+				Rx_ScriptedBotPri(WorldInfo.GRI.PRIArray[i]).SetAsTarget(1);
 				return;
 			}
 		}
@@ -4799,7 +4898,7 @@ unreliable client function ClientPlayTakeHit(vector HitLoc, byte Damage, class<D
 	DamageShake(Damage, DamageType);
 	
 	HitLoc += Pawn.Location;
-	if(class<Rx_DmgType_Explosive>(damageType) == None)
+	if(class<Rx_DmgType_Explosive>(damageType) == None && VSize(Pawn.location - HitLoc) > 500)
 	    LastHitLoc = HitLoc;
 	else
     	LastHitLoc = vect(0,0,0);
@@ -4991,8 +5090,14 @@ exec function Use()
 		DisableVoteMenu(); 
 		return; 
 	}
-		
-		
+	
+	if(IsTargetSellable())
+	{	
+		if(!IsTimerActive('SellDefTimer'))
+			SetTimer(0.5,false,'SellDefTimer');
+	}
+	else if(IsTimerActive('SellDefTimer'))
+		ClearTimer('SellDefTimer');
 	
 	if (AttemptOpenPT())
 		return;
@@ -5003,6 +5108,25 @@ exec function Use()
 		super.Use();
 	}
 		
+}
+
+function bool IsTargetSellable()
+{
+	return (Rx_Defence(Rx_HUD(myHUD).TargetingBox.TargetedActor) != None 
+		&& VSizeSq(Pawn.Location - Rx_HUD(myHUD).TargetingBox.TargetedActor.Location) <= 16000000
+		&& Rx_Defence(Rx_HUD(myHUD).TargetingBox.TargetedActor).Deployer != None 
+		&& Rx_Defence(Rx_HUD(myHUD).TargetingBox.TargetedActor).Deployer == PlayerReplicationInfo);	
+}
+
+function SellDefTimer()
+{
+	SellThisDefence();
+}
+
+exec function UnUse()
+{
+	if(IsTimerActive('SellDefTimer'))
+		ClearTimer('SellDefTimer');
 }
 
 function PTUnblockTimer()
@@ -5772,7 +5896,7 @@ function ResetbJustExitedVehicle() {
 	//Rx_Hud(myHUD).HUDMovie.UpdateHUDVars();
 }
 
-event PlayerTick( float DeltaTime )
+event PlayerTick(float DeltaTime)
 {
 	super.PlayerTick(DeltaTime);
 
@@ -5797,8 +5921,34 @@ event PlayerTick( float DeltaTime )
 	if(Rx_PRI(PlayerReplicationInfo).LastAirdropTime != 0 && (TempInt <= 0 && TempInt > -5))
 		bDisplayingAirdropReadyMsg = true;
 	else
-		bDisplayingAirdropReadyMsg = false;	
-	
+		bDisplayingAirdropReadyMsg = false;
+
+	if (WorldInfo.NetMode != NM_DedicatedServer && WorldWeatherParticleSystem != None && Pawn != None)
+	{
+		if (Rx_Pawn(Pawn) != None && !bBehindView)
+		{
+			UDKPawn(Pawn).ArmsMesh[0].AttachComponent(WorldWeatherParticleSystem, 'b_Root');
+			ComponentWeatherLastAttachedTo = UDKPawn(Pawn).ArmsMesh[0];
+		}
+
+		else if (UDKWeaponPawn(Pawn) != None)
+		{
+			UDKWeaponPawn(Pawn).MyVehicle.Mesh.AttachComponentToSocket(WorldWeatherParticleSystem, UDKWeaponPawn(Pawn).MyVehicle.Mesh.SkeletalMesh.Sockets[0].SocketName);
+			ComponentWeatherLastAttachedTo = UDKWeaponPawn(Pawn).MyVehicle.Mesh;
+		}
+
+		else if (UDKVehicleBase(Pawn) != None)
+		{
+			UDKVehicleBase(Pawn).Mesh.AttachComponentToSocket(WorldWeatherParticleSystem, UDKVehicleBase(Pawn).Mesh.SkeletalMesh.Sockets[0].SocketName);
+			ComponentWeatherLastAttachedTo = UDKVehicleBase(Pawn).Mesh;
+		}
+
+		else if (Pawn != None)
+		{
+			Pawn.Mesh.AttachComponent(WorldWeatherParticleSystem, 'b_Root');
+			ComponentWeatherLastAttachedTo = Pawn.Mesh;
+		}
+	}
 }
 
 function vector GetHUDAim()
@@ -6215,7 +6365,7 @@ exec function ForceGarbagecollectionFullPurge()
 
 reliable client function PlayStartupMessage(byte StartupStage)
 {
-	if(Rx_HUD(myHUD) == None)
+	if(Rx_HUD(myHUD) == None || Rx_HUD(myHUD).HudMovie == None)
 		return;
 		
 	Rx_HUD(myHUD).HudMovie.GameplayTipsText.SetVisible(true);
@@ -6223,6 +6373,7 @@ reliable client function PlayStartupMessage(byte StartupStage)
 
 	//setting the correct hud size. (nBab)
 	Rx_HUD(myHUD).HudMovie.ResizedScreenCheck();
+	Rx_HUD(myHUD).GIHudMovie.ResizedScreenCheck();
 	
 	if(!bMatchcountdownStarted && StartupStage == 0)
 	{
@@ -6716,15 +6867,17 @@ unreliable client function ClientSendFeelGoodMessage(coerce string VPString, opt
 		
 		WorkingLength=int(StringPiece);  //Repurposed variable
 	
-		if(WorkingLength < 0) FeatStr = "<font color='#ff0000'>"$ FeatStr @ WorkingLength $ MessageSuffix $ "</font>" ; // '-' is already provided just by it being negative. 
+		if(WorkingLength < 0) 
+			FeatStr = "<font color='#ff0000'>"$ FeatStr @ WorkingLength $ MessageSuffix $ "</font>" ; // '-' is already provided just by it being negative. 
 		else
-		FeatStr = FeatStr @ "+" $ WorkingLength $ MessageSuffix;
+			FeatStr = FeatStr @ "+" $ WorkingLength $ MessageSuffix;
 
 		CurStr=Right(CurStr, (Len(CurStr)-(Len(StringPiece)+1) )); //Delete the piece we were working with
 		
-		if(MessageSuffix == "CP") FeatStr = "<font color='#00FF7F'>" $ FeatStr $ "</font>" ; 
+		if(MessageSuffix == "CP") 
+			FeatStr = "<font color='#00FF7F'>" $ FeatStr $ "</font>" ; 
 		
-		Rx_HUD(myHud).HudMovie.Subtitle_Messages.AddItem(FeatStr); 
+		Rx_HUD(myHud).HudMovie.AddVPMessage(FeatStr);
 	}
 	
 	
@@ -7059,12 +7212,12 @@ function QHeldTimer()
 	if(Com_Menu != none && Com_Menu.MenuTab != none && Com_Menu.MenuTab.bQCast) 
 	{
 		
-	if(!bPlayerIsCommander())
-	{
-		CTextMessage("You are NOT a commander",'Red'); 
-		DestroyOldComMenu(); 
-		return; 
-	}
+		if(!bPlayerIsCommander())
+		{
+			CTextMessage("You are NOT a commander",'Red'); 
+			DestroyOldComMenu(); 
+			return; 
+		}
 		
 		Com_Menu.MenuTab.QCast(true);
 		bQHeld=true; 
@@ -8082,6 +8235,57 @@ function SetTeamHarvesterStopped()
 	}
 }
 
+exec function AdminSay( string Msg )
+{
+	if (PlayerReplicationInfo.bAdmin)
+		ServerAdminSay(Msg);
+}
+
+reliable server function ServerAdminSay(string Msg) {
+	if (PlayerReplicationInfo.bAdmin) {
+		WorldInfo.Game.Broadcast(self, Msg, 'AdminMsg');
+	}
+}
+
+// Overridden to decouple admin messages from Say
+unreliable server function ServerSay( string Msg )
+{
+	Msg = Left(Msg, 128);
+
+	if(AllowTextMessage(Msg) && !bServerMutedText) {
+		WorldInfo.Game.Broadcast(self, Msg, 'Say');
+	}
+}
+
+exec function AdminWarnPlayer(String Recipient, String Message)
+{
+	ServerWarnPlayer(Recipient, Message);
+}
+
+reliable server function ServerWarnPlayer(string Recipient, string Message) {
+	local PlayerReplicationInfo PRI;
+	local string error;
+
+	if (!PlayerReplicationInfo.bAdmin) {
+		return;
+	}
+
+	// Find Recipient
+	PRI = ParsePlayer(Recipient, error);
+	if (PRI == None) {
+		ClientMessage(error);
+		return;
+	}
+
+	if (PRI.bBot) {
+		ClientMessage("Error: Can't PM bots.");
+		return;
+	}
+
+	// Send warning to recipient
+	Rx_BroadcastHandler(WorldInfo.Game.BroadcastHandler).BroadcastPM(self, Rx_Controller(PRI.Owner), Message, 'PM_AdminWarn');
+}
+
 /** Properties */
 
 /**
@@ -8108,6 +8312,8 @@ exec function SetPawnActorCollision(bool bCollide, bool bBlock, bool bAlwaysChec
 		RxP.Mesh.SetActorCollision(bCollide, bBlock, bAlwaysCheck);
 	}
 }
+
+
 
 DefaultProperties
 {

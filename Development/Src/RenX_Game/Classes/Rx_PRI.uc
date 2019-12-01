@@ -42,9 +42,13 @@ var int MyVehicleLimitInQueue;
 
 // AT Mine stuff ain't got anything to do with replication, it's all handled server-side only. It's in here because can't edit Controller, and don't want to write the same code twice for Rx_Controller and Rx_Bot.
 var array<Rx_Weapon_DeployedATMine> ATMines;
+var int ATMineNumber;
 var int ATMineLimit;
 var array<Rx_Weapon_DeployedRemoteC4> RemoteC4;
+var int RemoteC4Number;
 var int RemoteC4Limit;
+var array<Rx_Defence> DeployedDefenses;
+var int DeployedDefenseLimit, DeployedDefenseNumber;
 var int LastAirdropTime;
 var repnotify int AirdropCounter;
 var bool bCanMine; //Determines if a player can place proximity mines or not. 
@@ -115,7 +119,7 @@ replication
 		PawnLocation, PawnRotation, PawnRadarVis, PawnVelocity; 
 	
 	if(bNetDirty && bNetOwner)
-		AirdropCounter, bCanMine;
+		AirdropCounter, bCanMine, DeployedDefenseNumber, RemoteC4Number, ATMineNumber;
 
 	if(bNetDirty && !bNetOwner)
 		Unit_TargetStatus, Unit_TargetNumber, bSpotted, bFocused;
@@ -249,12 +253,12 @@ function SetChar(class<Rx_FamilyInfo> newFamily, Pawn pawn, optional bool isFree
 	{
 		return;
 	}
-	if(Rx_Bot(Owner) != None)
-	{
-		Rx_Pawn(pawn).NotifyTeamChanged();
+//	if(Rx_Bot(Owner) != None)
+//	{
+//		Rx_Pawn(pawn).NotifyTeamChanged();
 //		Rx_Pawn(pawn).ChangeCharacterClass();
-	}
-	else if((WorldInfo.NetMode == NM_ListenServer && RemoteRole == ROLE_SimulatedProxy) || WorldInfo.NetMode == NM_Standalone )
+//	}
+	if(((WorldInfo.NetMode == NM_ListenServer && RemoteRole == ROLE_SimulatedProxy) || WorldInfo.NetMode == NM_Standalone ) && !bBot)
 	{
 		UpdateCharClassInfo();
 	} 
@@ -644,6 +648,7 @@ function Reset()
 function RemoveATMine(Rx_Weapon_DeployedATMine mine)
 {
 	ATMines.RemoveItem(mine);
+	ATMineNumber = ATMines.Length;
 }
 
 function AddATMine(Rx_Weapon_DeployedATMine mine)
@@ -663,6 +668,7 @@ function AddATMine(Rx_Weapon_DeployedATMine mine)
 	if (oldest != None)
 		oldest.Destroy();
 	ATMines.AddItem(mine);
+	ATMineNumber = ATMines.Length;
 }
 
 function DestroyATMines()
@@ -678,6 +684,8 @@ function DestroyATMines()
 function RemoveRemoteC4(Rx_Weapon_DeployedRemoteC4 mine)
 {
 	RemoteC4.RemoveItem(mine);
+	RemoteC4Number = RemoteC4.Length;
+
 }
 
 function AddRemoteC4(Rx_Weapon_DeployedRemoteC4 mine)
@@ -697,6 +705,8 @@ function AddRemoteC4(Rx_Weapon_DeployedRemoteC4 mine)
 	if (oldest != None)
 		oldest.Destroy();
 	RemoteC4.AddItem(mine);
+
+	RemoteC4Number = RemoteC4.Length;
 }
 
 function DestroyRemoteC4()
@@ -1181,6 +1191,7 @@ function RemoveCommander(byte ToTeam)
 	if(bIsCommander) bIsCommander = false; 
 	Unit_Commander = none;
 	//Rx_Controller(Owner).CTextMessage("No Team Commander Set",'LightBlue',120); 	
+
 }
 
 reliable server function SetAsTarget(byte TType) //Type of target to be set as. Simplified from commander mod
@@ -1374,6 +1385,15 @@ function ServerUndeclareAFK()
 	}
 }
 
+reliable server function AttemptToSell(Rx_Defence D)
+{
+	if(!D.SellMe(Self))
+		return;
+
+	DeployedDefenseNumber -= 1;
+	DeployedDefenses.RemoveItem(D);		
+}
+
 DefaultProperties
 {
 	
@@ -1384,6 +1404,7 @@ DefaultProperties
 	OldRenScore=0
 	ATMineLimit=2
 	RemoteC4Limit=4
+	DeployedDefenseLimit=4
 	bCanMine=true
 	LastAirdropTime=0
 	Veterancy_Points=0

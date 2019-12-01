@@ -413,6 +413,9 @@ simulated function Destroyed()
 {
 	super.Destroyed();
 
+	if(WorldInfo.Game != None && bOnPedestal && WorldInfo.TimeDilation <= 0.5)
+		WorldInfo.Game.SetGameSpeed(1.0);
+
 	if ( BlinkingLightComponent != none )
 	{
 		 BlinkingLightComponent.DeactivateSystem();

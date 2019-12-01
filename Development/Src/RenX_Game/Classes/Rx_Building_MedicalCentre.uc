@@ -46,4 +46,6 @@ defaultproperties
     End Object
 	StaticMeshPieces.Add(SiloScreens)
 	Components.Add(SiloScreens)
+
+	IconTexture = Texture2D'RenxHud.T_Tech_MC'
 }

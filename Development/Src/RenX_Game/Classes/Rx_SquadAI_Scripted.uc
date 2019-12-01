@@ -1,6 +1,7 @@
 class Rx_SquadAI_Scripted extends Rx_SquadAI_Waypoints;
 
 var string SquadID;
+var Rx_SquadAI NextScriptedSquad;
 
 function bool AssignSquadResponsibility(UTBot B)
 {
@@ -18,14 +19,21 @@ function ChooseTactics()
 function bool CheckSquadObjectives(UTBot B)
 {
 	local Rx_ScriptedObj ScriptedObj;
-	local Rx_Bot_Scripted ScriptB;
+	local Rx_Bot_Scripted_Customizeable ScriptB;
 
-	ScriptB = Rx_Bot_Scripted(B);
+	ScriptB = Rx_Bot_Scripted_Customizeable(B);
 
-	ScriptedObj = Rx_ScriptedObj(SquadObjective);
-	if(ScriptedObj != None)
+	if(ScriptB != None)
 	{
-		return ScriptedObj.DoTaskFor(ScriptB);
+		ScriptedObj = Rx_ScriptedObj(SquadObjective);
+		if(ScriptedObj != None)
+		{
+			return ScriptedObj.DoTaskFor(ScriptB);
+		}
+	}
+	if(UTGameObjective(SquadObjective) != None)
+	{
+		return UTGameObjective(SquadObjective).TellBotHowToDisable(B);
 	}
 
 	return false;

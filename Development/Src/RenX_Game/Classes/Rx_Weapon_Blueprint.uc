@@ -28,6 +28,7 @@ var() float MinNormalZ, MaxNormalZ;
 var() SkeletalMesh VisualMesh;
 var() ParticleSystem DeploymentEffect;
 
+
 simulated state Active
 {
 	simulated function BeginState(name PrevStateName)
@@ -106,11 +107,12 @@ simulated state Active
 
 				if(FireModeNum == 0)
 				{
-					if (!bValidPlacement)
+					if (!PlacementAllowed()) 
+					{
 						return; // if Can't place building here, do nothing
-
+					}			
+					DeployBlueprint(BuildLoc + BuildOffset,BuildRot);
 					SpawnDeploymentEffect(BuildLoc + BuildOffset, BuildRot);
-					DeployBlueprint(BuildLoc + BuildOffset, BuildRot);
 				}
 
 				else if(FireModeNum == 1)
@@ -233,14 +235,21 @@ simulated function AdjustRotation(float X, float Y)
 	ExtraRotation = r;
 }
 
-reliable server function  DeployBlueprint(vector DeployLoc, rotator DeployRot)
+
+reliable server function DeployBlueprint(vector DeployLoc, rotator DeployRot)
 {	
 	if(ActiveModel != None)
 	{
 		ActiveModel.Destroy();
 		ActiveModel = None;
 	}	
+
 	Rx_InventoryManager(Instigator.InvManager).RemoveWeaponOfClass(self.Class);	
+}
+
+simulated function bool PlacementAllowed()
+{
+	return bValidPlacement;
 }
 
 simulated function SpawnDeploymentEffect(vector DeployLoc, rotator DeployRot)

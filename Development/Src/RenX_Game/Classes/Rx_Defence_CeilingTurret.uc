@@ -5,7 +5,6 @@ class Rx_Defence_CeilingTurret extends Rx_Defence
 var() AudioComponent FiringAmbient;
 var() AudioComponent FiringStopSound;
 var UTPawn P;
-var() int TurretTeam;
 
 function Initialize() 
 {
@@ -185,5 +184,5 @@ DefaultProperties
     Components.Add(FiringStopSoundComponent)
     
     //    FiringStopSound=SoundCue'RX_VH_APC_GDI.Sounds.SC_APC_Fire_Stop'
-
+    SellBack = 100
 }

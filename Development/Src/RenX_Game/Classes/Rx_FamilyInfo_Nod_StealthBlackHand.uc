@@ -12,7 +12,8 @@ DefaultProperties
 	MaxArmor               	= 150
 	Armor_Type 				= A_Lazarus
 	SpeedMultiplier			= 1.1 // +10%, +7.5%, +5%
-	
+	Role 					= 	ROLE_Offense
+
 
 	CharacterMesh=SkeletalMesh'RX_CH_Nod_SBH.Mesh.SK_CH_StealthBlackHand'
 	PawnVoiceClass=class'Rx_Pawn_VoiceClass_Nod_SBH'

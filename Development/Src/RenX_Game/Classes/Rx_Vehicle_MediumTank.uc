@@ -18,11 +18,6 @@ class Rx_Vehicle_MediumTank extends Rx_Vehicle_Treaded
 var SkeletalMeshComponent AntennaMeshL;
 var SkeletalMeshComponent AntennaMeshR;
 
-var SkeletalMeshComponent DevFlag;
-var AudioComponent FlagAmbient;
-var repnotify Texture2D DevFlagTexture;
-var MaterialInstanceConstant FlagMIC;
-
 /** Firing sounds */
 var() AudioComponent FiringAmbient;
 var() SoundCue FiringStopSound;
@@ -33,26 +28,18 @@ var UTSkelControl_CantileverBeam AntennaBeamControl;
 
 replication
 {
-    if (bNetDirty)
-        DevFlagTexture;
-	
-	if(bNetDirty && !bNetOwner)
+    if (bNetDirty && !bNetOwner)
 		bPlayingAmbientFireSound;
 }
 
 simulated event ReplicatedEvent(Name VarName)
 {
-    if (VarName == 'DevFlagTexture')
-    {
-        UpdateDevFlag(DevFlagTexture);
-    } 
-	else if (VarName == 'bPlayingAmbientFireSound')
+    if (VarName == 'bPlayingAmbientFireSound')
 	{
 		if(bPlayingAmbientFireSound)
 			FiringAmbient.Play();
 		else
 		{
-			PlaySound(FiringStopSound, TRUE, FALSE, FALSE, Location, FALSE);
 			FiringAmbient.Stop();
 		}
 	}
@@ -60,66 +47,11 @@ simulated event ReplicatedEvent(Name VarName)
 		super.ReplicatedEvent(VarName);
 }
 
-
-
-function bool DriverEnter(Pawn P)
-{
-    local string SteamID;
-    local OnlineSubsystem OnlineSub;
-
-    OnlineSub = Class'GameEngine'.static.GetOnlineSubsystem();
-    SteamID = OnlineSub.UniqueNetIdToString(P.Controller.PlayerReplicationInfo.UniqueId);
-
-    DevFlagTexture = class'Rx_DevManager'.static.GetFlagTexture(SteamID, Rx_Controller(P.Controller).bIsDev);
-
-    if (DevFlagTexture != None && Rx_Controller(P.Controller).UseDevFlag())
-    {
-        UpdateDevFlag(DevFlagTexture);
-    }
-    else
-    {
-        UpdateDevFlag(None);
-    }
-
-    return super.DriverEnter(P);
-}
-
-simulated function UpdateDevFlag(Texture2D NewFlagTexture)
-{
-    if (NewFlagTexture == None)
-    {
-        DevFlag.SetHidden(true);
-        DevFlag.SetEnableClothSimulation(false);
-
-        FlagAmbient.Stop();
-    }
-
-    else
-    {
-        DevFlag.SetHidden(false);
-        DevFlag.SetEnableClothSimulation(true);
-
-        if (FlagMIC == None) FlagMIC = DevFlag.CreateAndSetMaterialInstanceConstant(0);
-        FlagMIC.SetTextureParameterValue('FlagTexture', NewFlagTexture);
-
-        FlagAmbient.Play();
-    }
-}
-
-event bool DriverLeave(bool bForceLeave)
-{   
-    DevFlagTexture = None;
-
-    return super.DriverLeave(bForceLeave);
-}
-
 /** This bit here will attach all of the seperate antennas and towing rings that jiggle about when the vehicle moves **/
 simulated function PostBeginPlay()
 {
 	Super.PostBeginPlay();
 
-    Mesh.AttachComponentToSocket(DevFlag, 'AntennaSocket_R');
-    FlagAmbient = CreateAudioComponent(SoundCue'RX_Deco_Flag.banner.Sound.SC_Flag', false, true, true);
     Mesh.AttachComponentToSocket(FlagAmbient, 'AntennaSocket_R');
 
 	Mesh.AttachComponentToSocket(AntennaMeshL,'AntennaSocket_L');
@@ -383,18 +315,6 @@ DefaultProperties
 	End Object
 	AntennaMeshR=SAntennaMeshR
 
-    Begin Object Class=SkeletalMeshComponent Name=SDevFlag
-        SkeletalMesh=SkeletalMesh'RX_Deco_Flag.banner.Mesh.SK_Flag_WarBanner'
-        bEnableClothSimulation=false
-        bClothAwakeOnStartup=false
-        bClothWindRelativeToOwner=true
-        ClothWind=(X=10,Y=-50,Z=-10)
-        Rotation=(Yaw=49152)
-        LightEnvironment = MyLightEnvironment
-        HiddenGame=true
-    End Object
-    DevFlag=SDevFlag
-
 	VehicleIconTexture=Texture2D'RX_VH_MediumTank.UI.T_VehicleIcon_MediumTank'
 	MinimapIconTexture=Texture2D'RX_VH_MediumTank.UI.T_MinimapIcon_MediumTank'
 
@@ -503,7 +423,7 @@ DefaultProperties
     FiringAmbient=FiringmbientSoundComponent
     Components.Add(FiringmbientSoundComponent)
     
-    FiringStopSound=SoundCue'RX_VH_MediumTank.Sounds.SC_MediumTank_MG_Stop'
+    FiringStopSound=SoundCue'RX_VH_Humvee.Sounds.SC_Humvee_Fire_Stop' //SoundCue'RX_VH_MediumTank.Sounds.SC_MediumTank_MG_Stop'
 
 
 //========================================================\\

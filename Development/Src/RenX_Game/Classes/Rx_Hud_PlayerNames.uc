@@ -64,7 +64,8 @@ function DrawVehicleSeats()
 {
 	local Rx_Vehicle OtherVehicle;
 	local Rx_PRI OtherPRI;
-	local Rx_DefencePRI OtherDPRI;   
+	local Rx_DefencePRI OtherDPRI;  
+	local Rx_ScriptedBotPRI OtherSPRI; 
 	local Pawn OurPawn;
 	local string ScreenName;
 	local float NameAlpha;
@@ -96,6 +97,7 @@ function DrawVehicleSeats()
 		//Reset these per iteration
 		OtherPRI = none; 
 		OtherDPRI = none; 
+		OtherSPRI = none;
 		
 		//Added this so there aren't 40 different casts looking ugly as hell throughout this function 
 		if(Rx_PRI(OtherVehicle.PlayerReplicationInfo) != none ) 
@@ -103,6 +105,11 @@ function DrawVehicleSeats()
 		else
 		if(Rx_DefencePRI(OtherVehicle.PlayerReplicationInfo) != none ) 
 			OtherDPRI = Rx_DefencePRI(OtherVehicle.PlayerReplicationInfo);
+
+		else
+		if(Rx_ScriptedBotPRI(OtherVehicle.PlayerReplicationInfo) != none ) 
+			OtherSPRI = Rx_ScriptedBotPRI(OtherVehicle.PlayerReplicationInfo);
+
 		
 		if ((Rx_Defence(OtherVehicle) != none && Rx_Defence(OtherVehicle).bAIControl) ||  Rx_Vehicle_Harvester(OtherVehicle) != none) // A defense that is controlled by AI. Or a harvester
 		{
@@ -119,6 +126,14 @@ function DrawVehicleSeats()
 		
 		continue;	
 		}
+		else if(OtherSPRI != none) 
+		{
+			if(OtherSPRI.Unit_TargetStatus[AntiTeamByte] != 0)
+				DrawAttackT(OtherVehicle, OtherSPRI.Unit_TargetNumber[AntiTeamByte], OtherSPRI.ClientTargetUpdatedTime ); 
+
+			continue;
+		}
+
 		if (IsStealthedEnemyUnit(OtherVehicle) || OtherVehicle.Health <= 0)
 				continue;
 
@@ -140,8 +155,7 @@ function DrawVehicleSeats()
 		//Draw as a target if you're a target
 		
 		if(OtherPRI != none && OtherPRI.Unit_TargetStatus[AntiTeamByte] != 0) 
-			DrawAttackT(OtherVehicle, OtherPRI.Unit_TargetNumber[AntiTeamByte], OtherPRI.ClientTargetUpdatedTime ); 
-		
+			DrawAttackT(OtherVehicle, OtherPRI.Unit_TargetNumber[AntiTeamByte], OtherPRI.ClientTargetUpdatedTime ); 		
 		
 		// Fade based on display radius.
 		if (RenxHud.TargetingBox.TargetedActor == OtherVehicle)
@@ -205,6 +219,7 @@ function DrawPlayerNames()
 	local float OtherPawnDistance;
 	local byte AntiTeamByte;
 	local Rx_PRI aPRI;
+	local Rx_ScriptedBotPRI sPRI;
 	// No need to draw player names on dedicated
 	if(RenxHud.WorldInfo.NetMode == NM_DedicatedServer)
 		return;
@@ -219,7 +234,10 @@ function DrawPlayerNames()
 	// For each Rx_Pawn in the game
    	foreach RenxHud.WorldInfo.AllPawns(class'Rx_Pawn', OtherPawn)
 	{
-		if (OtherPawn == None || OtherPawn.PlayerReplicationInfo == None || OtherPawn.Health <= 0 || Rx_PRI(OtherPawn.PlayerReplicationInfo).bIsScripted)
+		aPRI = none;
+		sPRI = none;
+
+		if (OtherPawn == None || OtherPawn.PlayerReplicationInfo == None || OtherPawn.Health <= 0)
 			continue;
 		if ((OtherPawn == ourPawn && !RenxHud.ShowOwnName) || OtherPawn.DrivenVehicle != None)
 			continue;
@@ -227,9 +245,17 @@ function DrawPlayerNames()
 			continue;
 
 		aPRI = Rx_PRI(OtherPawn.PlayerReplicationInfo);
+		sPRI = Rx_ScriptedBotPRI(OtherPawn.PlayerReplicationInfo);
 		
 		//Check if it is a targeted unit
-		if(AntiTeamByte != 255 && aPRI.Unit_TargetStatus[AntiTeamByte] != 0)
+		if(sPRI != None )
+		{
+			if(AntiTeamByte != 255 && sPRI.Unit_TargetStatus[AntiTeamByte] != 0)
+				DrawAttackT(OtherPawn, sPRI.Unit_TargetNumber[AntiTeamByte],  sPRI.ClientTargetUpdatedTime );
+
+			continue; // if a scripted bot, skip ahead
+		}
+		else if(AntiTeamByte != 255 && aPRI.Unit_TargetStatus[AntiTeamByte] != 0)
 			DrawAttackT(OtherPawn, aPRI.Unit_TargetNumber[AntiTeamByte],  aPRI.ClientTargetUpdatedTime ); 
 		
 		//Draw out commander 
@@ -366,7 +392,7 @@ function DrawNameOnActor(Actor inActor, string inName, optional STANCE inStance 
 	}
 }
 
-private function DrawRadioCommandUsedIcon(Actor inActor, byte Symbol, optional float ScaleMod = 1.0)
+protected function DrawRadioCommandUsedIcon(Actor inActor, byte Symbol, optional float ScaleMod = 1.0)
 {
 	local float X,Y, scale;
 	local vector ScreenLoc;
@@ -416,7 +442,7 @@ private function DrawRadioCommandUsedIcon(Actor inActor, byte Symbol, optional f
 	Canvas.DrawIcon(Icon,X,Y,scale);
 }
 
-private function SetIconBlendColor(byte Severity)
+protected function SetIconBlendColor(byte Severity)
 {
 	switch(Severity)
 	{
@@ -447,7 +473,7 @@ private function SetIconBlendColor(byte Severity)
 	}
 }
 
-private function DrawFocusedIcon(Actor inActor)
+protected function DrawFocusedIcon(Actor inActor)
 {
 	local float X,Y, scale, iconZAdjust;
 	local vector ScreenLoc;

@@ -13,6 +13,8 @@ DefaultProperties
 	Armor_Type 				= A_FLAK
 	SpeedMultiplier			= 1.0 //0.9
 	bFemale					= true; //halo2pac
+	Role 					= ROLE_Defense
+
 	
 
 	CharacterMesh=SkeletalMesh'rx_ch_gdi_sydney.Mesh.SK_CH_Sydney'

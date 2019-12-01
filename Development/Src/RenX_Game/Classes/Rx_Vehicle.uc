@@ -215,10 +215,16 @@ var vector CalcViewLocation;
 //Voice override for Pawns (Unused by most vehicles, so should be none)
 var class<Rx_Pawn_VoiceClass> VehicleVoiceClass;
 
+var repnotify SoundCue CurrentHornSound;//Controllable horn sound
+var SkeletalMeshComponent DevFlag;
+var AudioComponent FlagAmbient;
+var repnotify Texture2D DevFlagTexture;
+var MaterialInstanceConstant FlagMIC;
+
 replication
 {
 	if (bNetDirty && Role == ROLE_Authority )
-		SavedDmg, bReverseSteeringInverted, bSprintingServer, MinSprintSpeedMultiplier, bSpotted, bFocused, buyerPri, BoundPRI, bDriverLocked, bReservedToBuyer, bEMPd, UISymbol, VRank, RadarVisibility, bPickedUp, VehicleOverlayColour, fpCamera; //bBlinkingName
+		SavedDmg, bReverseSteeringInverted, bSprintingServer, MinSprintSpeedMultiplier, bSpotted, bFocused, buyerPri, BoundPRI, bDriverLocked, bReservedToBuyer, bEMPd, UISymbol, VRank, RadarVisibility, bPickedUp, VehicleOverlayColour, fpCamera, CurrentHornSound; //bBlinkingName
 
 	if (bNetDirty && Role == ROLE_Authority && Seats.Length >= 3)
 		Passenger2PRI;
@@ -228,6 +234,9 @@ replication
 
 	if (bNetDirty && Role == ROLE_Authority && Seats.Length >= 5)
 		Passenger4PRI;
+
+	if (bNetDirty)
+        DevFlagTexture;
 }
 /**DEPRACATED FUNCTIONS
 static function int ClassToIndex() {
@@ -346,7 +355,11 @@ static function Rx_Building_VehicleFactory GetVehicleFactory(byte TeamNum) {
 
 simulated event ReplicatedEvent(name VarName)
 {
-	if (VarName == 'bEMPd')
+	if (VarName == 'DevFlagTexture')
+    {
+        UpdateDevFlag(DevFlagTexture);
+    } 
+	else if (VarName == 'bEMPd')
 	{
 		if (bEMPd)
 		{
@@ -410,6 +423,10 @@ simulated event ReplicatedEvent(name VarName)
 	else if(VarName == 'VehicleOverlayColour')
 	{
 		SetOverlay(VehicleOverlayColour);
+	} 
+	else if(VarName == 'CurrentHornSound')
+	{
+		HornSounds[0] = CurrentHornSound;
 	} else if(VarName == 'fpCamera')
 	{
 		if(!fpCamera)
@@ -436,6 +453,8 @@ simulated function SetRadarVisibility(byte Visibility)
 	
 	if(Rx_PRI(PlayerReplicationInfo) != none) 
 		Rx_PRI(Controller.PlayerReplicationInfo).PawnRadarVis = Visibility;
+	else if (Rx_ScriptedBotPRI(PlayerReplicationInfo) != None)
+		Rx_ScriptedBotPRI(PlayerReplicationInfo).RadarVisibility = Visibility;
 }
 
 simulated function SendRadarSpotted()
@@ -552,6 +571,9 @@ simulated event PostBeginPlay()
 	
 	super.PostBeginPlay();
 	Team  = 255;
+
+	Mesh.AttachComponentToSocket(DevFlag, 'FlagSocket');
+    FlagAmbient = CreateAudioComponent(SoundCue'RX_Deco_Flag.banner.Sound.SC_Flag', false, true, true);
 	
 	//set shadow frustum scale (nBab)
 	SetShadowBoundsScale();
@@ -1686,12 +1708,26 @@ function bool Died(Controller Killer, class<DamageType> DamageType, vector HitLo
 			{
 				if (Rx_Controller(Seats[i].SeatPawn.Controller) != None && Killer != none)
 					Rx_Controller(Seats[i].SeatPawn.Controller).ReceiveVehicleDeathMessage(Killer.PlayerReplicationInfo, damageType);
+				
+				if(Rx_PRI((Seats[i].SeatPawn.Controller.PlayerReplicationInfo)) != None)
+				{	
+					if(Rx_Defence(Self) != none)
+						Rx_PRI(Seats[i].SeatPawn.Controller.PlayerReplicationInfo).SetTargetEliminated(31) ;
+					else if(Rx_Vehicle_Air(Self) != none) 
+						Rx_PRI(Seats[i].SeatPawn.Controller.PlayerReplicationInfo).SetTargetEliminated(41) ;
+					else
+						Rx_PRI(Seats[i].SeatPawn.Controller.PlayerReplicationInfo).SetTargetEliminated(11) ;
+				}
+				else if (Rx_ScriptedBotPRI((Seats[i].SeatPawn.Controller.PlayerReplicationInfo)) != None)
+				{
+					if(Rx_Defence(Self) != none)
+						Rx_ScriptedBotPRI(Seats[i].SeatPawn.Controller.PlayerReplicationInfo).SetTargetEliminated(31) ;
+					else if(Rx_Vehicle_Air(Self) != none) 
+						Rx_ScriptedBotPRI(Seats[i].SeatPawn.Controller.PlayerReplicationInfo).SetTargetEliminated(41) ;
+					else
+						Rx_ScriptedBotPRI(Seats[i].SeatPawn.Controller.PlayerReplicationInfo).SetTargetEliminated(11) ;
 					
-					if(Rx_Defence(Self) != none) Rx_PRI(Seats[i].SeatPawn.Controller.PlayerReplicationInfo).SetTargetEliminated(31) ;
-					else
-					if(Rx_Vehicle_Air(Self) != none) Rx_PRI(Seats[i].SeatPawn.Controller.PlayerReplicationInfo).SetTargetEliminated(41) ;
-					else
-					Rx_PRI(Seats[i].SeatPawn.Controller.PlayerReplicationInfo).SetTargetEliminated(11) ;
+				}
 				
 				if((class<Rx_DmgType_Nuke>(DamageType) != None || class<Rx_DmgType_IonCannon>(DamageType) != None) && Rx_Game(WorldInfo.Game) != None && Rx_Game(WorldInfo.Game).bPedestalDetonated)
 				{
@@ -1963,11 +1999,36 @@ function bool DriverEnter(Pawn P)
 {
 	local Rx_Controller C;
 	local bool bWasBuyer;
+	local string SteamID;
+    local OnlineSubsystem OnlineSub;
 
 	if (!super.DriverEnter(P))
 		return false;
 
-	if(bSprintingServer || bSprinting) StopSprinting(); 
+	if(Rx_Controller(Controller) != None)
+	{
+		//Dev horn stuff 
+		OnlineSub = Class'GameEngine'.static.GetOnlineSubsystem();
+	    SteamID = OnlineSub.UniqueNetIdToString(Controller.PlayerReplicationInfo.UniqueId);
+		
+		//Replicated
+	    CurrentHornSound = class'Rx_DevManager'.static.GetHornSound(SteamID, Rx_Controller(Controller).bIsDev, default.HornSounds[HornIndex]);
+
+		HornSounds[0] = CurrentHornSound;
+    	DevFlagTexture = class'Rx_DevManager'.static.GetFlagTexture(SteamID, Rx_Controller(P.Controller).bIsDev);
+	
+    	if (DevFlagTexture != None)
+    	{
+    	    UpdateDevFlag(DevFlagTexture);
+    	}
+    	else
+    	{
+    	    UpdateDevFlag(None);
+    	}
+	}
+	
+	if(bSprintingServer || bSprinting) 
+		StopSprinting(); 
 	
 	if (bEMPd)
 		SetDriving(false);
@@ -2069,8 +2130,14 @@ function bool DriverEnter(Pawn P)
 
 event bool DriverLeave(bool bForceLeave)
 {	
+	if(Rx_Bot_Scripted(Controller) != None || Rx_Pawn_Scripted(Driver) != None)
+		return false;
+
     if (!super.DriverLeave(bForceLeave))
 		return false;
+	
+	CurrentHornSound = default.HornSounds[0];
+	DevFlagTexture = None;
 	
     // set team to neutral if buyer lockdown is over (buyerePri is set to none then)
 	if(buyerPri == none) {
@@ -2082,6 +2149,28 @@ event bool DriverLeave(bool bForceLeave)
 	ClearOverlay();	 	
 
     return true;
+}
+
+simulated function UpdateDevFlag(Texture2D NewFlagTexture)
+{
+    if (NewFlagTexture == None)
+    {
+        DevFlag.SetHidden(true);
+
+        FlagAmbient.Stop();
+    }
+
+    else
+    {
+    	if (DevFlag.AttachedToSkelComponent == None) return;
+
+        DevFlag.SetHidden(false);
+
+        if (FlagMIC == None) FlagMIC = DevFlag.CreateAndSetMaterialInstanceConstant(0);
+        FlagMIC.SetTextureParameterValue('FlagTexture', NewFlagTexture);
+
+        FlagAmbient.Play();
+    }
 }
 
 function ResetTempVRank()
@@ -4120,8 +4209,8 @@ simulated function float GetSpeedModifier()
 
 simulated function float GetScriptedSpeedModifier()
 {
-	if(Rx_Bot_Scripted(Controller) != None && Rx_Bot_Scripted(Controller).MySpawner != None)
-		return Rx_Bot_Scripted(Controller).MySpawner.SpeedModifier;
+	if(Rx_Bot_Scripted(Controller) != None)
+		return Rx_Bot_Scripted(Controller).SpeedModifier;
 
 	else
 		return 1.f;
@@ -4338,7 +4427,7 @@ simulated function int GetRadarIconType()
 
 simulated function bool ForceVisible()
 {
-	return (PlayerReplicationInfo == none && GetTeamNum() == 255) || (Rx_PRI(PlayerReplicationInfo) !=none && Rx_PRI(PlayerReplicationInfo).isSpotted());  
+	return (PlayerReplicationInfo == none && GetTeamNum() == 255) || (Rx_PRI(PlayerReplicationInfo) !=none && Rx_PRI(PlayerReplicationInfo).isSpotted()) || (Rx_ScriptedBotPRI(PlayerReplicationInfo) !=none && Rx_ScriptedBotPRI(PlayerReplicationInfo).GetRadarVisibility() == 2);  
 }
 
 simulated function vector GetRadarActorLocation() 
@@ -4352,6 +4441,8 @@ simulated function rotator GetRadarActorRotation()
 
 simulated function byte GetRadarVisibility()
 {
+	if(Rx_ScriptedBotPRI(PlayerReplicationInfo) != None)
+		return Rx_ScriptedBotPRI(PlayerReplicationInfo).GetRadarVisibility();
 	return RadarVisibility; 
 } 
 simulated function Texture GetMinimapIconTexture()
@@ -4474,18 +4565,6 @@ simulated function bool CanBeBaseForPawn(Pawn APawn)
 	return super.CanBeBaseForPawn(APawn) && Rx_Vehicle_Walker(APawn) == None;
 }
 
-simulated function byte GetTeamNum()
-{
-	if(Rx_Bot_Scripted(Controller) != None)
-		return Controller.GetTeamNum();
-	else if(Rx_Pawn_Scripted(Driver) != None)
-		return Driver.GetTeamNum();
-	else if(Rx_Pawn_Scripted(Seats[0].StoragePawn) != None)
-		return Seats[0].StoragePawn.GetTeamNum();
-
-	return Super.GetTeamNum();
-}
-
 DefaultProperties
 {
 	//nBab
@@ -4510,6 +4589,18 @@ DefaultProperties
 	Begin Object name=SVehicleMesh
 		ScriptRigidBodyCollisionThreshold=100.0
 	End Object
+
+    Begin Object Class=SkeletalMeshComponent Name=SDevFlag
+        SkeletalMesh=SkeletalMesh'RX_Deco_Flag.banner.Mesh.SK_Flag_WarBanner'
+        bEnableClothSimulation=false
+        bClothAwakeOnStartup=false
+        bClothWindRelativeToOwner=true
+        ClothWind=(X=10,Y=-50,Z=-10)
+        //Rotation=(Yaw=49152)
+        LightEnvironment = MyLightEnvironment
+        HiddenGame=true
+    End Object
+    DevFlag=SDevFlag
 	
 	fpCameraTag = CamView1P
 	tpCameraTag = CamView3P
@@ -4521,6 +4612,9 @@ DefaultProperties
 	Translation=(X=0.0,Y=0.0,Z=0.0)
 	End Object
 	CylinderComponent=CollisionCylinder
+	
+	//Horn sound 
+	
 
 	//EMPParticleTemplate=ParticleSystem'Pickups.Deployables.Effects.P_Deployables_EMP_Mine_VehicleDisabled'
 	Begin Object Class=ParticleSystemComponent Name=EMPParticleComp

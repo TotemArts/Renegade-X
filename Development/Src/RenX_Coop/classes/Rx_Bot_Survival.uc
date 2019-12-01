@@ -1,8 +1,7 @@
 class Rx_Bot_Survival extends Rx_Bot_Scripted;
 
-var float DamageTakenModifier;
-var float DamageDealtModifier;
 var bool bFocusOnEnemy;
+var bool bIsBoss;
 
 function RxInitialize(float InSkill, const out CharacterInfo BotInfo, UTTeamInfo BotTeam)
 {
@@ -31,6 +30,28 @@ function RxInitialize(float InSkill, const out CharacterInfo BotInfo, UTTeamInfo
 
 	bFocusOnEnemy = FRand() > 0.25;
 
+}
+
+function InitPlayerReplicationInfo()
+{
+	if(PlayerReplicationInfo != none)
+	{
+		CleanupPRI();
+	}
+	PlayerReplicationInfo = Spawn(class'Rx_ScriptedBotPRI_Survival', self);
+
+	if (PlayerReplicationInfo != none) 
+	{
+		if(GetTeamNum() == 0)
+			PlayerReplicationInfo.SetPlayerName("A GDI Soldier");
+
+		else
+			PlayerReplicationInfo.SetPlayerName("A Nod Soldier");
+
+		PlayerReplicationInfo.SetPlayerTeam(WorldInfo.GRI.Teams[GetTeamNum()]);
+	}
+
+//	SetTimer(0.05, false, 'CheckRadarVisibility'); 	
 }
 
 protected event ExecuteWhatToDoNext()
@@ -95,7 +116,7 @@ protected event ExecuteWhatToDoNext()
 		}
 	}
 	bIgnoreEnemyChange = true;
-	if ( (Enemy != None) && ((Enemy.Health <= 0) || (Enemy.Controller == None)) )
+	if ( (Enemy != None) && ((Enemy.Health <= 0) || (Enemy.Controller == None) || Enemy.GetTeamNum() == GetTeamNum()) )
 		LoseEnemy();
 	if(Squad != None)
 	{
@@ -181,4 +202,83 @@ function bool AssignSquadResponsibility()
 function bool ShouldSurviveVehicleDeath()
 {
 	return false;
+}
+
+state Rush
+{
+	ignores EnemyNotVisible;
+
+	function MayFall(bool bFloor, vector FloorNormal)
+	{
+		Pawn.bCanJump = ( (MoveTarget != None)
+					&& ((MoveTarget.Physics != PHYS_Falling) || !MoveTarget.IsA('DroppedPickup')) );
+	}
+
+Begin:
+
+	if(CurrentBO != None && LineOfSightTo(CurrentBO.myBuilding))
+		BroadcastBuildingSpotMessages(CurrentBO.myBuilding);
+
+Moving:
+	SwitchToBestWeapon();
+	WaitForLanding();
+	if(bInfiltrating)
+	{
+		if(CurrentBO != None)
+			GoalString = "Infiltrating"@CurrentBO.myBuilding.GetBuildingName();	
+		else
+			GoalString = "Infiltrating.... "@Squad.SquadObjective$"...?";	
+	}
+
+	if(CurrentBO != None && CurrentBO.myBuilding.GetMCT() != None && CanAttack(CurrentBO.myBuilding.GetMCT()))
+	{
+		if(Enemy != None && !HasC4() && CanAttack(Enemy) && Rand(10) > 10 - (Skill))
+		{
+			if(LastVehicle != None && LastVehicle.Driver == None)
+			{
+				Rx_SquadAI(Squad).GoToVehicle(LastVehicle,Self);
+			}
+			else
+			{
+				sleep(0.1);
+				LastVehicle = None;
+				ChooseAttackMode();
+			}
+		}
+		else
+		{
+			Focus = CurrentBO.myBuilding.GetMCT();
+			AssaultMCT();
+		}
+	}
+	else if (CurrentBO != None && ( CurrentBO.myBuilding.GetMCT() == None || !CanAttack(CurrentBO.myBuilding.GetMCT())))
+	{
+		if(LastVehicle != None && LastVehicle.Driver == None)
+		{
+			Rx_SquadAI(Squad).GoToVehicle(LastVehicle,Self);
+		}
+		else if(Rx_Weapon(Pawn.Weapon).bOkAgainstBuildings && CanAttack(CurrentBO.myBuilding))
+		{
+			Focus = CurrentBO.myBuilding;
+			FireWeaponAt(CurrentBO.myBuilding);
+		}
+		else if (Enemy == None)
+		{
+			Focus = CurrentBO.myBuilding;
+		}
+	}
+
+	MoveToward(MoveTarget,FaceActor(1),GetDesiredOffset(),ShouldStrafeTo(MoveTarget));
+
+
+
+	if(HasABeacon() && VSizeSq(CurrentBO.myBuilding.Location - Pawn.Location) < 90000)
+	{
+//		`log(GetHumanReadableName()@"is attempting to plant a Beacon");
+		GoToState('DeployingBeacon');
+		Sleep(2.0);
+	}
+
+	LatentWhatToDoNext();
+
 }

@@ -2077,6 +2077,27 @@ simulated function GetFireStartLocationAndRotation(out vector SocketLocation, ou
     }
 }
 
+
+simulated function string GetWeaponTips()
+{
+	return "";
+}
+
+simulated function string GetWeaponSecondaryTips()
+{
+	return "";
+}
+
+simulated function LinearColor GetTipsColor()
+{
+	return MakeLinearColor(1.0, 1.0, 1.0, 1.0);
+}
+
+simulated function LinearColor GetSecondTipsColor()
+{
+	return MakeLinearColor(1.0, 1.0, 1.0, 1.0);
+}
+
 DefaultProperties
 {
 	InventoryGroup=0

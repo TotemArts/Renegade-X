@@ -9,4 +9,7 @@ DefaultProperties
 	myBuildingType=BT_Veh
 
 	SupportedEvents.Add(class'Rx_SeqEvent_FactoryEvent')
+
+	IconTexture=Texture2D'RenxHud.T_BuildingIcon_Vehicle_Normal'
+
 }

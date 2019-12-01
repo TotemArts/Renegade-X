@@ -85,4 +85,7 @@ defaultproperties
 		LightColor  = (B=110,G=214,R=255,A=0)
 	End Object
 
+	IconTexture=Texture2D'RenxHud.T_BuildingIcon_Power_Normal'
+
+
 }

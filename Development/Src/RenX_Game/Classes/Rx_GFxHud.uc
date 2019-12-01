@@ -17,24 +17,6 @@
 
 class Rx_GFxHud extends GFxMoviePlayer;
 
-struct SBPlayerEntry
-{
-	var GFxObject EntryLine;
-	var GFxObject PlayerName;
-	var GFxObject Kills;
-	var GFxObject Deaths;
-	var GFXObject KDRatio;
-	var GFxObject Credits;
-	var GFxObject Score;
-	var bool bNew;
-};
-
-struct BuildingInfo
-{
-	var GFxObject Icon;
-	var GFxObject Stats;
-};
-
 struct MessageRow
 {
 	var GFxObject  MC, TF;
@@ -51,24 +33,30 @@ struct MenuOption
 	var ASColorTransform myCT;
 };
 
+struct SubMsg
+{
+	var string Message;
+	var float Lifetime;	
+};
+
 enum EMessageType
 {
 	EMT_EVA,
 	EMT_Chat,
+	EMT_CText,
+	EMT_Radio,
 	EMT_Death
 };
 
-var GFxObject     ChatLogMC, DeathLogMC, EVALogMC;
-var array<MessageRow>   ChatMessages, DeathMessages, EVAMessages;
-var array<MessageRow>   FreeChatMessages, FreeDeathMessages, FreeEVAMessages;
-var float               MessageHeight;
-var int                 NumEVAMessages, NumChatMessages, NumDeathMessages;
+var GFxObject     ChatLogMC, CTextLogMC, RadioLogMC, DeathLogMC, EVALogMC;
+var array<MessageRow>   ChatMessages, CTextMessages, RadioMessages, DeathMessages, EVAMessages;
+var array<MessageRow>   FreeChatMessages, FreeCTextMessages, FreeRadioMessages, FreeDeathMessages, FreeEVAMessages;
+var float               MessageHeight,CTextMessageHeight;
+var int                 NumEVAMessages, NumCTextMessages, NumRadioMessages, NumChatMessages, NumDeathMessages;
 
-var array<string>		Subtitle_Messages; 
+var array<SubMsg>		Subtitle_Messages; 
 
-var BuildingInfo BuildingInfo_GDI[5];
-var BuildingInfo BuildingInfo_Nod[5];
-
+var GFxObject MinimapBase, CompassMC;
 var() Rx_GFxMinimap Minimap;
 var() Rx_GFxMarker Marker;
 var Rx_GFxOverviewMap OverviewMapMovie;
@@ -83,51 +71,56 @@ var array<GFxObject> Lines, Keys, HelpLines;
 var ASColorTransform DefaultCT;
 
 //Cache variables
-var int LastHealthpc, LastArmorpc, LastStaminapc, LastVArmorpc;
+var int LastHealthpc, LastMaxHealthpc, LastMaxArmorpc, LastArmorpc, LastStaminapc, LastVArmorpc, LastMaxVArmorpc;
+var string LastArmorType;
+var string LastVPString;
 var int AmmoInClipValue, AmmoInReserveValue, AltAmmoInClipValue, AltAmmoInReserveValue;
 var float primaryReloadTimeEllapsed, secondaryReloadTimeEllapsed;
 var bool isInVehicle;
-var int currentScoreboard;
-var int CurrentTime;
-var int CurrentNumVehicles;
-var int CurrentMaxVehicles;
-var int CurrentNumMines;
-var int CurrentMaxMines;
+var Pawn LastPawn;
+var string LastPassengerText;
+var string LastWeaponTips, LastSecWeaponTips;
+var ASColorTransform LastWeaponTipsColor, LastSecWeaponTipsColor;
+
+//var Rx_Vehicle_Harvester CurrentHarvester;
+//var int LastHarvyHealthpc, LastMaxHarvyHealthpc;
+var bool bWasBound;
+var bool bWasLocked;
+var bool bPlayerDead;
+var bool bRespawnHUDHidden;
+// placed here so we don't have to recall it over and over
+var Rx_Controller RxPC;
+var Rx_GRI RxGRI;
+var Rx_PRI RxPRI;
 
 var UTWeapon lastWeaponHeld;  //variable containing weapon user had last time hud was updated
-var UTWeapon prevWeapon;      //variable containing previous weapon in player inventory (different from above)
-var UTWeapon nextWeapon;      //variable containing next weapon in player inventory
 
 //Create variables to hold references to the Flash MovieClips and Text Fields that will be modified
-var GFxObject HealthBlock, HealthBar, HealthN, HealthMaxN, HealthText, HealthIcon, VHealthN;//nBab
-var GFxObject VArmorN, VArmorBar, VehicleMC, VArmorMaxN;
-var GFxObject ArmorBar, ArmorN, ArmorMaxN;
+var GFxObject HealthBlock, HealthBar, HealthN, HealthMaxN, HealthText;//nBab
+var GFxObject VArmorN, VArmorBar, VArmorText, VArmorMaxN, PassengerContainer, VehicleMC;
+var GFxObject ArmorBar, ArmorN, ArmorMaxN, ArmorText;
 var GFxObject StaminaBar;
 var GFxObject AmmoInClipN, AmmoBar, AmmoReserveN, AltAmmoInClipN, AltAmmoBar, InfinitAmmo, AltInfinitAmmo, WeaponBlock, VAltWeaponBlock;
-var GFxObject WeaponMC, WeaponPrevMC, WeaponNextMC, VBackdrop, WeaponName, AltWeaponName;
+var GFxObject WeaponListContainer, WeaponMC[5], WeaponName, AltWeaponName;
 var GFxObject AbilityMC, AbilityIconMC, AbilityMeterMC, AbilityTextMC;
+var GFxObject LockMC;
+var GFxObject WeaponTipsMaster;
+var GFxObject WeaponTips, WeaponTipsText, WeaponTipsBKG;
+var GFxObject SecWeaponTips, SecWeaponTipsText, SecWeaponTipsBKG;
+var float WeaponMCAlpha[4];
 
 //Experimental Progress bar
 var GFXObject LoadingMeterMC[2], LoadingText[2];
 var GFxClikWidget LoadingBarWidget[2];
 
 var GFxObject GrenadeN, GrenadeMC, TimedC4MC, RemoteC4MC, ProxyC4MC, BeaconMC;
+var GFxObject HitLocMasterMC;
 var GFxObject HitLocMC[8];
-var GFxObject BottomInfo;
-var GFxObject Credits;
-var GFxObject MatchTimer;
-var GFxObject VehicleCount;
-var GFxObject MineCount;
-var GFxObject CommPoints;
-var GFxObject DirCompassIcon;
+
+//var GFxObject HarvyHealthContainer;
+//var GFxObject HarvyBars;
 var GFxObject RootMC;
- 
-var GFxObject Scoreboard;
-var GFxObject SBTeamScore[2];
-var GFxObject SBTeamCredits[2], SBTeamKills[2], SBTeamDeaths[2], SBTeamKDR[2];
-var const int NumPlayerStats;
-var array<SBPlayerEntry> PlayerInfo;
-var int CurrentNumberPRIs;
+
 
 //MessageBox Variables (nBab)
 var string lastPrivateNick;
@@ -136,45 +129,46 @@ var string NormalMessages[10];
 var string TeamMessages[10];
 var int messageNum;
 
-//Tech Building Icon Variables (nBab)
-var array<Actor> Silo;
-var Actor Fort;
-var Actor MC;
-var Actor CC;
-var Actor EMP;
-var byte buildingCount;
-
-var byte gdi_buildings, nod_buildings;
-var array<string> tech_buildings;
-var array<byte> tech_buildings_team;
-var gfxobject tech_building_icons[5];
-var gfxobject tech_icons;
-var byte TechIconTweenDuration;
-var Rx_Building GDIInfantryFactory;
-var bool SetupTechIcons;
-
 //Respawn Hud Variables (nBab)
 var int lastFreeClass;
 var int lastTeam;
 
 //Veterancy Variables (nBab)
+var GFxObject VeterancyContainer; //'vet'
+var GFxObject VeterancyLabel; //'vet_tf'
+var GFxObject VeterancyIcon,VeterancyIconCurrent,VeterancyIconNext; //'vet_icon''vet_icon_current''vet_icon_next'
+var GFxObject VeterancyBar;
+var int LastVetPoint;
 var int VRank;
 
-//Voting Variables (nBab)
-var bool voteJustStarted;
-var gfxobject voteTextMC;
+//Voting Variables (nBab, modified by Handepsilon)
+var bool bvoteJustStarted;
+var GFxObject voteMC;
+var GFxObject VoteTextContainerMC;
+var GFxObject VoteBackdropMC;
+var GFxObject VoteTitleText;
+var GFxObject VoteChoiceText;
+var int LastYesVote;
+var int LastNoVote;
+var int LastYesNeededVote;
+var int LastVoteSecondsLeft;
 
 //items that we are diabling for now - THIS LIST SHOULD BE EMPTY BY THE TIME THE HUD IS DONE
-var GFxObject ObjectiveMC, ObjectiveText, TimerMC, TimerText, FadeScreenMC, SubtitlesText, GameplayTipsText, WeaponPickup;
+var GFxObject ObjectiveMC, ObjectiveText, TimerMC, TimerText, FadeScreenMC, SubtitlesText, GameplayTipsText, AdminMessageText, WeaponPickup;
 var float LastTipsUpdateTime;
-var float VehicleDeathMsgTime;
-var float VehicleDeathDisplayLength;
-var float VPMsg_Cycler;
+var array<string> AdminMessageQueue;
+//var float VehicleDeathDisplayLength;
 var byte Tick_Cycler; 
 var int	 SkipNum; 
 var bool bUseTickCycle; 
 
+var int LastResX;
+var int LastResY;
+
 var name AbilityKey; 
+var name LockKey;
+
+var float LastCompassPos;
 
 function Initialize()
 {
@@ -183,31 +177,46 @@ function Initialize()
 	Start();
 	Advance(0.f);
 
-	CurrentNumberPRIs = 0;
-	CurrentNumVehicles = -1;
-	CurrentMaxVehicles = -1;
+	NumCTextMessages = 0;
 	NumEVAMessages = 0;
 	NumChatMessages = 0;
+	NumRadioMessages=0;
 	NumDeathMessages = 0;
 
 	//Log Implementation
 	ChatLogMC = GetVariableObject("_root.chatLog");
+//	TeamChatLogMC = GetVariableObject("_root.teamchatLog");
+	RadioLogMC = GetVariableObject("_root.radioLog");
 	DeathLogMC = GetVariableObject("_root.deathLog");
 	EVALogMC = GetVariableObject("_root.evaLog");
+	CTextLogMC = GetVariableObject("_root.CTextLog");
+
 	//TODO:set the max limit of each count
-	for(i = 0; i < 1; i++) {
-		InitMessageRow(EMessageType.EMT_EVA, NumEVAMessages);
+	for(i = 0; i < 3; i++) 
+	{
+		InitMessageRow(EMessageType.EMT_CText, NumCTextMessages);
 	}
-	for(i = 0; i < 12; i++) {
+	for(i = 0; i < 5; i++) 
+	{
 		InitMessageRow(EMessageType.EMT_Chat, NumChatMessages);
 	}
-	for(i = 0; i < 5; i++) {
+
+	
+	InitMessageRow(EMessageType.EMT_EVA, NumEVAMessages);
+
+	for(i = 0; i < 5; i++)
+	{
+		InitMessageRow(EMessageType.EMT_Radio, NumChatMessages);
+	}
+	for(i = 0; i < 5; i++) 
+	{
 		InitMessageRow(EMessageType.EMT_Death, NumDeathMessages);
 	}
 
-	UpdateHUDVars();
+	InitializeHUDVars();
 
 	//hit indicator
+	HitLocMasterMC = GetVariableObject("_root.dirHit");
 	HitLocMC[0] = GetVariableObject("_root.dirHit.t");
 	HitLocMC[1] = GetVariableObject("_root.dirHit.tr");
 	HitLocMC[2] = GetVariableObject("_root.dirHit.r");
@@ -339,18 +348,12 @@ function Initialize()
 	SideMenu.SetVisible(false);
 	HelpMenu.SetVisible(false);
 
-	SetupScoreboard();
 	DisableHUDItems();
 
 	//AddFocusIgnoreKey('t');
 
-	prevWeapon = none;
 	RootMC = GetVariableObject("_root");
-	MineCount.SetText(0);
 
-	//setup tech building icons (nBab)
-	tech_icons = GetVariableObject("_root.BottomInfo.tech_icons");
-	SetupTechIcons = true;
 
 	//set lastfreeclass and lastteam for respawn hud (nBab)
 	lastFreeClass = 0;
@@ -371,41 +374,150 @@ function Initialize()
 	}
 
 	//set initial voting variables (nBab)
-	voteJustStarted = true;
+	bvoteJustStarted = true;
 	
 	AbilityKey = GetBoundKey("GBA_ToggleAbility");
+	LockKey = GetBoundKey("GBA_ToggleVehicleLocking");
 }
+
+// Handepsilon : I've been tormented by text that cannot be decipherable in 800x600 for years, 
+//				it is time to finally balance the scales >:(
 
 function ResizedScreenCheck()
 {
 	// Resize the HUD after viewport size change
 	local Vector2D ViewportSize;
-	local float x0, y0, x1, y1;
+//	local float x0, y0, x1, y1;
 	local Vector2D HudMovieSize;
+	local Vector2D PositionMod;
+	local Vector2D LowerLeftCorner, LowerRightCorner;
+
+	local float RatioDiscrepancy;
+	local float SizeDiscrepancy;
+	local float StageWidthPct, StageHeightPct;
+	local float ResizerX, ResizerY;
+	local ASDisplayInfo DI;
 	
 	GetGameViewportClient().GetViewportSize(ViewportSize);
-	Scoreboard.SetVisible(false);
-	GetVisibleFrameRect(x0, y0, x1, y1);
-	HudMovieSize.X = x1;
-	HudMovieSize.Y = y1;
-	//`Log("HudMovieSize="@HudMovieSize.X@HudMovieSize.Y@"ViewportSize="@ViewportSize.X@ViewportSize.Y);
-	if(int(HudMovieSize.X) != int(ViewportSize.X) || int(HudMovieSize.Y) != int(ViewportSize.Y))
+//	GetVisibleFrameRect(x0, y0, x1, y1);
+	HudMovieSize.X = ViewportSize.X;
+	HudMovieSize.Y = ViewportSize.Y;
+
+	if(RenxHUD.GIHudMovie != None)
+		RenxHUD.GIHudMovie.ResizedScreenCheck();
+
+	if(LastResX != int(ViewportSize.X) || LastResY != int(ViewportSize.Y))
 	{
+
+//		`Log("LastRes="@LastResX@LastResY@"ViewportSize="@ViewportSize.X@ViewportSize.Y);
+		LastResX = ViewportSize.X;
+		LastResY = ViewportSize.Y;
+
 		SetViewport(0,0,int(ViewportSize.X),int(ViewportSize.Y));
-		SetViewScaleMode(GFxScaleMode.SM_ShowAll);
-		SetAlignment(GFxAlign.Align_Center);
+
+		SetViewScaleMode(GFxScaleMode.SM_NoBorder);
+		SetAlignment(GFxAlign.Align_Center);  
+
+
+
+ 
+		StageWidthPct = HudMovieSize.X/1680;
+		StageHeightPct = HudMovieSize.Y/1050;
+
+		PositionMod.X = 0;
+		PositionMod.Y = 0;
+
+//		Handepsilon : This takes AGES to figure out. I pray that it works
+
+		RatioDiscrepancy = (HudMovieSize.X/HudMovieSize.Y) - 1.6;
+
+		if(RatioDiscrepancy > 0) //Height is smaller than in ratio
+		{
+			SizeDiscrepancy = (HudMovieSize.X / 1680 * 1050) - HudMovieSize.Y;
+			PositionMod.Y = SizeDiscrepancy *  840 / HudMovieSize.X;
+		}
+		else if(RatioDiscrepancy < 0) //Width is smaller than in ratio
+		{
+			SizeDiscrepancy = (HudMovieSize.Y / 1050 * 1680) - HudMovieSize.X;
+			PositionMod.X = SizeDiscrepancy *  525 / HudMovieSize.Y;
+
+		}
+
+		// Some of these will need manual rescaling to be readable on low res, unfortunately
+		ResizerX = FClamp(StageWidthPct,0.9,1);
+		ResizerY = FClamp(StageHeightPct,0.9,1);
+
+//		`log("StageWidthPct : "$StageWidthPct@"StageHeightPct : "$StageHeightPct);
+//		UpperLeftCorner.X = PositionMod.X;
+//		UpperLeftCorner.Y = PositionMod.Y;
+//		UpperRightCorner.X = 1680 - PositionMod.X;
+//		UpperRightCorner.Y = PositionMod.Y;
+		LowerLeftCorner.X = PositionMod.X;
+		LowerLeftCorner.Y = 1050 - PositionMod.Y;
+		LowerRightCorner.X = 1680 - PositionMod.X;
+		LowerRightCorner.Y = 1050 - PositionMod.Y;
+
+
+//		`log("StageHeightPct :"@StageHeightPct);
+//		`log("StageWidthPct :"@StageWidthPct);
+		`log("PositionModX :"@PositionMod.X);
+		`log("PositionModY :"@PositionMod.Y);
+
+		DI.HasXScale = true;
+		DI.HasYScale = true;
+
+		//HealthBlock
+		DI.XScale = 100.f + (100.f * (1.0 - FMin(ResizerX,ResizerY)));
+		DI.YScale = DI.XScale;
+//		`log("HealthBlock Scale :"@DI.XScale@DI.YScale);
+		HealthBlock.SetDisplayInfo(DI);
+		HealthBlock.SetPosition(LowerLeftCorner.X,LowerLeftCorner.Y);
+
+		//Minimap
+		MinimapBase.SetDisplayInfo(DI);
+		MinimapBase.SetPosition(LowerLeftCorner.X,LowerLeftCorner.Y);
+
+
+		//WeaponBlock		
+//		DI.XScale = 100.f + (100.f * (1.0 - FMin(StageHeightPct,StageWidthPct)));
+//		DI.YScale = DI.XScale;
+//		`log("WeaponBlock Scale :"@DI.XScale@DI.YScale);
+		WeaponBlock.SetDisplayInfo(DI);
+		WeaponBlock.SetPosition(LowerRightCorner.X,LowerRightCorner.Y);
+ 
+		DI.XScale = 100.f + (100.f * (1.0 - FMin(ResizerX,ResizerY)) / 2);
+		DI.YScale = DI.XScale;
+		SideMenu.SetDisplayInfo(DI);
+		SideMenu.SetPosition(PositionMod.X,PositionMod.Y + 240);
+
+//		FadeScreenMC.SetPosition(UpperLeftCorner.X,UpperLeftCorner.Y);
+
+		//Chattos
+		RadioLogMC.SetPosition(PositionMod.X + 20,PositionMod.Y + 50);
+//		TeamChatLog.SetPosition((PositionMod.X * -1) + 17,(PositionMod.Y * -1) + 120);
+		ChatLogMC.SetPosition(PositionMod.X + 20,600 - PositionMod.Y);
+		CTextLogMC.SetPosition(440, 203 + PositionMod.Y);
+		DeathLogMC.SetPosition(858 - PositionMod.X, 71 + PositionMod.Y);
+		EvaLogMC.SetPosition(PositionMod.X + 20,20 + PositionMod.Y);
+
+		VoteMC.SetPosition(840,PositionMod.Y + 40);
+
+		Marker.SetPosition(0,0);
+
 		
-		GetVariableObject("_root.minimap").SetPosition(HudMovieSize.X * 0.0808,HudMovieSize.Y * 0.8545);
-		GetVariableObject("_root.MarkerContainer").SetPosition(0,0);
+		 
+		
 		
 		//center the icon container (nBab)
 		//GetVariableObject("_root.BottomInfo").SetPosition(HudMovieSize.X * 0.3494/*0.4987*/,HudMovieSize.Y * 0.8952/*0.9586*/); (old line)
-		GetVariableObject("_root.BottomInfo").SetPosition(HudMovieSize.X * 0.3466/*0.4987*/,HudMovieSize.Y * 0.8952/*0.9586*/);
 		//set position of the message box (nBab)
-		GetVariableObject("_root.messagebox").SetPosition(HudMovieSize.X * 0.29532/*0.4987*/,HudMovieSize.Y * 0.8/*0.9586*/);
-		GetVariableObject("_root.HealthBlock").SetPosition(HudMovieSize.X * 0.1237,HudMovieSize.Y * 0.8728);
-		GetVariableObject("_root.WeaponBlock").SetPosition(HudMovieSize.X * 0.7167,HudMovieSize.Y * 0.9775);
-		GetVariableObject("_root.WeaponPickup").SetPosition(HudMovieSize.X * 0.3400,HudMovieSize.Y * 0.5855);
+		GetVariableObject("_root.messagebox").SetPosition(860,722 - PositionMod.Y);
+		
+//		Scoreboard.SetPosition(HudMovieSize.X * 0.856,HudMovieSize.Y * 0.0327);
+
+//		if(WeaponPickup != None)
+//			WeaponPickup.SetPosition(655 ,HudMovieSize.Y * 0.5855);
+
 	}
 	// END of resize code
 	
@@ -421,20 +533,33 @@ function TickHUD()
 	local Rx_WeaponAbility RxAbility; //Always updated on the HUD as opposed to a regular weapon 
 	local Rx_Vehicle RxV;
 	local Rx_Vehicle_Weapon RxVWeap;
-	local UTPlayerController RxPC;
-	local Rx_GRI RxGRI;
-	local byte i;
+	local int i;
 	local string FullVPString; 
+	local float CompassPos;
+	local ASDisplayInfo CompassDI;
+	local rotator PlayerRot;
+
 	
 	if (!bMovieIsOpen) {
 		return;
 	}
 	
-	RxPC = UTPlayerController(GetPC());
-	
-	if(RxPC == None) {
+	if(RxPC == None)
+		RxPC = Rx_Controller(GetPC());
+
+	if(RxPC == None) 
+	{
 		return;
 	}
+	else
+	{
+		if(RxPRI == None)
+			RxPRI = Rx_PRI(RxPC.PlayerReplicationInfo);
+
+		if(RxGRI == None)
+			RxGRI = Rx_GRI(RxPC.WorldInfo.GRI);	
+	}
+	// Cache everything here first
 	
 	/**
 	Tick Cycle 
@@ -448,8 +573,8 @@ function TickHUD()
 		Tick_Cycler=0;
 		return;
 	}
-	else
-	if(bUseTickCycle) Tick_Cycler+=1;
+	else if(bUseTickCycle) 
+		Tick_Cycler+=1;
 	
 	if(RxPC.Pawn != None)
 		TempPawn = RxPC.Pawn;
@@ -458,7 +583,8 @@ function TickHUD()
 
 	//assign all 4 var here. RxP RxV, RxWeap, RxVehicleWeap
 	
-		if (Rx_Pawn(TempPawn) != none) {
+		if (Rx_Pawn(TempPawn) != none) 
+		{
 			RxP = Rx_Pawn(TempPawn);
 			RxWeap = Rx_Weapon(RxP.Weapon);
 			
@@ -471,42 +597,64 @@ function TickHUD()
 			
 			RxV = none;
 			RxVWeap = none;
-		} else if (Rx_Vehicle(TempPawn) != none) {
+		} 
+		else if (Rx_Vehicle(TempPawn) != none) 
+		{
 			RxV = Rx_Vehicle(TempPawn);
-			if (RxV.Weapon != none) {
+			if (RxV.Weapon != none) 
+			{
 				RxVWeap = Rx_Vehicle_Weapon(RxV.Weapon);
-			} else {
-				for (i = 0; i < RxV.Seats.Length; i++) {
-					if (RxV.Seats[i].Gun == none) {
+			} 
+			else 
+			{/*
+				for (i = 0; i < RxV.Seats.Length; i++)
+				 {
+					if (RxV.Seats[i].Gun == none) 
+					{
 						continue;
 					}
 					RxVWeap = Rx_Vehicle_Weapon(RxV.Seats[i].Gun);
 					break;
 				}
+				*/
+				RxVWeap = None;
 			}
 			RxP = none;
 			RxWeap = none;
-		} else if (Rx_VehicleSeatPawn(TempPawn) != None) {
+		} 
+		else if (Rx_VehicleSeatPawn(TempPawn) != None) 
+		{
 			RxV = Rx_Vehicle(Rx_VehicleSeatPawn(TempPawn).MyVehicle);
 			
 			if (Rx_VehicleSeatPawn(TempPawn).MyVehicleWeapon != none) {
 				RxVWeap = Rx_Vehicle_Weapon(Rx_VehicleSeatPawn(TempPawn).MyVehicleWeapon);
-			} else if (RxV.Weapon != none) {
+			} /*
+			else if (RxV.Weapon != none) 
+			{
 				RxVWeap = Rx_Vehicle_Weapon(RxV.Weapon);
-			} else {
-				for (i = 0; i < RxV.Seats.Length; i++) {
+			} */
+			else 
+			{/*
+				for (i = 0; i < RxV.Seats.Length; i++) 
+				{
 					if (RxV.Seats[i].Gun == none) {
 						lastWeaponHeld = none; 
 						continue;
 					}
 					RxVWeap = Rx_Vehicle_Weapon(RxV.Seats[i].Gun);
 					break;
-				}
+				}*/
+				RxVWeap = None;
 			}
 			RxP = none;
 			RxWeap = none;
 		}
 	
+		if(LastPawn != TempPawn)
+		{
+			LastPawn = TempPawn;
+			bWasBound = false;
+		}
 				
 // 		//UTWeaponPawn
 // 	if(Rx_Pawn(RxPC.Pawn) != None) {
@@ -520,12 +668,65 @@ function TickHUD()
 // 	else {
 // 		RxV = Rx_Vehicle(RxPC.Pawn);
 // 	}
-	
+
+
+
 	if((bUseTickCycle && Tick_Cycler == 1) || !bUseTickCycle)
 	{
-		SetLivingHUDVisible(true);
-		if(RxP != none && RxP.Health > 0) {
-			if (VehicleDeathMsgTime >= 0)
+		if(bPlayerDead && ((RxP != none && RxP.Health > 0) || RxV != none))
+		{
+			bPlayerDead = false;
+			SetLivingHUDVisible(true);
+			if(Subtitle_Messages.Length > 0)
+				Subtitle_Messages.Length = 0;
+
+		}
+
+		if(CompassMC != None)
+		{
+			PlayerRot = Rotator(Vector(RxPC.Rotation));
+
+			while(PlayerRot.yaw < 0)
+			{
+				PlayerRot.yaw += 65536.f;
+			}
+
+			CompassPos = 116 - (((PlayerRot.Yaw) / 65536.f) * 512);
+			if(LastCompassPos != CompassPos)
+			{
+				LastCompassPos = CompassPos;
+				CompassDI.HasX = true;
+				CompassDI.X = CompassPos;
+				CompassMC.SetDisplayInfo(CompassDI);
+			}
+		}
+
+	
+
+/*		if(CurrentHarvester == None)
+		{
+			if(LastHarvyHealthpc >= 0)
+				HarvyBars.GotoAndStopI(1);
+
+			LastHarvyHealthpc = -1;
+			LastMaxHarvyHealthpc = -1;
+
+			CurrentHarvester = Rx_TeamInfo(RxPRI.Team).CurrentHarvester;
+		}
+
+		if(CurrentHarvester != None)
+		{
+
+			if(CurrentHarvester.GetTeamNum() != RxPC.GetTeamNum())	// if changed team, detract
+				CurrentHarvester = None;
+			else				
+				UpdateMyHarvy();
+		}
+*/
+
+		if(RxP != none && RxP.Health > 0) 
+		{
+/*			if (Subtitle_Messages.Length > 0)
 			{
 				if (RenxHud.WorldInfo.TimeSeconds < VehicleDeathMsgTime)
 				{
@@ -546,18 +747,38 @@ function TickHUD()
 				SubtitlesText.SetVisible(false);
 				FadeScreenMC.SetVisible(false);
 			}
+
+			*/
 			if(isInVehicle) //they were in a vehicle
 			{
 
-				HealthBlock.GotoAndStopI(2);
-				WeaponBlock.GotoAndStopI(2);
+				HealthBlock.GotoAndStopI(1);
+				WeaponBlock.GotoAndStopI(1);
 				VArmorN.SetVisible(false);
 				VArmorMaxN.SetVisible(false);
 				isInVehicle = false;
+				LastStaminapc = -1;
+				LastArmorpc = -1;
+				LastMaxArmorpc = -1;
+				LastHealthpc = -1;
+				LastMaxHealthpc = -1;
+				LastVArmorpc = -1;
+				LastMaxVArmorpc = -1; 
+				LastArmorType = "";
+				UpdateHealthGFx(,,,true);
+				UpdateWeaponGFx(false, true);				
+				PassengerContainer = None;
+				AmmoInClipValue = -100;
+				AmmoInReserveValue = -100;
+				AltAmmoInClipValue = -100;
+				AltAmmoInReserveValue = -100;
+				LastPassengerText = "";
+				bWasBound = false;
+				bWasLocked = false;
 			}
 			
 			UpdateHealth(RxP.Health , RxP.HealthMax);
-			UpdateArmor(RxP.Armor , RxP.ArmorMax);
+			UpdateArmor(RxP.Armor , RxP.ArmorMax, Class<Rx_Familyinfo>(RxP.CurrCharClassInfo));
 			//UpdateAbility(); 
 			//updates that only happen on foot
 			UpdateStamina(RxP.Stamina);
@@ -567,17 +788,20 @@ function TickHUD()
 				UpdateWeapon(RxWeap);
 			}
 			
-			if (RxAbility != none && RxAbility.bShouldBeVisible()) {
+			if (RxAbility != none && RxAbility.bShouldBeVisible()) 
+			{
 				ShowAbility(true); //Make sure it's visible 
 				UpdateAbility(RxAbility);
-				}
-				else
-					ShowAbility(false); 
+			}
+			else
+				ShowAbility(false); 
 
 			//hide respawn hud (nBab)
 			hideRespawnHud();
-		} else if(RxV != none) {
-			if (VehicleDeathMsgTime >= 0)
+		} 
+		else if(RxV != none) 
+		{
+/*			if (VehicleDeathMsgTime >= 0)
 			{ 
 				if (RenxHud.WorldInfo.TimeSeconds < VehicleDeathMsgTime)
 				{
@@ -597,21 +821,24 @@ function TickHUD()
 				SubtitlesText.SetText("");
 				SubtitlesText.SetVisible(false);
 				FadeScreenMC.SetVisible(false);
-			}
+			}*/
 			if(!isInVehicle) //they were on foot
-			{
+			{			
 				HealthBlock.GotoAndStopI(3);
-				WeaponBlock.GotoAndStopI(3);
-				UpdateHUDVars();
+				UpdateHealthGFx();
 				VArmorN.SetVisible(true);
 				VArmorMaxN.SetVisible(true);
 				VArmorMaxN.SetText(RxV.HealthMax);
-
+				AmmoInClipValue = -100;
+				AmmoInReserveValue = -100;
+				AltAmmoInClipValue = -100;
+				AltAmmoInReserveValue = -100;
 				//show last pawn health when in vehicle (nBab)
-				VHealthN.SetText(LastHealthpc);
-				ArmorN.SetText(LastArmorpc);
-				
+				UpdatePilotHealth();
+				UpdatePilotArmor();
+
 				isInVehicle = true;
+				ShowAbility(false); 
 			}
 				
 	// 		if(Rx_VehicleSeatPawn(RxPC.Pawn) != None)
@@ -623,11 +850,13 @@ function TickHUD()
 			//`log(vehiclePawn.Health);
 			UpdateVehicleArmor(RxV.Health, RxV.HealthMax);
 			UpdateVehicleWeapon(RxVWeap);
-			if ((Rx_Vehicle_Chinook_GDI(RxV) != none || Rx_Vehicle_Chinook_Nod(RxV) != none) && RxV.Seats[RxV.GetSeatIndexForController(RxPC)].Gun == none) {
-				AmmoInClipN.SetText("0");
-				AmmoBar.GotoAndStopI(0);
-				lastWeaponHeld = none; //And somehow this not being here screwed up the entire HUD... Eh, whatever. -Yosh
-			}
+			UpdateVehicleSeats(RxV);
+	//		if ((Rx_Vehicle_Chinook_GDI(RxV) != none || Rx_Vehicle_Chinook_Nod(RxV) != none) && RxV.Seats[RxV.GetSeatIndexForController(RxPC)].Gun == none) 
+	//		{
+	//			AmmoInClipN.SetText("0");
+	//			AmmoBar.GotoAndStopI(0);
+	//			lastWeaponHeld = none; //And somehow this not being here screwed up the entire HUD... Eh, whatever. -Yosh
+	//		}
 			
 			
 	// 		if (Rx_VehicleSeatPawn(RxPC.Pawn) != none) {
@@ -655,13 +884,18 @@ function TickHUD()
 	// 		}
 			//hide respawn hud (nBab)
 			hideRespawnHud();
-		} else {
-			SetLivingHUDVisible(false);
-			FadeScreenMC.SetVisible(true);
+		} 
+		else 
+		{
+			if(!bPlayerDead)
+			{
+				bPlayerDead = true;
+				SetLivingHUDVisible(false);
+			}
+
 			SubtitlesText.SetVisible(true);
 			UpdateHealth(0 , 100);
-			UpdateArmor(0 , 100);
-			VehicleDeathMsgTime = -1;
+			UpdateArmor(0 , 100, None);
 			//show respawn hud (nBab)
 			showRespawnhud(GetPC().GetTeamNum(),lastFreeClass);
 		}
@@ -673,61 +907,31 @@ function TickHUD()
 	{
 		if (Minimap != none)
 		{
-			RxGRI = Rx_GRI(RxPC.WorldInfo.GRI);
-
-			if(RxGRI != None && !RxGRI.bMatchIsOver) {
+			if(RxGRI != None && !RxGRI.bMatchIsOver) 
+			{
 				Minimap.Update();	
 				
 			}
 		}
 
-		if (Marker != none) {
-			RxGRI = Rx_GRI(RxPC.WorldInfo.GRI);
-
-			if(RxGRI != None && !RxGRI.bMatchIsOver) {
+		if (Marker != none) 
+		{
+			if(RxGRI != None && !RxGRI.bMatchIsOver) 
+			{
 				Marker.Update();	
 			}
 		}
-		if (OverviewMapMovie != none && OverviewMapMovie.bMovieIsOpen) {
+		if (OverviewMapMovie != none && OverviewMapMovie.bMovieIsOpen) 
+		{
 			OverviewMapMovie.Update();
-		}
-	}
-	if (RxPC.WorldInfo != none && RxPC.WorldInfo.GRI !=none)
-	{
-		if (RxPC.WorldInfo.GRI.TimeLimit > 0)
-			UpdateMatchTimer(RxPC.WorldInfo.GRI.RemainingTime);
-		else
-			UpdateMatchTimer(RxPC.WorldInfo.GRI.ElapsedTime);
-
-	}
-
-	if (Rx_PRI(RxPC.PlayerReplicationInfo) != none)
-	{
-		if(!RxPC.IsSpectating())
-		{
-			UpdateCredits(Rx_PRI(RxPC.PlayerReplicationInfo).GetCredits());
-			if(RxPC.PlayerReplicationInfo.Team != None) 
-			{
-				UpdateVehicleCount(Rx_TeamInfo(RxPC.PlayerReplicationInfo.Team).GetVehicleCount(),Rx_TeamInfo(RxPC.PlayerReplicationInfo.Team).VehicleLimit);
-				UpdateMineCount(Rx_TeamInfo(RxPC.PlayerReplicationInfo.Team).MineCount,Rx_TeamInfo(RxPC.PlayerReplicationInfo.Team).mineLimit);
-			}
-		}
-		else if(Pawn(RxPC.ViewTarget) != None) 
-		{
-			UpdateCredits(Rx_PRI(Pawn(RxPC.ViewTarget).PlayerReplicationInfo).GetCredits());
-			if(Pawn(RxPC.ViewTarget).PlayerReplicationInfo.Team != None) 
-			{
-				UpdateVehicleCount(Rx_TeamInfo(Pawn(RxPC.ViewTarget).PlayerReplicationInfo.Team).GetVehicleCount(),Rx_TeamInfo(Pawn(RxPC.ViewTarget).PlayerReplicationInfo.Team).VehicleLimit);
-				UpdateMineCount(Rx_TeamInfo(Pawn(RxPC.ViewTarget).PlayerReplicationInfo.Team).MineCount,Rx_TeamInfo(Pawn(RxPC.ViewTarget).PlayerReplicationInfo.Team).mineLimit);
-			}	
 		}
 	}
 
 	if (Minimap != none)
 	{
-		RxGRI = Rx_GRI(RxPC.WorldInfo.GRI);
 
-		if(RxGRI != None && !RxGRI.bMatchIsOver) {
+		if(RxGRI != None && !RxGRI.bMatchIsOver) 
+		{
 			Minimap.UpdateMap();	
 				
 		}
@@ -741,56 +945,65 @@ function TickHUD()
 	if(TempPawn != None && TempPawn.WorldInfo.TimeSeconds - LastTipsUpdateTime > 0.15)
 	{
 		ResizedScreenCheck();
-		UpdateBuildings();
+
 		UpdateTips();
 		LastTipsUpdateTime = TempPawn.WorldInfo.TimeSeconds;
 		//UpdateScoreboard();
-	} else if(GameplayTipsText.GetString("htmlText") != "")
+	} 
+	else if(GameplayTipsText.GetString("htmlText") != "")
 	{
-		FadeScreenMC.SetVisible(true);
 		GameplayTipsText.SetVisible(true);
 	}	
 	
 	//Expirimental VP Stuff 
 	if(Subtitle_Messages.Length > 0 && RxPC != none) 
+	{
+		for(i=Min(Subtitle_Messages.Length - 1,5);i >= 0;i--)
 		{
-			for(i=0;i<Min(Subtitle_Messages.Length,6);i++)
-			{
-			if(i>0) FullVPString = FullVPString$"<br>"$Subtitle_Messages[i];
-			else
-			FullVPString = Subtitle_Messages[0]; 
-			}
-				SubtitlesText.SetString("htmlText", FullVPString);
-				SubtitlesText.SetVisible(true);
-				FadeScreenMC.SetVisible(true);
+			if(i == (Subtitle_Messages.Length -1) || i == 5) 
+				FullVPString = Subtitle_Messages[i].Message;
+			else				
+				FullVPString = Subtitle_Messages[i].Message$"<br>"$FullVPString;
 		}
+		if(FullVPString != LastVPString)
+		{
+			LastVPString = FullVPString;
+			SubtitlesText.SetString("htmlText", FullVPString);
+			SubtitlesText.SetVisible(true);
+			if(TempPawn != None)
+				hideRespawnHud();
+		}
+	}
 		
-		if(Subtitle_Messages.Length > 0) 
+	if(Subtitle_Messages.Length > 0) 
+	{	
+		for(i = 0;i<Subtitle_Messages.Length; i++)
 		{
-			VPMsg_Cycler-=0.5 ; 
-			
-			if(VPMsg_Cycler <= 0.0) 
+			Subtitle_Messages[i].Lifetime -= 0.5;
+
+			if(Subtitle_Messages[i].Lifetime <= 0)
 			{
-				Subtitle_Messages.Remove(0,1); 
-				VPMsg_Cycler=default.VPMsg_Cycler;
+				Subtitle_Messages.RemoveItem(Subtitle_Messages[i]);
 			}
+
 		}
+	}
+	if(Subtitle_Messages.Length <= 0 && LastVPString != "")
+	{
+		LastVPString = "";
+		SubtitlesText.SetString("htmlText", "");
+	}
+
 	//End Expirement 
 
-	//set up tech building icons (nBab)
-	if (SetupTechIcons)
-	{
-		setupTechBuildingIcons();
-		SetupTechIcons = false;
-	}
+
 	
 	if((bUseTickCycle && Tick_Cycler == 2) || !bUseTickCycle ) //Things that don't need to be updated that regularly
 	{
-	//update tech building icons (nBab)
-	updateTechBuildingIcons();
 
-	//update veterancy (nBab)
-	updateVeterancy();
+
+		//update veterancy (nBab)
+		updateVeterancy();
 	}
 	//update respawn ui
 	if (GetPC().GetTeamNum() != lastTeam)
@@ -799,19 +1012,16 @@ function TickHUD()
 		lastTeam = GetPC().GetTeamNum();
 	}
 
-	// For the commander points and max points on the bottom part of the hud. EX: "756/3000'
-	if(RxPC.PlayerReplicationInfo.Team != None)
-		CommPoints.SetText(int(Rx_TeamInfo(RxPC.PlayerReplicationInfo.Team).GetCommandPoints())$"/"$int(Rx_TeamInfo(RxPC.PlayerReplicationInfo.Team).GetMaxCommandPoints()));
-
 	if(SideMenu.GetBool("visible"))
-		DeathLogMC.SetVisible(false);
+		ChatLogMC.SetVisible(false);
 	else
-		DeathLogMC.SetVisible(true);
+		ChatLogMC.SetVisible(true);
+
+
 }
 
 function UpdateTips()
 {
-	local Rx_Controller RxPC;
 	local Rx_ObjectTooltipInterface OT;
 	local string bindKey;
 	local string jumpKey;
@@ -819,8 +1029,6 @@ function UpdateTips()
 	local Actor act;
 	local UTVehicle veh;
 
-	RxPC = Rx_Controller(GetPC());
-	
 	if(RxPC == None)
 	{
 		GameplayTipsText.SetString("htmlText", "");
@@ -835,7 +1043,6 @@ function UpdateTips()
 		
 		if (RxPC.bDisplayingAirdropReadyMsg)
 		{
-			FadeScreenMC.SetVisible(true);
 			GameplayTipsText.SetVisible(true);
 			GameplayTipsText.SetString("htmlText", "Vehicle Airdrop Available");
 			return;
@@ -847,7 +1054,6 @@ function UpdateTips()
 		
 		if (Rx_Pawn(RxPC.Pawn).CanParachute() && RenxHud.ShowBasicTips)
 		{
-			FadeScreenMC.SetVisible(true);
 			GameplayTipsText.SetVisible(true);
 			GameplayTipsText.SetString("htmlText", "Press <font color='#ff0000' size='20'>[ " $ jumpKey $ " ]</font> to open parachute. " );
 			return;
@@ -858,7 +1064,6 @@ function UpdateTips()
 		{
 			if (Rx_Vehicle_Harvester(veh) == none && Rx_Defence(veh) == none && (!veh.bDriving || (Rx_Vehicle_Air(veh) != None && Rx_Vehicle_Air(veh).AnySeatAvailable()) || Rx_VehRolloutController(veh.Controller) != None)) 
 			{
-				FadeScreenMC.SetVisible(true);
 				GameplayTipsText.SetVisible(true);
 				GameplayTipsText.SetString("htmlText", "Press <font color='#ff0000' size='20'>[ " $ bindKey $ " ]</font> to enter " $ Caps(veh.GetHumanReadableName()));
 			}
@@ -868,8 +1073,6 @@ function UpdateTips()
 			if (GameplayTipsText.GetText() != "") 
 			{
 				GameplayTipsText.SetString("htmlText", "");
-				GameplayTipsText.SetVisible(false);
-				FadeScreenMC.SetVisible(false);
 			}
 		}
 
@@ -881,7 +1084,6 @@ function UpdateTips()
 				tooltip = OT.GetTooltip(RxPC);
 				if (tooltip != "")
 				{
-					FadeScreenMC.SetVisible(true);
 					GameplayTipsText.SetVisible(true);
 					GameplayTipsText.SetString("htmlText", tooltip);
 					return;
@@ -898,7 +1100,6 @@ function UpdateTips()
 						tooltip = OT.GetTooltip(RxPC);
 						if (tooltip != "")
 						{
-							FadeScreenMC.SetVisible(true);
 							GameplayTipsText.SetVisible(true);
 							GameplayTipsText.SetString("htmlText", tooltip);
 							return;
@@ -911,21 +1112,21 @@ function UpdateTips()
 	else if (GameplayTipsText.GetText() != "" && InStr(GameplayTipsText.GetText(), "Respawn available in") < 0)
 	{					
 		GameplayTipsText.SetString("htmlText", "");
-		GameplayTipsText.SetVisible(false);
-		FadeScreenMC.SetVisible(false); 
+		if(RxPC.Pawn != None)
+			hideRespawnHud();
 	}
 }
 
 exec function SetLivingHUDVisible(bool visible)
 {
 	//ObjectiveMC.SetVisible(visible);
-	Minimap.SetVisible(visible);
+	MinimapBase.SetVisible(visible);
 	Marker.SetVisible(visible);
 	HealthBlock.SetVisible(visible);
-	BottomInfo.SetVisible(visible);
 	WeaponBlock.SetVisible(visible);
+	WeaponTipsMaster.SetVisible(visible);
 }
-exec function UpdateHUDVars() 
+exec function InitializeHUDVars() 
 {
 	// Grease:	When you have two frames, and an object in each frame with the same name,
 	//			the variables HAVE to be updated, otherwise it will only change the object
@@ -933,85 +1134,35 @@ exec function UpdateHUDVars()
 
 	// Shahman: in UT (GFxMinimapHud), what epic did is to call the GFxMoviePlayer's gotoandstop function and reupdate.
 
-	//Health
-	HealthBar       = GetVariableObject("_root.HealthBlock.Health");
-	HealthN         = GetVariableObject("_root.HealthBlock.HealthText.HealthN");
-	HealthMaxN      = GetVariableObject("_root.HealthBlock.HealthText.HealthMaxN");
-	HealthBlock     = GetVariableObject("_root.HealthBlock");
-	HealthText      = GetVariableObject("_root.HealthBlock.HealthText");
-	HealthIcon      = GetVariableObject("_root.HealthBlock.HealthIcon");
-
-	//Armor
-	ArmorBar        = GetVariableObject("_root.HealthBlock.Armor");
-	ArmorN          = GetVariableObject("_root.HealthBlock.ArmorN");
-	ArmorMaxN       = GetVariableObject("_root.HealthBlock.ArmorMaxN");
-	VArmorMaxN      = GetVariableObject("_root.HealthBlock.VehicleMaxN");
-	//nBab
-	VHealthN         = GetVariableObject("_root.HealthBlock.HealthN");
-
-	//Vehicle
-	VArmorN         = GetVariableObject("_root.HealthBlock.VehicleN");
-	VArmorBar       = GetVariableObject("_root.HealthBlock.HealthVehicle");
-	VehicleMC       = GetVariableObject("_root.WeaponBlock.VehicleIcon");
-	VAltWeaponBlock = GetVariableObject("_root.WeaponBlock.AltWeaponBlock");
-	VBackdrop       = GetVariableObject("_root.WeaponBlock.VehicleBackdrop");
-
-	//Stamina
-	StaminaBar      = GetVariableObject("_root.HealthBlock.Stamina");
-
-	//Weapon and Ammo
-	WeaponBlock     = GetVariableObject("_root.WeaponBlock");
-	WeaponName      = GetVariableObject("_root.WeaponBlock.WeaponName");
-	AmmoInClipN     = GetVariableObject("_root.WeaponBlock.AmmoInClipN");
-	AmmoReserveN    = GetVariableObject("_root.WeaponBlock.AmmoReserveN");
-	InfinitAmmo     = GetVariableObject("_root.WeaponBlock.Infinity");
-	AmmoBar         = GetVariableObject("_root.WeaponBlock.Ammo");
-	WeaponMC        = GetVariableObject("_root.WeaponBlock.Weapon");
-	WeaponPrevMC    = GetVariableObject("_root.WeaponBlock.WeaponPrev");
-	WeaponNextMC    = GetVariableObject("_root.WeaponBlock.WeaponNext");
-
-	AltWeaponName   = GetVariableObject("_root.WeaponBlock.AltWeaponBlock.AltWeaponName");
-	AltAmmoInClipN  = GetVariableObject("_root.WeaponBlock.AltWeaponBlock.AltAmmoInClipN");
-	AltInfinitAmmo  = GetVariableObject("_root.WeaponBlock.AltWeaponBlock.AltInfinity");
-	AltAmmoBar      = GetVariableObject("_root.WeaponBlock.AltWeaponBlock.AltAmmo");
-
-	//Abilities
-	AbilityMC       = GetVariableObject("_root.WeaponBlock.Ability");
-	AbilityMeterMC  = GetVariableObject("_root.WeaponBlock.Ability.Meter");
-	AbilityIconMC   = GetVariableObject("_root.WeaponBlock.Ability.Icon");
-	AbilityTextMC	= GetVariableObject("_root.WeaponBlock.AbilityText");
+	// Handepsilon: Ok, whoever has the idea of reassigning ALL gfxobject for each necessary update needs some spanking.
 
 	//Items
-	GrenadeMC       = GetVariableObject("_root.WeaponBlock.Grenade");
-	GrenadeN        = GetVariableObject("_root.WeaponBlock.Grenade.Icon.TextField");
-	TimedC4MC       = GetVariableObject("_root.WeaponBlock.TimedC4");
-	RemoteC4MC      = GetVariableObject("_root.WeaponBlock.RemoteC4");
-	ProxyC4MC       = GetVariableObject("_root.WeaponBlock.ProxyC4");
-	BeaconMC        = GetVariableObject("_root.WeaponBlock.Beacon");
+//	GrenadeMC       = WeaponBlock.GetObject("Grenade");
+//	GrenadeN        = WeaponBlock.GetObject("Grenade.Icon.TextField");
+//	TimedC4MC       = WeaponBlock.GetObject("TimedC4");
+//	RemoteC4MC      = WeaponBlock.GetObject("RemoteC4");
+//	ProxyC4MC       = WeaponBlock.GetObject("ProxyC4");
+//	BeaconMC        = WeaponBlock.GetObject("Beacon");
+	UpdateHealthGFx(,,,true);
+	UpdateWeaponGFx(false, true);
+	UpdateVeterancyGFx(true);
 
-	//Gameplay Info
-	BottomInfo      = GetVariableObject("_root.BottomInfo");
-	Credits         = GetVariableObject("_root.BottomInfo.Stats.Credits");
-	MatchTimer      = GetVariableObject("_root.BottomInfo.Stats.Time");
-	VehicleCount    = GetVariableObject("_root.BottomInfo.Stats.Vehicles");
-	MineCount    	= GetVariableObject("_root.BottomInfo.Stats.Mines");
-	CommPoints      = GetVariableObject("_root.BottomInfo.Stats.CP");
+//	HarvyHealthContainer = StatsMC.GetObject("HarvyCont");
+//	HarvyBars = HarvyHealthContainer.GetObject("HarvyHealth");
+
+	VoteMC = GetVariableObject("_root.VoteTextBase");
 
 	//Progress Bar
-	
-	LoadingMeterMC[0] = GetVariableObject("_root.loadingMeterGDI");
-	LoadingText[0] = GetVariableObject("_root.loadingMeterGDI.loadingText");
-	LoadingBarWidget[0] = GFxClikWidget(GetVariableObject("_root.loadingMeterGDI.bar", class'GFxClikWidget'));
-	LoadingMeterMC[1] = GetVariableObject("_root.loadingMeterNod");
-	LoadingText[1] = GetVariableObject("_root.loadingMeterNod.loadingText");
-	LoadingBarWidget[1] = GFxClikWidget(GetVariableObject("_root.loadingMeterNod.bar", class'GFxClikWidget'));
+	UpdateLoadingBar();
 
 	HideLoadingBar();
 //---------------------------------------------------
 	//Radar implementation
 	if (Minimap == none)
 	{
-		Minimap = Rx_GFxMinimap(GetVariableObject("_root.minimap", class'Rx_GFxMinimap'));
+		MinimapBase = GetVariableObject("_root.minimapBase");
+		CompassMC = MinimapBase.GetObject("CompassMC");
+		Minimap = Rx_GFxMinimap(GetVariableObject("_root.minimapBase.minimap", class'Rx_GFxMinimap'));
 		Minimap.init(self);
 	}
 
@@ -1019,17 +1170,153 @@ exec function UpdateHUDVars()
 		Marker = Rx_GFxMarker(GetVariableObject("_root.MarkerContainer", class'Rx_GFxMarker'));
 		Marker.init(self);
 	}
-	if(GrenadeN != None)
-		GrenadeN.SetText("0X");
-	if(GrenadeMC != None)
-		GrenadeMC.GotoAndStopI(2);
-	if(TimedC4MC != None)
-		TimedC4MC.GotoAndStopI(2);
-	if(RemoteC4MC != None)
-		RemoteC4MC.GotoAndStopI(2);
-	if(ProxyC4MC != None)
-		ProxyC4MC.GotoAndStopI(2);
-	HideBuildingIcons();
+}
+
+function UpdateHealthGFx(optional bool bSkipHealth, optional bool bSkipArmor, optional bool bSkipStamina, optional bool bSkipVehicle)
+{
+
+	if(!bSkipHealth)
+	{
+		HealthBlock     = GetVariableObject("_root.HealthBlock");
+
+		//Health
+		HealthText      = HealthBlock.GetObject("HealthText");
+		HealthBar       = HealthBlock.GetObject("Health");
+		HealthN         = HealthText.GetObject("HealthN");
+		HealthMaxN      = HealthText.GetObject("HealthMaxN");
+	}
+
+
+	if(!bSkipArmor)
+	{
+		//Armor
+		ArmorBar        = HealthBlock.GetObject("Armor");
+		ArmorN          = HealthBlock.GetObject("ArmorN");
+		ArmorMaxN       = HealthBlock.GetObject("ArmorMaxN");
+		ArmorText		= HealthBlock.GetObject("ArmorText");
+		
+	}
+
+	//Stamina
+	if(!bSkipStamina)
+		StaminaBar      = GetVariableObject("_root.HealthBlock.stamina.stam_bar.bar");
+
+	if(!bSkipVehicle)
+	{
+	//Vehicle
+		VArmorText		= HealthBlock.GetObject("VehicleText");
+		VArmorN         = VArmorText.GetObject("VehicleN");
+		VArmorMaxN      = VArmorText.GetObject("VehicleMaxN");
+		
+		VArmorBar       = HealthBlock.GetObject("HealthVehicle");
+	}
+
+}
+
+function UpdateWeaponGFx(bool bUsesMultiWeapon, bool bUpdateAbility)
+{
+
+	local int i;
+	local Pawn MyPawn;
+
+	// WEAPON SYSTEM
+	if(WeaponBlock == None)
+	{
+		WeaponBlock     = GetVariableObject("_root.WeaponBlock");
+	}
+
+	WeaponName      = WeaponBlock.GetObject("WeaponName");
+	AmmoInClipN     = WeaponBlock.GetObject("AmmoInClipN");
+	AmmoReserveN    = WeaponBlock.GetObject("AmmoReserveN");
+	AmmoBar         = WeaponBlock.GetObject("AmmoBar");	
+
+
+	//Weapon and Ammo
+
+
+	MyPawn = GetPC().Pawn;
+
+		
+
+	if(WeaponMC[0] == None)
+	{
+		WeaponListContainer = WeaponBlock.GetObject("WeaponList");
+
+		for(i=0; i < 5; i++)
+		{
+			WeaponMC[i] = WeaponListContainer.GetObject("Weapon"$i+1);
+		}
+	}
+
+	if(Vehicle(MyPawn) == None)
+	{
+
+		for(i=0; i < 5; i++)
+		{	
+			WeaponMC[i].SetVisible(true);
+		}	
+
+		if(bUpdateAbility)
+		{
+			AbilityMC = WeaponBlock.GetObject("Ability");
+			AbilityTextMC = WeaponBlock.GetObject("AbilityText");
+
+			AbilityMeterMC = AbilityMC.GetObject("Meter");
+			AbilityIconMC = AbilityMC.GetObject("Icon");
+		}
+
+		InfinitAmmo     = WeaponBlock.GetObject("Infinity");
+	}
+	else
+	{
+		for(i=0; i < 5; i++)
+		{	
+			WeaponMC[i].SetVisible(false);
+		}	
+
+		LockMC = WeaponBlock.GetObject("Lock");
+		AbilityTextMC = WeaponBlock.GetObject("AbilityText");
+
+		LockMC.SetVisible(false);
+		AbilityTextMC.SetVisible(false);
+
+		if(bUsesMultiWeapon)
+		{
+			AltWeaponName   = WeaponBlock.GetObject("AltWeaponName");
+			AltAmmoInClipN  = WeaponBlock.GetObject("AltAmmoInClipN");
+//			AltInfinitAmmo  = WeaponBlock.GetObject("AltInfinity");
+			AltAmmoBar      = WeaponBlock.GetObject("AltAmmoBar");
+		}
+	}
+
+}
+
+function UpdateVeterancyGFx(bool bInitial)
+{
+	if(bInitial)
+	{
+		VeterancyContainer = HealthBlock.GetObject("vet"); //'vet'
+		VeterancyLabel = VeterancyContainer.GetObject("vet_tf"); //'vet_tf'
+		
+		VeterancyIcon = VeterancyContainer.GetObject("vet_icon");
+		
+		VeterancyBar = GetVariableObject("_root.HealthBlock.vet.vet_bar.bar");		
+	}
+
+	VeterancyIconCurrent = VeterancyIcon.GetObject("vet_icon_current");
+	VeterancyIconNext = VeterancyIcon.GetObject("vet_icon_next");
+
+}
+
+function UpdateLoadingBar()
+{
+	LoadingMeterMC[0] = GetVariableObject("_root.loadingMeterGDI");
+	LoadingText[0] = LoadingMeterMC[0].GetObject("loadingText");
+	LoadingBarWidget[0] = GFxClikWidget(LoadingMeterMC[0].GetObject("bar", class'GFxClikWidget'));
+	LoadingMeterMC[1] = GetVariableObject("_root.loadingMeterNod");
+	LoadingText[1] = LoadingMeterMC[1].GetObject("loadingText");
+	LoadingBarWidget[1] = GFxClikWidget(LoadingMeterMC[1].GetObject("bar", class'GFxClikWidget'));
+
 }
 
 function HideLoadingBar()
@@ -1047,6 +1334,7 @@ function HideLoadingBar()
 		LoadingMeterMC[i].SetVisible(false);
 	}
 }
+
 function ShowLoadingBar(float value, optional string message)
 {
 	local byte i;
@@ -1089,6 +1377,12 @@ function GFxObject InitMessageRow(EMessageType MsgType, out int NumMessages)
 		case EMT_Chat:
 			FreeChatMessages.AddItem(mrow);
 			break;
+		case EMT_CText:
+			FreeCTextMessages.AddItem(mrow);
+			break;
+		case EMT_Radio:
+			FreeRadioMessages.AddItem(mrow);
+			break;
 		case EMT_Death:
 			FreeDeathMessages.AddItem(mrow);
 			break;
@@ -1108,39 +1402,13 @@ function GFxObject CreateMessageRow(EMessageType MsgType, out int NumMessages)
 			return EVALogMC.AttachMovie("logMessage", "EVAMessage"$NumMessages++);
 		case EMT_Chat:
 			return ChatLogMC.AttachMovie("logMessage", "ChatMessage"$NumMessages++);
+		case EMT_CText:
+			return CTextLogMC.AttachMovie("logMessage", "CTextMessage"$NumMessages++);
+		case EMT_Radio:
+			return RadioLogMC.AttachMovie("logMessage", "RadioMessage"$NumMessages++);
 		case EMT_Death:
 			return DeathLogMC.AttachMovie("logMessage", "DeathMessage"$NumMessages++);
 	}
-}
-
-
-function UpdateBuildingInfo(int Index) 
-{
-	//Buildings
-	UpdateBuildingInfo_GDI(Index);
-	UpdateBuildingInfo_Nod(Index);
-}
-function UpdateBuildingInfo_GDI(int Index) 
-{
-	BuildingInfo_GDI[Index].Icon = GetVariableObject("_root.BottomInfo.BuildingInfo.GDI.Icon"$Index);
-	BuildingInfo_GDI[Index].Stats = GetVariableObject("_root.BottomInfo.BuildingInfo.GDI.Icon"$Index$".Stats");
-	BuildingInfo_GDI[Index].Icon.SetVisible(false);
-}
-
-function UpdateBuildingInfo_Nod(int Index) 
-{
-	BuildingInfo_Nod[Index].Icon = GetVariableObject("_root.BottomInfo.BuildingInfo.Nod.Icon"$Index);
-	BuildingInfo_Nod[Index].Stats = GetVariableObject("_root.BottomInfo.BuildingInfo.Nod.Icon"$Index$".Stats");
-	BuildingInfo_Nod[Index].Icon.SetVisible(false);
-}
-
-function HideBuildingIcons()
-{
-	UpdateBuildingInfo(0);
-	UpdateBuildingInfo(1);
-	UpdateBuildingInfo(2);
-	UpdateBuildingInfo(3);
-	UpdateBuildingInfo(4);
 }
 
 function UpdateHealth(int currentHealth, int maxHealth)
@@ -1149,29 +1417,34 @@ function UpdateHealth(int currentHealth, int maxHealth)
 	local ASColorTransform ColorTransform;
 	//Update health if it is required
 	//if (LastHealthpc != currentHealth || HealthN.GetText() != string(currentHealth)) {
-		
+	
+	if(LastHealthpc == currentHealth)
+		return;
+
 		//update current health, text, and bar
 		LastHealthpc = currentHealth;
 		HealthBar.GotoAndStopI(float(currentHealth) / float(maxHealth) * 100 + 1);
 
-		if (currentHealth < 25) {
-			HealthIcon.GotoAndStopI(3);
+		if (currentHealth < 25) 
+		{
 			ColorTransform.multiply.R = 1.0;
 			ColorTransform.multiply.G = 0.0;
 			ColorTransform.multiply.B = 0.0;
 			ColorTransform.add.R = 0.0;
 			ColorTransform.add.G = 0.0;
 			ColorTransform.add.B = 0.0;
-		} else if (currentHealth < 62) {
-			HealthIcon.GotoAndStopI(2);
-			ColorTransform.multiply.R = 0.0;
-			ColorTransform.multiply.G = 0.0;
+		} 
+		else if (currentHealth < 62) 
+		{
+			ColorTransform.multiply.R = 1.f;
+			ColorTransform.multiply.G = 1.f;
 			ColorTransform.multiply.B = 0.0;
-			ColorTransform.add.R = 0.8;
-			ColorTransform.add.G = 0.2;
-			ColorTransform.add.B = 0.0;
-		} else {
-			HealthIcon.GotoAndStopI(1);
+			ColorTransform.add.R = 0.f;
+			ColorTransform.add.G = 0.f;
+			ColorTransform.add.B = 0.f;
+		} 
+		else 
+		{
 			ColorTransform.multiply.R = 0.0;
 			ColorTransform.multiply.G = 1.0;
 			ColorTransform.multiply.B = 0.0;
@@ -1180,7 +1453,10 @@ function UpdateHealth(int currentHealth, int maxHealth)
 			ColorTransform.add.B = 0.0;
 		}
 		if(HealthText != None)
+		{
+			HealthBar.SetColorTransform(ColorTransform);
 			HealthText.SetColorTransform(ColorTransform);
+		}
 
 		if(HealthN != None)
 			HealthN.SetText(currentHealth);
@@ -1198,6 +1474,8 @@ function UpdateHealth(int currentHealth, int maxHealth)
 			HealthMaxN.SetText("100+"$(maxHealth-100));
 		else
 			HealthMaxN.SetText(maxHealth);
+
+		LastMaxHealthpc = maxHealth;
 	}
 }
 
@@ -1205,34 +1483,234 @@ function UpdateVehicleArmor(int currentArmor, int maxArmor)
 {
 	//update armor if it is required
 	//if (LastVArmorpc != currentArmor || VArmorN.GetText() != string(currentArmor)) {
-		
+		local ASColorTransform ColorTransform;		
 		//update current health, text, and bar
-		LastVArmorpc = currentArmor;
-		VArmorBar.GotoAndStopI(float(currentArmor) / float(maxArmor) * 100);
-		VArmorN.SetText(currentArmor);
-		
-		if (VArmorMaxN != None)
+		if(LastVArmorpc != currentArmor)
 		{
-		VArmorMaxN.SetText(maxArmor);
+			LastVArmorpc = currentArmor;
+			VArmorBar.GotoAndStopI(float(currentArmor) / float(maxArmor) * 100);
+			VArmorN.SetText(currentArmor);
+
+
+			if (currentArmor < (maxArmor* 0.25) )
+			{
+				ColorTransform.multiply.R = 1.0;
+				ColorTransform.multiply.G = 0.0;
+				ColorTransform.multiply.B = 0.0;
+				ColorTransform.add.R = 0.0;
+				ColorTransform.add.G = 0.0;
+				ColorTransform.add.B = 0.0;
+			} 
+			else if (currentArmor < (maxArmor* 0.5) )
+			{
+				ColorTransform.multiply.R = 1.f;
+				ColorTransform.multiply.G = 1.f;
+				ColorTransform.multiply.B = 0.0;
+				ColorTransform.add.R = 0.f;
+				ColorTransform.add.G = 0.f;
+				ColorTransform.add.B = 0.0; 
+			} 
+			else 
+			{
+				ColorTransform.multiply.R = 0.0;
+				ColorTransform.multiply.G = 1.0;
+				ColorTransform.multiply.B = 0.0;
+				ColorTransform.add.R = 0.0;
+				ColorTransform.add.G = 0.0;
+				ColorTransform.add.B = 0.0;
+			}
+
+			VArmorBar.SetColorTransform(ColorTransform);
+			VArmorText.SetColorTransform(ColorTransform);
+		}
+		
+
+		if (VArmorMaxN != None && LastMaxVArmorpc != maxArmor)
+		{
+			LastMaxVArmorpc = maxArmor;
+			VArmorMaxN.SetText(maxArmor);
 		}
 	//}
 }
 
-function UpdateArmor(int currentArmor, int maxArmor){
+function UpdateArmor(int currentArmor, int maxArmor, class<Rx_Familyinfo> FamInfo)
+{
+	local String CurrentArmorType;
 	//update armor if it is required
 	//if (LastArmorpc != currentArmor || ArmorN.GetText() != string(currentArmor)) {
 		
+	if(LastArmorpc != currentArmor)
+	{
 		//update current health, text, and bar
 		LastArmorpc = currentArmor;
 		ArmorBar.GotoAndStopI(float(currentArmor) / float(maxArmor) * 100);
 		ArmorN.SetText(currentArmor);
 	//}
+	}
 
 	//if (ArmorMaxN != None && ArmorMaxN.GetText() != string(maxArmor)){
-	if (ArmorMaxN != None)
+	if (ArmorMaxN != None && maxArmor != LastMaxArmorpc)
 	{
+		LastMaxArmorpc = maxArmor;
 		ArmorMaxN.SetText(maxArmor);
 	}
+
+	if(FamInfo == None)
+	{
+		CurrentArmorType = "UNKNOWN";
+	}
+	else
+	{
+		Switch(FamInfo.default.armor_type)
+		{
+			case A_Kevlar:
+				CurrentArmorType = "KEVLAR";
+				break;
+
+			case A_FLAK:
+				CurrentArmorType = "FLAK";
+				break;
+
+			case A_Lazarus:
+				CurrentArmorType = "LAZARUS";
+				break;
+
+			default:
+				CurrentArmorType = "LIGHT";
+				break;
+
+		}
+	}		
+
+	if(LastArmorType != CurrentArmorType)
+	{
+		LastArmorType = CurrentArmorType;
+		ArmorText.SetText(CurrentArmorType);
+	}
+}
+
+/*
+function UpdateMyHarvy()
+{
+	local float HarvyHealthPercent;
+	local ASColorTransform ColorTransform;
+
+	if(CurrentHarvester == None)
+		return;
+
+	if(CurrentHarvester.HealthMax != LastMaxHarvyHealthpc)
+	{
+		LastMaxHarvyHealthpc = CurrentHarvester.HealthMax;
+	}
+	if(CurrentHarvester.Health != LastHarvyHealthpc)
+	{
+		LastHarvyHealthpc = CurrentHarvester.Health;
+		HarvyHealthPercent = LastHarvyHealthpc / LastMaxHarvyHealthpc * 100;
+		HarvyBars.GotoAndStopI(Max(int(HarvyHealthPercent),2));
+		if (LastHealthpc < 25) 
+		{
+			ColorTransform.multiply.R = 0.0;
+			ColorTransform.multiply.G = 0.0;
+			ColorTransform.multiply.B = 0.0;
+			ColorTransform.add.R = 1.0;
+			ColorTransform.add.G = 0.0;
+			ColorTransform.add.B = 0.0;
+		} 
+		else if (LastHealthpc < 62) 
+		{
+			ColorTransform.multiply.R = 0.0;
+			ColorTransform.multiply.G = 0.0;
+			ColorTransform.multiply.B = 0.0;
+			ColorTransform.add.R = 0.8;
+			ColorTransform.add.G = 0.7;
+			ColorTransform.add.B = 0.0;
+		} 
+		else 
+		{
+			ColorTransform.multiply.R = 0.0;
+			ColorTransform.multiply.G = 1.0;
+			ColorTransform.multiply.B = 0.0;
+			ColorTransform.add.R = 0.0;
+			ColorTransform.add.G = 0.0;
+			ColorTransform.add.B = 0.0;
+		}
+		HarvyBars.SetColorTransform(ColorTransform);
+	}
+
+
+}
+*/
+// since Rx_Pawn no longer exists when piloting vehicle, take from last values
+
+function UpdatePilotHealth()
+{
+	local ASColorTransform ColorTransform;
+
+	if(HealthBar != None)
+		HealthBar.GotoAndStopI(float(LastHealthpc) / float(LastmaxHealthpc) * 100 + 1);
+
+	if (LastHealthpc < 25) 
+	{
+		ColorTransform.multiply.R = 1.0;
+		ColorTransform.multiply.G = 0.0;
+		ColorTransform.multiply.B = 0.0;
+		ColorTransform.add.R = 0.0;
+		ColorTransform.add.G = 0.0;
+		ColorTransform.add.B = 0.0;
+		ColorTransform.add.A = 0.0;
+	} 
+	else if (LastHealthpc < 62) 
+	{
+		ColorTransform.multiply.R = 1.0;
+		ColorTransform.multiply.G = 1.0;
+		ColorTransform.multiply.B = 0.0;
+		ColorTransform.add.R = 0.0;
+		ColorTransform.add.G = 0.0;
+		ColorTransform.add.B = 0.0;
+		ColorTransform.add.A = 0.0;
+	} 
+	else 
+	{
+		ColorTransform.multiply.R = 0.0;
+		ColorTransform.multiply.G = 1.0;
+		ColorTransform.multiply.B = 0.0;
+		ColorTransform.add.R = 0.0;
+		ColorTransform.add.G = 0.0;
+		ColorTransform.add.B = 0.0;
+		ColorTransform.add.A = 0.0;
+	}
+	
+	if(HealthText != None)
+	{
+		HealthBar.SetColorTransform(ColorTransform);
+		HealthText.SetColorTransform(ColorTransform);
+	}
+
+	if(HealthN != None)
+		HealthN.SetText(LastHealthpc);
+
+	if (HealthMaxN != None)
+	{
+		if (LastmaxHealthpc>100)
+			HealthMaxN.SetText("100+"$(LastmaxHealthpc-100));
+		else
+			HealthMaxN.SetText(LastmaxHealthpc);
+	}
+}
+
+function UpdatePilotArmor()
+{
+	if(ArmorBar != None)
+		ArmorBar.GoToAndStopI(float(LastArmorpc) / float(LastMaxArmorpc) * 100);
+
+	if(ArmorN != None)
+		ArmorN.SetText(LastArmorpc);
+
+	if(ArmorMaxN != None)
+		ArmorMaxN.SetText(LastMaxArmorpc);
+
+	if(ArmorText != None)
+		ArmorText.SetText(LastArmorType);
 }
 
 function UpdateStamina(int currentStamina)
@@ -1241,9 +1719,13 @@ function UpdateStamina(int currentStamina)
 	//if (LastStaminapc != currentStamina) {
 	
 		//update current health, text, and bar
+		if(LastStaminapc == currentStamina)
+			return;
+
 		LastStaminapc = currentStamina;
 		if(StaminaBar != None)
-			StaminaBar.GotoAndStopI(int(currentStamina / 100.00 * 42));
+			StaminaBar.GotoAndStopI(currentStamina);
+
 	//}
 }
 
@@ -1259,18 +1741,27 @@ function UpdateAbility (Rx_WeaponAbility ability)
 		//GetPC().ClientMessage("RechargeRate: " $ability.RechargeRate $" | RechargeDelay: " $ability.RechargeDelay );
 		if (ability.bSingleCharge) {
 			//single charge
-			AbilityMeterMC.GotoAndStopI(ability.GetRechargeTiming() * 42);
+			AbilityMeterMC.GotoAndStopI(ability.GetRechargeTiming() * 51);
 			
-			if(!ability.bCanBeSelected()) AbilityIconMC.SetFloat("alpha", 0.5);
-				else
+			if(!ability.bCanBeSelected()) 
+				AbilityIconMC.SetFloat("alpha", 0.5);
+			else
 				AbilityIconMC.SetFloat("alpha", 1);
 				
-		} else {
+		} 
+		else
+		{
 			//not a single charge
-			AbilityMeterMC.GotoAndStopI(ability.GetRechargeTiming() * 42);
+			AbilityMeterMC.GotoAndStopI(ability.GetRechargeTiming() * 51);
 		}
-		AbilityTextMC.SetText("[" $ string( AbilityKey ) $ "]"); 
-		
+		if(ability.bCanBeSelected() || Rx_Pawn(GetPC().Pawn).Weapon == ability)
+		{
+			AbilityTextMC.SetText("ABILITY[" $ string( AbilityKey ) $ "]"); 
+		}
+		else
+		{
+			AbilityTextMC.SetText(FCeil(ability.RechargeRate - ability.GetRechargeRealTime())$"s");
+		}
 	}
 }
 
@@ -1289,77 +1780,254 @@ function ShowAbility(bool Show)
 
 function UpdateWeapon(UTWeapon weapon)
 {
-	local Rx_Controller RxPC;
 	local Rx_Weapon_Reloadable Weapon_R; 
 	local Rx_WeaponAbility WeaponAbility;
+	local int i;
+	local Rx_Weapon W;
+	local string WeaponTipsString, SecWeaponTipsString;
+	local LinearColor TempColor;
+	local ASColorTransform WeaponTipsColor, SecWeaponTipsColor;
+	local ASDisplayInfo DI, WTDI;
+	local bool bReachedWeaponLoop;
+	local ASColorTransform CT;
+	local float TipsXScaleActual;
 	//we dont want to set visible every tick, so we have this extra IF
-	if(weapon != lastWeaponHeld) {
-		AmmoInClipValue = -1;
-		AmmoInReserveValue = -1;
+	if(weapon != lastWeaponHeld) 
+	{
+		HideLoadingBar(); // because the beacon/airstrike is destroyed before it can hide the loading bar, we hide it here
 
-		UpdateHUDVars();
-		
+		AmmoInClipValue = -100;
+		AmmoInReserveValue = -100;
+
 		//This is for mods/mutators. This allows creators of new weapons to set names without having to do a custom version of this function
 		if(Rx_Weapon(weapon).CustomWeaponName != "")
-			WeaponName.SetText(Rx_Weapon(weapon).CustomWeaponName);
+			WeaponName.SetText(caps(Rx_Weapon(weapon).CustomWeaponName));
 		else
-			WeaponName.SetText(weapon.ItemName);
-		
-		if(Rx_Weapon(weapon).HasInfiniteAmmo()) {
+			WeaponName.SetText(caps(weapon.ItemName));
+
+		DI.HasY = true;
+
+
+		if(WeaponName.GetInt("numLines") > 1)
+		{
+			WeaponName.SetPosition(-143.5,-90.0);
+			DI.Y = -317.f;
+		}
+		else
+		{
+			WeaponName.SetPosition(-143.5,-75.f);
+			DI.Y = -302.f;
+		}
+		WeaponListContainer.SetDisplayInfo(DI);
+
+		if(Rx_Weapon(weapon).HasInfiniteAmmo()) 
+		{
 			AmmoReserveN.SetVisible(false);
 			InfinitAmmo.SetVisible(true);
-		} else {
+		} else 
+		{
 			AmmoReserveN.SetVisible(true);
 			InfinitAmmo.SetVisible(false);
 		}
 
 		//now we update the images of the weapons held
-		RxPC = Rx_Controller(GetPC());
-		prevWeapon = RxPC.GetPrevWeapon(weapon);
-		nextWeapon = RxPC.GetNextWeapon(weapon);
-		
-		if(lastWeaponHeld == prevweapon) {
-			ChangedWeapon("switchedToNextWeapon");
-		} else {
-			ChangedWeapon("switchedToPrevWeapon");
-		}	
-
 		lastWeaponHeld = weapon;
 
 		//CHANGE WEAPON HERE
-		LoadTexture(Rx_Weapon(weapon).WeaponIconTexture != none ? "img://" $ PathName(Rx_Weapon(weapon).WeaponIconTexture) : PathName(Texture2D'RenxHud.T_WeaponIcon_MissingCameo'), WeaponMC);
 
-		if(prevWeapon != none && Rx_Weapon(prevWeapon) != None) {
-			WeaponPrevMC.SetVisible(true);
-			LoadTexture(Rx_Weapon(prevWeapon).WeaponIconTexture != none ? "img://" $ PathName(Rx_Weapon(prevWeapon).WeaponIconTexture) : PathName(Texture2D'RenxHud.T_WeaponIcon_MissingCameo'), WeaponPrevMC);
-		} else {
-			WeaponPrevMC.SetVisible(false);
+//		LoadTexture(Rx_Weapon(weapon).WeaponIconTexture != none ? "img://" $ PathName(Rx_Weapon(weapon).WeaponIconTexture) : PathName(Texture2D'RenxHud.T_WeaponIcon_MissingCameo'), WeaponMC[0]);
+
+		LoadTexture(Rx_Weapon(weapon).WeaponIconTexture != none ? "img://" $ PathName(Rx_Weapon(weapon).WeaponIconTexture) : PathName(Texture2D'RenxHud.T_WeaponIcon_MissingCameo'), WeaponMC[0]);
+
+		if((Rx_Weapon_Reloadable(weapon) != None && (Rx_Weapon_Reloadable(weapon).HasAnyAmmoOfType(0) || Rx_Weapon_Reloadable(weapon).bHasInfiniteAmmo )) || Weapon.HasAnyAmmo())
+		{
+			CT.Multiply.R = 1.f;
+			CT.Multiply.G = 1.f;
+			CT.Multiply.B = 1.f;
+			CT.Add.R = 0.f;
+			CT.Add.G = 0.f;
+			CT.Add.B = 0.f;
 		}
-			
+		else
+		{
+			CT.Multiply.R = 1.f;
+			CT.Multiply.G = 1.f;
+			CT.Multiply.B = 0.75;
+			CT.Add.R = 0.4;
+			CT.Add.G = 0.4;
+			CT.Add.B = 0.4;
+		}
+		CT.Add.A = 0.f;
 
-		if(nextWeapon != none && Rx_Weapon(prevWeapon) != None) {
-			WeaponNextMC.SetVisible(true);
-			LoadTexture(Rx_Weapon(nextWeapon).WeaponIconTexture != none ? "img://" $ PathName(Rx_Weapon(nextWeapon).WeaponIconTexture) : PathName(Texture2D'RenxHud.T_WeaponIcon_MissingCameo'), WeaponNextMC);
-		} else {
-			WeaponNextMC.SetVisible(false);
+		WeaponMC[0].SetColorTransform(CT);
+
+		for(i = 0;i < 4; i++)
+		{
+			W = Rx_Weapon(RxPC.GetWeapon((i+1) * -1));
+			if(W != None && !bReachedWeaponLoop)
+			{
+				if(W == weapon || (i != 0 && W == Rx_Weapon(RxPC.GetWeapon(-1))))
+				{
+					bReachedWeaponLoop = true;
+					WeaponMC[i+1].SetVisible(false);
+				}
+				else
+				{
+					WeaponMC[i+1].SetVisible(true);
+					LoadTexture(W.WeaponIconTexture != none ? "img://" $ PathName(W.WeaponIconTexture) : PathName(Texture2D'RenxHud.T_WeaponIcon_MissingCameo'), WeaponMC[i+1]);
+					if((Rx_Weapon_Reloadable(W) != None && (Rx_Weapon_Reloadable(W).HasAnyAmmoOfType(0) || Rx_Weapon_Reloadable(W).bHasInfiniteAmmo )) || W.HasAnyAmmo())
+					{
+						CT.Multiply.R = 1.f;
+						CT.Multiply.G = 1.f;
+						CT.Multiply.B = 1.f;
+						CT.Add.R = 0.f;
+						CT.Add.G = 0.f;
+						CT.Add.B = 0.f;
+					}
+					else
+					{
+						CT.Multiply.R = 1.f;
+						CT.Multiply.G = 1.f;
+						CT.Multiply.B = 0.75;
+						CT.Add.R = 0.4;
+						CT.Add.G = 0.4;
+						CT.Add.B = 0.4;
+					}
+
+					CT.Multiply.A = WeaponMCAlpha[i];
+					WeaponMC[i+1].SetColorTransform(CT);
+				}
+			} 
+			else 
+			{
+				WeaponMC[i+1].SetVisible(false);
+			}
 		}
 	}
+	if(Rx_Weapon(Weapon) != None && !HasAdminMessage())
+	{
+		W = Rx_Weapon(weapon);
 
-	if(Rx_Weapon_Reloadable(weapon) != None) {
+		WeaponTipsString = W.GetWeaponTips();
+		TempColor = W.GetTipsColor();
+		WeaponTipsColor.Multiply.R = TempColor.R;
+		WeaponTipsColor.Multiply.G = TempColor.G;
+		WeaponTipsColor.Multiply.B = TempColor.B;
+		WeaponTipsColor.Multiply.A = TempColor.A; 
+
+		SecWeaponTipsString = W.GetWeaponSecondaryTips();
+		TempColor = W.GetSecondTipsColor();
+
+		SecWeaponTipsColor.Multiply.R = TempColor.R;
+		SecWeaponTipsColor.Multiply.G = TempColor.G;
+		SecWeaponTipsColor.Multiply.B = TempColor.B;
+		SecWeaponTipsColor.Multiply.A = TempColor.A;
+	}
+	else
+	{
+		WeaponTipsString = "";
+		WeaponTipsColor.Multiply.R = 1.0;
+		WeaponTipsColor.Multiply.G = 1.0;
+		WeaponTipsColor.Multiply.B = 1.0;
+		WeaponTipsColor.Multiply.A = 1.0;
+
+		SecWeaponTipsString = "";
+		SecWeaponTipsColor.Multiply.R = 1.0;
+		SecWeaponTipsColor.Multiply.G = 1.0;
+		SecWeaponTipsColor.Multiply.B = 1.0;
+		SecWeaponTipsColor.Multiply.A = 1.0;	
+	}
+
+	WeaponTipsColor.Add.A = 0.0;
+	SecWeaponTipsColor.Add.A = 0.0;
+
+	if(WeaponTipsString != LastWeaponTips)
+	{
+		WeaponTipsText.SetText(WeaponTipsString);
+
+		if(WeaponTipsString == "")
+		{
+			WeaponTips.SetVisible(false);
+		}	
+		else	
+		{
+			if(LastWeaponTips == "")
+				WeaponTips.SetVisible(true);
+
+			WTDI.HasXScale = true;
+			WTDI.HasX = true;
+			TipsXScaleActual = 25.6 * Len(WeaponTipsString);
+			WTDI.XScale = TipsXScaleActual / 256 * 100;
+			WTDI.X = TipsXScaleActual * -1 / 2;
+			WeaponTipsBKG.SetDisplayInfo(WTDI);
+		}
+		LastWeaponTips = WeaponTipsString;
+	}
+	if(WeaponTipsColor != LastWeaponTipsColor)
+	{
+		LastWeaponTipsColor = WeaponTipsColor;
+		WeaponTips.SetColorTransform(LastWeaponTipsColor);
+	}
+
+	if(SecWeaponTipsString != LastSecWeaponTips)
+	{
+		SecWeaponTipsText.SetText(SecWeaponTipsString);
+
+		if(SecWeaponTipsString == "")
+		{
+			SecWeaponTips.SetVisible(false);
+		}	
+		else	
+		{
+			if(LastSecWeaponTips == "")
+				SecWeaponTips.SetVisible(true);
+
+			WTDI.HasXScale = true;
+			WTDI.HasX = true;
+			TipsXScaleActual = 25.6 * Len(SecWeaponTipsString);
+			WTDI.XScale = TipsXScaleActual / 256 * 100;
+			WTDI.X = TipsXScaleActual * -1 / 2;
+			SecWeaponTipsBKG.SetDisplayInfo(WTDI);
+		}
+		LastSecWeaponTips = SecWeaponTipsString;
+	}
+	if(SecWeaponTipsColor != LastSecWeaponTipsColor)
+	{
+		LastSecWeaponTipsColor = SecWeaponTipsColor;
+		SecWeaponTips.SetColorTransform(LastSecWeaponTipsColor);
+	}
+
+	if(Rx_Weapon_Reloadable(weapon) != None) 
+	{
 		Weapon_R = Rx_Weapon_Reloadable(weapon);
 		//Update ammo counts
-		if( AmmoInClipValue != Weapon_R.GetUseableAmmo()) {
+		if(weapon != lastWeaponHeld || AmmoInClipValue != Weapon_R.GetUseableAmmo()) 
+		{
 			AmmoInClipValue = Weapon_R.GetUseableAmmo();
 			AmmoInClipN.SetText(AmmoInClipValue);
 			AmmoBar.GotoAndStopI(float(AmmoInClipValue) / float(Weapon_R.GetMaxAmmoInClip()) * 100);
 		}
 		//Update reserve ammo counts
-		if( AmmoInReserveValue != Weapon_R.GetReserveAmmo()) {
+		if( AmmoInReserveValue != Weapon_R.GetReserveAmmo()) 
+		{
 			AmmoInReserveValue = Weapon_R.GetReserveAmmo();
 			AmmoReserveN.SetText(AmmoInReserveValue);
 		}
+		if(weapon == lastWeaponHeld && (Weapon_R.GetReserveAmmo() + Weapon_R.GetUseableAmmo()) <= 0)
+		{
+			CT.Multiply.R = 1.f;
+			CT.Multiply.G = 1.f;
+			CT.Multiply.B = 0.75;
+			CT.Add.R = 0.4;
+			CT.Add.G = 0.4;
+			CT.Add.B = 0.4;			
+			
+			WeaponMC[0].SetColorTransform(CT);		
+		}
+
 		//realod weapon animation
-		if(Weapon_R != None && Weapon_R.CurrentlyReloading && !Weapon_R.PerBulletReload) {	
+		if(Weapon_R != None && Weapon_R.CurrentlyReloading && !Weapon_R.PerBulletReload) 
+		{	
 			AnimateReload(weapon.WorldInfo.TimeSeconds - Weapon_R.reloadBeginTime, Weapon_R.currentReloadTime, AmmoBar);		
 		}
 	}
@@ -1367,7 +2035,8 @@ function UpdateWeapon(UTWeapon weapon)
 	if(Rx_WeaponAbility(weapon) != None) {
 		WeaponAbility = Rx_WeaponAbility(weapon);
 		//Update ammo counts
-		if( AmmoInClipValue != WeaponAbility.CurrentCharges) {
+		if(weapon != lastWeaponHeld || AmmoInClipValue != WeaponAbility.CurrentCharges) 
+		{
 			AmmoInClipValue = WeaponAbility.CurrentCharges;
 			AmmoInClipN.SetText(AmmoInClipValue);
 			AmmoBar.GotoAndStopI(float(AmmoInClipValue) / WeaponAbility.MaxCharges * 100.0);
@@ -1378,20 +2047,7 @@ function UpdateWeapon(UTWeapon weapon)
 			AmmoReserveN.SetText(AmmoInReserveValue);
 		}
 	}
-	if(Rx_WeaponAbility(weapon) != None) {
-		WeaponAbility = Rx_WeaponAbility(weapon);
-		//Update ammo counts
-		if( AmmoInClipValue != WeaponAbility.CurrentCharges) {
-			AmmoInClipValue = WeaponAbility.CurrentCharges;
-			AmmoInClipN.SetText(AmmoInClipValue);
-			AmmoBar.GotoAndStopI(float(AmmoInClipValue) / WeaponAbility.MaxCharges * 100.0);
-		}
-		//Update reserve ammo counts
-		if( AmmoInReserveValue != WeaponAbility.MaxCharges) {
-			AmmoInReserveValue = WeaponAbility.MaxCharges;
-			AmmoReserveN.SetText(AmmoInReserveValue);
-		}
-	}}
+}
 
 function LoadTexture(string pathName, GFxObject widget) 
 {
@@ -1443,324 +2099,272 @@ function UpdateItems()
 
 function UpdateVehicleWeapon(Rx_Vehicle_Weapon weapon)
 {
-	if(weapon == None) {
-		VehicleMC.SetVisible(false);
-		//`log ("<GFxHUD Log> GetPC().Pawn? " $ GetPC().Pawn);
-		return;
-	}
+	local string WeaponTipsString, SecWeaponTipsString;
+	local LinearColor TempColor;
+	local ASColorTransform WeaponTipsColor, SecWeaponTipsColor;
+	local ASDisplayInfo WTDI;
+	local float TipsXScaleActual;
+//	if(weapon == None) {
+//		VehicleMC.SetVisible(false);
+//		//`log ("<GFxHUD Log> GetPC().Pawn? " $ GetPC().Pawn);
+//		return;
+//	}
 	//UpdateHUDVars();
 
-	if(weapon != lastWeaponHeld) { //this is a new weapon
-		VehicleMC.SetVisible(true);
+	if(weapon != lastWeaponHeld) 
+	{ //this is a new weapon
+		WeaponBlock.GotoAndStopI((Rx_Vehicle_MultiWeapon(weapon) != None) ? 4 : 3);
+
+
+		lastWeaponHeld = weapon;
+
+//		VehicleMC.SetVisible(true);
 		
 		//VehicleMC.GotoAndStopI(weapon.InventoryGroup);
-		LoadTexture(Rx_Vehicle(weapon.MyVehicle).VehicleIconTexture != none ? "img://" $ PathName(Rx_Vehicle(weapon.MyVehicle).VehicleIconTexture) : PathName(Texture2D'RenxHud.T_VehicleIcon_MissingCameo'), VehicleMC);
+		//LoadTexture(Rx_Vehicle(weapon.MyVehicle).VehicleIconTexture != none ? "img://" $ PathName(Rx_Vehicle(weapon.MyVehicle).VehicleIconTexture) : PathName(Texture2D'RenxHud.T_VehicleIcon_MissingCameo'), VehicleMC);
 		
+		AmmoInClipValue = -100;
+		AltAmmoInClipValue = -100;
 
-		if(Rx_Vehicle_MultiWeapon(weapon) != none) {
-			WeaponBlock.GotoAndStopI(4);
-			VBackdrop.GotoAndStopI(2);
-			UpdateHUDVars(); // Update variables after we change frames otherwise VAltWeaponBlock will be none
-			VAltWeaponBlock.SetVisible(true);
-			AltWeaponName.SetVisible(true);
-			if(AltInfinitAmmo != None) {
-				AltInfinitAmmo.SetVisible(true);
-			}
-			AltWeaponName.SetText(Rx_Vehicle_MultiWeapon(weapon).AltItemName);
-		} else {
-			if(AmmoReserveN != None) {
-				AmmoReserveN.SetVisible(true);
-			}
-			if(AltInfinitAmmo != None) {
-				AltInfinitAmmo.SetVisible(false);
-			}
-			if(VAltWeaponBlock != None) {
-				VAltWeaponBlock.SetVisible(false);
-			}
-			if(AltWeaponName != None) {
-				AltWeaponName.SetVisible(false);
-			}
-		}
+		UpdateWeaponGFx((Rx_Vehicle_MultiWeapon(weapon) != none), false);
+		
+		PassengerContainer = None; // just a precaution if we end up changing frame
 		
 		// This block on bottom because when there is a multiweapon equipped,
 		// it changes frames, and relocates the objects, after that its time to set vars.
-		WeaponName.SetText(weapon.ItemName);
-		if(AmmoReserveN != None) {
-			AmmoReserveN.SetVisible(false);
-		}
-		if(InfinitAmmo != None) {
-			InfinitAmmo.SetVisible(true);
-		}
+		if(weapon != None)
+			WeaponName.SetText(caps(weapon.ItemName));
+		else
+			WeaponName.SetText("UNARMED");
 
-		lastWeaponHeld = weapon;
+//		if(AmmoReserveN != None) {
+//			AmmoReserveN.SetVisible(false);
+//		}
+//		if(InfinitAmmo != None) {
+//			InfinitAmmo.SetVisible(true);
+//		}
+	}
+
+	if(Weapon != None && !HasAdminMessage())
+	{
+
+
+		WeaponTipsString = Weapon.GetWeaponTips();
+		TempColor = Weapon.GetTipsColor();
+		WeaponTipsColor.Multiply.R = TempColor.R;
+		WeaponTipsColor.Multiply.G = TempColor.G;
+		WeaponTipsColor.Multiply.B = TempColor.B;
+		WeaponTipsColor.Multiply.A = TempColor.A; 
+
+		SecWeaponTipsString = Weapon.GetWeaponSecondaryTips();
+		TempColor = Weapon.GetSecondTipsColor();
+
+		SecWeaponTipsColor.Multiply.R = TempColor.R;
+		SecWeaponTipsColor.Multiply.G = TempColor.G;
+		SecWeaponTipsColor.Multiply.B = TempColor.B;
+		SecWeaponTipsColor.Multiply.A = TempColor.A;
+	}
+	else
+	{
+		WeaponTipsString = "";
+		WeaponTipsColor.Multiply.R = 1.0;
+		WeaponTipsColor.Multiply.G = 1.0;
+		WeaponTipsColor.Multiply.B = 1.0;
+		WeaponTipsColor.Multiply.A = 1.0;
+
+		SecWeaponTipsString = "";
+		SecWeaponTipsColor.Multiply.R = 1.0;
+		SecWeaponTipsColor.Multiply.G = 1.0;
+		SecWeaponTipsColor.Multiply.B = 1.0;
+		SecWeaponTipsColor.Multiply.A = 1.0;	
+	}
+
+	WeaponTipsColor.Add.A = 0.0;
+	SecWeaponTipsColor.Add.A = 0.0;
+
+	if(WeaponTipsString != LastWeaponTips)
+	{
+		WeaponTipsText.SetText(WeaponTipsString);
+
+		if(WeaponTipsString == "")
+		{
+			WeaponTips.SetVisible(false);
+		}	
+		else	
+		{
+			if(LastWeaponTips == "")
+				WeaponTips.SetVisible(true);
+
+			WTDI.HasXScale = true;
+			WTDI.HasX = true;
+			TipsXScaleActual = 25.6 * Len(WeaponTipsString);
+			WTDI.XScale = TipsXScaleActual / 256 * 100;
+			WTDI.X = TipsXScaleActual * -1 / 2;
+			WeaponTipsBKG.SetDisplayInfo(WTDI);
+		}
+		LastWeaponTips = WeaponTipsString;
+	}
+	if(WeaponTipsColor != LastWeaponTipsColor)
+	{
+		LastWeaponTipsColor = WeaponTipsColor;
+		WeaponTips.SetColorTransform(LastWeaponTipsColor);
+	}
+
+	if(SecWeaponTipsString != LastSecWeaponTips)
+	{
+		SecWeaponTipsText.SetText(SecWeaponTipsString);
+
+		if(SecWeaponTipsString == "")
+		{
+			SecWeaponTips.SetVisible(false);
+		}	
+		else	
+		{
+			if(LastSecWeaponTips == "")
+				SecWeaponTips.SetVisible(true);
+
+			WTDI.HasXScale = true;
+			WTDI.HasX = true;
+			TipsXScaleActual = 25.6 * Len(SecWeaponTipsString);
+			WTDI.XScale = TipsXScaleActual / 256 * 100;
+			WTDI.X = TipsXScaleActual * -1 / 2;
+			SecWeaponTipsBKG.SetDisplayInfo(WTDI);
+		}
+		LastSecWeaponTips = SecWeaponTipsString;
+	}
+	if(SecWeaponTipsColor != LastSecWeaponTipsColor)
+	{
+		LastSecWeaponTipsColor = SecWeaponTipsColor;
+		SecWeaponTips.SetColorTransform(LastSecWeaponTipsColor);
 	}
 	//Update ammo counts
-	if( weapon != None) { //AmmoInClipValue != weapon.GetUseableAmmo()
-		AmmoInClipValue = weapon.GetUseableAmmo();
-		AmmoInClipN.SetText(AmmoInClipValue);
-		AmmoBar.GotoAndStopI(float(AmmoInClipValue) / float(weapon.GetMaxAmmoInClip()) * 100);
+	if( weapon != None) 
+	{ //AmmoInClipValue != weapon.GetUseableAmmo()
+
+		if(AmmoInClipValue != weapon.GetUseableAmmo())
+		{
+			AmmoInClipValue = weapon.GetUseableAmmo();
+			AmmoInClipN.SetText(AmmoInClipValue);
+			AmmoBar.GotoAndStopI(float(AmmoInClipValue) / float(weapon.GetMaxAmmoInClip()) * 100);
+		}
 	}
-	if( Rx_Vehicle_MultiWeapon(weapon) != none ) { //&& AltAmmoInClipValue != Rx_Vehicle_MultiWeapon(weapon).GetAltUseableAmmo()
-		AltAmmoInClipValue = Rx_Vehicle_MultiWeapon(weapon).GetAltUseableAmmo();
+	else
+	{
+		if(AmmoInClipValue != 0)
+		{
+			AmmoInClipValue = 0;
+			AmmoInClipN.SetText("---");
+			AmmoBar.GotoAndStopI(1);
+		}		
+	}
+	if( Rx_Vehicle_MultiWeapon(weapon) != none ) 
+	{ //&& AltAmmoInClipValue != Rx_Vehicle_MultiWeapon(weapon).GetAltUseableAmmo()
+		
+		AltWeaponName.SetText(caps(Rx_Vehicle_MultiWeapon(weapon).AltItemName));		
 		AltAmmoInClipN.SetText(AltAmmoInClipValue);
-		AltAmmoBar.GotoAndStopI(float(AltAmmoInClipValue) / float(Rx_Vehicle_MultiWeapon(weapon).GetMaxAltAmmoInClip()) * 100);
+		if(AltAmmoInClipValue != Rx_Vehicle_MultiWeapon(weapon).GetAltUseableAmmo())
+		{
+			AltAmmoInClipValue = Rx_Vehicle_MultiWeapon(weapon).GetAltUseableAmmo();
+			AltAmmoBar.GotoAndStopI(float(AltAmmoInClipValue) / float(Rx_Vehicle_MultiWeapon(weapon).GetMaxAltAmmoInClip()) * 100);
+		}
 	}
 	
 	//animate reload
-	if( Rx_Vehicle_MultiWeapon(weapon) != none) {
-		if(Rx_Vehicle_MultiWeapon(weapon).PrimaryReloading) {
+	if( Rx_Vehicle_MultiWeapon(weapon) != none) 
+	{
+		if(Rx_Vehicle_MultiWeapon(weapon).PrimaryReloading) 
+		{
 			AnimateReload(weapon.WorldInfo.TimeSeconds - Rx_Vehicle_MultiWeapon(weapon).primaryReloadBeginTime, Rx_Vehicle_MultiWeapon(weapon).currentPrimaryReloadTime, AmmoBar);
 		}
-		if(Rx_Vehicle_MultiWeapon(weapon).SecondaryReloading) {
+		if(Rx_Vehicle_MultiWeapon(weapon).SecondaryReloading) 
+		{
 			AnimateReload(weapon.WorldInfo.TimeSeconds - Rx_Vehicle_MultiWeapon(weapon).secondaryReloadBeginTime, Rx_Vehicle_MultiWeapon(weapon).currentSecondaryReloadTime, AltAmmoBar);
 		}
-	} else {
-		if(Rx_Vehicle_Weapon_Reloadable(weapon) != None && Rx_Vehicle_Weapon_Reloadable(weapon).CurrentlyReloading) {	
+	} 
+	else 
+	{
+		if(Rx_Vehicle_Weapon_Reloadable(weapon) != None && Rx_Vehicle_Weapon_Reloadable(weapon).CurrentlyReloading) 
+		{	
 			AnimateReload(weapon.WorldInfo.TimeSeconds - Rx_Vehicle_Weapon_Reloadable(weapon).reloadBeginTime, Rx_Vehicle_Weapon_Reloadable(weapon).currentReloadTime, AmmoBar);
 		}
 	}
 }
 
-function UpdateBuildings()
+function UpdateVehicleSeats(Rx_Vehicle RxV)
 {
-	local WorldInfo WI;
-	local Rx_Building BuildingActor;
-	local int GDIIndex;
-	local int NodIndex;
+	local string PassengerText;
+	local int i;
 
-	WI = GetPC().WorldInfo;
-	GDIIndex = -1;
-	NodIndex = -1;
+	if(PassengerContainer == None)
+		PassengerContainer = WeaponBlock.GetObject("PassengerContainer");
 
-	foreach WI.AllActors(class'Rx_Building', BuildingActor)
+	for (i = (RxV.Seats.Length - 1); i >= 0; i--) // reverse iteration yo
 	{
-		if(!BuildingActor.bSignificant)	// if insignificant, skip checking this
-			continue;
+		if(i < (RxV.Seats.Length - 1))
+			PassengerText $= "\n";
 
-		if(BuildingActor.TeamID == TEAM_GDI)
+		if (RxV.GetSeatPRI(i) != none )
 		{
-			if( Rx_Building_GDI_Defense(BuildingActor) != None )
-			{
-				GDIIndex++;
-				UpdateBuildingInfo_GDI(GDIIndex);
-				BuildingInfo_GDI[GDIIndex].Icon.SetVisible(true);
-				BuildingInfo_GDI[GDIIndex].Icon.GotoAndStopI(1);
-
-				if( BuildingActor.IsDestroyed() )
-					BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(3);
-				/*If not using armour, just say if the health is really low. If using armour, go red when the building is taking true damage*/
-				else 
-					if( BuildingActor.GetMaxArmor() <= 0 && BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4)) BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(2); //No armour
-				else
-					if( BuildingActor.GetMaxArmor() > 0 && BuildingActor.GetArmor() <= 240) BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(2); // armour
-				else
-					BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(1);
-			}
-			else if( Rx_Building_GDI_VehicleFactory(BuildingActor) != None )
-			{
-				GDIIndex++;
-				UpdateBuildingInfo_GDI(GDIIndex);
-				BuildingInfo_GDI[GDIIndex].Icon.SetVisible(true);
-				BuildingInfo_GDI[GDIIndex].Icon.GotoAndStopI(2);
-
-				if( BuildingActor.IsDestroyed() )
-					BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(3);
-				/*If not using armour, just say if the health is really low. If using armour, go red when the building is taking true damage*/
-				else 
-					if( BuildingActor.GetMaxArmor() <= 0 && BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4)) BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(2); //No armour
-				else
-					if( BuildingActor.GetMaxArmor() > 0 && BuildingActor.GetArmor() <= 240) BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(2); // armour
-				else
-					BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(1);
-			}
-			else if(Rx_Building_GDI_InfantryFactory(BuildingActor) != None)
-			{
-				GDIIndex++;
-				UpdateBuildingInfo_GDI(GDIIndex);
-				BuildingInfo_GDI[GDIIndex].Icon.SetVisible(true);
-				BuildingInfo_GDI[GDIIndex].Icon.GotoAndStopI(3);
-
-				if( BuildingActor.IsDestroyed() )
-					BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(3);
-				/*If not using armour, just say if the health is really low. If using armour, go red when the building is taking true damage*/
-				else 
-					if( BuildingActor.GetMaxArmor() <= 0 && BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4)) BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(2); //No armour
-				else
-					if( BuildingActor.GetMaxArmor() > 0 && BuildingActor.GetArmor() <= 240) BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(2); // armour
-				else
-					BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(1);
-			}
-			else if( Rx_Building_GDI_MoneyFactory(BuildingActor) != None )
-			{
-				GDIIndex++;
-				UpdateBuildingInfo_GDI(GDIIndex);
-				BuildingInfo_GDI[GDIIndex].Icon.SetVisible(true);
-				BuildingInfo_GDI[GDIIndex].Icon.GotoAndStopI(4);
-
-				if( BuildingActor.IsDestroyed() )
-					BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(3);
-				/*If not using armour, just say if the health is really low. If using armour, go red when the building is taking true damage*/
-				else 
-					if( BuildingActor.GetMaxArmor() <= 0 && BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4)) BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(2); //No armour
-				else
-					if( BuildingActor.GetMaxArmor() > 0 && BuildingActor.GetArmor() <= 240) BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(2); // armour
-				else
-					BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(1);
-			}
-			else if( Rx_Building_GDI_PowerFactory(BuildingActor) != None )
-			{
-				GDIIndex++;
-				UpdateBuildingInfo_GDI(GDIIndex);
-				BuildingInfo_GDI[GDIIndex].Icon.SetVisible(true);
-				BuildingInfo_GDI[GDIIndex].Icon.GotoAndStopI(5);
-
-				if( BuildingActor.IsDestroyed() )
-					BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(3);
-				/*If not using armour, just say if the health is really low. If using armour, go red when the building is taking true damage*/
-				else 
-					if( BuildingActor.GetMaxArmor() <= 0 && BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4)) BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(2); //No armour
-				else
-					if( BuildingActor.GetMaxArmor() > 0 && BuildingActor.GetArmor() <= 240) BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(2); // armour
-				else
-					BuildingInfo_GDI[GDIIndex].Stats.GotoAndStopI(1);
-			}
+			PassengerText $= RxV.GetSeatPRI(i).GetHumanReadableName() @ "- ("$i+1$")";
 		}
-		else if(BuildingActor.TeamID == TEAM_NOD)
+		else
 		{
-			if( Rx_Building_Nod_Defense(BuildingActor) != None )
-			{
-				NodIndex++;
-				UpdateBuildingInfo_Nod(NodIndex);
-				BuildingInfo_Nod[NodIndex].Icon.SetVisible(true);
-				BuildingInfo_Nod[NodIndex].Icon.GotoAndStopI(1);
-
-				if( BuildingActor.IsDestroyed() )
-					BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(3);
-				/*If not using armour, just say if the health is really low. If using armour, go red when the building is taking true damage*/
-				else 
-					if( BuildingActor.GetMaxArmor() <= 0 && BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4)) BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(2); //No armour
-				else
-					if( BuildingActor.GetMaxArmor() > 0 && BuildingActor.GetArmor() <= 240) BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(2); // armour
-				else
-					BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(1);
-			}
-			else if( Rx_Building_Nod_VehicleFactory(BuildingActor) != None )
-			{
-				NodIndex++;			
-				UpdateBuildingInfo_Nod(NodIndex);
-				BuildingInfo_Nod[NodIndex].Icon.SetVisible(true);
-				BuildingInfo_Nod[NodIndex].Icon.GotoAndStopI(2);
-
-				if( BuildingActor.IsDestroyed() )
-					BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(3);
-				/*If not using armour, just say if the health is really low. If using armour, go red when the building is taking true damage*/
-				else 
-					if( BuildingActor.GetMaxArmor() <= 0 && BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4)) BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(2); //No armour
-				else
-					if( BuildingActor.GetMaxArmor() > 0 && BuildingActor.GetArmor() <= 240) BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(2); // armour
-				else
-					BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(1);
-			}
-			else if( Rx_Building_Nod_InfantryFactory(BuildingActor) != None )
-			{
-				NodIndex++;
-				UpdateBuildingInfo_Nod(NodIndex);
-				BuildingInfo_Nod[NodIndex].Icon.SetVisible(true);
-				BuildingInfo_Nod[NodIndex].Icon.GotoAndStopI(3);
-
-				if( BuildingActor.IsDestroyed() )
-					BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(3);
-				/*If not using armour, just say if the health is really low. If using armour, go red when the building is taking true damage*/
-				else 
-					if( BuildingActor.GetMaxArmor() <= 0 && BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4)) BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(2); //No armour
-				else
-					if( BuildingActor.GetMaxArmor() > 0 && BuildingActor.GetArmor() <= 240) BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(2); // armour
-				else
-					BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(1);
-			}
-			else if( Rx_Building_Nod_MoneyFactory(BuildingActor) != None )
-			{
-				NodIndex++;
-				UpdateBuildingInfo_Nod(NodIndex);
-				BuildingInfo_Nod[NodIndex].Icon.SetVisible(true);
-				BuildingInfo_Nod[NodIndex].Icon.GotoAndStopI(4);
-
-				if( BuildingActor.IsDestroyed() )
-					BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(3);
-				/*If not using armour, just say if the health is really low. If using armour, go red when the building is taking true damage*/
-				else 
-					if( BuildingActor.GetMaxArmor() <= 0 && BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4)) BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(2); //No armour
-				else
-					if( BuildingActor.GetMaxArmor() > 0 && BuildingActor.GetArmor() <= 240) BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(2); // armour
-				else
-					BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(1);
-			}
-			else if( Rx_Building_Nod_PowerFactory(BuildingActor) != None )
-			{
-				NodIndex++;
-				UpdateBuildingInfo_Nod(NodIndex);
-				BuildingInfo_Nod[NodIndex].Icon.SetVisible(true);
-				BuildingInfo_Nod[NodIndex].Icon.GotoAndStopI(5);
-
-				if( BuildingActor.IsDestroyed() )
-					BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(3);
-				/*If not using armour, just say if the health is really low. If using armour, go red when the building is taking true damage*/
-				else 
-					if( BuildingActor.GetMaxArmor() <= 0 && BuildingActor.GetHealth() <= (BuildingActor.GetMaxHealth()/4)) BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(2); //No armour
-				else
-					if( BuildingActor.GetMaxArmor() > 0 && BuildingActor.GetArmor() <= 240) BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(2); // armour
-				else
-					BuildingInfo_Nod[NodIndex].Stats.GotoAndStopI(1);
-			}
+			PassengerText $= "-------- - ("$i+1$")";
+		}
+	}	
+	if(RxV.Seats.Length < 5)
+	{
+		for(i = 0; i < 5 - RxV.Seats.Length; i++)
+		{
+			PassengerText = "\n"$PassengerText;
 		}
 	}
-}
 
-function UpdateCredits(int inCredits)
-{
-	Credits.SetText(inCredits);
-}
-
-function UpdateMatchTimer( int inTime )
-{
-	local string time;
-	local int seconds;
-	if( CurrentTime != inTime )
+	if (!bWasBound && RxV.BoundPRI == Rx_PRI(GetPC().PlayerReplicationInfo))
 	{
-		time = string(FFloor(float(inTime)/60.0f));
-		time = time$":";
-		seconds = inTime%60;
-		if (seconds < 10 )
+		bWasBound = true;
+		LockMC.SetVisible(true);
+		AbilityTextMC.SetVisible(true);
+		LockMC.GoToAndStopI((!RxV.bDriverLocked) ? 1 : 2);
+		if(RxV.bDriverLocked)
+			AbilityTextMC.SetText(Caps("Unlock["$LockKey$"]"));
+		else
+			AbilityTextMC.SetText(Caps("Lock["$LockKey$"]"));
+
+	}
+	else if(bWasBound && RxV.BoundPRI != Rx_PRI(GetPC().PlayerReplicationInfo))
+	{
+		bWasBound = false;
+		bWasLocked = false;
+		LockMC.SetVisible(false);
+		AbilityTextMC.SetVisible(false);			
+	}
+
+	if(bWasBound)
+	{
+		if(!bWasLocked && RxV.bDriverLocked)
 		{
-			time = time$"0";
-			if(seconds == 0 && GetPC() != None && Rx_Controller(GetPC()) != None && Rx_PRI(Rx_Controller(GetPC()).playerreplicationinfo) != None)
-				Rx_PRI(Rx_Controller(GetPC()).playerreplicationinfo).UpdateScoreLastMinutes();
+			bWasLocked = true;
+			LockMC.GoToAndStopI(2);
+			AbilityTextMC.SetText(Caps("Unlock["$LockKey$"]"));
 		}
-		time = time$seconds;
-		MatchTimer.SetText(time);
-		CurrentTime = inTime;
+		else if(bWasLocked && !RxV.bDriverLocked)
+		{
+			bWasLocked = false;
+			LockMC.GoToAndStopI(1);	
+			AbilityTextMC.SetText(Caps("Lock["$LockKey$"]"));			
+		}
 	}
+
+	if(PassengerText == LastPassengerText) // if same, no need to update HUD
+		return;
+
+	LastPassengerText = PassengerText;
+	PassengerContainer.SetString("htmlText",PassengerText);
+
+
 }
 
-function UpdateVehicleCount( int numVehicles, int maxVehicles )
-{
-	if ( numVehicles != CurrentNumVehicles  || maxVehicles != CurrentMaxVehicles)
-	{
-		VehicleCount.SetText(numVehicles$"/" $ maxVehicles);
-		CurrentNumVehicles = numVehicles;
-		CurrentMaxVehicles = maxVehicles;
-	}
-}
-
-function UpdateMineCount( int numMines, int maxMines )
-{
-	if ( numMines != CurrentNumMines || maxMines != CurrentMaxMines)
-	{
-		MineCount.SetText(numMines $"/" $ maxMines);
-		CurrentNumMines = numMines;
-		CurrentMaxMines = maxMines;
-	}
-}
 
 function AnimateReload(float timeEllapsed, float reloadTime, GFxObject bar)
 {
@@ -1811,66 +2415,7 @@ function DisplayHit(vector HitDir, int Damage, class<DamageType> damageType)
 	
 }
 
-function ToggleScoreboard()
-{
-	if(++currentScoreboard >= 5)
-		currentScoreboard = 1;
-
-		SetupScoreboard();
-	
-	Scoreboard.GotoAndStopI(currentScoreboard);
-}
-
-function SetupScoreboard()
-{
-	local Rx_GRI gri;
-	local PlayerReplicationInfo pri;
-	local int i,j;
-	gri = Rx_GRI(GetPC().WorldInfo.GRI);
-	
-	Scoreboard = GetVariableObject("_root.Scoreboard");
-	SBTeamScore[0] = GetVariableObject("_root.Scoreboard.TeamInfo.Score_GDI");
-	SBTeamScore[1] = GetVariableObject("_root.Scoreboard.TeamInfo.Score_Nod");
-	if ( currentScoreboard == 3 || currentScoreboard == 4 )
-	{
-		SBTeamCredits[0] = GetVariableObject("_root.Scoreboard.TeamInfo.Credits_GDI");
-		SBTeamCredits[1] = GetVariableObject("_root.Scoreboard.TeamInfo.Credits_Nod");
-		SBTeamKills[0] = GetVariableObject("_root.Scoreboard.TeamInfo.Kills_GDI");
-		SBTeamKills[1] = GetVariableObject("_root.Scoreboard.TeamInfo.Kills_Nod");
-		SBTeamDeaths[0] = GetVariableObject("_root.Scoreboard.TeamInfo.Deaths_GDI");
-		SBTeamDeaths[1] = GetVariableObject("_root.Scoreboard.TeamInfo.Deaths_Nod");
-		SBTeamKDR[0] = GetVariableObject("_root.Scoreboard.TeamInfo.KD_GDI");
-		SBTeamKDR[1] = GetVariableObject("_root.Scoreboard.TeamInfo.KD_Nod");
-	}
-	
-	PlayerInfo.Length=0;
-
-	if (currentScoreboard == 2 || currentScoreboard == 4 )
-	{
-		CurrentNumberPRIs = 0;
-		foreach gri.PRIArray(pri)
-		{
-			if(Rx_Pri(pri) != None) {
-				if(i++ >= NumPlayerStats) {
-					break;	
-				}
-				CurrentNumberPRIs++;
-				PlayerInfo.AddItem(GetPlayerInfo(i));
-			}
-		}		
-		if(i < NumPlayerStats) {
-			for(j=i+1;j<=NumPlayerStats;j++) {
-				PlayerInfo.AddItem(GetPlayerInfo(j,true));	
-			}
-		}
-	}
-	else if (currentScoreboard == 1 || currentScoreboard == 3 )
-	{
-		PlayerInfo.AddItem(GetPlayerInfo(1));
-	}
-	
-}
-
+/*
 function SBPlayerEntry GetPlayerInfo( int EntryID, optional bool bDisable = false )
 {
 	local SBPlayerEntry entry;
@@ -1896,153 +2441,17 @@ function SBPlayerEntry GetPlayerInfo( int EntryID, optional bool bDisable = fals
 	entry.bNew = true;
 	return entry;
 }
+*/
 
-function UpdateScoreboard()
-{
-	UpdateScoreboardCommon();
-	UpdateScoreboardElements();
-}
+//Placeholder because TS_GFxHud is still using the old stuff
 
-function UpdateScoreboardCommon()
-{
-	local Rx_GRI GRI;
-	local PlayerController PC;
-	local PlayerReplicationInfo pri;
-	local int TeamCredits[2];
+function UpdateBuildingInfo_GDI(int i);
+
+function UpdateBuildingInfo_Nod(int i);
+
+//placeholder end here
 
 
-	PC = GetPC();
-	if (PC != none)
-	{
-		GRI = Rx_GRI(PC.WorldInfo.GRI);
-	}
-
-	if (GRI == none)
-	{
-		return; // if we don't have a GRI then we cant update the scores
-	}
-
-	SBTeamScore[0].SetText(Rx_TeamInfo(GRI.Teams[0]).GetDisplayRenScore());
-	SBTeamScore[1].SetText(Rx_TeamInfo(GRI.Teams[1]).GetDisplayRenScore());
-
-	if( currentScoreboard == 3 || currentScoreboard == 4 )
-	{
-		ForEach GRI.PRIArray(pri)
-		{
-			if(Rx_Pri(pri) == None) 
-				continue;
-			if (pri.GetTeamNum() == 0)
-			{
-				TeamCredits[0] += Rx_PRI(pri).GetCredits();
-			}
-			else
-			{
-				TeamCredits[1] += Rx_PRI(pri).GetCredits();
-			}
-		}
-		SBTeamKills[0].SetText(Rx_TeamInfo(GRI.Teams[0]).GetKills());
-		SBTeamKills[1].SetText(Rx_TeamInfo(GRI.Teams[1]).GetKills());
-		SBTeamDeaths[0].SetText(Rx_TeamInfo(GRI.Teams[0]).GetDeaths());
-		SBTeamDeaths[1].SetText(Rx_TeamInfo(GRI.Teams[1]).GetDeaths());
-		SBTeamKDR[0].SetText(Rx_TeamInfo(GRI.Teams[0]).GetKDRatio());
-		SBTeamKDR[1].SetText(Rx_TeamInfo(GRI.Teams[1]).GetKDRatio());
-		SBTeamCredits[0].SetText(TeamCredits[0]);
-		SBTeamCredits[1].SetText(TeamCredits[1]);
-	}
-
-}
-
-function UpdateScoreboardElements()
-{
-	local Rx_GRI gri;
-	local int i;
-	local array<PlayerReplicationInfo> PRIArray;
-	local PlayerReplicationInfo PRI;
-
-	gri = Rx_GRI(GetPC().WorldInfo.GRI);
-
-	if ( currentScoreboard == 1 || currentScoreboard == 3 )
-	{
-		if(PlayerInfo[0].bNew) {
-			PlayerInfo[0].EntryLine.GotoAndStopI(GetPC().GetTeamNum()+2);
-			PlayerInfo[0] = GetPlayerInfo(1);
-			PlayerInfo[0].bNew = false;	
-		}
-		PlayerInfo[0].PlayerName.SetText(GetPC().GetHumanReadableName());
-		PlayerInfo[0].Score.SetText(Rx_PRI(GetPC().PlayerReplicationInfo).GetRenScore());
-		if ( currentScoreboard == 3 )
-		{
-			PlayerInfo[0].Credits.SetText(FFloor(Rx_PRI(GetPC().PlayerReplicationInfo).GetCredits()));
-			PlayerInfo[0].Kills.SetText(Rx_PRI(GetPC().PlayerReplicationInfo).GetRenKills());
-			PlayerInfo[0].Deaths.SetText(GetPC().PlayerReplicationInfo.Deaths);
-			PlayerInfo[0].KDRatio.SetText(Rx_PRI(GetPC().PlayerReplicationInfo).GetKDRatio());
-		}
-	}
-	else
-	{
-		foreach gri.PRIArray(pri)
-		{
-			if(Rx_Pri(pri) != None) {
-				PRIArray.AddItem(pri);
-			}
-		}
-		PRIArray.Sort(SortPriDelegate);
-		if (CurrentNumberPRIs < PRIArray.Length)
-		{
-			for (i = CurrentNumberPRIs; i < CurrentNumberPRIs; i++ )
-			{
-				//PlayerInfo[i].EntryLine.SetInt("_alpha",100);
-				PlayerInfo[i].EntryLine.SetVisible(true);
-			}
-			//CurrentNumberPRIs = PRIArray.Length;
-		}
-		else if (CurrentNumberPRIs > PRIArray.Length)
-		{
-			for (i = PRIArray.Length; i < CurrentNumberPRIs; i++ )
-			{
-				PlayerInfo[i].EntryLine.SetVisible(false);
-			}
-			CurrentNumberPRIs = PRIArray.Length;
-		}
-		for (i = 0; i < CurrentNumberPRIs; i++)
-		{
-			if(PlayerInfo[i].bNew) {
-				PlayerInfo[i].EntryLine.GotoAndStopI(PRIArray[i].GetTeamNum()+2);
-				PlayerInfo[i] = GetPlayerInfo(i+1);
-				PlayerInfo[i].bNew = false;	
-			}			
-			PlayerInfo[i].PlayerName.SetText(PRIArray[i].GetHumanReadableName());
-			PlayerInfo[i].Score.SetText(Rx_PRI(PRIArray[i]).GetRenScore());
-			if ( currentScoreboard == 4 )
-			{
-				PlayerInfo[i].Credits.SetText(FFloor(Rx_PRI(PRIArray[i]).GetCredits()));
-				PlayerInfo[i].Kills.SetText(Rx_PRI(PRIArray[i]).GetRenKills());
-				PlayerInfo[i].Deaths.SetText(PRIArray[i].Deaths);
-				PlayerInfo[i].KDRatio.SetText(Rx_PRI(PRIArray[i]).GetKDRatio());
-			}
-		}
-	}
-}
-
-function int SortPriDelegate( coerce PlayerReplicationInfo pri1, coerce PlayerReplicationInfo pri2 )
-{
-	if (Rx_PRI(pri1) != none && Rx_PRI(pri2) != none)
-	{
-		if (Rx_PRI(pri1).GetRenScore() > Rx_PRI(pri2).GetRenScore())
-		{
-			return 1;
-		} 
-		else if (Rx_PRI(pri1).GetRenScore() == Rx_PRI(pri2).GetRenScore())
-		{
-			return 0;
-		}
-		else
-		{
-			return -1;
-		}
-	}
-	return 0;
-}
 
 function DisableHUDItems()
 {
@@ -2054,6 +2463,14 @@ function DisableHUDItems()
 	FadeScreenMC = GetVariableObject("_root.Cinema");
 	SubtitlesText = GetVariableObject("_root.Cinema.Subtitles.Textfield");
 	GameplayTipsText = GetVariableObject("_root.Cinema.Tips.Textfield");
+	WeaponTipsMaster = GetVariableObject("_root.Cinema.WeaponTipsMC");
+	WeaponTips = WeaponTipsMaster.GetObject("WeapTips");
+	WeaponTipsText = WeaponTips.GetObject("Textfield");
+	WeaponTipsBKG = WeaponTips.GetObject("Background");
+	SecWeaponTips = WeaponTipsMaster.GetObject("SecWeapTips");
+	SecWeaponTipsText = SecWeaponTips.GetObject("Textfield");
+	SecWeaponTipsBKG = SecWeaponTips.GetObject("Background");	
+	AdminMessageText = GetVariableObject("_root.Cinema.AdminMessage.Textfield");
 	WeaponPickup = GetVariableObject("_root.WeaponPickup");
 
 	if (GetPC().PlayerReplicationInfo.GetTeamNum() == TEAM_GDI) {
@@ -2065,15 +2482,15 @@ function DisableHUDItems()
 	ObjectiveText.SetVisible(false);
 	TimerMC.SetVisible(false);
 	TimerText.SetVisible(false);
-	FadeScreenMC.SetVisible(false);
 	SubtitlesText.SetVisible(false);
 	GameplayTipsText.SetVisible(false);
+	AdminMessageText.SetVisible(false);
 	WeaponPickup.SetVisible(false);
 	//hide respawn hud (nBab);
 	hideRespawnHud();
 }
 
-function AddEVAMessage(coerce string sMessage) 
+function AddEVAMessage(string sMessage) 
 {
 	local MessageRow mrow;
 	local ASDisplayInfo DisplayInfo;
@@ -2094,10 +2511,10 @@ function AddEVAMessage(coerce string sMessage)
 		EVAMessages.Remove(EVAMessages.Length-1,1);
 	}
 
-	msg = "EVA: "$sMessage;
-	mrow.MC.GetObject("message").GotoAndStopI(4);
+	msg = sMessage;
+	mrow.MC.GetObject("message").GotoAndStopI(6);
 	mrow.TF = mrow.MC.GetObject("message").GetObject("textField");
-	mrow.TF.SetString("text", msg);
+	mrow.TF.SetString("htmlText","EVA :"@msg);
 	mrow.Y = 0;
 	DisplayInfo.hasY = true;
 	DisplayInfo.Y  = 0;
@@ -2112,6 +2529,89 @@ function AddEVAMessage(coerce string sMessage)
 	EVAMessages.InsertItem(0,mrow);
 }
 
+function AddCTextMessage(coerce string sMessage, optional int ShownTime = 60) 
+{
+	local MessageRow mrow;
+	local ASDisplayInfo DisplayInfo,BackDI;
+	local byte i;
+	local string msg;
+	local int numLines;
+
+	if (Len(sMessage) == 0)
+		return;
+
+	if (FreeCTextMessages.Length > 0)
+	{
+		mrow = FreeCTextMessages[FreeCTextMessages.Length-1];
+		FreeCTextMessages.Remove(FreeCTextMessages.Length-1,1);
+	}
+	else
+	{
+		mrow = CTextMessages[CTextMessages.Length-1];
+		CTextMessages.Remove(CTextMessages.Length-1,1);
+	}
+
+	mrow.MC.GotoAndPlayI(Max(3,253-ShownTime));
+	msg = sMessage;
+	mrow.MC.GetObject("message").GotoAndStopI(4);
+	mrow.TF = mrow.MC.GetObject("message").GetObject("textField");
+	mrow.TF.SetString("htmlText", msg);
+	mrow.Y = 0;
+	DisplayInfo.hasY = true;
+	DisplayInfo.Y  = 0;
+	mrow.MC.SetDisplayInfo(DisplayInfo);
+	numLines = mrow.MC.GetObject("message").GetObject("textField").GetInt("numLines");
+
+	BackDI.HasYScale = true;
+	BackDI.YScale = 100 * numLines;
+	mrow.MC.GetObject("message").GetObject("CTextBG").SetDisplayInfo(BackDI);
+
+	for (i = 0; i < CTextMessages.Length; i++)
+	{
+		CTextMessages[i].Y += CTextMessageHeight * numLines;
+		DisplayInfo.Y = CTextMessages[i].Y;
+		CTextMessages[i].MC.SetDisplayInfo(DisplayInfo);
+	}
+	CTextMessages.InsertItem(0,mrow);
+}
+
+// Admin message management
+
+function bool HasAdminMessage() {
+	return AdminMessageQueue.Length != 0;
+}
+
+function UpdateAdminMessage() {
+	if (HasAdminMessage()) {
+		// There's an admin message in the queue; set it
+		AdminMessageText.SetString("htmlText", AdminMessageQueue[0]);
+		AdminMessageText.SetVisible(true);
+	}
+	else {
+		// There is no admin message to display; hide text
+		AdminMessageText.SetVisible(false);
+	}
+}
+
+function PushAdminMessage(coerce string sMessage) {
+	// Push message to queue
+	AdminMessageQueue.AddItem(sMessage);
+
+	// Update current message
+	UpdateAdminMessage();
+}
+
+function PopAdminMessage() {
+	if (HasAdminMessage()) {
+		// Pop front message from queue
+		// TODO: Log message confirmation back to server?
+		AdminMessageQueue.Remove(0, 1);
+
+		// Update current message
+		UpdateAdminMessage();
+	}
+}
+
 /**
 * This function is used to display options on the left side menu (vote options, taunts, commander menu, radio commands)
 * Each MenuOption consists of 3 parts. The position, the message and the key. Pos 0 is always the header. Having a key on pos 0 will do nothing. Positions 1-13 are the only valid positions for lines.
@@ -2120,13 +2620,13 @@ function AddEVAMessage(coerce string sMessage)
 **/
 function DisplayOptions(array<MenuOption> Options)
 {
-	local Rx_Controller RxPC;
+
     local int i, ii;
     local GFxObject key, line;
 
-	RxPC = Rx_Controller(GetPC());
 
-	if(RxPC == None) {
+	if(RxPC == None) 
+	{
 		return;
 	}
 
@@ -2273,7 +2773,8 @@ function AddChatMessage(string html, string raw)
 		ChatMessages.Remove(ChatMessages.Length-1,1);
 	}
 	
-	mrow.MC.GetObject("message").GotoAndStopI(0);
+	mrow.MC.GotoAndPlay("show");
+	mrow.MC.GetObject("message").GotoAndStopI(5);
 	mrow.TF = mrow.MC.GetObject("message").GetObject("textField");
 	mrow.TF.SetString("htmlText", html);
 	mrow.TF.SetString("rawMsg", raw);
@@ -2281,7 +2782,7 @@ function AddChatMessage(string html, string raw)
 	DisplayInfo.hasY = true;
 	DisplayInfo.Y = 0;
 	mrow.MC.SetDisplayInfo(DisplayInfo);
-	mrow.MC.GotoAndPlay("show");
+	
 	//get number of lines from flash (nBab)
 	numLines = mrow.MC.GetObject("message").GetObject("textField").GetInt("numLines");
 	for (i = 0; i < ChatMessages.Length; i++)
@@ -2295,15 +2796,171 @@ function AddChatMessage(string html, string raw)
 	mrow.ConcatDisableTime=`WorldInfoObject.TimeSeconds+8; //Add time before messages fade away
 	ChatMessages.InsertItem(0,mrow);
 }
+/*
+function AddTeamChatMessage(string html, string raw)
+{
+	local MessageRow mrow;
+	local ASDisplayInfo DisplayInfo;
+	local byte i;
+	local int numLines; //nBab
+	local bool bConcated; 
+	
+	//Inject to concat identical messages spammed 
+	if( TeamChatMessages.Length > 1 && 
+	TeamChatMessages[0].TextEmphasis < 4 && 
+	`WorldInfoObject.TimeSeconds < TeamChatMessages[0].ConcatDisableTime && 
+	Caps(TeamChatMessages[0].TF.GetString("rawMsg")) == Caps(raw))
+	{
+		TeamChatMessages[0].TextEmphasis = min(TeamChatMessages[0].TextEmphasis+1, 4);
+		switch(TeamChatMessages[0].TextEmphasis){
+			case 0:
+				TeamChatMessages[0].TF.SetString("htmlText", ">" $ html);
+				break;
+			case 1:
+				TeamChatMessages[0].TF.SetString("htmlText", ">>" $ html);
+				break;
+			case 2:
+				TeamChatMessages[0].TF.SetString("htmlText", ">><font size='15'>" $ html $ "</font><");
+				break;
+			case 3:
+				TeamChatMessages[0].TF.SetString("htmlText", ">><font size='16'>" $ html $ "</font><");
+				break;
+			case 4:
+				TeamChatMessages[0].TF.SetString("htmlText", ">><font size='17'>" $ html $ "</font><");
+				break;
+		}
+		
+		bConcated = true; 
+	}
+	
+	if(bConcated)
+	{
+		return;
+	}
+		
+	
+	if (FreeTeamChatMessages.Length > 0)
+	{
+		mrow = FreeTeamChatMessages[FreeTeamChatMessages.Length-1];
+		FreeTeamChatMessages.Remove(FreeTeamChatMessages.Length-1,1);
+	}
+	else
+	{
+		mrow = TeamChatMessages[TeamChatMessages.Length-1];
+		TeamChatMessages.Remove(TeamChatMessages.Length-1,1);
+	}
+	
+	mrow.MC.GotoAndPlay("show");
+	mrow.MC.GetObject("message").GotoAndStopI(5);
+	mrow.TF = mrow.MC.GetObject("message").GetObject("textField");
+	mrow.TF.SetString("htmlText", html);
+	mrow.TF.SetString("rawMsg", raw);
+	mrow.Y = 0;
+	DisplayInfo.hasY = true;
+	DisplayInfo.Y = 0;
+	mrow.MC.SetDisplayInfo(DisplayInfo);
+	
+	//get number of lines from flash (nBab)
+	numLines = mrow.MC.GetObject("message").GetObject("textField").GetInt("numLines");
+	for (i = 0; i < TeamChatMessages.Length; i++)
+	{
+		//set message height based on number of lines (nBab)
+		//TeamChatMessages[i].Y += MessageHeight; (Old line)
+		TeamChatMessages[i].Y += MessageHeight * numLines;
+		DisplayInfo.Y = TeamChatMessages[i].Y;
+		TeamChatMessages[i].MC.SetDisplayInfo(DisplayInfo);
+	}
+	mrow.ConcatDisableTime=`WorldInfoObject.TimeSeconds+8; //Add time before messages fade away
+	TeamChatMessages.InsertItem(0,mrow);
+}
+*/
+function AddRadioMessage(string html, string raw)
+{
+	local MessageRow mrow;
+	local ASDisplayInfo DisplayInfo;
+	local byte i;
+	local int numLines; //nBab
+	local bool bConcated; 
+	
+	//Inject to concat identical messages spammed 
+	if( RadioMessages.Length > 1 && 
+	RadioMessages[0].TextEmphasis < 4 && 
+	`WorldInfoObject.TimeSeconds < RadioMessages[0].ConcatDisableTime && 
+	Caps(RadioMessages[0].TF.GetString("rawMsg")) == Caps(raw))
+	{
+		RadioMessages[0].TextEmphasis = min(RadioMessages[0].TextEmphasis+1, 4);
+		switch(RadioMessages[0].TextEmphasis){
+			case 0:
+				RadioMessages[0].TF.SetString("htmlText", ">" $ html);
+				break;
+			case 1:
+				RadioMessages[0].TF.SetString("htmlText", ">>" $ html);
+				break;
+			case 2:
+				RadioMessages[0].TF.SetString("htmlText", ">><font size='15'>" $ html $ "</font><");
+				break;
+			case 3:
+				RadioMessages[0].TF.SetString("htmlText", ">><font size='16'>" $ html $ "</font><");
+				break;
+			case 4:
+				RadioMessages[0].TF.SetString("htmlText", ">><font size='17'>" $ html $ "</font><");
+				break;
+		}
+		
+		bConcated = true; 
+	}
+	
+	if(bConcated)
+	{
+		return;
+	}
+		
+	
+	if (FreeRadioMessages.Length > 0)
+	{
+		mrow = FreeRadioMessages[FreeRadioMessages.Length-1];
+		FreeRadioMessages.Remove(FreeRadioMessages.Length-1,1);
+	}
+	else
+	{
+		mrow = RadioMessages[RadioMessages.Length-1];
+		RadioMessages.Remove(RadioMessages.Length-1,1);
+	}
+	
+	mrow.MC.GotoAndPlay("show");
+	mrow.MC.GetObject("message").GotoAndStopI(5);
+	mrow.TF = mrow.MC.GetObject("message").GetObject("textField");
+	mrow.TF.SetString("htmlText", html);
+	mrow.TF.SetString("rawMsg", raw);
+	mrow.Y = 0;
+	DisplayInfo.hasY = true;
+	DisplayInfo.Y = 0;
+	mrow.MC.SetDisplayInfo(DisplayInfo);
+	
+	//get number of lines from flash (nBab)
+	numLines = mrow.MC.GetObject("message").GetObject("textField").GetInt("numLines");
+	for (i = 0; i < RadioMessages.Length; i++)
+	{
+		//set message height based on number of lines (nBab)
+		//RadioMessages[i].Y += MessageHeight; (Old line)
+		RadioMessages[i].Y += MessageHeight * numLines;
+		DisplayInfo.Y = RadioMessages[i].Y;
+		RadioMessages[i].MC.SetDisplayInfo(DisplayInfo);
+	}
+	mrow.ConcatDisableTime=`WorldInfoObject.TimeSeconds+8; //Add time before messages fade away
+	RadioMessages.InsertItem(0,mrow);
+}
 
 function AddVehicleDeathMessage(string HTMLMessage, class<DamageType> Dmg, PlayerReplicationInfo Killer)
 {
-	FadeScreenMC.SetVisible(true);
+	local SubMsg TempSubtitle;
+
 	SubtitlesText.SetVisible(true);
 
-	VehicleDeathMsgTime = RenxHud.WorldInfo.TimeSeconds + VehicleDeathDisplayLength;
+	TempSubtitle.Message = HTMLMessage$"\n<img src='" $ ParseDamageType(Dmg, Killer ) $ "'>";
+	TempSubtitle.Lifetime = 60;
 
-	Subtitle_Messages.AddItem(HTMLMessage$"\n<img src='" $ ParseDamageType(Dmg, Killer ) $ "'>");
+	Subtitle_Messages.AddItem(TempSubtitle);
 	
 	/**SubtitlesText.SetString("htmlText", HTMLMessage 
 		$"\n<img src='" $ParseDamageType(Dmg, Killer ) $"'>");*/
@@ -2311,18 +2968,45 @@ function AddVehicleDeathMessage(string HTMLMessage, class<DamageType> Dmg, Playe
 
 function AddDeathMessage(string HTMLMessage, class<DamageType> Dmg, PlayerReplicationInfo Killer)
 {
-	FadeScreenMC.SetVisible(true);
+	local SubMsg TempSubtitle;
+
 	SubtitlesText.SetVisible(true);
 	//show respawn hud (nBab)
 	showRespawnhud(GetPC().GetTeamNum(),lastFreeClass);
 
-	Subtitle_Messages.AddItem(HTMLMessage$"\n<img src='" $ ParseDamageType(Dmg, Killer ) $"'>");
+	TempSubtitle.Message = HTMLMessage$"\n<img src='" $ ParseDamageType(Dmg, Killer ) $"'>";
+	TempSubtitle.Lifetime = 300;
+
+	Subtitle_Messages.AddItem(TempSubtitle);
 	
 	/**SubtitlesText.SetString("htmlText", HTMLMessage  
 		$"\n<img src='" $ ParseDamageType(Dmg, Killer ) $"'>");
 */
 
 }
+
+function AddVPMessage(string HTMLMessage)
+{
+	local SubMsg TempSubtitle;
+
+	if(bPlayerDead)
+		return; // don't add if we die
+
+	SubtitlesText.SetVisible(true);
+	//show respawn hud (nBab)
+//	showRespawnhud(GetPC().GetTeamNum(),lastFreeClass);
+
+	TempSubtitle.Message = HTMLMessage;
+	TempSubtitle.Lifetime = 60;
+	// Death message takes more priority
+	Subtitle_Messages.AddItem(TempSubtitle);
+	
+	/**SubtitlesText.SetString("htmlText", HTMLMessage  
+		$"\n<img src='" $ ParseDamageType(Dmg, Killer ) $"'>");
+*/
+
+}
+
 
 //function AddKillMessage(string msg, string msgColor, int iType)
 function AddGameEventMessage(string text)
@@ -2342,6 +3026,7 @@ function AddGameEventMessage(string text)
 		DeathMessages.Remove(DeathMessages.Length-1,1);
 	}
 
+	mrow.MC.GotoAndPlay("show");
 	mrow.MC.GetObject("message").GotoAndStopI(1);
 	mrow.TF = mrow.MC.GetObject("message").GetObject("textField");
 	mrow.TF.SetString("htmlText", text);
@@ -2349,7 +3034,7 @@ function AddGameEventMessage(string text)
 	DisplayInfo.hasY = true;
 	DisplayInfo.Y = 0;
 	mrow.MC.SetDisplayInfo(DisplayInfo);
-	mrow.MC.GotoAndPlay("show");
+	
 	for (i = 0; i < DeathMessages.Length; i++)
 	{
 		DeathMessages[i].Y += MessageHeight;
@@ -2374,12 +3059,6 @@ function removeSpot(int num)
 {
 	RootMC.ActionScriptVoid("removeSpot");
 }
-
-function ChangedWeapon(string direction) 
-{
-	RootMC.ActionScriptVoid("ChangedWeapon");	
-}
-
 
 function MsgFromFlash(string sName, string sMessage, int iType)
 {
@@ -2508,370 +3187,11 @@ function string ParseDamageType( class<DamageType> Dmg, optional PlayerReplicati
 	return weaponTexture;
 }
 
-//Setup Tech Building Icons (nBab)
-function setupTechBuildingIcons ()
-{
-	//local RX_Building_Silo tempSilo;
-	local Rx_Building tempBuilding;
-	local byte i;
-	local int startX;
-	local string UnrealScriptBug;
-	local Rx_GRI GRI;
-	local Actor TBA; 
-	
-	//if tech building icon is disabled in settings menu, do nothing.
-	if (Rx_HUD(GetPC().myHUD).SystemSettingsHandler.GetTechBuildingIcon() == 2)
-		return;
-
-	GRI = Rx_GRI(class'WorldInfo'.static.GetWorldInfo().GRI);
-	
-	//if color changing tech building icon is selected in settings, show the background.
-	if (Rx_HUD(GetPC().myHUD).SystemSettingsHandler.GetTechBuildingIcon() == 1)
-		GetVariableObject("_root.BottomInfo.tech_icons.tech_bg").SetVisible(true);
-
-	//get building count and gdi infantry building
-	buildingCount = 0;
-	foreach class'WorldInfo'.static.GetWorldInfo().AllActors(class 'RX_Building',tempBuilding)
-	{
-		if(!tempBuilding.bSignificant)
-			continue;
-
-		//skip building ramps and tech buildings and nod buildings
-		if (tempBuilding.isA('Rx_Building_GDI_InfantryFactory') || 
-			tempBuilding.isA('Rx_Building_GDI_MoneyFactory') || 
-			tempBuilding.isA('Rx_Building_GDI_VehicleFactory') || 
-			tempBuilding.isA('Rx_Building_GDI_Defense') || 
-			tempBuilding.isA('Rx_Building_GDI_PowerFactory'))
-			buildingCount++;
-		if (tempBuilding.isA('Rx_Building_GDI_InfantryFactory'))
-			GDIInfantryFactory = tempBuilding;
-	}
-
-	//set gdi and nod building count
-	gdi_buildings = buildingCount;
-	nod_buildings = buildingCount;
-
-	// Check if the Fort tech building is on this map	
-	foreach class'WorldInfo'.static.GetWorldInfo().DynamicActors(class'Actor',TBA)
-	{
-		if(TBA.isA('Rx_CapturableMCT_Fort')){
-			Fort = TBA; 
-			break;
-		}	
-	}
-	
-	
-	foreach class'WorldInfo'.static.GetWorldInfo().AllActors(class'Actor',EMP)
-	{
-		if (EMP.tag=='EMP')
-			break;
-	}
-	
-	//Gather tech buildings 
-	foreach GRI.TechBuildingArray(TBA) {
-		if(TBA.isA('RX_Building_CommCentre_Internals')) CC = TBA;
-		if(TBA.isA('Rx_Building_MedicalCentre_Internals')) MC = TBA;
-		if(TBA.isA('RX_Building_Silo_Internals')) Silo.AddItem(TBA); 
-	}; 
-	
-	//sort silos based on distance to bases
-	if(Silo.length>1)
-		Silo.Sort(SiloSort);
-
-	//if we don't have any tech buildings, do nothing.
-	if (Fort == None && MC == None && CC == None && EMP == None && silo.length == 0)
-		return;
-
-	//add fort and its initial team
-	if (Fort != None)
-	{
-		tech_buildings.AddItem("Fort");
-		tech_buildings_team.AddItem(255);
-	}
-	//add silos and their initial team
-	if (silo[0] != None )
-	{
-		for (i=0; i<Silo.length; i++)
-		{
-			if (Silo.length>1 && i==0)
-			{
-				tech_buildings.AddItem("Silo_GDI");
-				tech_buildings_team.AddItem(255);
-			}else if (Silo.length>1 && i==Silo.length-1)
-			{
-				tech_buildings.AddItem("Silo_Nod");
-				tech_buildings_team.AddItem(255);
-			}else
-			{
-				tech_buildings.AddItem("Silo_"$i);
-				tech_buildings_team.AddItem(255);
-			}
-		}
-	}
-	//add medical center and its initial team
-	if (MC != None)
-	{
-		tech_buildings.AddItem("MC");
-		tech_buildings_team.AddItem(255);
-	}
-	//add communications center and its initial team
-	if (CC != None)
-	{
-		tech_buildings.AddItem("CC");
-		tech_buildings_team.AddItem(255);
-	}
-	//add emp and its initial team
-	if (EMP != None)
-	{
-		tech_buildings.AddItem("EMP");
-		tech_buildings_team.AddItem(255);
-	}
-
-	//set start x position based on number of icons
-	if (tech_buildings.length%2==0)
-		startX = -10 - (((tech_buildings.length-2)/2)*25);
-	else
-		startX = 2 - ((tech_buildings.length-1)/2)*25;
-
-
-	//add icon movieclip from library to hud and set the correct icon
-	for (i=0;i<tech_buildings.length;i++)
-	{
-		tech_building_icons[i] = tech_icons.AttachMovie("tech_icons_mc","tech_icon_"$i);
-		tech_building_icons[i].setfloat("x",(startX+(i*25)));
-		UnrealScriptBug = tech_buildings[i];
-		switch(UnrealScriptBug)
-		{
-			case "Fort":
-				LoadTexture("img://"$PathName(Texture2D'RenxHud.T_Tech_Fort'), tech_building_icons[i]);
-				break;
-			case "MC":
-				LoadTexture("img://"$PathName(Texture2D'RenxHud.T_Tech_MC'), tech_building_icons[i]);
-				break;
-			case "CC":
-				LoadTexture("img://"$PathName(Texture2D'RenxHud.T_Tech_CC'), tech_building_icons[i]);
-				break;
-			case "EMP":
-				LoadTexture("img://"$PathName(Texture2D'RenxHud.T_Tech_EMP'), tech_building_icons[i]);
-				break;
-			case "Silo_0":
-			case "Silo_1":
-			case "Silo_2":
-			case "Silo_3":
-				LoadTexture("img://"$PathName(Texture2D'RenxHud.T_Tech_Silo'), tech_building_icons[i]);
-				break;
-			case "Silo_GDI":
-				LoadTexture("img://"$PathName(Texture2D'RenxHud.T_Tech_Silo_GDI'), tech_building_icons[i]);
-				break;
-			case "Silo_Nod":
-				LoadTexture("img://"$PathName(Texture2D'RenxHud.T_Tech_Silo_Nod'), tech_building_icons[i]);
-				break;
-			default:
-				break;
-		}
-	}
-
-	/**`log ("**************nBab****************");
-	`log ("tech_buildings.length = "$tech_buildings.length);*/
-	for (i=0; i<tech_buildings.length; i++)
-	{
-		`log ("tech_buildings_"$i$" = "$tech_buildings[i]);
-	}
-	/*`log ("**************nBab****************");*/
-}
-
-//Update Tech Building Icons (nBab)
-function updateTechBuildingIcons ()
-{
-	local byte i;
-	local string UnrealScriptBug;
-	local byte TeamNum;
-	local ASColorTransform CT;
-
-	//if tech building icon is disabled in settings menu, do nothing.
-	if (Rx_HUD(GetPC().myHUD).SystemSettingsHandler.GetTechBuildingIcon() == 2)
-		return;
-
-	//if we don't have any tech buildings, do nothing.
-	if ( Rx_GRI(GetPC().WorldInfo.GRI).TechBuildingArray.Length == 0)
-		return;
-		
-	for (i=0;i<tech_buildings.length;i++)
-	{
-		UnrealScriptBug = tech_buildings[i]; 
-		switch(UnrealScriptBug)
-		{
-			case "Fort":
-				TeamNum = Fort.GetTeamNum();
-				break;
-			case "MC":
-				TeamNum = MC.GetTeamNum();
-				break;
-			case "CC":
-				TeamNum = CC.GetTeamNum();
-				break;
-			case "EMP":
-				TeamNum = EMP.GetTeamNum();
-				break;
-			case "Silo_0":
-				TeamNum = Silo[0].GetTeamNum();
-				break;
-			case "Silo_1":
-				TeamNum = Silo[1].GetTeamNum();
-				break;
-			case "Silo_2":
-				TeamNum = Silo[2].GetTeamNum();
-				break;
-			case "Silo_3":
-				TeamNum = Silo[3].GetTeamNum();
-				break;
-			case "Silo_GDI":
-				TeamNum = Silo[0].GetTeamNum();
-				break;
-			case "Silo_Nod":
-				TeamNum = Silo[Silo.length-1].GetTeamNum();
-				break;
-			default:
-				break;
-		}
-		
-		//if animating tech building icon is selected
-		if (Rx_HUD(GetPC().myHUD).SystemSettingsHandler.GetTechBuildingIcon() == 0)
-		{ 
-			if (TeamNum == Team_GDI && tech_buildings_team[i] == 255)
-			{
-				//animate from center to gdi
-				doTween(tech_building_icons[i],TechIconTweenDuration,GetGDIEmptySocket());
-				tech_buildings_team[i] = Team_GDI;
-				gdi_buildings++;
-			}else if (TeamNum == Team_Nod && tech_buildings_team[i] == 255)
-			{
-				//animate from center to nod
-				doTween(tech_building_icons[i],TechIconTweenDuration,GetNodEmptySocket());
-				tech_buildings_team[i] = Team_Nod;
-				nod_buildings++;
-			}else if (TeamNum != Team_GDI && TeamNum != Team_Nod && tech_buildings_team[i] == Team_GDI)
-			{
-				//animate from gdi to center
-				doTween(tech_building_icons[i],TechIconTweenDuration,GetOriginalSocket(i));
-				SortSockets(i,tech_buildings_team[i]);
-				tech_buildings_team[i] = 255;
-				gdi_buildings--;
-			}else if (TeamNum != Team_GDI && TeamNum != Team_Nod && tech_buildings_team[i] == Team_Nod)
-			{
-				//animate from nod to center
-				doTween(tech_building_icons[i],TechIconTweenDuration,GetOriginalSocket(i));
-				SortSockets(i,tech_buildings_team[i]);
-				tech_buildings_team[i] = 255;
-				nod_buildings--;
-			}
-		}
-		//if color changing tech building icon is selected
-		else
-		{
-			if (TeamNum == Team_GDI && tech_buildings_team[i] == 255)
-			{
-				CT.multiply.G = 0.8;
-				CT.multiply.B = 0.15;
-				CT.add.R = 0.5;
-				CT.add.G = 0.3;
-				CT.add.B = 0.07;
-				tech_building_icons[i].SetColorTransform(CT);
-				tech_buildings_team[i] = Team_GDI;
-			}
-			else if (TeamNum == Team_Nod && tech_buildings_team[i] == 255)
-			{
-				CT.multiply.G = 0;
-				CT.multiply.B = 0;
-				CT.add.R = 0.03;
-				CT.add.G = 0.03;
-				CT.add.B = 0.03;
-				tech_building_icons[i].SetColorTransform(CT);
-				tech_buildings_team[i] = Team_Nod;
-			}
-			else if (TeamNum != Team_GDI && TeamNum != Team_Nod)
-			{
-				CT.multiply.G = 1;
-				CT.multiply.B = 1;
-				CT.add.R = 0;
-				CT.add.G = 0;
-				CT.add.B = 0;
-				tech_building_icons[i].SetColorTransform(CT);
-				tech_buildings_team[i] = 255;
-			}
-		}
-	}
-}
-
-//call the actionscript function to tween the icon (nBab)
-function doTween(gfxobject mc_object, int duration, int end)
-{
-	tech_icons.ActionScriptVoid("doTween");
-}
-
-//returns x position of the empty gdi socket (nBab)
-function int GetGDIEmptySocket()
-{
-	return -(159-((gdi_buildings-1)*25));
-}
-
-//returns x position of the empty nod socket (nBab)
-function int GetNodEmptySocket()
-{
-	return 163-((nod_buildings-1)*25);
-}
-
-//returns original x position of the icon (nBab)
-function int GetOriginalSocket(byte i)
-{
-	local int startX;
-
-	if (tech_buildings.length%2==0)
-		startX = -10 - (((tech_buildings.length-2)/2)*25);
-	else
-		startX = 2 - ((tech_buildings.length-1)/2)*25;
-
-	return startX+(i*25);
-}
-
-//tweens icons to fill in the empty socket after an icon has been removed (nBab)
-function SortSockets(byte j, byte TeamNum)
-{
-	local byte i;
-
-	for (i=0;i<tech_buildings.length;i++)
-	{
-		if (TeamNum == Team_GDI)
-		{
-			if (tech_buildings_team[i] == TeamNum && tech_building_icons[i].getfloat("x") > tech_building_icons[j].getfloat("x"))
-				doTween(tech_building_icons[i],TechIconTweenDuration/2,tech_building_icons[i].getfloat("x")-25);
-		}else
-		{
-			if (tech_buildings_team[i] == TeamNum && tech_building_icons[i].getfloat("x") < tech_building_icons[j].getfloat("x"))
-				doTween(tech_building_icons[i],TechIconTweenDuration/2,tech_building_icons[i].getfloat("x")+25);
-		}
-	}
-}
-
-//sorts silos based on their distance to the gdi infantry factory (nBab)
-function int SiloSort (Actor Silo1, Actor Silo2)
-{
-	local float silo1_distance;
-	local float silo2_distance;
-
-	silo1_distance = VSizeSq(silo1.Location - GDIInfantryFactory.Location);
-	silo2_distance = VSizeSq(silo2.Location - GDIInfantryFactory.Location);
-
-	return (silo1_distance > silo2_distance) ? -1 : 0;
-}
-
 //update veterancy (nBab)
 function updateVeterancy()
 {
-	local Rx_PRI RxPRI;
 	local int VetProgress;
 
-	RxPRI = Rx_PRI(GetPC().PlayerReplicationInfo);
 	if(GetPC().IsSpectating() && Pawn(GetPC().ViewTarget) != None)
 		RxPRI = Rx_PRI(Pawn(GetPC().ViewTarget).PlayerReplicationInfo); 	
 
@@ -2905,12 +3225,14 @@ function updateVeterancy()
 		//set veterancy icon
 		if (RxPRI.VRank == VRank+1)
 		{
-			GetVariableObject("_root.HealthBlock.vet.vet_icon.vet_icon_current").GotoAndStopI(VRank+1);
-			GetVariableObject("_root.HealthBlock.vet.vet_icon.vet_icon_next").GotoAndStopI(RxPRI.VRank+1);
-			GetVariableObject("_root.HealthBlock.vet.vet_icon").GotoAndPlayI(2);
-			GetVariableObject("_root.centerTextMC.centerText.textField").setText("Promoted to "$GetVariableObject("_root.HealthBlock.vet.vet_tf").getText());
-			GetVariableObject("_root.centerTextMC").GotoAndPlayI(2);
+			VeterancyIconCurrent.GotoAndStopI(VRank+1);
+			VeterancyIconNext.GotoAndStopI(RxPRI.VRank+1);
+			VeterancyIcon.GotoAndPlayI(2);
+			GetVariableObject("_root.centerTextRoot.centerText.textField").setText("Promoted to "$GetVariableObject("_root.HealthBlock.vet.vet_tf").getText());
+			GetVariableObject("_root.centerTextRoot").GotoAndPlayI(2);
 			VRank++;
+
+			UpdateVeterancyGFx(false);
 			//play sound
 			//GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.SFX.S_Kill_Alert_Cue');
 			//GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.SFX.S_Bonus_Complete_Cue');
@@ -2918,20 +3240,32 @@ function updateVeterancy()
 		}
 
 		//set veterancy bar
-		GetVariableObject("_root.HealthBlock.vet.vet_bar.bar").GotoAndStopI(VetProgress+1);
+		if(VetProgress == LastVetPoint) // if we don't need to update the bar, it's pointless to do so
+			return;
+
+		LastVetPoint = VetProgress;
+		VeterancyBar.GotoAndStopI(VetProgress+1);
 	}
 }
 
 //show respawn hud (nBab)
 function showRespawnHud(int teamNum, int lfClass)
-{
-	GetVariableObject("_root.Cinema.respawn_ui").ActionScriptVoid("showRespawnHud");
+{	
+	if(bRespawnHUDHidden)
+	{
+		bRespawnHUDHidden = false;
+		GetVariableObject("_root.Cinema.respawn_ui").ActionScriptVoid("showRespawnHud");
+	}
 }
 
 //hide respawn hud (nBab)
 function hideRespawnHud()
 {
-	GetVariableObject("_root.Cinema.respawn_ui").ActionScriptVoid("hideRespawnHud");
+	if(!bRespawnHUDHidden)
+	{
+		bRespawnHUDHidden = true;
+		GetVariableObject("_root.Cinema.respawn_ui").ActionScriptVoid("hideRespawnHud");
+	}
 	//GetVariableObject("_root.Cinema.respawn_ui").ActionScriptVoid("removeListeners");
 }
 
@@ -3166,17 +3500,18 @@ function updateRespawnUI(int Team)
 //Show the ongoing vote and animate it at start (nBab)
 function showVote(String content, int yes, int no, int yesNeeded, int timeLeft)
 {
-	local float x0, y0, x1, y1;
 	local string VoteYesBind, VoteNoBind;
-	
+	local string VoteTitle;
+	local string VoteChoice;
+	local ASDisplayInfo DI;
+ 
 	if (content == "")
 	{
-		if (voteTextMC != None)
+		if(!bvoteJustStarted && VoteMC != None)
 		{
-			removeChild(voteTextMC);
-			voteJustStarted = true;
-		}
-
+			VoteMC.GoToAndPlayI(23);
+			bvoteJustStarted = true;
+		}			
 		return;
 	}
 	
@@ -3185,39 +3520,53 @@ function showVote(String content, int yes, int no, int yesNeeded, int timeLeft)
 	VoteNoBind = Rx_PlayerInput(GetPC().PlayerInput).GetUDKBindNameFromCommand("voteno"); 
 	
 	//if the vote has just started, add the textfield movieclip from library and do the animation
-	if (voteJustStarted)
+	if (bvoteJustStarted)
 	{
-		//Add textfield to the scene
-		voteTextMC = GetVariableObject("_root").AttachMovie("centerTextMC","voteTextMC");
-		//set the initial position (center)
-		GetVisibleFrameRect(x0, y0, x1, y1);
-		//voteTextMC.SetPosition(x1 * 0.1197,y1 * 0.4839);
-		voteTextMC.SetPosition(x1 * 0.1197,100);
-		//voteTextMC.
 		//set the content
-		voteTextMC.GotoAndStopI(2);
-		voteTextMC.GetObject("centerText").GetObject("textField").SetFloat("height",60);
-		voteTextMC.GetObject("centerText").GetObject("textField").SetString("htmlText",content$" <br> " $ VoteYesBind $ ": Yes ("$String(yes)$")" $ VoteNoBind $ ": No ("$String(no)$") - "$String(yesNeeded)$" Yes votes needed, "$String(timeLeft)$" seconds left");
-		//animate the vote
-		doVoteTween(voteTextMC,2,30);
+		voteMC.GotoAndPlayI(2);
+		VoteTextContainerMC = VoteMC.GetObject("VoteText");
+		VoteBackdropMC = VoteMC.GetObject("VoteBackdrop");
+		VoteTitleText = VoteTextContainerMC.GetObject("VoteTitleText");
+		VoteChoiceText = VoteTextContainerMC.GetObject("VoteChoiceText");
+		
+		VoteTitle = "<font color='#00FF00'>"$"VOTE INITIATED"$"</font>"$" : " $caps(content)$ "["$"<font color='#00FF00'>"$String(yes)$"/"$String(yesNeeded)$"</font>"$"] | ["$"<font color='#FF0000'>"$String(no)$"</font>"$"]";	
+		VoteTitleText.SetString("htmlText",VoteTitle);
+		VoteChoice = "<font color='#00FF00'>"$"["$VoteYesBind$"]: YES"$"</font>"$" "$"<font color='#FF0000'>"$"["$VoteNoBind$"]: NO"$"</font> | "$String(timeLeft)$" seconds left";
+		VoteChoiceText.SetString("htmlText",VoteChoice);
+
+		LastNoVote = no;
+		LastYesVote = yes;
+		LastYesNeededVote = yesNeeded;
+		LastVoteSecondsLeft = timeLeft;
+
+		DI.hasYScale = true;
+		DI.YScale = 100.f * (VoteTitleText.GetInt("numLines"));
+		if(DI.YScale > 100.f)
+			VoteBackdropMC.SetDisplayInfo(DI);
+
+		VoteChoiceText.SetPosition(0,30 * VoteTitleText.GetInt("numLines"));
 		//play sound
 		GetPC().ClientPlaySound(SoundCue'rx_interfacesound.Wave.Vote_Start');
 
-		voteJustStarted = false;
+		bvoteJustStarted = false;
 	}
 	//else update votes
-	else
+	else if (LastNoVote != no || LastYesVote != Yes || LastYesNeededVote != yesNeeded || LastVoteSecondsLeft != timeLeft)
 	{
-		voteTextMC.GetObject("centerText").GetObject("textField").SetString("htmlText",content$" <br>" $ VoteYesBind $ ": Yes ("$String(yes)$") " $ VoteNoBind $ ": No ("$String(no)$") - "$String(yesNeeded)$" Yes votes needed, "$String(timeLeft)$" seconds left");
+
+		LastNoVote = no;
+		LastYesVote = yes;
+		LastYesNeededVote = yesNeeded;
+		LastVoteSecondsLeft = timeLeft;
+
+		VoteTitle = "<font color='#00FF00'>"$"VOTE INITIATED"$"</font>"$" : " $caps(content)$ "["$"<font color='#00FF00'>"$String(yes)$"/"$String(yesNeeded)$"</font>"$"] | ["$"<font color='#FF0000'>"$String(no)$"</font>"$"]";	
+		VoteTitleText.SetString("htmlText",VoteTitle);
+		VoteChoice = "<font color='#00FF00'>["$VoteYesBind$"]: YES</font> <font color='#FF0000'>["$VoteNoBind$"]: NO</font> | "$String(timeLeft)$" seconds left";
+		VoteChoiceText.SetString("htmlText",VoteChoice);
+
+		VoteChoiceText.SetPosition(0,30 * VoteTitleText.GetInt("numLines"));
 	}
 }
-
-//call the actionscript function to tween the icon (nBab)
-function doVoteTween(gfxobject mc_object, int duration, int end)
-{
-	voteTextMC.ActionScriptVoid("doVoteTween");
-}
-
 //remove child object (nBab)
 function removeChild(GFxObject childObject)
 {
@@ -3246,27 +3595,44 @@ function name GetBoundKey(string Command)
 	return '';
 }
 
+function bool FilterButtonInput(int ControllerId, name ButtonName, EInputEvent InputEvent)
+{
+	if (HasAdminMessage()) {
+		if (ButtonName == 'Enter' && InputEvent == IE_Released) {
+			PopAdminMessage();
+		}
+
+		// Trap user input when displaying an admin message
+		return true;
+	}
+
+	return false;
+}
+
 DefaultProperties
 {
 	isInVehicle         = false
 	bDisplayWithHudOff  = false
-	currentScoreboard   = 1
-	MovieInfo           = SwfMovie'RenXHud.RenXHud'
-	NumPlayerStats      = 16
-	MessageHeight       = 20
-	CurrentNumMines     = -1
-	CurrentMaxMines     = -1
-	CurrentNumVehicles  = -1
-	CurrentMaxVehicles  = -1
 
-	VehicleDeathMsgTime = -1
-	VehicleDeathDisplayLength = 3
-	VPMsg_Cycler = 30
+	MovieInfo           = SwfMovie'RenXHud.RenXHud'
+	MessageHeight       = 20
+	CTextMessageHeight       = 38
+
+//	VehicleDeathMsgTime = -1
+//	VehicleDeathDisplayLength = 3
 
 	//tech building icon tween time in seconds (nBab)
-	TechIconTweenDuration = 2
 	SkipNum = 2
 	bUseTickCycle=true //Cycle expensive functions in the TickHUD() function
 	
-	AbilityKey = X
+	AbilityKey = Xf
+
+	WeaponMCAlpha[0] = 0.7
+	WeaponMCAlpha[1] = 0.6
+	WeaponMCAlpha[2] = 0.4
+	WeaponMCAlpha[3] = 0.2
+
+	LastWeaponTips = "WEAPON TIPS"
+	LastSecWeaponTips = "WEAPON TIPS"
+
 }

@@ -212,4 +212,9 @@ DefaultProperties
 	DefaultCrateTypes[16] = class'Rx_CrateType_Teleport'	
 	DefaultCrateTypes[17] = class'Rx_CrateType_DMRandomWeapon'
 	DefaultCrateTypes[18] = class'Rx_CrateType_RandomWeapon'
+	DefaultCrateTypes[19] = class'Rx_CrateType_MegaSpeed'
+	DefaultCrateTypes[20] = class'Rx_CrateType_SuperMoney'
+	DefaultCrateTypes[21] = class'Rx_CrateType_RadarSweep'
+	DefaultCrateTypes[22] = class'Rx_CrateType_SlowDown'
+	DefaultCrateTypes[23] = class'Rx_CrateType_BasePower'
 }

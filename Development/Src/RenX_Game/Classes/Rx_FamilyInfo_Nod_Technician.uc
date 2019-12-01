@@ -1,5 +1,10 @@
 class Rx_FamilyInfo_Nod_Technician extends Rx_FamilyInfo_Nod;
 
+static function bool IsEngi()
+{
+	return true;
+}
+
 DefaultProperties
 {
 	FamilyID="Nod"
@@ -12,7 +17,7 @@ DefaultProperties
 	MaxArmor               	= 125
 	Armor_Type 				= A_FLAK
 	SpeedMultiplier			= 1.0 /*0.9 set back to 1.0 for the sake of some map design issues. Besides, they got nerfed where it hurt already. Right in the sidearm*/
-
+	Role 					= ROLE_Defense
 	/*PT Block Info*/
 	/*------------*/
 	bHighTier			= true
@@ -74,6 +79,6 @@ DefaultProperties
 	PowerUpClasses.Add(class'Rx_Pickup_HealthMedium');
 	PowerUpClasses.Add(class'Rx_Pickup_ArmourMedium');
 	
-	Role = ROLE_Defense
+	
 	PTString="Buy Char - AdvEngi"
 }

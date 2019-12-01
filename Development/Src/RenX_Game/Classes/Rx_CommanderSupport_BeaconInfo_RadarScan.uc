@@ -24,7 +24,7 @@ static function DoAreaEffect(Actor CallingActor, vector L, byte T)
 		{
 			if(Rx_Vehicle(TargetActor) != none) Rx_Vehicle(TargetActor).SetSpotted(60.0); 
 			else
-			if(Rx_Pawn(TargetActor) != none && Rx_Pawn(TargetActor).PlayerReplicationInfo != none ) Rx_PRI(Rx_Pawn(TargetActor).PlayerReplicationInfo).SetSpotted(60.0); 
+			if(Rx_Pawn(TargetActor) != none && Rx_PRI(Rx_Pawn(TargetActor).PlayerReplicationInfo) != none ) Rx_PRI(Rx_Pawn(TargetActor).PlayerReplicationInfo).SetSpotted(60.0); 
 			
 			 SetPlayerCommandSpotted(TargetActor.PlayerReplicationInfo.playerID, CallingActor); //Rx_Vehicle(TargetActor).SetSpotted(60.0); 
 			

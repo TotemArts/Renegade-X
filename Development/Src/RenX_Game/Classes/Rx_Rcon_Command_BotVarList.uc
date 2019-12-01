@@ -33,6 +33,9 @@ function string trigger(string parameters)
 
 	foreach `WorldInfoObject.AllControllers(class'Rx_Bot', C)
 	{
+		if(Rx_Bot_Scripted(C) != None || Rx_PRI(C.PlayerReplicationInfo) == None)
+			continue;	// do not log non player bots
+
 		parameters $= "\n";
 		index = 0;
 loop_do:

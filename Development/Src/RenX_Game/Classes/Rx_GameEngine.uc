@@ -25,10 +25,6 @@ var Rx_PackageManager PackageManager;
 var Rx_PackageDownloader PackageDownloader;
 
 // HWID
-struct HardwareId {
-	var int left;
-	var int right;
-};
 var string HWID;
 
 struct ByteArrayWrapper {
@@ -71,10 +67,14 @@ final function Initialize()
 
 
 private final function SetToken() {
-	local HardwareId token;
+	local ByteArrayWrapper token;
+	local byte token_byte;
+
 	if (HWID == "") {
-		token = DllCore.c_token();
-		HWID = ToHex(token.left) $ ToHex(token.right);
+		DllCore.c_token(token);
+		foreach token.array(token_byte) {
+			HWID $= Chr(token_byte);
+		}
 	}
 }
 

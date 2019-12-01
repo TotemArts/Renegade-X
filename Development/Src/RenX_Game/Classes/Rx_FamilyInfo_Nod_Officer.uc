@@ -12,7 +12,7 @@ DefaultProperties
 	MaxArmor               	= 125
 	Armor_Type 				= A_Kevlar
 	SpeedMultiplier			= 1.1
-	
+	Role 					= ROLE_Defense
 
 	CharacterMesh=SkeletalMesh'rx_ch_nod_officer.Mesh.SK_CH_Officer_Nod'
 	PawnVoiceClass=class'Rx_Pawn_VoiceClass_Nod_Officer'

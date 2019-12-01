@@ -24,6 +24,12 @@ function SetToReady()
 	bReadyToSpawn = true;
 }
 
+function GetSpawnerLocAndRot(out Vector Loc, out Rotator Rot)
+{
+	Loc = Location;
+	Rot = Rotation;
+}
+
 defaultproperties
 {
 	Begin Object Class=DynamicLightEnvironmentComponent Name=MyLightEnvironment

@@ -91,7 +91,10 @@ function byte BestMode()
     if(Rx_BuildingAttachment(UTBot(Instigator.Controller).Focus) != None)
         return 0;
 
-    return Super.BestMode();
+    else if(VSizeSq(UTBot(Instigator.Controller).Focus.Location - Instigator.Location) > 4000000)
+        return 1;
+
+    return 0;
 }
 
 simulated state WeaponOverCharge

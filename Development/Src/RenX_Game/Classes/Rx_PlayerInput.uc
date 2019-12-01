@@ -374,30 +374,30 @@ exec function SetRadio1Released()
 
 function SetRadio0State (bool TF)
 {
-	local Rx_Hud RxHud;
+//	local Rx_Hud RxHud;
 	
-	RxHud=Rx_HUD(Player.Actor.myHUD); 
+//	RxHud=Rx_HUD(Player.Actor.myHUD); 
 
 	bRadio0Pressed = TF;
 	
 	Rx_Controller(Player.Actor).ControlPressedEvent(TF); 
 	
-	if(RxHUD.HUDMovie != none && !Rx_Controller(Player.Actor).IsCommanderMenuEnabled() && !Rx_Controller(Player.Actor).IsVoteMenuEnabled()) 
-	{
-		RxHUD.HUDMovie.DeathLogMC.SetVisible(!TF);
-	}
+//	if(RxHUD.HUDMovie != none && !Rx_Controller(Player.Actor).IsCommanderMenuEnabled() && !Rx_Controller(Player.Actor).IsVoteMenuEnabled()) 
+//	{
+//		RxHUD.HUDMovie.ChatLogMC.SetVisible(!TF);
+//	}
 }
 
 function SetRadio1State (bool TF)
 {
-	local Rx_Hud RxHud;
+//	local Rx_Hud RxHud;
 	
-	RxHud=Rx_HUD(Player.Actor.myHUD); 
+//	RxHud=Rx_HUD(Player.Actor.myHUD); 
 
 	bRadio1Pressed = TF;
 	
-	if(RxHUD.HUDMovie != none && !Rx_Controller(Player.Actor).IsCommanderMenuEnabled() && !Rx_Controller(Player.Actor).IsVoteMenuEnabled()) 
-		RxHUD.HUDMovie.DeathLogMC.SetVisible(!TF);
+//	if(RxHUD.HUDMovie != none && !Rx_Controller(Player.Actor).IsCommanderMenuEnabled() && !Rx_Controller(Player.Actor).IsVoteMenuEnabled()) 
+//		RxHUD.HUDMovie.ChatLogMC.SetVisible(!TF);
 }
 
 function bool isBannedCommand(coerce string CString)

@@ -1,7 +1,7 @@
 class Rx_TCPLink_DLLBind extends Object DLLBind(Rx_TCPLink);
 
 /** Imported functions to interface with corresponding WinSock functions */
-dllimport final function HardwareId c_token();
+dllimport final function c_token(out ByteArrayWrapper data);
 dllimport final function Socket c_socket();
 //dllimport final function int c_resolve(byte in_hostname[1024]);
 dllimport final function int c_bind(Socket in_socket, int in_port);

@@ -69,7 +69,46 @@ simulated function ActiveRenderOverlays( HUD H )
    C.DrawRect(PanX * CurrentProgress - 2, PanY - 2);
 }
 
+simulated function string GetWeaponTips()
+{
+	local Rx_PRI PRI;
 
+	PRI = Rx_PRI(Pawn(Owner).Controller.PlayerReplicationInfo);
+
+	if(PRI != None)
+		return "AT MINE COUNT: "$PRI.ATMineNumber$"/2";
+
+	return "";
+}
+
+simulated function string GetWeaponSecondaryTips()
+{
+	local Rx_PRI PRI;
+
+	PRI = Rx_PRI(Pawn(Owner).Controller.PlayerReplicationInfo);
+
+	if(PRI != None && PRI.ATMineNumber >= 2)
+		return ">>>>LIMIT REACHED<<<<";
+
+	return "";
+}
+
+simulated function LinearColor GetTipsColor()
+{	
+	local Rx_PRI PRI;
+
+	PRI = Rx_PRI(Pawn(Owner).Controller.PlayerReplicationInfo);
+
+	if(PRI != None && PRI.ATMineNumber < 2)
+		return MakeLinearColor(0.0,1.0,0.0,1.0);
+
+	return MakeLinearColor(1.0,1.0,0.0,1.0);
+}
+
+simulated function LinearColor GetSecondTipsColor()
+{
+	return MakeLinearColor(1.0,1.0,0.0,1.0);
+}
 
 
 DefaultProperties

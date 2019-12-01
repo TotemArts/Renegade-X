@@ -246,18 +246,22 @@ function bool AssignSquadResponsibility()
     }	
 
 	
-	if(UTVehicle(Pawn) == None && HasRepairGun() && !bInfiltrating) 
+	if(UTVehicle(Pawn) == None && GetOrders() == 'DEFEND' && HasRepairGun() && !bInfiltrating) 
 	{
-		if(!DefendedBuildingNeedsHealing() && PTTask == "" && Rx_SquadAI(Squad).Size > 3 
-			&& Rx_SquadAI(Squad).GetEngiNumber()/Rx_SquadAI(Squad).Size > Rx_SquadAI(Squad).RepairerRatio)
-			RebuyDefense();
-
-		else if(RepairCloseVehicles()) 
+		if(RepairCloseVehicles()) 
 		{
 			return true;		
 		}
+		else if(!DefendedBuildingNeedsHealing() && PTTask == "" && SquadHasEnoughRepairer())
+			RebuyDefense();
+
 	}
 	return super.AssignSquadResponsibility();
+}
+
+function bool SquadHasEnoughRepairer()
+{
+	return (Rx_SquadAI(Squad).Size > 3 && Rx_SquadAI(Squad).GetEngiNumber()/(Rx_SquadAI(Squad).Size) > Rx_SquadAI(Squad).RepairerRatio);
 }
 
 function Actor FaceActor(float StrafingModifier)
@@ -748,7 +752,7 @@ function ChooseAttackMode()
 	if(!IsInState('Defending') && Rx_Pawn_SBH(Pawn) != None && !Rx_SquadAI(Squad).IsStealthDiscovered())
 		return;
 
-	if(Enemy != None && GetOrders() == 'Attack' && CurrentBO == None) 
+	if(Enemy != None && GetOrders() != 'DEFEND' && CurrentBO == None) 
 	{
 		if(GetTeamNum() == TEAM_GDI) 
 		{
@@ -802,7 +806,7 @@ function array<class<Rx_FamilyInfo> > OffensiveClasses() {
 	
 	foreach TeamClasses(CharacterClass) 
 	{
-		if (CharacterClass.default.Role == ROLE_Offense) 
+		if (CharacterClass.default.Role == ROLE_Offense || CharacterClass.default.Role == ROLE_ALL) 
 			Result.AddItem(CharacterClass);
 	}
 	
@@ -818,8 +822,14 @@ function array<class<Rx_FamilyInfo> > DefensiveClasses()
 	
 	foreach TeamClasses(CharacterClass) 
 	{
-		if (CharacterClass.default.Role == ROLE_Defense) 
+		if (CharacterClass.default.Role == ROLE_Defense || CharacterClass.default.Role == ROLE_ALL) 
 			Result.AddItem(CharacterClass);
+	}
+
+	foreach Result(CharacterClass)
+	{
+		if(!SquadHasEnoughRepairer() && !Rx_Game(WorldInfo.Game).PurchaseSystem.DoesHaveRepairGun( CharacterClass ))
+			Result.RemoveItem(CharacterClass);
 	}
 	
 	return Result;
@@ -989,13 +999,31 @@ function bool NavCanBeHitByAO(Navigationpoint Nav)
 
 function bool DefendedBuildingNeedsHealing() 
 {
-	if(GetOrders() != 'DEFEND')
+	if(CurrentBO == None)
+	{
+		if(Squad == None)
+			return false;
+
+		LastO = UTGameObjective(Squad.SquadObjective);
+		if(LastO == None)
+			return false;
+
+		CurrentBO = Rx_BuildingObjective(LastO);		
+	}
+	if(CurrentBO == None)
 		return false;
 
-	if(CurrentBO != None && CurrentBO.DefenderTeamIndex == GetTeamNum() && CurrentBO.NeedsHealing()) 
+	if(Rx_Building_TechBuilding(CurrentBO.myBuilding) != None && CurrentBO.CanCapture(Self)) 
 	{
 		return true;
 	}
+	
+	if(GetOrders() != 'DEFEND' || CurrentBO == None)
+		return false;
+
+	if(CurrentBO.DefenderTeamIndex == GetTeamNum() && CurrentBO.NeedsHealing())
+		return true;
+
 	if(CurrentBO.bIsDisabled)
 	{
 		OurTeamAI.FindNewObjectives(CurrentBO);
@@ -1401,7 +1429,10 @@ function ConsiderStartSprintTimer()
 	}
 }
 
-
+event SeeMonster( Pawn Seen )
+{
+	SeePlayer(Seen);
+}
 
 event SeePlayer(Pawn Seen) 
 {
@@ -1431,6 +1462,9 @@ event SeePlayer(Pawn Seen)
 		return;
 
 	super.SeePlayer(Seen);
+
+	if(Seen.GetTeamNum() != GetTeamNum())
+		Rx_SquadAI(Squad).AlertSquad(Self, Seen);
 }
 
 
@@ -2698,7 +2732,7 @@ function bool HasRepairGun(optional bool bMandatory)
 
 	if(bMandatory && ShouldRebuy(350) && (PTTask == "" || PTTask == "Buy Char - Engi" || PTTask == "Buy Char - AdvEngi"))
 	{
-		if(GetCredits() > 350)
+		if(GetCredits() > 350 && !Rx_Game(WorldInfo.Game).GetPurchaseSystem().AreHighTierPayClassesDisabled(GetTeamNum()))
 			PTTask = "Buy Char - AdvEngi";
 		else
 			PTTask = "Buy Char - Engi";
@@ -3057,7 +3091,7 @@ function MoveToDefensePoint()
 {
 	if(IsInState('Defending')) 
 	{
-		if(HasRepairGun() && DefendedBuildingNeedsHealing()) 
+		if(HasRepairGun() && DefendedBuildingNeedsHealing(Self)) 
 			CurrentBO.TellBotHowToHeal(Self);	
 
 		
@@ -3092,9 +3126,11 @@ function bool IsHealing(bool bOrAboutToHeal) {
     	if(Rx_Weapon_DeployedActor(Focus) != None)
     		return true;
 
-    	if((Rx_BuildingAttachment(Focus) != None && Rx_BuildingAttachment(Focus).GetTeamNum() == GetTeamNum()) || (Rx_Building(Focus) != None && Rx_Building(Focus).GetTeamNum() == GetTeamNum()))
+    	if((Rx_BuildingAttachment(Focus) != None && Rx_BuildingAttachment(Focus).GetTeamNum() == GetTeamNum()) 
+    		|| (Rx_Building(Focus) != None && Rx_Building(Focus).GetTeamNum() == GetTeamNum())
+    		|| (Rx_BuildingAttachment(Focus) != None && Rx_Building_Techbuilding_Internals(Rx_BuildingAttachment(Focus).OwnerBuilding) != None))
     		return true; 
-    	
+
     	else if(Rx_BuildingObjective(Focus) != None && Rx_BuildingObjective(Focus).GetTeamNum() == GetTeamNum() 
     			&& Rx_BuildingObjective(Focus).NeedsHealing()) 
     		return true;
@@ -3123,13 +3159,16 @@ function bool VehicleShouldAttackEnemyInRush()
 	if(Enemy == None)
 		return false;
 
-	if((CanAttack(Enemy) && VSizeSq(Enemy.Location-Pawn.Location) <= 62500) || (Rx_Pawn(Enemy) != None && Rx_Weapon(Rx_Pawn(Enemy).Weapon) != None && Rx_Weapon(Rx_Pawn(Enemy).Weapon).bOkAgainstVehicles) 
+	if((CanAttack(Enemy) && Vehicle(Enemy) != None) 
+		|| (CanAttack(Enemy) && VSizeSq(Enemy.Location-Pawn.Location) <= 62500) 
+		|| (Rx_Pawn(Enemy) != None && Rx_Weapon(Rx_Pawn(Enemy).Weapon) != None && Rx_Weapon(Rx_Pawn(Enemy).Weapon).bOkAgainstVehicles) 
 		|| (Rx_Pawn(Enemy) != None && Rx_Game(WorldInfo.Game).PurchaseSystem.DoesHaveRepairGun(Rx_Pri(Enemy.PlayerReplicationInfo).CharClassInfo)))
 	{
 		LastCanAttackCheckTime = WorldInfo.TimeSeconds;
 		return true; 
 	}
 
+	LastCanAttackCheckTime = WorldInfo.TimeSeconds;
 	return false;
 }
 
@@ -3159,7 +3198,7 @@ exec function SwitchToBestWeapon(optional bool bForceNewWeapon)
 		}
 		else
 		{
-			if(VSizeSq(Pawn.Location - Enemy.Location) > 400 && Rx_Pawn(Enemy) != None)
+			if((!Weapon(Pawn.InvManager.FindInventoryType(Class'Rx_Weapon_TimedC4', true)).HasAmmo(0) || VSizeSq(Pawn.Location - Enemy.Location) > 400) && Rx_Pawn(Enemy) != None)
 			{
 				Rx_InventoryManager(Pawn.InvManager).SwitchToSidearmWeapon();
 			}
@@ -3367,7 +3406,7 @@ function BroadcastBuildingSpotMessages(Rx_Building Building)
 	local String msg;
 	local int nr;
 	
-	if(!bCanTalk)
+	if(!bCanTalk || (GetTeamNum() == Building.GetTeamNum() && Building.myObjective != None && Building.myObjective.bAlreadyReported))
 		return;
 
 	if(Building.GetTeamNum() == GetTeamNum()) 
@@ -3376,7 +3415,8 @@ function BroadcastBuildingSpotMessages(Rx_Building Building)
 		if(Building.GetMaxArmor() <= 0) 
 		{ /*We're not using armour*/
 		
-		if(Building.GetHealth() == Building.GetMaxHealth() || Rx_Building_Techbuilding(Building) != none) { 
+		if(Building.GetHealth() == Building.GetMaxHealth() || Rx_Building_Techbuilding(Building) != none) 
+		{ 
 			
 			msg = "Defend the "$Building.GetHumanReadableName()$"!";
 			
@@ -3519,11 +3559,16 @@ function BroadcastEnemySpotMessages()
 
 	LocationInfo = GetSpottargetLocationInfo(Enemy,NearAlliedBuilding);
 
-	if(class<Rx_FamilyInfo>(Rx_Pawn(Enemy).CurrCharClassInfo).static.Cost(Rx_PRI(Enemy.PlayerReplicationInfo)) <= 300)
+	if(Rx_Pawn(Enemy) != None && class<Rx_FamilyInfo>(Rx_Pawn(Enemy).CurrCharClassInfo).static.Cost(Rx_PRI(Enemy.PlayerReplicationInfo)) <= 300)
 	{
 		if(NearAlliedBuilding < 0)
 			return;	
 	}
+
+	if(Rx_PRI(Enemy.PlayerReplicationInfo) != None)
+		Rx_PRI(Enemy.PlayerReplicationInfo).SetSpotted(10.0);
+	else if(Rx_ScriptedBotPRI(Enemy.PlayerReplicationInfo) != None)
+		Rx_ScriptedBotPRI(Enemy.PlayerReplicationInfo).SetSpotted(10.0);
 
 	if(Rx_Pawn(Enemy) != None) 
 	{

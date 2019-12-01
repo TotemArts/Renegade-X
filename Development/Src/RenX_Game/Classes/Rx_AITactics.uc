@@ -229,6 +229,7 @@ function bool PurchaseMaterial(Rx_Bot B)
 static function bool IsAvailable(Rx_Bot B)
 {
 	local WorldInfo GameWorld;
+	local Rx_Bot SM;
 
 	GameWorld = class'WorldInfo'.static.GetWorldInfo();
 
@@ -262,6 +263,15 @@ static function bool IsAvailable(Rx_Bot B)
 	else if (Default.bVehicleBuildingPostMortem)
 		return false;
 
+
+	else
+	{
+		for (SM = Rx_Bot(Rx_SquadAI(B.Squad).SquadMembers); SM!=None; SM=Rx_Bot(SM.NextSquadMember))
+		{
+			if(SM.GetCredits() < default.CreditsNeeded)
+				return false;
+		}
+	}
 
 
 	return true;

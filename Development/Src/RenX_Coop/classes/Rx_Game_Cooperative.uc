@@ -430,6 +430,15 @@ function AdjustTeamSize()
 	}
 }
 
+function byte PickTeam(byte num, Controller C)
+{
+	if(C.bIsPlayer)
+		return GetPlayerTeam();
+
+	else
+		return Super.PickTeam(num,C);
+}
+
 DefaultProperties
 {
 	PlayerControllerClass	   = class'Rx_Controller_Coop'

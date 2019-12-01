@@ -12,7 +12,7 @@ DefaultProperties
 	MaxArmor               	= 225
 	Armor_Type 				= A_Kevlar
 	SpeedMultiplier			= 1.1 // +10%, +7.5%, +5%
-	
+	Role 					= ROLE_Offense
 
 	CharacterMesh=SkeletalMesh'RX_CH_Nod_Mendoza.Mesh.SK_CH_Mendoza'
 	PawnVoiceClass=class'Rx_Pawn_VoiceClass_Nod_Mendoza'

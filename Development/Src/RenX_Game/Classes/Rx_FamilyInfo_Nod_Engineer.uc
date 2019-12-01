@@ -1,5 +1,10 @@
 class Rx_FamilyInfo_Nod_Engineer extends Rx_FamilyInfo_Nod;
 
+static function bool IsEngi()
+{
+	return true;
+}
+
 DefaultProperties
 {
 	FamilyID="Nod"

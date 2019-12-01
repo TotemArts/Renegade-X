@@ -2584,6 +2584,25 @@ simulated function ResetMuzzleHeat()
 	UpdateMuzzleHeatParameter(0);
 }
 
+simulated function string GetWeaponTips()
+{
+	return "";
+}
+
+simulated function string GetWeaponSecondaryTips()
+{
+	return "";
+}
+
+simulated function LinearColor GetTipsColor()
+{
+	return MakeLinearColor(1.0, 1.0, 1.0, 1.0);
+}
+
+simulated function LinearColor GetSecondTipsColor()
+{
+	return MakeLinearColor(1.0, 1.0, 1.0, 1.0);
+}
 //PT stuff
 
 simulated static function bool IsBuyable(Rx_Controller C)

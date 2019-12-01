@@ -1,5 +1,6 @@
 class Rx_HUD_Coop extends Rx_HUD;
 
+/*
 function DrawNewScorePanel()
 {
 	local float YL, SizeSX, SizeSY;
@@ -241,6 +242,7 @@ function DrawNewScorePanel()
 	} 
 	
 }
+*/
 
 DefaultProperties
 {

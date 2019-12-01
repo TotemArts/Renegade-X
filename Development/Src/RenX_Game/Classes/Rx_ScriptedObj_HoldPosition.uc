@@ -5,7 +5,7 @@ var(ScriptedObjective) bool bRootPawn;
 var(ScriptedObjective) float HoldDuration;		// Time for which this bot should hold here before proceeding to next objective. Set to 0 or less for infinity 
 var bool bSwapObjective;
 
-function bool DoTaskFor(Rx_Bot_Scripted B)
+function bool DoTaskFor(Rx_Bot_Scripted_Customizeable B)
 {
 	if(!bSwapObjective)
 		B.GoToState('WaitForTactics');

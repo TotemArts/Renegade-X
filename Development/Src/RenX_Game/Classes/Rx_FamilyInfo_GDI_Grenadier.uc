@@ -12,6 +12,7 @@ DefaultProperties
 	MaxArmor               	= 125 //100
 	Armor_Type 				= A_FLAK
 	SpeedMultiplier			= 1.0//0.95
+	Role 					= ROLE_Offense
 
 	CharacterMesh=SkeletalMesh'rx_ch_gdi_soldier.Mesh.SK_CH_GDI_Grenadier'
 	

@@ -10,6 +10,15 @@ var		 float 					 MapScaling; //Used to control the zooming in of the map -to co
 var      Rx_Controller           RxPC;
 var		 matrix                  IconMatrix;
 
+struct TechStatus
+{
+	var Rx_Building_Techbuilding Building;
+	var byte TeamOwner;
+	var GFxObject TechIcon;
+	var Vector2D IconLoc;
+};
+
+
 var array<Rx_UIDataProvider_MapInfo> MapDataProviderList; //Used to get the map name for the overview map.
 
 var bool HasRunOnce;
@@ -38,6 +47,8 @@ var		 GFxObject               icons_NeutralVehicle;
 var		 GFxObject               icons_NodVehicle;
 //_root.overview_map.icons_GDIVehicle
 var		 GFxObject               icons_GDIVehicle;
+// tech icons
+var		 GFxObject               icons_TechBuilding;
 // player blip
 var		 GFxObject               player_icon;
 //_root.overview_map.map
@@ -59,6 +70,7 @@ var		 array<GFxObject>        NodTeamIcons;
 var		 array<GFxObject>        NodVehicleIcons;
 var		 array<GFxObject>        NeutralIcons;
 var		 array<GFxObject>        NeutralVehicleIcons;
+var 	 Array<TechStatus> 		 TechList;
 
 var		 int                     IconsEnemyCount;
 var		 int                     IconsVehicleEnemyCount;
@@ -100,6 +112,7 @@ function RunOnce()
 		SetInfrantryGfxObjects();
 		SetVehicleGfxObjects();
 		SetOverviewMapGfxObjects();
+		SetTechBuildingMapGfxObjects();
 		map_name = GetVariableObject("_root.map_name.title"); //Grab our map name text object on the overview map.
 		map_name.SetText(GetMapFriendlyName(ThisWorld.GetMapName())); //Set our map name on the overview map.
 		MapScaling=RxMapInfo.OverviewScale; 
@@ -148,6 +161,12 @@ function Update()
 	UpdatePawnInfoCount();
 	UpdatePlayerBlip();
 	UpdateActorBlips();
+
+	if(TechList.Length > 0)
+		UpdateTechIcons();
+
+//	else
+//		`log("failed to get tech building list");
 	// Generate markers for other pawns
 }
 
@@ -173,6 +192,7 @@ function TestIconmatrix()
 	IconMatrix.WPlane.W = 1;
     IconMatrix.WPlane = TransformVector(IconMatrix, -RxMapInfo.MapCenter);
 }
+
 function UpdatePawnInfoCount(  )
 {
 	local array<class> GDIPlayerClasses, NodPlayerClasses; 
@@ -836,6 +856,77 @@ function togglebeaconstar ()
 		beaconStar = 0;
 }
 
+function UpdateTechIcons()
+{
+	local Vector TempIconLoc;
+	local ASColorTransform CT;
+	local int i;
+	local ASDisplayInfo DI;
+
+	DI.HasY = true;
+	DI.HasX = true;
+	DI.HasXScale = true;
+	DI.HasYScale = true;
+	DI.XScale = 150.f;
+	DI.YScale = 150.f;
+
+	for(i=0;i < TechList.length;i++)
+	{
+		TempIconLoc = TransformVector(IconMatrix, TechList[i].Building.Location);
+
+
+
+		if(TechList[i].IconLoc.X != TempIconLoc.X || TechList[i].IconLoc.Y != TempIconLoc.Y)
+		{
+			TechList[i].IconLoc.X = TempIconLoc.X;
+			TechList[i].IconLoc.Y = TempIconLoc.Y;
+			DI.X = TempIconLoc.X;
+			DI.Y = TempIconLoc.Y;
+
+			`log(TechList[i].Building@"icon replaced on coordinate X:"$(TempIconLoc.X)$"Y"$(TempIconLoc.Y));
+			TechList[i].TechIcon.SetDisplayInfo(DI);
+			TechList[i].TechIcon.SetVisible(True);
+
+			LoadTexture("img://" $ PathName(TechList[i].Building.IconTexture), TechList[i].TechIcon);
+		}
+
+
+		if(TechList[i].Building.GetTeamNum() != TechList[i].TeamOwner)
+		{
+			if(TechList[i].Building.GetTeamNum() == 0)
+			{
+				CT.multiply.R = 1;
+				CT.multiply.G = 0.f;
+				CT.multiply.B = 0.f;
+				CT.add.R = 0.f;
+				CT.add.G = 1.f;
+				CT.add.B = 0.f;			
+				TechList[i].TechIcon.SetColorTransform(CT);
+			}
+			else if(TechList[i].Building.GetTeamNum() == 1)
+			{
+				CT.multiply.R = 1.f;
+				CT.multiply.G = 0.f;
+				CT.multiply.B = 0.f;
+				CT.add.R = 0.25;
+				CT.add.G = 0.f;
+				CT.add.B = 0.f;
+				TechList[i].TechIcon.SetColorTransform(CT);
+			}			
+			else
+			{
+				CT.multiply.R = 1.f;
+				CT.multiply.G = 1.f;
+				CT.multiply.B = 1.f;
+				CT.add.R = 0.f;
+				CT.add.G = 0.f;
+				CT.add.B = 0.f;
+				TechList[i].TechIcon.SetColorTransform(CT);
+			}			
+		}
+	}
+}
+
 function int GetBuildingIndex(Rx_Building B)
 {
 	if(Rx_Building_GDI_InfantryFactory(B) != None) return 0;
@@ -1057,6 +1148,7 @@ var		 GFxObject               map;
 	icons_GDIVehicle     =  GetVariableObject("_root.overview_map.icons_GDIVehicle");                       
 	icons_NeutralVehicle =	GetVariableObject("_root.overview_map.icons_NeutralVehicle");               
 	icons_NavMarker      =  GetVariableObject("_root.overview_map.icons_nav");
+	icons_TechBuilding   =  GetVariableObject("_root.overview_map.icons_TechBuilding");
 
 }
 
@@ -1140,6 +1232,50 @@ function string GetMapFriendlyName(string MapName)
 	}
 
 	return MapName;
+}
+
+function SetTechBuildingMapGfxObjects()
+{
+	local Rx_Building_Techbuilding Tech;
+	local TechStatus TempTechStatus;
+	local ASColorTransform CT;
+
+	if(Rx_HUD(RxPC.myHUD).TechBuildings.Length <= 0)
+	{
+		`log("Map cannot find tech buildings, aborting");
+		return;
+	}
+
+	foreach Rx_HUD(RxPC.myHUD).TechBuildings(Tech)
+	{
+		TempTechStatus.Building = Tech;
+		TempTechStatus.TeamOwner = Tech.GetTeamNum();
+		TempTechStatus.TechIcon = icons_TechBuilding.AttachMovie("TechBlips","TechBuilding"$(TechList.Length + 1));
+		TempTechStatus.TechIcon.SetVisible(true);
+
+		if(TempTechStatus.Building.GetTeamNum() == 0)
+		{
+			CT.multiply.R = 0.25;
+			CT.multiply.G = 0.25;
+			CT.multiply.B = 0.25;
+			CT.add.R = 0.75;
+			CT.add.G = 0.58;
+			CT.add.B = 0;			
+			TempTechStatus.TechIcon.SetColorTransform(CT);
+		}
+		else if(TempTechStatus.Building.GetTeamNum() == 1)
+		{
+			CT.multiply.R = 0.25;
+			CT.multiply.G = 0.25;
+			CT.multiply.B = 0.25;
+			CT.add.R = 0.75;
+			CT.add.G = 0;
+			CT.add.B = 0;
+			TempTechStatus.TechIcon.SetColorTransform(CT);
+		}
+
+		TechList.AddItem(TempTechStatus);
+	}
 }
 
 DefaultProperties

@@ -13,6 +13,8 @@ var GFxObject ScoreGDI;
 var GFxObject ScoreNod;
 var GFxObject StatsNod;
 var GFxObject StatsGDI;
+var GFxObject HarvGDI,HarvStatusGDI,HarvHealthGDI;
+var GFxObject HarvNod,HarvStatusNod,HarvHealthNod;
 
 
 var GFxObject ServerName;
@@ -92,6 +94,10 @@ var int BeepPoint;
 
 //Caches
 var int LastGDIScore, LastNodScore;
+var vector BuildingDistanceAverage;
+var int LastGDIHarvHealth, LastNodHarvHealth;
+var bool bGDIHasHarv, bNodHasHarv;
+var Rx_TeamInfo GDITeam, NodTeam;
 
 
 function bool Start(optional bool StartPaused = false)
@@ -105,6 +111,8 @@ function bool Start(optional bool StartPaused = false)
 
     LastGDIScore = -1;
     LastNodScore = -1;
+    GDITeam = Rx_TeamInfo(PC.WorldInfo.GRI.Teams[TEAM_GDI]);
+    NodTeam = Rx_TeamInfo(PC.WorldInfo.GRI.Teams[TEAM_NOD]);
 	
 	LoadGfxObjects();
 
@@ -152,7 +160,15 @@ function LoadGfxObjects()
 		RootMC.GotoAndStopI(10);	
 
 	else
-		Scoreboard = RootMC.GetObject("sb");	
+	{
+		Scoreboard = RootMC.GetObject("sb");
+		HarvGDI = Scoreboard.GetObject("GDIHarv");
+		HarvStatusGDI = HarvGDI.GetObject("StatusText");
+		HarvGDI.SetVisible(false);
+		HarvNod = Scoreboard.GetObject("NodHarv");
+		HarvStatusNod = HarvNod.GetObject("StatusText");
+		HarvNod.SetVisible(false);
+	}
 //	{		
 //		SetBuildingGfxObjects(EndGameScoreBoard);
 //	}
@@ -207,6 +223,7 @@ function LoadBuildings()
 	local int buildingIndex;
 	local ASDisplayInfo DI;
 	local float GDIYPos, NodYPos;
+	local Vector BLocs;
 
 	//empty these out
 	GDIBuilding.Length = 0;
@@ -218,8 +235,9 @@ function LoadBuildings()
 			continue;
 
 		BList.AddItem(B);
+		BLocs += B.Location;
 	}
-
+	BuildingDistanceAverage = BLocs / BList.Length;
 	BList.Sort(SortBuildingDelegate);
 
 	foreach BList(B)
@@ -334,6 +352,11 @@ function UpdateBuildings(bool force)
 	if(NodBuilding.Length > 0);
 		UpdateBuildingGFx(NodBuilding,force);
 
+	if(GDITeam.CurrentHarvester != None)
+		UpdateHarv(GDITeam);
+
+	if(NodTeam.CurrentHarvester != None)
+		UpdateHarv(NodTeam);
 }
 
 function UpdateBuildingGFx(Array<Buildings> BList, bool force)
@@ -386,19 +409,95 @@ function UpdateBuildingGFx(Array<Buildings> BList, bool force)
 	}	
 }
 
+function UpdateHarv(Rx_TeamInfo Team)
+{
+	local int CurrentHealth;
+
+	if(!Team.bHasHarv)
+		return;
+
+	if(Team == GDITeam)
+	{
+		if(!bGDIHasHarv)
+		{
+			bGDIHasHarv = true;
+			HarvGDI.SetVisible(true);
+		}
+
+		if(Team.CurrentHarvester != None)
+		{
+			HarvGDI.GotoAndStopI(1);
+			HarvStatusGDI.SetText("ACTIVE");
+
+			if(HarvHealthGDI == None)
+				HarvHealthGDI = HarvGDI.GetObject("Bar");
+
+			CurrentHealth = FFloor(100 * Team.CurrentHarvester.Health / Team.CurrentHarvester.HealthMax);
+			if(LastGDIHarvHealth != CurrentHealth)
+			{
+				LastGDIHarvHealth = CurrentHealth; 
+				HarvHealthGDI.GotoAndStopI(CurrentHealth);
+			}
+
+
+		}
+		else
+		{
+			HarvGDI.GotoAndStopI(2);
+			HarvStatusGDI.SetText("DESTROYED");
+			LastGDIHarvHealth = -1;
+		}
+	}
+
+	else if(Team == NodTeam)
+	{
+		if(!bNodHasHarv)
+		{
+			bNodHasHarv = true;
+			HarvNod.SetVisible(true);
+		}		
+
+		if(Team.CurrentHarvester != None)
+		{
+
+			HarvNod.GotoAndStopI(1);
+			HarvStatusNod.SetText("ACTIVE");
+
+			if(HarvHealthNod == None)
+				HarvHealthNod = HarvNod.GetObject("Bar");
+
+			CurrentHealth = FFloor(100 * Team.CurrentHarvester.Health / Team.CurrentHarvester.HealthMax);
+			if(LastNodHarvHealth != CurrentHealth)
+			{
+				LastNodHarvHealth = CurrentHealth; 
+				HarvHealthNod.GotoAndStopI(CurrentHealth);
+			}
+
+
+
+		}
+		else
+		{
+			HarvNod.GotoAndStopI(2);
+			HarvStatusNod.SetText("DESTROYED");
+			LastNodHarvHealth = -1;
+		}
+	}
+}
+
 function UpdateScoreTotals()
 {
 	local int gdiScore;
 	local int nodScore;
 
-	gdiScore = Rx_TeamInfo(PC.WorldInfo.GRI.Teams[TEAM_GDI]).GetRenScore();
+	gdiScore = GDITeam.GetRenScore();
 	if(LastGDIScore != gdiScore)
 	{
 		ScoreGDI.SetText(gdiScore);		
 		LastGDIScore = gdiScore;
 	}
 
-	nodScore = Rx_TeamInfo(PC.WorldInfo.GRI.Teams[TEAM_NOD]).GetRenScore();
+	nodScore = NodTeam.GetRenScore();
 	if(LastNodScore != nodScore)
 	{
 		ScoreNod.SetText(nodScore);	
@@ -568,7 +667,7 @@ function TickEndGameScoreboard()
 		TimeLeft = RxGRI.RenEndTime - PC.WorldInfo.RealTimeSeconds; //work out countdown for map voting/till next map load
 		if (int(TimeLeft) < 10) 
 		{
-			if(TimeLeft < BeepPoint)
+			if(TimeLeft < BeepPoint && TimeLeft > 0.5)
 			{
 				BeepPoint = FFloor(TimeLeft);
 				PlayTickSound();
@@ -585,7 +684,6 @@ function TickEndGameScoreboard()
 				NextRound.SetVisible(false);
 				NextLoadingMap.GotoAndStopI(10); // swap NextLoadingMap to red.
 				NextLoadingMap.SetText("Loading Map...");
-				PC.ClearTimer('PlayTickSound', self);
 			}		
 		} 
 		else
@@ -776,10 +874,17 @@ function string divideTime(out float fTime, int timeDivision)
 			bWasHandled = true;
 			break;
 		case 'ChatBox':
-			if (ChatBox == none || ChatBox != Widget) {
+			if (ChatBox == none || ChatBox != Widget) 
+			{
 				ChatBox = GFxClikWidget(Widget);
 			}
+			if(Rx_Controller(GetPC()) != None && Rx_HUD(Rx_Controller(GetPC()).myHUD).LastEndScoreboardChats != "")
+			{
+				Chatlog = Rx_HUD(Rx_Controller(GetPC()).myHUD).LastEndScoreboardChats;
+				GetPC().SetTimer(0.1,false,'UpdateScroll',Self);
+			}
 			bWasHandled = true;
+			SetUpDataProvider(ChatBox);
 			break;
 		case 'TextMsg':
 			if (TextMsg == none || TextMsg != Widget) {
@@ -1246,7 +1351,13 @@ function int SortBuildingDelegate( coerce Rx_Building B1, coerce Rx_Building B2 
 	if (B1.myBuildingType > B2.myBuildingType)
 		return 1;
 	else if (B1.myBuildingType == B2.myBuildingType)
-		return 0;
+	{
+		if(VSizeSq(BuildingDistanceAverage - B1.Location) > VSizeSq(BuildingDistanceAverage - B2.Location))
+			return 1;
+
+		else
+			return -1;
+	}
 	else
 		return -1;
 

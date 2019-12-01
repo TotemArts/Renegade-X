@@ -1,5 +1,13 @@
 class Rx_Weapon_TiberiumAutoRifle_Blue extends Rx_Weapon_Reloadable;
 
+function byte BestMode()
+{
+    if(Rx_Pawn(UTBot(Instigator.Controller).Focus) != None)
+        return 0;
+
+    return 1;
+}
+
 simulated function bool IsInstantHit()
 {
 	return CurrentFireMode == 0; 
@@ -37,7 +45,6 @@ defaultproperties
 	LeftHandIK_Relaxed_Rotation = (Pitch=-1456,Yaw=-3458,Roll=-2366)
 	RightHandIK_Relaxed_Offset = (X=-2.0,Y=2.0,Z=-5.0)
 	RightHandIK_Relaxed_Rotation = (Pitch=-3822,Yaw=182,Roll=9284)
-
 
 	ArmsAnimSet = AnimSet'RX_WP_TiberiumAutoRifle.Anims.AS_TiberiumAutoRifle_Arms'
 	
@@ -79,14 +86,14 @@ defaultproperties
     EquipTime=1.0
 //	PutDownTime=0.7
 
-    Spread(0)=0.025 //0.01
+    Spread(0)=0.017 //0.01
     Spread(1)=0.001
     
     WeaponRange=3000.0
 
-    InstantHitDamage(0)=26 //22 //20
+    InstantHitDamage(0)=28 //22 //20
 	
-	HeadShotDamageMult=1.55 //2.0
+	HeadShotDamageMult=1.60 //2.0
 	
     InstantHitMomentum(0)=10000.0
 

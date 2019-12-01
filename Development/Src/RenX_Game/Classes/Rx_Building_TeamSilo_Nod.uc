@@ -6,6 +6,12 @@ simulated function String GetHumanReadableName()
 	return "Nod Silo";
 }
 
+function bool ShouldSpawnHarvester()
+{
+	return false;	
+}
+
+
 defaultproperties
 {
    TeamID = TEAM_NOD
@@ -107,5 +113,7 @@ defaultproperties
 	End Object
 	Components.Add(SpotLightComponent5)
 	SpotLightComponents.Add(SpotLightComponent5)
+
+	IconTexture = Texture2D'RenxHud.T_Tech_Silo_Nod'
 }
 

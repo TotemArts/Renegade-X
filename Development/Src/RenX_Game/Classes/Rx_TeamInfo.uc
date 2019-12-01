@@ -18,12 +18,14 @@ var protected int   Kills;  // total kills for the team
 var protected int   Deaths; // total deaths for the team
 var protected float	Command_Points, Maximum_CP; //The maximum CP you can have at any given time. Rises with the number of dead buildings you have
 var bool			bHarvesterStopped; 
+var Rx_Vehicle_Harvester CurrentHarvester;
+var bool			bHasHarv;
 
 replication
 {
 	
 	if( bNetDirty && (Role==ROLE_Authority) )
-		ReplicatedSize, vehicleCount, mineCount, ReplicatedRenScore, Kills, Deaths, LastAirstrikeTime, VehicleLimit, mineLimit, Command_Points, Maximum_CP;
+		ReplicatedSize, vehicleCount, mineCount, ReplicatedRenScore, Kills, Deaths, LastAirstrikeTime, VehicleLimit, mineLimit, Command_Points, Maximum_CP, CurrentHarvester, bHasHarv;
 }
 
 simulated event ReplicatedEvent(name VarName)

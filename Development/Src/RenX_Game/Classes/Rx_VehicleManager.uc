@@ -201,7 +201,7 @@ function QueueHarvester(byte team, bool bWithIncreasedDelay)
        	   }
 	       else
 	       {
-	       	 if(AreTeamFactoriesDestroyed(TEAM_NOD))
+	       	 if(!AreTeamFactoriesDestroyed(TEAM_NOD))
 	       	 	SpawnC130();
 	       	 SetTimer(ProductionDelay, false, 'queueWork_NOD'); 
 	       }
@@ -585,6 +585,7 @@ function InitVehicle(Rx_Vehicle Veh, byte TeamNum, Rx_Pri Buyer, int VehId, vect
 {
 	local UTVehicle P;	
 	local Rx_PurchaseSystem RxPS; 
+	local Rx_TeamInfo TI;
 	
 	if(WorldInfo.NetMode == NM_StandAlone || (WorldInfo.NetMode == NM_ListenServer && RemoteRole == ROLE_SimulatedProxy) )
 		RxPS = Rx_Game(WorldInfo.Game).PurchaseSystem ;
@@ -599,11 +600,22 @@ function InitVehicle(Rx_Vehicle Veh, byte TeamNum, Rx_Pri Buyer, int VehId, vect
 			P.TakeDamage(10000, none, P.Location, vect(0,0,1), class'UTDmgType_LinkBeam');
 		}
 	}	
+
+	TI = Rx_TeamInfo(Teams[TeamNum]);
 	
-	if(Rx_Vehicle_Harvester(Veh) == None) 
+	if(TI != None)
 	{
-		Rx_TeamInfo(Teams[TeamNum]).addVehicle(Veh);
-	}	
+		if(Rx_Vehicle_Harvester(Veh) == None) 
+		{
+			TI.addVehicle(Veh);
+		}	
+		else
+		{
+			TI.CurrentHarvester = Rx_Vehicle_Harvester(Veh);
+			if(!TI.bHasHarv)
+				TI.bHasHarv = true;
+		}
+	}
 	
 	Veh.TeamBought = TeamNum;
 	Veh.lastTeamToUse = TeamNum;

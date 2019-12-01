@@ -22,6 +22,27 @@ function bool ValidPTUse(Rx_BuildingAttachment_PT PT)	// we don't always have PT
 		return false;
 }
 
+function EnableCommanderMenu()
+{
+	
+	if(VoteHandler != none || Rx_GRI(WorldInfo.GRI).bEnableCommanders == false) return; 
+	
+	if(Com_Menu != none ) 
+	{
+		DestroyOldComMenu() ;
+		return; 
+	}
+
+	if(!bPlayerIsCommander())
+	{
+		CTextMessage("You are NOT a commander", 'Red'); 
+		return; 
+	}
+	
+	Com_Menu = new (self) class'Rx_CommanderMenuHandler_Coop';
+	Com_Menu.Enabled(self);
+}
+
 DefaultProperties
 {
 	PTMenuClass = class'Rx_GFxPurchaseMenu_Coop'

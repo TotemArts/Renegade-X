@@ -3,7 +3,7 @@ class Rx_ScriptedObj_AttackTarget extends Rx_ScriptedObj
 
 var(ScriptedObjective) Actor Target;
 
-function bool DoTaskFor(Rx_Bot_Scripted B)
+function bool DoTaskFor(Rx_Bot_Scripted_Customizeable B)
 {
 	if(Target != None)
 	{

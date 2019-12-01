@@ -19,7 +19,7 @@ simulated event PostBeginPlay()
 	}
 }
 
-function bool DoTaskFor(Rx_Bot_Scripted B)
+function bool DoTaskFor(Rx_Bot_Scripted_Customizeable B)
 {
 	local int i;
 	local Rx_BuildingObjective BO;

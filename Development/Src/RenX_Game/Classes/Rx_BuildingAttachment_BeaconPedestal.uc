@@ -41,9 +41,9 @@ simulated function string GetTooltip(Rx_Controller PC)
 	if (VSizeSq(PC.Pawn.Location - Location) <= 250000)
 	{
 		if(PC.GetTeamNum() != GetTeamNum())
-			return "Activate a beacon here to destroy the entire base";
+			return "Detonate a <font color='#ff0000' size='20'>Super Weapon Beacon</font> here to destroy the base.";
 		else 
-			return "Prevent the enemy team from detonating a superweapon beacon here";
+			return "Prevent the enemy team from detonating a <font color='#ff0000' size='20'>Super Weapon Beacon</font> here.";
 	}
 
 	return "";

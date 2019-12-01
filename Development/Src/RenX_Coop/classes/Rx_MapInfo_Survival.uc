@@ -9,6 +9,7 @@ struct InfantryWaveStruct
 	var() float DamageDealtMultiplier;
 	var() float PerPlayerDamageTakenMod;
 	var() float PerPlayerDamageDealtMod;
+	var() bool bIsBoss;
 
 
 	structdefaultproperties
@@ -29,6 +30,7 @@ struct VehicleWaveStruct
 	var() float DamageDealtMultiplier;
 	var() float PerPlayerDamageTakenMod;
 	var() float PerPlayerDamageDealtMod;
+	var() bool bIsBoss;
 
 
 	structdefaultproperties

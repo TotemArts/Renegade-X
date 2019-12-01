@@ -37,7 +37,7 @@ protected event ExecuteWhatToDoNext()
 		CurrentBO = Rx_BuildingObjective(LastO);
 	}
 
-	if(CurrentBO == None || RouteGoal != CurrentBO.InfiltrationPoint)
+	if(CurrentBO == None || RouteGoal != CurrentBO.GetInfiltrationPoint())
 		bInfiltrating = false;
 
 	if (Pawn == None)
@@ -696,6 +696,104 @@ function MoveToDefensePoint()
 		GoToState('Patrolling','Begin');
 }
 
+state Capturing
+{
+	function FindPathToBuilding() 
+	{
+		local Actor NextMoveTarget;
+		local Actor AttackTarget;
+
+		if(RouteGoal == CurrentBO.myBuilding.GetMCT() && MoveTarget != None && !Pawn.ReachedDestination(MoveTarget))
+			return;
+
+		RouteGoal = CurrentBO.myBuilding.GetMCT();
+
+		NextMoveTarget = FindPathToward(RouteGoal, bShortCamp);
+		AttackTarget = CurrentBO.myBuilding.GetMCT();
+			
+			if(NextMoveTarget == None && AttackTarget != None && !CanAttack(AttackTarget))
+			{
+				if(ActorReachable(RouteGoal))
+					NextMoveTarget = RouteGoal;
+				else
+				{
+					NextMoveTarget = FindRandomDest();
+					if(NextMovetarget != None)
+						NextMoveTarget = RouteCache[0];
+				}
+			}
+
+
+		MoveTarget = NextMoveTarget;
+
+	}
+
+
+Begin:
+//	`log("Defending Begin"); 
+	WaitForLanding();
+
+//	if(HasRepairGun(false) && (GetNearbyDeployables(true) != None))
+//		GoTo('Healing');
+
+	SwitchToBestWeapon();
+	// Report problem!!
+
+	if (CurrentBO.CanCapture(Self))
+	{
+		Focus = CurrentBO.MyBuilding.GetMCT();
+
+		if(!CanHeal(Focus))
+			FindPathToBuilding();
+
+		else
+			GoTo('Healing');
+
+	}
+
+MoveToHeal:
+
+	MoveToward(MoveTarget,Focus,GetDesiredOffset(),ShouldStrafeTo(MoveTarget));
+
+	GoalString = "Moving to capture point";
+
+	LatentWhatToDoNext();
+
+	if(HasRepairGun() && Focus != None && CanHeal(Focus))
+	{
+Healing:
+	
+		StopMovement();	
+
+		SwitchToBestWeapon();
+
+		GoalString @= "- Capturing....";
+
+		While(CurrentBO.CanCapture(Self) && Focus == CurrentBO.myBuilding.GetMCT() && (CurrentBO.myBuilding.GetTeamNum() != GetTeamNum() || CurrentBO.myBuilding.GetHealth() < CurrentBO.myBuilding.GetMaxHealth()))
+		{
+
+			if(Enemy != None && LineOfSightTo(Enemy))
+			{
+				if(CanHeal(Focus))
+					DoTacticalMove();
+			}
+
+			FireWeaponAt(Focus);
+
+			Sleep(2);
+			if(!HasRepairGun())
+				break;
+		}
+	}
+DoneHealing:	
+
+
+	Sleep(1.5);
+	LatentWhatToDoNext();
+		
+
+}
+
 state Defending
 {
 	function BeginState(Name PreviousStateName)
@@ -755,10 +853,10 @@ state Defending
 		local Actor NextMoveTarget;
 		local Actor AttackTarget;
 
-		if(RouteGoal == CurrentBO.InfiltrationPoint && MoveTarget != None && !Pawn.ReachedDestination(MoveTarget))
+		if(RouteGoal == CurrentBO.GetInfiltrationPoint() && MoveTarget != None && !Pawn.ReachedDestination(MoveTarget))
 			return;
 
-		RouteGoal = CurrentBO.InfiltrationPoint;
+		RouteGoal = CurrentBO.GetInfiltrationPoint();
 
 		NextMoveTarget = FindPathToward(RouteGoal, bShortCamp);
 		AttackTarget = CurrentBO.myBuilding.GetMCT();
@@ -832,7 +930,7 @@ MoveToHeal:
 
 	LatentWhatToDoNext();
 
-	if(HasRepairGun() && Focus != None && CanHeal(Focus))
+	if(HasRepairGun(true) && Focus != None && CanHeal(Focus))
 	{
 Healing:
 	
@@ -1453,7 +1551,7 @@ function bool FindInfiltrationPath()
 	if(Vehicle(Pawn) != None || (LastVehicle != None && LastVehicle.bOkAgainstBuildings))
 		return FindVehicleAssaultPath();
 
-	InfilPoint = CurrentBO.InfiltrationPoint;
+	InfilPoint = CurrentBO.GetInfiltrationPoint();
 
 	if(InfilPoint == None)
 	{
@@ -1469,8 +1567,6 @@ function bool FindInfiltrationPath()
 	else if(RouteGoal != InfilPoint)
 		RouteGoal = InfilPoint;
 
-	if(HasRepairGun() || Rx_Pawn_SBH(Pawn) != None)
-		SetInfantryAvoidedPath();
 	
 	BestPath = FindPathToward(InfilPoint,true);
 
@@ -1538,6 +1634,8 @@ function bool FindVehicleAssaultPath()
 	{
 		NextVehicleAssaultPathRecalc = WorldInfo.TimeSeconds + 20.0; 
 		BuildingPoint = CurrentBO.myBuilding.FindAttackPointsFor(Self);
+		if(BuildingPoint == None)
+			BuildingPoint = CurrentBO.myBuilding;
 	}
 	else
 	{
@@ -2078,7 +2176,7 @@ Moving:
 			GoalString = "Infiltrating.... "@Squad.SquadObjective$"...?";	
 	}
 
-	if(CurrentBO != None && CanAttack(CurrentBO.myBuilding.GetMCT()))
+	if(CurrentBO != None && CurrentBO.myBuilding.GetMCT() != None && CanAttack(CurrentBO.myBuilding.GetMCT()))
 	{
 		if(Enemy != None && !HasC4() && CanAttack(Enemy) && Rand(10) > 10 - (Skill))
 		{
@@ -2099,7 +2197,7 @@ Moving:
 			AssaultMCT();
 		}
 	}
-	else if (CurrentBO != None && !CanAttack(CurrentBO.myBuilding.GetMCT()))
+	else if (CurrentBO != None && ( CurrentBO.myBuilding.GetMCT() == None || !CanAttack(CurrentBO.myBuilding.GetMCT())))
 	{
 		if(LastVehicle != None && LastVehicle.Driver == None)
 		{
@@ -2479,7 +2577,7 @@ DoStrafeMove:
 		GoalString = "RangedAttack from failed tactical";
 		DoRangedAttackOn(Enemy);
 	}
-	if ( (Enemy == None) || LineOfSightTo(Enemy) || !FastTrace(Enemy.Location, LastSeeingPos) || (Pawn.Weapon != None && Pawn.Weapon.bMeleeWeapon) )
+	if ( (Enemy == None) || LineOfSightTo(Enemy) || !FastTrace(Enemy.Location, LastSeeingPos) || (Pawn.Weapon != None && (Pawn.Weapon.bMeleeWeapon || Rx_Weapon_RepairGun(Pawn.Weapon) != None)) )
 		Goto('FinishedStrafe');
 
 RecoverEnemy:
@@ -2613,6 +2711,15 @@ state RoundEnded
 }
 
 /* Path Cost Modifier functions*/
+
+event SetupSpecialPathAbilities()
+{
+	if(GetOrders() == 'ATTACK')
+	{
+		if(HasRepairGun() || Rx_Pawn_SBH(Pawn) != None)
+			SetInfantryAvoidedPath();
+	}
+}
 
 function SetInfantryAvoidedPath()
 {

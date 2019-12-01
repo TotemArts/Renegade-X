@@ -522,6 +522,38 @@ simulated event Destroyed()
 	super.Destroyed();
 }
 
+simulated function string GetWeaponTips()
+{
+	if(Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime > 0 
+				&& (WorldInfo.Timeseconds - Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime < Rx_MapInfo(WorldInfo.GetMapInfo()).AirStrikeCoolDown)) 
+	{	
+		return "Next Airstrike available in";	
+	}
+
+	return "";
+}
+
+simulated function string GetWeaponSecondaryTips()
+{
+	if(Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime > 0 
+				&& (WorldInfo.Timeseconds - Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime < Rx_MapInfo(WorldInfo.GetMapInfo()).AirStrikeCoolDown)) 
+	{
+		return String(int(Rx_MapInfo(WorldInfo.GetMapInfo()).AirStrikeCoolDown - (WorldInfo.Timeseconds - Rx_TeamInfo(Rx_Pawn(Instigator).PlayerReplicationInfo.Team).LastAirstrikeTime)));
+	}
+
+	return "";
+}
+
+simulated function LinearColor GetTipsColor()
+{
+	return MakeLinearColor(1.0, 0.0, 0.0, 1.0);
+}
+
+simulated function LinearColor GetSecondTipsColor()
+{
+	return MakeLinearColor(1.0, 0.0, 0.0, 1.0);
+}
+
 DefaultProperties
 {
 	DecalWidth=1000.f

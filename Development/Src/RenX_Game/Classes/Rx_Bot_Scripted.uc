@@ -9,14 +9,14 @@
 class Rx_Bot_Scripted extends Rx_Bot_Waypoints;
 
 
-// Patrol Script Objective
-var Rx_ScriptedBotSpawner MySpawner;
-var Rx_ScriptedObj_PatrolPoint PatrolTask;
-var int PatrolNumber;
-var UTGameObjective MyObjective;
 var Rx_Vehicle BoundVehicle;
 var Rx_TeamInfo AssignedTeam;
 var byte VRank;
+
+var float SpeedModifier;
+var float DamageTakenModifier;
+var float DamageDealtModifier;
+var bool bDriverSurvives;
 
 function RxInitialize(float InSkill, const out CharacterInfo BotInfo, UTTeamInfo BotTeam)
 {
@@ -41,8 +41,6 @@ function RxInitialize(float InSkill, const out CharacterInfo BotInfo, UTTeamInfo
 		Rx_Pawn(Pawn).CurrCharClassInfo = CharInfoClass.static.FindFamilyInfo("GDI");
 	else
 		Rx_Pawn(Pawn).CurrCharClassInfo = CharInfoClass.static.FindFamilyInfo("Nod");
-
-
 //	setStrafingDisabled(true);
 	SetTimer(0.5,true,'ConsiderStartSprintTimer');
 
@@ -50,8 +48,16 @@ function RxInitialize(float InSkill, const out CharacterInfo BotInfo, UTTeamInfo
 		OurTeamAI = Rx_TeamAI(BotTeam.AI);
 
 }
+
 function ToggleBotVoice();
 
+
+function PostBeginPlay()
+{
+	super.PostBeginPlay();
+
+	InitPlayerReplicationInfo();	
+}
 
 function ResetSkill()
 {
@@ -87,17 +93,9 @@ protected event ExecuteWhatToDoNext()
 	{
 		Rx_Pawn_Scripted(Pawn).TeamNum = GetTeamNum();
 	}
-
-	if(MySpawner != None)
+	if(Rx_Pawn_Scripted(Pawn).ScriptedSpeedModifier != SpeedModifier)
 	{
-		if(MySpawner.Skill != Skill)
-		{
-			Skill = MySpawner.Skill;
-			ResetSkill();
-		}
-
-
-		bGodMode = MySpawner.bInvulnerableBots;
+		Rx_Pawn_Scripted(Pawn).ScriptedSpeedModifier = SpeedModifier;
 	}
 
 	if(Vehicle(Pawn) == None && BoundVehicle != None)
@@ -107,26 +105,16 @@ protected event ExecuteWhatToDoNext()
 			RouteGoal = None;
 			MoveTarget = None;
 			if(Rx_Vehicle(Pawn) != None)
+			{
 				Rx_Vehicle(Pawn).UpdateThrottleAndTorqueVars();
+				Rx_Vehicle(Pawn).SetTeamNum(GetTeamNum());
+			}
 		}
 		else if(BoundVehicle.Health <= 0)
 		{
 			BoundVehicle = None;
 		}
 
-	}
-	if(Rx_Pawn(Pawn) != None) 
-	{
-		if(Rx_ScriptedObj_PatrolPoint(MyObjective) != None && Rx_ScriptedObj_PatrolPoint(MyObjective).bWalkingPatrol)
-		{
-			ClearTimer('ConsiderStartSprintTimer');
-			Rx_Pawn(Pawn).SetGroundSpeed(Rx_Pawn(Pawn).WalkingSpeed);
-		}
-		else
-		{
-			SetTimer(0.5,true,'ConsiderStartSprintTimer');
-			Rx_Pawn(Pawn).SetGroundSpeed(Rx_Pawn(Pawn).RunningSpeed);
-		}
 	}
 
 	bHasFired = false;
@@ -225,6 +213,11 @@ protected event ExecuteWhatToDoNext()
 		
 }
 
+function WanderOrCamp()
+{
+	GoToState('Roaming');
+}
+
 function class<UTFamilyInfo> BotBuy(Rx_Bot Bot, bool bJustRespawned, optional string SpecificOrder)
 {
 	if(Rx_Pawn(Pawn) != None)
@@ -235,25 +228,8 @@ function class<UTFamilyInfo> BotBuy(Rx_Bot Bot, bool bJustRespawned, optional st
 	return None;
 }
 
-function ForceAssignObjective(UTGameObjective O)
-{
-	if(Squad != None)
-		UTSquadAI(Squad).SetObjective(O,true);
-	else
-		MyObjective = O;
-
-	if(Rx_ScriptedObj(O) != None)
-		Rx_ScriptedObj(O).DoTaskFor(Self);
-}
-
 function bool AssignSquadResponsibility ()
 {
-
-	if(Rx_ScriptedObj(MyObjective) != None && Rx_ScriptedObj(MyObjective).DoTaskFor(Self))
-		return true;
-
-	if(MySpawner != None && MySpawner.DoTaskFor(Self))
-		return true;
 
 	if(Rx_Vehicle(Pawn) != None && Enemy != None && !Rx_Vehicle(Pawn).ValidEnemyForVehicle(Enemy)) 
 	{
@@ -329,7 +305,7 @@ Begin:
 
 	if(Enemy != None)
 	{
-		TimedFireWeaponAtEnemy();
+		ChooseAttackMode();
 	}
 
 
@@ -349,33 +325,6 @@ Begin:
 		
 
 	}
-}
-
-state WaitForTactics
-{
-
-Begin :
-	WaitForLanding();
-	SwitchToBestWeapon();
-
-	GoalString = "Holding Position";
-
-	StopMovement();
-
-	if(Enemy != None)
-	{
-		Focus = Enemy;
-
-		if(Rx_ScriptedObj_HoldPosition(MyObjective) != None && Rx_ScriptedObj_HoldPosition(MyObjective).bRootPawn)
-			DoRangedAttackOn(Enemy);
-		else
-			ChooseAttackMode();
-	}
-
-
-	Sleep(1.0);
-	LatentWhatToDoNext();
-
 }
 
 function Actor FaceActor(float StrafingModifier)
@@ -491,8 +440,23 @@ function bool ShouldStrafeTo(Actor WayPoint)
 	return ( FRand() < 0.6 );
 }
 
+function bool HasRepairGun(optional bool bMandatory)
+{
+	local class<UTFamilyInfo> FamInfo;
+
+	if(Rx_Pawn_Scripted(Pawn) != None)
+		FamInfo = Rx_Pawn_Scripted(Pawn).CurrCharClassInfo;
+	else
+		return false;
+
+	if( Rx_Game(WorldInfo.Game).PurchaseSystem.DoesHaveRepairGun( FamInfo ) ) 
+	{
+		return true;
+	}
 
 
+	return false;
+}
 // PRI Replacement functions
 
 function SetChar(class<Rx_FamilyInfo> newFamily, optional bool isFreeClass)
@@ -502,23 +466,17 @@ function SetChar(class<Rx_FamilyInfo> newFamily, optional bool isFreeClass)
 
 simulated function byte GetTeamNum()
 {
+	if(AssignedTeam == None)
+	{
+		if(Owner != None)
+			return Owner.GetTeamNum();
+		else
+			return 255;
+	}
+
 	return AssignedTeam.TeamIndex;
 }
 
-function bool HasRepairGun(optional bool bMandatory)
-{
-	local class<UTFamilyInfo> FamInfo;
-
-	FamInfo = Rx_Pawn_Scripted(Pawn).CurrCharClassInfo;
-
-	if( Rx_Game(WorldInfo.Game).PurchaseSystem.DoesHaveRepairGun( FamInfo ) ) 
-	{
-		return true;
-	}
-
-	return false;
-	
-}
 
 event Possess(Pawn inPawn, bool bVehicleTransition)
 {
@@ -527,8 +485,6 @@ event Possess(Pawn inPawn, bool bVehicleTransition)
 
 	super.Possess(inPawn, bVehicleTransition);
 //	SetRadarVisibility(RadarVisibility);
-
-	InitPlayerReplicationInfo();
 }
 
 function ChooseAttackMode()
@@ -633,11 +589,56 @@ function ChooseAttackMode()
 
 function bool ShouldSurviveVehicleDeath()
 {
-	return (mySpawner != None && mySpawner.bDriverSurvives);
+	return bDriverSurvives;
+}
+
+function MoveAfterDropOff() // done after rappeling off a chinook
+{
+	local Actor BestPath;
+
+	if(SearchEnemy())
+		return;
+
+	RouteGoal = FindRandomDest();
+	if ( RouteGoal == None )
+		return;
+	BestPath = RouteCache[0];
+
+	if ( BestPath == None )
+		BestPath = FindPathToward(RouteGoal,true);
+
+	if ( BestPath != None )
+		MoveTarget = BestPath;
+
+	WanderOrCamp();
+
+}
+
+simulated function bool SearchEnemy()
+{
+	local Pawn P;
+
+	foreach Pawn.VisibleCollidingActors(class'Pawn',P,3000)
+	{
+		if(P.GetTeamNum() != GetTeamNum())
+		{
+			Enemy = P;
+			ChooseAttackMode();
+			return true;
+		}
+	}
+
+	return false;
+
+	if(Enemy == None)
+		WanderOrCamp();
 }
 
 DefaultProperties
 {
 	bCanTalk = false;
 	bIsPlayer = false;
+	DamageDealtModifier = 1.f
+	DamageTakenModifier = 1.f
+	SpeedModifier = 1.f
 }

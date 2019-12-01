@@ -18,18 +18,20 @@ function float GetProbabilityWeight(Rx_Pawn Recipient, Rx_CratePickup CratePicku
 
 	ForEach CratePickup.AllActors(class'Rx_Building',building)
 	{
-		if((Recipient.GetTeamNum() == TEAM_GDI && Rx_Building_GDI_InfantryFactory(building) != none  && Rx_Building_GDI_InfantryFactory(building).IsDestroyed()) || 
-			(Recipient.GetTeamNum() == TEAM_NOD && Rx_Building_Nod_InfantryFactory(building) != none  && Rx_Building_Nod_InfantryFactory(building).IsDestroyed()))
+		if((Recipient.GetTeamNum() == TEAM_GDI && Rx_Building_GDI_InfantryFactory(building) != none  && !Rx_Building_GDI_InfantryFactory(building).IsDestroyed()) || 
+			(Recipient.GetTeamNum() == TEAM_NOD && Rx_Building_Nod_InfantryFactory(building) != none  && !Rx_Building_Nod_InfantryFactory(building).IsDestroyed()))
 		{
-			Probability += ProbabilityIncreaseWhenInfantryProductionDestroyed;
+			return Probability;
 		}
 	}
+	Probability += ProbabilityIncreaseWhenInfantryProductionDestroyed;
 
 	return Probability;
 }
 
 function bool HasFreeUnit(Rx_Pawn Recipient)
 {
+	/*
 	if(Recipient.GetRxFamilyInfo() == class'Rx_FamilyInfo_GDI_Soldier')
 		return true;
 	if(Recipient.GetRxFamilyInfo() == class'Rx_FamilyInfo_GDI_Shotgunner')
@@ -53,6 +55,10 @@ function bool HasFreeUnit(Rx_Pawn Recipient)
 		return true;		
 		
 	return false;	
+	*/
+	// as Sarah pointed out, the method above is completely and utterly flawed. Seriously, who wrote this? :/
+
+	return (Recipient.GetRxFamilyInfo().static.Cost(Rx_PRI(Recipient.PlayerReplicationInfo)) <= 0);
 }
 
 function ExecuteCrateBehaviour(Rx_Pawn Recipient, Rx_PRI RecipientPRI, Rx_CratePickup CratePickup)

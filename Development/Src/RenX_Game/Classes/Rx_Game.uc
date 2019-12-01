@@ -148,7 +148,7 @@ var config bool bAllowPrivateMessaging;
 /** Restrict PMing to just teammates. */
 var config bool bPrivateMessageTeamOnly;
 
-// Determines how teams are organized between matches. 0 = static, 1 = swap, 2 = random swap, 3 = shuffle, 4 = traditional (assign as players connect), 5 = free real estate (enables swapping freely)
+// Determines how teams are organized between matches. 0 = static, 1 = swap, 2 = random swap, 3 = shuffle, 4 = traditional (assign as players connect), 5 = traditional + free swap, 6 = ladder rank
 var config int TeamMode;
 
 var int buildingArmorPercentage; //Always 50 if enabled 
@@ -278,7 +278,8 @@ var ControlGroup GDIControlGroups[6], NodControlGroups[6];
 ******************************************/
 
 var int Defence_IDs; //Hold and create the ID's for Rx_Defences so they can stop being stupid to work with for client > server 
-//var config int MinPlayersForNukes; 
+var int Scripted_IDs;
+var config int MinPlayersForNukes; 
 
 //Score System 
 var config bool		bUseLegacyScoreSystem;  
@@ -343,7 +344,6 @@ function PreBeginPlay()
 				VehicleManagerClass = HelipadVehicleManagerClass;
 				PurchaseSystemClass = HelipadPurchaseSystemClass;
 			}
-			B.GetAttackPoints();
 		}
 
 		PurchaseSystem = spawn(PurchaseSystemClass, self,'PurchaseSystem',Location,Rotation);
@@ -504,6 +504,7 @@ delegate int MapListSort(Rx_UIDataProvider_MapInfo A, Rx_UIDataProvider_MapInfo 
 	if(A.FriendlyName == B.FriendlyName)	// Handepsilon - I spent 4 hours pulling my hair out trying to figure out what was wrong with my game. It turns out this was the culprit. This is never happening again...	
 	{
 		`warn("Fatal Error! Sorting failed due to duplicate FriendlyName : ("$A.FriendlyName$") on 2 or more maps! Please use different names!!");
+		return 0;
 	}
 
 	return A.FriendlyName < B.FriendlyName ? 0 : -1;
@@ -605,6 +606,8 @@ function PostBeginPlay()
 	
 	if (VehicleManager != None)
 		VehicleManager.CheckVehicleSpawn();
+
+	Rx_GRI(GameReplicationInfo).MinPlayersForNukes = MinPlayersForNukes;
 }
 
 function SetupObjectives()
@@ -619,7 +622,10 @@ function SetupObjectives()
 				break;
 
 			if(FirstObjective == None)
+			{
 				FirstObjective = O;
+				FirstObjective.bFirstObjective = true;
+			}
 
 			if(PrevO != None)
 			{
@@ -645,144 +651,6 @@ function GameUpdate()
 			NodCount++;
 
 		StatAPI.GameUpdate(string(Rx_TeamInfo(Teams[TEAM_GDI]).GetDisplayRenScore()), string(Rx_TeamInfo(Teams[TEAM_NOD]).GetDisplayRenScore()), string(GDICount), string(NodCount));
-	}
-}
-
-function ShuffleTeamsNextMatch()
-{
-	local Array<Rx_Controller> Team1, Team2, All;
-	local float Team1Score, Team2Score;
-	local int GDICount, NodCount;
-	local Rx_Controller PC, Highest;
-	local Rx_Mutator Rx_Mut;
-
-	LogInternal("autobal: shuffle" );
-
-	Rx_Mut = GetBaseRXMutator();
-	if (Rx_Mut != None)
-	{
-		Rx_Mut.OnBeforeTeamShuffling();
-	}		
-
-	if (Rx_Mut != None)
-	{
-		if(Rx_Mut.ShuffleTeamsNextMatch())
-			return;
-	}		
-
-	// Gather all Human Players
-	foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
-	{
-		if ( (PC.PlayerReplicationInfo != None) && (PC.PlayerReplicationInfo.Team != None) )
-			All.AddItem(PC);
-	}
-
-	// Sort them all into 2 teams.
-	while (All.Length > 0)
-	{
-		Highest = None;
-		foreach All(PC)
-		{
-			if (Highest == None)
-				Highest = PC;
-			else if (Rx_PRI(PC.PlayerReplicationInfo).OldRenScore > Rx_PRI(Highest.PlayerReplicationInfo).OldRenScore)
-				Highest = PC;
-		}
-
-		All.RemoveItem(Highest);
-
-		if (Team1Score <= Team2Score)
-		{
-			Team1.AddItem(Highest);
-			Team1Score += Rx_PRI(Highest.PlayerReplicationInfo).OldRenScore;
-		}
-		else
-		{
-			Team2.AddItem(Highest);
-			Team2Score += Rx_PRI(Highest.PlayerReplicationInfo).OldRenScore;
-		}
-
-		// If the small team + the rest is less than the larger team, then place all remaining players in the small team.
-		if (Team1.Length >= Team2.Length + All.Length)
-		{
-			// Dump the rest in Team2.
-			foreach All(PC)
-				Team2.AddItem(PC);
-			break;
-		}
-		else if (Team2.Length >= Team1.Length + All.Length)
-		{
-			// Dump the rest in Team1.
-			foreach All(PC)
-				Team1.AddItem(PC);
-			break;
-		}
-	}
-
-	// Figure out which team will be which faction. Just do the one that moves the least.
-	foreach Team1(PC)
-	{
-		if (PC.PlayerReplicationInfo.Team.TeamIndex == 0)
-			++GDICount;
-		else
-			++NodCount;
-	}
-	if (GDICount >= NodCount)
-	{
-		// Team 1 go GDI, Team 2 go Nod
-		foreach Team1(PC)
-			`RxEngineObject.AddGDIPlayer(PC.PlayerReplicationInfo);
-		foreach Team2(PC)
-			`RxEngineObject.AddNodPlayer(PC.PlayerReplicationInfo);
-	}
-	else
-	{
-		// Team 1 go Nod, Team 2 go GDI
-		foreach Team1(PC)
-			`RxEngineObject.AddNodPlayer(PC.PlayerReplicationInfo);
-		foreach Team2(PC)
-			`RxEngineObject.AddGDIPlayer(PC.PlayerReplicationInfo);
-	}
-
-	Rx_Mut = GetBaseRXMutator();
-	if (Rx_Mut != None)
-	{
-		Rx_Mut.OnAfterTeamShuffling();
-	}	
-
-	// Terribly unoptimized, but done.
-
-}
-
-function RetainTeamsNextMatch()
-{
-	local Controller PC;
-
-	foreach WorldInfo.AllControllers(class'Controller', PC)
-	{
-		if ( (PC.PlayerReplicationInfo != None) && (PC.PlayerReplicationInfo.Team != None) )
-		{
-			if (PC.PlayerReplicationInfo.Team.TeamIndex == TEAM_GDI)
-				`RxEngineObject.AddGDIPlayer(PC.PlayerReplicationInfo);
-			else if (PC.PlayerReplicationInfo.Team.TeamIndex == TEAM_NOD)
-				`RxEngineObject.AddNodPlayer(PC.PlayerReplicationInfo);
-		}
-	}
-}
-
-function SwapTeamsNextMatch()
-{
-	local Controller PC;
-
-	foreach WorldInfo.AllControllers(class'Controller', PC)
-	{
-		if ( (PC.PlayerReplicationInfo != None) && (PC.PlayerReplicationInfo.Team != None) )
-		{
-			if (PC.PlayerReplicationInfo.Team.TeamIndex == TEAM_GDI)
-				`RxEngineObject.AddNodPlayer(PC.PlayerReplicationInfo);
-			else if (PC.PlayerReplicationInfo.Team.TeamIndex == TEAM_NOD)
-				`RxEngineObject.AddGDIPlayer(PC.PlayerReplicationInfo);
-		}
 	}
 }
 
@@ -931,9 +799,9 @@ function SetTeam(Controller Other, UTTeamInfo NewTeam, bool bNewTeam)
 function AnnounceTeamJoin(PlayerReplicationInfo PRI, TeamInfo NewTeam, optional TeamInfo OldTeam, optional bool bBroadcast = true)
 {
 	if (OldTeam == None)
-		RxLog("PLAYER"`s "TeamJoin;"`s `PlayerLog(PRI) `s "joined"`s GetTeamName(NewTeam.GetTeamNum()) );
+		RxLog("PLAYER"`s "TeamJoin;"`s `PlayerLog(PRI) `s "joined"`s GetTeamName(NewTeam.GetTeamNum()) `s "score" `s Rx_Pri(PRI).GetRenScore() `s "last round score" `s Rx_Pri(PRI).OldRenScore `s "time" `s WorldInfo.TimeSeconds);
 	else
-		RxLog("PLAYER"`s "TeamJoin;"`s `PlayerLog(PRI) `s "joined"`s GetTeamName(NewTeam.GetTeamNum()) `s "left" `s GetTeamName(OldTeam.GetTeamNum()) );
+		RxLog("PLAYER"`s "TeamJoin;"`s `PlayerLog(PRI) `s "joined"`s GetTeamName(NewTeam.GetTeamNum()) `s "left" `s GetTeamName(OldTeam.GetTeamNum()) `s "score" `s Rx_Pri(PRI).GetRenScore() `s "last round score" `s Rx_Pri(PRI).OldRenScore `s "time" `s WorldInfo.TimeSeconds);
 
 	if (bBroadcast)
 		BroadcastLocalizedMessage( GameMessageClass, 3, PRI, None, NewTeam );
@@ -1437,11 +1305,11 @@ function UpdateDiscordPresence() {
 
 function CheckForBeaconToggle()
 {
-	/*if(NumPlayers + (NumBots / 2) >= MinPlayersForNukes && !Rx_GRI(GameReplicationInfo).bEnableNuke)
+	if(NumPlayers + (NumBots / 2) >= MinPlayersForNukes && !Rx_GRI(GameReplicationInfo).bEnableNuke)
 	{
 		RxLog("Game has reached minimum limit for Beacon,"@NumPlayers@"Players and"@NumBots@"Bots out of"@MinPlayersForNukes);
 		Rx_GRI(GameReplicationInfo).bEnableNuke = true; // don't turn off until new game so that players don't waste the nuke they bought
-	}*/
+	}	
 }
 
 function Logout( Controller Exiting )
@@ -1523,6 +1391,14 @@ function Logout( Controller Exiting )
 		//`RecordLoginChange(LOGOUT,Exiting,Exiting.PlayerReplicationInfo.PlayerName,Exiting.PlayerReplicationInfo.UniqueId, false)
 
 	UpdateDiscordPresence();
+}
+
+function bool NeedPlayers()
+{
+	if(GameType == 0)
+		return false;
+
+	return super.NeedPlayers();
 }
 
 function KillBot(UTBot B)
@@ -2075,7 +1951,7 @@ function Killed( Controller Killer, Controller KilledPlayer, Pawn KilledPawn, cl
 			else
 			{
 				RxLog("GAME"`s "Destroyed;" `s "vehicle" `s KilledPawn.Class `s "by" `s KillerLogStr`s "with"`s damageType);
-				if(!bPlayerDeath)
+/*				if(!bPlayerDeath)
 				{
 					B = Rx_Bot_Scripted(KilledPlayer);
 			
@@ -2083,15 +1959,26 @@ function Killed( Controller Killer, Controller KilledPlayer, Pawn KilledPawn, cl
 					{
 						HandleScriptedDeath(B);
 					}
-				}			
+				} 
+*/			
+			} 
+		}
+/*		else if(Rx_Vehicle(KilledPawn) != None && KilledPlayer != None && !bPlayerDeath)
+		{
+			B = Rx_Bot_Scripted(KilledPlayer);
+			
+			if(B != None && !B.ShouldSurviveVehicleDeath())
+			{
+				HandleScriptedDeath(B);
 			}
 		}
+*/
 		// score for pawns here
 		else if ( Rx_Pawn(KilledPawn) != None && KilledPlayer != none)
 		{
 
 			// If scripted bot death, interact with its' spawner, if there's any
-			if(!bPlayerDeath)
+/*			if(!bPlayerDeath)
 			{
 				B = Rx_Bot_Scripted(KilledPlayer);
 			
@@ -2100,7 +1987,7 @@ function Killed( Controller Killer, Controller KilledPlayer, Pawn KilledPawn, cl
 					HandleScriptedDeath(B);
 				}
 			}
-
+*/
 			if (PlayerPRI != None)
 			{
 				if (KilledPlayer.GetTeamNum() != Killer.GetTeamNum() )
@@ -2137,6 +2024,15 @@ function Killed( Controller Killer, Controller KilledPlayer, Pawn KilledPawn, cl
 	else if (KilledPlayer != none && Rx_PRI(KilledPlayer.PlayerReplicationInfo) != None)    // ignore ai being destroyed (notably harvester death due to refinery lost)
 	{
 		`SupressNullDamageType(RxLog("GAME"`s "Death;"`s "player"`s `PlayerLog(KilledPlayer.PlayerReplicationInfo)`s "died by"`s damageType));
+	}
+	
+	if (KilledPlayer != none && Rx_Vehicle(KilledPawn) == None && !bPlayerDeath) 
+	{
+		B = Rx_Bot_Scripted(KilledPlayer);
+		if(B != None)
+		{
+			HandleScriptedDeath(B);
+		}
 	}
 
 	if (bPlayerDeath && UTBot(KilledPlayer) != None )
@@ -2242,11 +2138,14 @@ function Killed( Controller Killer, Controller KilledPlayer, Pawn KilledPawn, cl
 
 function HandleScriptedDeath(Rx_Bot_Scripted B)
 {
+	local Rx_Bot_Scripted_Customizeable BCust;
 	TriggerEventClass(class'SeqEvent_Death',B);
 
-	if(B.MySpawner != None)
+	BCust = Rx_Bot_Scripted_Customizeable(B);
+
+	if(BCust != None && BCust.MySpawner != None)
 	{
-		B.MySpawner.NotifyPawnDeath(B);
+		BCust.MySpawner.NotifyPawnDeath(BCust);
 	}	
 }
 
@@ -2745,6 +2644,9 @@ function FindRefineries()
 
 	foreach AllActors(class'Rx_Building_Refinery', ref)
 	{
+		if(!ref.ShouldSpawnHarvester())
+			continue;
+
 		if (ref.GetTeamNum() == TEAM_GDI ) // GDI
 		{
 			TeamCredits[TEAM_GDI].Refinery.AddItem(ref);
@@ -2771,12 +2673,12 @@ function StartMatch()
 
 	super.StartMatch();
 
-	`RxEngineObject.ClearTeams();
-
 	if (TeamMode != 4)
 	{
 		AdjustTeamBalance();
 		AdjustTeamSize();
+	} else {
+		`RxEngineObject.ClearTeams();
 	}
 	
 	if (TeamCredits[TEAM_GDI].PlayerRI.Length > 0) {
@@ -2817,12 +2719,15 @@ function AdjustTeamBalance()
 	local PlayerReplicationInfo pri;
 	local Rx_Mutator Rx_Mut;
 
+
 	Rx_Mut = GetBaseRXMutator();
 	if (Rx_Mut != None)
 	{
 		if(Rx_Mut.adjustTeamBalance())
 			return;
 	}	
+
+    `RxEngineObject.ClearTeams();	
 
 	foreach WorldInfo.GRI.PRIArray(pri)
 		if(Rx_Pri(pri) != None)
@@ -3514,11 +3419,11 @@ function ReduceDamage(out int Damage, pawn injured, Controller instigatedBy, vec
 
 	// if scripted bot is involved, further modify the damage
 	
-	if(Rx_Bot_Scripted(injured.Controller) != None && Rx_Bot_Scripted(injured.Controller).MySpawner != None)
-		Damage = Damage * Rx_Bot_Scripted(injured.Controller).MySpawner.DamageTakenModifier;
+	if(Rx_Bot_Scripted(injured.Controller) != None)
+		Damage = Damage * Rx_Bot_Scripted(injured.Controller).DamageTakenModifier;
 
-	if(Rx_Bot_Scripted(instigatedBy) != None && Rx_Bot_Scripted(instigatedBy).MySpawner != None)
-		Damage = Damage * Rx_Bot_Scripted(instigatedBy).MySpawner.DamageDealtModifier;
+	if(Rx_Bot_Scripted(instigatedBy) != None)
+		Damage = Damage * Rx_Bot_Scripted(instigatedBy).DamageDealtModifier;
 
 	TempDifficulty = WorldInfo.Game.GameDifficulty;
 	WorldInfo.Game.GameDifficulty = 5.0;
@@ -4080,26 +3985,7 @@ function ProcessServerTravel(string URL, optional bool bAbsolute)
 		RxLog("MAP"`s"Changing;"`s NextMap `s "nonseamless");
 
 	// Set the teams for the next round
-	switch (TeamMode)
-	{
-	case 0: // Static
-		RetainTeamsNextMatch();
-		break;
-	case 1: // Swap
-		SwapTeamsNextMatch();
-		break;
-	case 2: // Random swap
-		if (Rand(2) != 0)
-			SwapTeamsNextMatch();
-		break;
-	case 3: // Shuffle
-		ShuffleTeamsNextMatch();
-		break;
-	case 4: // Default (do nothing)
-		break;
-	default: // Invalid value; do nothing
-		break;
-	}
+	class'Rx_TeamManager'.static.SetTeams();
 
 	// Remove bots
 	DesiredPlayerCount = NumPlayers;
@@ -4878,6 +4764,13 @@ function int GetDefenceID() //Are there ever going to be over like ... 10billion
 	
 }
 
+function int GetScriptedID() //basically the same deal as above. About the 10 billion part though, only time will tell
+{
+	Scripted_IDs++;
+	return Scripted_IDs; 
+	
+}
+
 /*Squad Stuff*/
 
 function bool AddPlayerToSquad(Rx_PRI RxPRI, byte TeamByte, byte SquadNumber)
@@ -5226,4 +5119,5 @@ DefaultProperties
 	NodControlGroups(3) = (GroupTitle = "Support-1") 
 	NodControlGroups(4) = (GroupTitle = "Support-2") 
 	NodControlGroups(5) = (GroupTitle = "Defense-1") 
+
 }

@@ -5,11 +5,7 @@ class Rx_CrateType_RandomWeapon extends Rx_CrateType
 var config float ProbabilityIncreaseWhenInfantryProductionDestroyed;
 var class<Rx_Weapon> WeaponClass;
 var array< class<Rx_Weapon> > WeaponList;
-
-function string GetGameLogMessage(Rx_PRI RecipientPRI, Rx_CratePickup CratePickup)
-{
-    return ((((((("GAME" $ Chr(2)) $ "Crate;") $ Chr(2)) $ "`weapon`") $ Chr(2)) $ "by") $ Chr(2)) $ class'Rx_Game'.static.GetPRILogName(RecipientPRI);
-}
+var int BroadcastMessageAltIndex;
 
 function string GetPickupMessage()
 {
@@ -18,6 +14,29 @@ function string GetPickupMessage()
 		wepName = WeaponClass.default.PickupMessage;
 
     return "You were given a " $ wepName $ "!";
+}
+
+function string GetGameLogMessage(Rx_PRI RecipientPRI, Rx_CratePickup CratePickup)
+{
+	local string wepName;
+
+		wepName = WeaponClass.default.PickupMessage;
+
+    return "GAME" `s "Crate;" `s wepName `s "by" `s `PlayerLog(RecipientPRI);
+}
+
+function BroadcastMessage(Rx_PRI RecipientPRI, Rx_CratePickup CratePickup)
+{
+	if (RecipientPRI.GetTeamNum() == TEAM_NOD)
+	{
+		CratePickup.BroadcastLocalizedTeamMessage(TEAM_GDI, CratePickup.MessageClass, BroadcastMessageAltIndex, RecipientPRI);
+		CratePickup.BroadcastLocalizedTeamMessage(TEAM_NOD, CratePickup.MessageClass, BroadcastMessageIndex, RecipientPRI);
+	}
+	else
+	{
+		CratePickup.BroadcastLocalizedTeamMessage(TEAM_NOD, CratePickup.MessageClass, BroadcastMessageAltIndex, RecipientPRI);
+		CratePickup.BroadcastLocalizedTeamMessage(TEAM_GDI, CratePickup.MessageClass, BroadcastMessageIndex, RecipientPRI);
+	}
 }
 
 function float GetProbabilityWeight(Rx_Pawn Recipient, Rx_CratePickup CratePickup)
@@ -81,6 +100,7 @@ defaultproperties
     WeaponList(6)=class'Rx_Weapon_MarksmanRifle_GDI'
     WeaponList(7)=class'Rx_Weapon_HeavyPistol'
     WeaponList(8)=class'Rx_Weapon_SmokeGrenade'
-    BroadcastMessageIndex=1002
+    BroadcastMessageIndex=21
+	BroadcastMessageAltIndex=22
     PickupSound=SoundCue'Rx_Pickups.Sounds.SC_Pickup_Ammo'
 }

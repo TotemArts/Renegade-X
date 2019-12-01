@@ -6,6 +6,8 @@ var float				fWaitToWarn;
 var Soundcue			PlayerWarnSound;
 
 var() int				DamageWait;
+var() bool				bLimitToOneTeam;
+var() int				TeamNum;
 
 var() ArrowComponent 	Arrow;
 var() rotator 			ArrowRotation;
@@ -103,6 +105,7 @@ function bool Touches(Rx_SoftLevelBoundaryVolume in_volume)
 {
 	local Rx_SoftLevelBoundaryVolume vol;
 
+
 	foreach TouchingActors(class'Rx_SoftLevelBoundaryVolume', vol)
 		if (vol == in_volume)
 			return true;
@@ -119,6 +122,12 @@ event Touch(Actor Other, PrimitiveComponent OtherComp, vector HitLocation, vecto
 	local array<Rx_Controller> controllers;
 	local Rx_Controller PC;
 	local int index;
+
+	if(bLimitToOneTeam)
+	{
+		if((Rx_Pawn(Other) != None && Rx_Pawn(Other).GetTeamNum() != TeamNum) || (Rx_Vehicle(Other) != None && Rx_Vehicle(Other).GetTeamNum() != TeamNum))
+			return;
+	}
 	
 	if (UDKVehicle(Other) != None) // A vehicle - Add all occupants
 	{
@@ -165,6 +174,12 @@ event UnTouch(Actor Other)
 	local array<Rx_Controller> controllers;
 	local Rx_Controller PC;
 	local int index;
+
+	if(bLimitToOneTeam)
+	{
+		if((Rx_Pawn(Other) != None && Rx_Pawn(Other).GetTeamNum() != TeamNum) || (Rx_Vehicle(Other) != None && Rx_Vehicle(Other).GetTeamNum() != TeamNum))
+			return;
+	}
 
 	if (UDKVehicle(Other) != None) // A vehicle - Add all occupants
 	{

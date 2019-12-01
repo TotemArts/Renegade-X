@@ -295,22 +295,37 @@ function TickHUD()
 						VehicleMenuButton[i].SetBool("enabled", false);
 					}
 				}
-		}	else if (bItemDrawerOpen) {
+		}	
+		else if (bItemDrawerOpen) 
+		{
 			for (i = 0; i < 8; i++) {
-				data = int(ItemMenuButton[i].GetString("data"));
-				if (TeamID == TEAM_GDI) {
-					if (!GDIItemMenuData[i].bEnable) {
+//				data = int(ItemMenuButton[i].GetString("data"));
+				data = i;
+				if (TeamID == TEAM_GDI) 
+				{
+					if (i >= rxPurchaseSystem.GDIItemClasses.Length) 
+					{
 						continue;
 					}
-				} else {
-					if (!NodItemMenuData[i].bEnable) {
+				} 
+				else 
+				{
+					if (i >= rxPurchaseSystem.NodItemClasses.Length) 
+					{
 						continue;
 					}
 				}
-				if (PlayerCredits > rxPurchaseSystem.GetItemPrices(TeamID, data) && !rxPurchaseSystem.IsEquiped(rxPC, TeamID, data, CLASS_ITEM)){
+				if (rxPurchaseSystem.IsItemBuyable(rxPC, TeamID, data) && PlayerCredits > rxPurchaseSystem.GetItemPrices(TeamID, data) && !rxPurchaseSystem.IsEquiped(rxPC, TeamID, data, CLASS_ITEM))
+				{
 					ItemMenuButton[i].SetBool("enabled", true);
-				} else {
+				} 
+				else 
+				{
 					ItemMenuButton[i].SetBool("enabled", false);
+					if(ClassIsChildOf(rxPurchaseSystem.GetItemClass(TeamID,i),class'Rx_Weapon_Beacon') && !Rx_Gri(rxPC.WorldInfo.GRI).bEnableNuke)
+					{
+						ItemMenuButton[i].SetString("sublabel", Rx_Game(rxPC.WorldInfo.Game).MinPlayersForNukes $ " Players needed");
+					}
 				}
 			}
 		}

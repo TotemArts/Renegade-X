@@ -229,6 +229,6 @@ DefaultProperties
 	/**********************/
 	
 	bUseClientAmmo = false ;
-
+	bHasInfiniteAmmo = false;
 	Price = 200
 }

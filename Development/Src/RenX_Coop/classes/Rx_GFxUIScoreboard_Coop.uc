@@ -3,6 +3,7 @@ class Rx_GFxUIScoreboard_Coop extends Rx_GFxUIScoreboard;
 var GFxObject Score;
 var GFxObject BuildingStats;
 var GFxObject VictoryText;
+var Array<Buildings>BuildingsCoop;
 
 function bool Start(optional bool StartPaused = false)
 {
@@ -129,7 +130,7 @@ function Draw()
 	if(RxGRI.bMatchIsOver)
 	{
 		TickEndGameScoreboard();	
-		UpdateBuildings(true);
+//		UpdateBuildings(true);
 	} 
 	else if(bHasInitialized)
 	{
@@ -183,14 +184,15 @@ function TickEndGameScoreboard()
 		TimeLeft = RxGRI.RenEndTime - PC.WorldInfo.RealTimeSeconds; //work out countdown for map voting/till next map load
 		if (int(TimeLeft) < 10) 
 		{
+			if(TimeLeft < BeepPoint && TimeLeft > 0.5)
+			{
+				BeepPoint = FFloor(TimeLeft);
+				PlayTickSound();
+			}
+
+
 			if(TimeLeft > 0)
 			{
-				if(!PC.IsTimerActive('PlayTickSound',self))
-				{
-					PlayTickSound();
-					PC.SetTimer(1, true, 'PlayTickSound',self);
-				}
-
 				NextRound.GotoAndStopI(10); // swap nextround countdown to red.		
 				NextRound.SetText(Left(string(TimeLeft), InStr(string(TimeLeft), ".") + 2));
 			}
@@ -199,7 +201,6 @@ function TickEndGameScoreboard()
 				NextRound.SetVisible(false);
 				NextLoadingMap.GotoAndStopI(10); // swap NextLoadingMap to red.
 				NextLoadingMap.SetText("Loading Map...");
-				`GameObject.ClearTimer('PlayTickSound', self);
 			}		
 		} 
 		else
@@ -310,6 +311,104 @@ function SetEndVictoryText()
 	WinnerReason.SetText(RxGRI.WinnerReason);
 }
 
+function LoadBuildings()
+{
+	local Rx_Building B;
+	local Array<Rx_Building> BList;
+	local Buildings TempBuilding;
+
+	local int buildingIndex;
+	local ASDisplayInfo DI;
+	local float YPos;
+	local Vector BLocs;
+
+	//empty these out
+	BuildingsCoop.Length = 0;
+
+	foreach PC.AllActors(class'Rx_Building', B)
+	{
+		if(!B.bSignificant)
+			continue;
+
+		BList.AddItem(B);
+		BLocs += B.Location;
+	}
+	BuildingDistanceAverage = BLocs / BList.Length;
+	BList.Sort(SortBuildingDelegate);
+
+	foreach BList(B)
+	{
+		BuildingIndex = GetBuildingIndex(B);
+		if(buildingIndex == -1)
+			continue;
+
+			if(BuildingStats == None) // if there's no movie here, drop
+				continue;
+
+
+			TempBuilding.containerMC = BuildingStats.AttachMovie("StatsBuilding","Building"$(BuildingsCoop.Length + 1));
+
+			if(!RxGRI.bMatchIsOver)
+			{
+				if(BuildingsCoop.Length > 0)
+					YPos += 96; 
+				else
+					YPos = 64;
+
+				TempBuilding.containerMC.SetPosition(-64.f,YPos);
+
+			}
+			else
+				TempBuilding.containerMC.SetPosition(64.f + (98 * ((BuildingsCoop.Length + 5) % 5)),(64.f + (128.f * FFLoor(BuildingsCoop.Length / 3))));
+
+
+			
+
+
+		TempBuilding.building = B;
+
+		TempBuilding.hpMC = TempBuilding.containerMC.GetObject("hp");
+		TempBuilding.armorMC = TempBuilding.containerMC.GetObject("ap");
+		TempBuilding.iconMC = TempBuilding.containerMC.GetObject("icon");	
+
+		`logd("Rx_GFxUIScoreBoard::LoadBuildings"@`ShowVar(buildingIndex),true,'DevGFxUI');
+		
+		TempBuilding.iconIndex = GetBuildingPicIndex(B);
+		TempBuilding.iconMC.GotoAndStopI(TempBuilding.iconIndex);
+
+		if(RxGRI.bMatchIsOver)
+		{
+			TempBuilding.hp = 100;
+			TempBuilding.armor = 100;
+		}
+
+		BuildingsCoop.AddItem(TempBuilding);
+
+
+	}
+
+	// Reset our cached values for buildings as we are moving to endgame scoreboard.
+	if(!RxGRI.bMatchIsOver)	
+	{
+		if(BuildingsCoop.Length > 5)
+		{
+			DI.HasXScale = True;
+			DI.HasYScale = True;
+			DI.YScale = 100.f * 6 / BuildingsCoop.Length;
+			DI.XScale = DI.YScale;
+
+			BuildingStats.SetDisplayInfo(DI);
+		}
+	}
+}
+
+function UpdateBuildings(bool force) 
+{
+
+	if(BuildingsCoop.Length > 0)
+		UpdateBuildingGFx(BuildingsCoop,force);
+
+}
 
 /** Called when a CLIK Widget is initialized **/
  event bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widget)
@@ -346,10 +445,17 @@ function SetEndVictoryText()
 			bWasHandled = true;
 			break;
 		case 'ChatBox':
-			if (ChatBox == none || ChatBox != Widget) {
+			if (ChatBox == none || ChatBox != Widget) 
+			{
 				ChatBox = GFxClikWidget(Widget);
 			}
+			if(Rx_Controller(GetPC()) != None && Rx_HUD(Rx_Controller(GetPC()).myHUD).LastEndScoreboardChats != "")
+			{
+				Chatlog = Rx_HUD(Rx_Controller(GetPC()).myHUD).LastEndScoreboardChats;
+				GetPC().SetTimer(0.1,false,'UpdateScroll',Self);
+			}
 			bWasHandled = true;
+			SetUpDataProvider(ChatBox);
 			break;
 		case 'TextMsg':
 			if (TextMsg == none || TextMsg != Widget) {

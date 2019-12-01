@@ -36,9 +36,9 @@ simulated function PostBeginPlay()
 	
 	DefenderTeamIndex = myBuilding.ScriptGetTeamNum();
 	DamageCapacity = myBuilding.GetMaxArmor();
-	if(Rx_Building_GDI_InfantryFactory(myBuilding) != None) {
-		bFirstObjective = true;
-	}
+//	if(Rx_Building_GDI_InfantryFactory(myBuilding) != None) {
+//		bFirstObjective = true;
+//	}
 	myBuilding.myObjective = self;
 
 	BestDist = 10000000;
@@ -92,10 +92,15 @@ function bool NearObjective(Pawn P)
 
 function AIReported()
 {
+	bAlreadyReported = true;
+
 	if(!IsCritical())
 	{
-		bAlreadyReported = true;
 		SetTimer(15.0,false,'ClearAIReport');
+	}
+	else
+	{
+		SetTimer(4.0,false,'ClearAIReport');
 	}
 }
 
@@ -109,6 +114,22 @@ function bool Shootable()
 	return true;
 }
 
+simulated function bool CanCapture(Rx_Bot B)
+{
+	if(Vehicle(B.Pawn) != None)
+		return false;
+
+	if(Rx_Building_Techbuilding(myBuilding) == None)
+		return false;
+
+	if(myBuilding.GetTeamNum() == B.GetTeamNum() && myBuilding.GetHealth() >= myBuilding.GetMaxHealth())
+		return false;
+
+	if(B.HasRepairGun() || (!B.bOnboardForTactics && FRand() > 0.8))
+		return true;
+
+	return false;
+}
 
 simulated function bool NeedsHealing()
 {
@@ -185,25 +206,28 @@ return true if valid/useable instructions were given
 */
 function bool TellBotHowToDisable(UTBot B)
 {
+	if(myBuilding.IsDestroyed())
+	{
+		DisableBuildingObjective();
+	}
 
 	if(Rx_Bot(B).BaughtVehicle != None)
 		return false;
 
 	if(myBuilding.IsA('Rx_Building_Techbuilding'))
 	{	
-		if (myBuilding.GetTeamNum() == B.GetTeamNum() && myBuilding.GetHealth() >= myBuilding.GetMaxHealth())
+		if (!CanCapture(Rx_Bot(B)))
 		{
 			Rx_Bot(B).OurTeamAI.FindNewObjectives(self);
 			return false;
 		}
 		else 
 		{
-			TellBotHowToHeal(B);
-			return true;
+			return TellBotHowToHeal(B);
 		}
 		
 	}
-	if(myBuilding.GetTeamNum() == B.GetTeamNum())
+	else if(myBuilding.GetTeamNum() == B.GetTeamNum())
 	{
 		return TellBotHowToHeal(B);
 	}
@@ -295,8 +319,14 @@ function bool TellBotHowToHeal(UTBot B)
 {
 	local UTVehicle OldVehicle;
 
-	if(Rx_Building_Techbuilding(myBuilding) != None && Rx_Bot(B).HasRepairGun(true))
+	if(Rx_Building_Techbuilding(myBuilding) != None)
 	{
+		if(!Rx_Bot(B).HasRepairGun())
+		{
+			Rx_Bot(B).OurTeamAI.FindNewObjectives(self);
+			return false;
+		}
+
 		if(myBuilding.GetTeamNum() == B.GetTeamNum() && myBuilding.GetHealth() >= myBuilding.GetMaxHealth())
 		{
 			Rx_Bot(B).OurTeamAI.FindNewObjectives(self);
@@ -304,9 +334,12 @@ function bool TellBotHowToHeal(UTBot B)
 		}
 
 		if(KillEnemyFirstBeforeHealing(B))
+		{
+			B.ChooseAttackMode();
 			return false;
+		}
 
-		Rx_Bot(B).GoToState('Defending');
+		Rx_Bot(B).GoToState('Capturing');
 
 		return true;
 	}
@@ -317,7 +350,10 @@ function bool TellBotHowToHeal(UTBot B)
 	}
 	
 	if (KillEnemyFirstBeforeHealing(B))
+	{
+		B.ChooseAttackMode();
 		return false;		
+	}
 
 	if (Rx_Bot(B).IsHealing(False) && (B.Focus == myBuilding.GetMCT() || Rx_Weapon_Deployable(B.Focus) != None))
 	{
@@ -517,11 +553,11 @@ function float CalcDefensePriority(Controller C)
 	if(C.Pawn == None)
 		Distance = 0;
 	else
-		Distance = VSizeSq(C.Pawn.Location - InfiltrationPoint.Location);
+		Distance = VSizeSq(C.Pawn.Location - GetInfiltrationPoint().Location);
 	
 	DistanceMod = 1000000 + Distance;
 	
-	if (C.Enemy != None && VSizeSq(C.Enemy.Location - InfiltrationPoint.Location) < Distance)
+	if (C.Enemy != None && VSizeSq(C.Enemy.Location - GetInfiltrationPoint().Location) < Distance)
 	{
 
 		DistanceMod *= 5;
@@ -576,12 +612,14 @@ function bool KillEnemyFirstBeforeHealing(UTBot B)
 {
 	//local float Dist;
 	
-	if(B.Enemy == None || !B.Pawn.CanAttack(B.Enemy)) 
+	if(B.Enemy == None /* || !B.Pawn.CanAttack(B.Enemy) */) 
 	{
 		return false;
 	}
 	
 	//Dist = VSize(B.Enemy.Location - B.Location);
+	if(Rx_Building_Techbuilding(myBuilding) != None && B.LineOfSightTo(B.Enemy))
+		return true; // always clean up enemy before capping
 	
 	if( B.Enemy.Controller != None && !bUnderAttack 
 			&& myBuilding.GetArmor() > DamageCapacity * 0.7) 
@@ -670,13 +708,23 @@ function bool KillEnemyFirstBeforeAttacking(UTBot B)
 	return false;
 }
 
+function NavigationPoint GetInfiltrationPoint()
+{
+//	local Rx_BuildingAttachment MCT;
+
+	if(InfiltrationPoint != None)
+		return InfiltrationPoint;
+
+	return Self;
+}
+
 defaultproperties
 {
 
 	BaseRadius=+3000.0
 	bStatic=false
 	bNoDelete=false
-	bFirstObjective=false
+	//bFirstObjective=false // already defined on Rx_GameObjective
 	bCollideWhenPlacing=true
 	//Components.Remove(CollisionCylinder)
 	bMustBeReachable = true

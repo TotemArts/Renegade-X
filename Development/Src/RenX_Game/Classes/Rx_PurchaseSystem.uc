@@ -800,11 +800,10 @@ simulated function UpdateMapSpecificInfantryClasses(){
 
 function bool DoesHaveRepairGun( class<UTFamilyInfo> inFam )
 {
-	if ( inFam == GDIInfantryClasses[4] || inFam == NodInfantryClasses[4] || inFam == GDIInfantryClasses[14] || inFam == NodInfantryClasses[14] )
-	{
-		return true;
-	}
-	return false;	
+	if(class<Rx_FamilyInfo>(inFam) == None)
+	return false;
+
+	return class<Rx_FamilyInfo>(inFam).static.IsEngi();
 }
 
 function class<Rx_FamilyInfo> GetRandomBotClass(byte TeamID)

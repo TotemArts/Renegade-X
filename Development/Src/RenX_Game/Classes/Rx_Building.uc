@@ -51,6 +51,8 @@ var() StaticMeshComponent PTScreens;
 
 var() Array<NavigationPoint> ViableAttackPoints;
 
+var(RenX_Buildings) Texture IconTexture;
+
 replication
 {
 	//if( bNetInitial && Role == ROLE_Authority )
@@ -126,6 +128,8 @@ function PostBeginPlay()
 		`log("CRITICAL ERROR: Building Internals ("$BuildingInternalsClass.default.Class$") did not spawn for"@self.Class$".",,'Buildings');
 	}
 	*/
+	if(Role == ROLE_Authority)
+		GetAttackPoints();
 	
 }
 
@@ -404,6 +408,30 @@ function bool Unpowered()
 		return true;
 	if(Rx_Building_Team_Internals(BuildingInternals) != None)
 		return Rx_Building_Team_Internals(BuildingInternals).bNoPower;
+}
+
+function CreateUnlistedBO()
+{
+	local vector SpawnLoc;
+
+	if(GetMCT() != None)
+		SpawnLoc = GetMCT().Location;
+
+	else
+		SpawnLoc = Location;
+
+	myObjective = Spawn(class'Rx_BuildingObjective_Dynamic',self,,SpawnLoc,Rotation);
+
+	myObjective.DefenderTeamIndex = ScriptGetTeamNum();
+	myObjective.DamageCapacity = GetMaxArmor();	
+	myObjective.myBuilding = Self;
+
+	Rx_BuildingObjective_Dynamic(myObjective).GenerateInfiltrationPoint();
+}
+
+function bool ShouldCreateUnlistedBO()
+{
+	return myObjective == None;
 }
 
 defaultproperties
@@ -890,5 +918,7 @@ defaultproperties
 	End Object
 
 	SupportedEvents.Add(class'Rx_SeqEvent_BuildingEvent')
+
+	IconTexture=Texture2D'RenxHud.T_BuildingIcon_RepairPad_Normal'
 
 }

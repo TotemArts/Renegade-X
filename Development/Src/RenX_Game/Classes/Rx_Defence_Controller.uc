@@ -8,7 +8,7 @@ var bool bCanFire;
 var Actor LastFireTarget;
 var bool bStoppedFiring;
 var Actor myFocus;
-var UTPawn UTP;
+var Pawn DetectedPawn;
 var vector PlayerFeet;
 var vector SocketLocation;
 var vector Aim_Spot;
@@ -69,6 +69,8 @@ event PostBeginPlay()
 	SetTimer(0.1,true,'CheckActiveModifiers');
 }
 
+
+
 function InitPlayerReplicationInfo()
 {
 	if(PlayerReplicationInfo != none)
@@ -85,6 +87,9 @@ function InitPlayerReplicationInfo()
 
 function bool IsTargetRelevant( Pawn thisTarget )
 {
+	if(Pawn.Health <= 0)
+		return false;
+
 	if (Rx_Pawn(thisTarget) != None && Rx_Pawn(thisTarget).isSpy()) // added spy exception
 		return false;
 
@@ -133,6 +138,22 @@ function bool IsAimCorrect()
 
 auto state Searching
 {
+
+	// treat Scripted pawn as player
+	event SeeMonster( Pawn Seen )
+	{
+		if ( IsTargetRelevant( Seen ) )
+		{
+			Enemy = Seen;
+			Focus = Seen;
+			GotoState('Engaged');
+		} 
+		else 
+		{
+			Enemy = None;
+			Focus = None;
+		}
+	}
 	
 	event SeePlayer( Pawn Seen )
 	{
@@ -168,10 +189,16 @@ auto state Searching
 	if ( Enemy != None && IsTargetRelevant( Enemy ) )
 		GotoState('Engaged');
 	Sleep(0.5 + 1.0*FRand());
-	foreach WorldInfo.AllPawns(class'UTPawn', UTP,Pawn.location,pawn.SightRadius)
+	foreach WorldInfo.AllPawns(class'Pawn', DetectedPawn,Pawn.location,pawn.SightRadius)
 	{ 
-		if(Rx_Pawn(UTP) != None && IsTargetRelevant(UTP))
+		if(IsTargetRelevant(DetectedPawn))
 		{
+			if(Enemy == None)
+			{
+				Enemy = DetectedPawn;
+				Focus = DetectedPawn;
+			}
+
 			GotoState('Engaged');	
 			break;
 		}
@@ -289,6 +316,7 @@ function PredictTargetLocation(Actor A, Vector Origin, out Vector AimSpot)
 	local Vector PredictionVelocity;
 
 	AimSpot = A.GetTargetLocation();
+//	`log(Self.GetHumanReadableName()@": Aiming towards"@A@"At"@AimSpot);
 
 	//How long it will take for projectile to reach target.
 	

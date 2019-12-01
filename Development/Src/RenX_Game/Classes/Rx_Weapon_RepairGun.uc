@@ -491,6 +491,9 @@ function bool CanAttack(Actor Other)
 	if(Rx_Weapon_DeployedActor(Other) != None)
 		return CanTraceTo(Other);
 
+	if(Rx_BuildingAttachment_MCT(Other) != None && Rx_Building_Techbuilding_Internals(Rx_BuildingAttachment_MCT(Other).OwnerBuilding) != None)
+		return CanTraceTo(Other);
+
 	if(Other.GetTeamNum() != 255 && Other.GetTeamNum() != Owner.GetTeamNum()) 
 	{
 		return false;
@@ -844,7 +847,7 @@ DefaultProperties
 	ClipSize = 999
 	InitalNumClips = 1
 	MaxClips = 1
-	bHasInfiniteAmmo = false
+	bHasInfiniteAmmo = true
 
 	WeaponFireSnd[0]=SoundCue'RX_WP_RepairGun.Sounds.RepairGun_FireCue'
 	WeaponFireSnd[1]=SoundCue'RX_WP_RepairGun.Sounds.RepairGun_FireCue'

@@ -18,6 +18,11 @@ function RegsiterTowerInternals(Rx_Building_AirTower_Internals inAirTower)
 	AirTowerInternals = inAirTower;
 }
 
+function bool ShouldCreateUnlistedBO()
+{
+	return (AirTowerInternals == None && myObjective == None);
+}
+
 simulated function Rx_BuildingAttachment GetMCT()
 {
 

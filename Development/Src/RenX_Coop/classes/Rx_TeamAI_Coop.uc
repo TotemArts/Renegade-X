@@ -38,9 +38,9 @@ function UTGameObjective GetPriorityAttackObjectiveFor(UTSquadAI AnAttackSquad, 
 	if(InController == None)
 		return None;
 
-	if(Rx_Bot_Scripted(InController) != None)
+	if(Rx_Bot_Scripted_Customizeable(InController) != None)
 	{
-		return Rx_Bot_Scripted(InController).MySpawner.SquadObjective;
+		return Rx_Bot_Scripted_Customizeable(InController).MySpawner.SquadObjective;
 	}
 
 	for (O = Objectives; O != None; O = O.NextObjective)

@@ -175,19 +175,26 @@ function DrawFlashText() //Still not certain why I kept Team around... but it's 
 //Function that flashes text in the middle-top of the screen for a certain amount of time.
 function SetFlashText(string TEXT,color C,optional float TIME = 60, optional float Size = 1.0, optional bool bCommanderMessage, optional bool bWarning)
 {
-	local TextLine MSG;
 	//Set this to false just to clear any other text that may be looping at the time	
-	MSG.FlashTextColor=C ;						
-	MSG.FlashTextStr=TEXT;	
-	MSG.FlashTextSize=Size;	
-	MSG.FlashTextCycler=TIME;				
-	MSG.bCommandMessage = bCommanderMessage; 
+//	MSG.FlashTextColor=C ;						
+//	MSG.FlashTextStr=TEXT;	
+//	MSG.FlashTextSize=Size;	
+//	MSG.FlashTextCycler=TIME;				
+//	MSG.bCommandMessage = bCommanderMessage; 
 	
-	DisplayText.InsertItem(0,MSG) ;
+	local String HexString;
+
+	HexString = "#"$Right(ToHex(C.R),2)$Right(ToHex(C.G),2)$Right(ToHex(C.B),2);
+
+	TEXT = "<font color = '"$HexString$"'>"$TEXT$"</font>";
+
+	
 	
 	if(RenxHud == None) 
 		return;
 	
+	RenxHud.Message(None,TEXT,'CTEXT', TIME);
+
 	if(bWarning)
 		RenxHud.PlayerOwner.ClientPlaySound(WarningBeepSnd) ;
 	else

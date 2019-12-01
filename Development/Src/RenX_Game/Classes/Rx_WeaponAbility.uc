@@ -215,13 +215,18 @@ simulated function float GetRechargeTiming()
 	
 	//(RechargeRate+RechargeDelay)
 	
-	RemainingSingleChargeTime = (Vet_RechargeSpeedMult[VRank]*(RechargeRate+RechargeDelay)-(GetTimerRate('RechargeTimer') - GetTimerCount('RechargeTimer')) ) ; 
+	RemainingSingleChargeTime = GetRechargeRealTime();
 	//if(RemainingSingleChargeTime == 0) RemainingSingleChargeTime = 1; 
 	
 	if(bSingleCharge) 
 		return RemainingSingleChargeTime/((RechargeRate+RechargeDelay)*Vet_RechargeSpeedMult[VRank]) ;  
 	else
 		return (CurrentCharges/MaxCharges);
+}
+
+simulated function float GetRechargeRealTime()
+{
+	return (Vet_RechargeSpeedMult[VRank]*(RechargeRate+RechargeDelay)-(GetTimerRate('RechargeTimer') - GetTimerCount('RechargeTimer')) );
 }
 
 simulated function int GetFlashIconInt()

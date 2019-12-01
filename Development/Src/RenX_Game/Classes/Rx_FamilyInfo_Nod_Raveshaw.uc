@@ -12,6 +12,8 @@ DefaultProperties
 	MaxArmor               	= 200
 	Armor_Type 				= A_FLAK
 	SpeedMultiplier			= 1.0 //1.05
+	Role 					= ROLE_Defense
+
 
 	CharacterMesh=SkeletalMesh'RX_CH_Nod_Raveshaw.Mesh.SK_CH_Raveshaw'
 	PawnVoiceClass=class'Rx_Pawn_VoiceClass_Nod_Raveshaw'

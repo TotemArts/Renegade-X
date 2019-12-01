@@ -20,8 +20,7 @@ var		 WorldInfo				 ThisWorld;
 var		 Rx_MapInfo				 RxMapInfo;
 var      UTPlayerController      RxPC;
 var		 int                     MapTexSize;
-
-var		 GFxObject               DirCompassIcon;
+//var 	 float					 UIScale;
 
 var		 GFxObject               player_icon;
 
@@ -65,6 +64,8 @@ var		 float                   IconRotationOffset;
 var     Texture                 DebugBlipTexture;
 var 	byte					Update_Cycler ; //Used to keep Update() from trying to always do everything every tick. 
 var		bool					UseUpdateCycle;
+var     float					CompassDir;
+
 function init(Rx_GFxHud h)
 {
 	RxHUD                =  h;
@@ -73,7 +74,6 @@ function init(Rx_GFxHud h)
 	RxMapInfo            =  Rx_MapInfo(ThisWorld.GetMapInfo());
 
 	player_icon          =  GetObject("player");
-	DirCompassIcon       =  GetObject("dirCompass");
 	compass              =  GetObject("compass");
 
 
@@ -113,7 +113,6 @@ function Update()
 	//          Scale = 1/64
 	// 
 
-
 	// Calling functions in Flash while the movie is closed can cause a crash.
 	if (!bMovieIsOpen)
 		return;	
@@ -121,19 +120,21 @@ function Update()
 
 	//	Scale = 1.0/Scale;
 
-	if (RxPC == None || Pawn(RxPC.ViewTarget) == none) {
+	if (RxPC == None || Pawn(RxPC.ViewTarget) == none) 
+	{
 		return;
 	}
 	
 	if(UseUpdateCycle) 
 	{
-		if(Update_Cycler < 3) Update_Cycler+=1;
+		if(Update_Cycler < 3) 
+			Update_Cycler+=1;
 		else
-		Update_Cycler=0;
+			Update_Cycler=0;
 	}
 	
 	//player compass rotation
-	UpdateCompass();
+	UpdateIconLocations();
 
 	//terrain map texture
 	//UpdateMap();
@@ -144,9 +145,9 @@ function Update()
 	// Generate markers for other pawns
 	UpdateActorBlips();
 }
-function UpdateCompass()
+
+function UpdateIconLocations()
 {
-	local ASDisplayInfo displayInfo;
 	local float Scale;
 
 	local float f;
@@ -154,25 +155,23 @@ function UpdateCompass()
 	if(RxMapInfo == None)
 		return;
 	
-	Scale = 1 / RxMapInfo.MinimapCurrentZoom;
+	Scale =  1.34 / RxMapInfo.MinimapCurrentZoom;
 
-	if(DirCompassIcon != none) {
-		displayInfo.hasRotation = true;
-		displayInfo.Rotation = -((RxPC.Rotation.Yaw) & 65535) * (360.0/65536.0);
-		DirCompassIcon.SetDisplayInfo(displayInfo);
-		
-	    f = -((RxPC.Rotation.Yaw + 16384) & 65535) * (Pi/32768.0);
-	    IconMatrix.XPlane.X = cos(f) * Scale;//(1.0/32);//Scale;
-	    IconMatrix.XPlane.Y = sin(f) * Scale;//(1.0/32);//Scale;
-	    IconMatrix.YPlane.X = -sin(f) * Scale;//(1.0/32);//Scale;
-	    IconMatrix.YPlane.Y = cos(f) * Scale;////Scale;
-	    IconMatrix.WPlane.X = 0;
-	    IconMatrix.WPlane.Y = 0;
-	    IconMatrix.WPlane.Z = 0;
-	    IconMatrix.WPlane.W = 1;
-        IconMatrix.WPlane = TransformVector(IconMatrix, -Pawn(RxPC.ViewTarget).Location);
-	}
+
+	CompassDir = -((RxPC.Rotation.Yaw) & 65535) * (360.0/65536.0);	
+	f = -((RxPC.Rotation.Yaw + 16384) & 65535) * (Pi/32768.0);
+	IconMatrix.XPlane.X = cos(f) * Scale;//(1.0/32);//Scale;
+	IconMatrix.XPlane.Y = sin(f) * Scale;//(1.0/32);//Scale;
+	IconMatrix.YPlane.X = -sin(f) * Scale;//(1.0/32);//Scale;
+    IconMatrix.YPlane.Y = cos(f) * Scale;////Scale;
+    IconMatrix.WPlane.X = 0;
+    IconMatrix.WPlane.Y = 0;
+    IconMatrix.WPlane.Z = 0;
+    IconMatrix.WPlane.W = 1;
+    IconMatrix.WPlane = TransformVector(IconMatrix, -Pawn(RxPC.ViewTarget).Location);
+
 }
+
 function UpdateMap()
 {
 	local vector Vect;
@@ -189,7 +188,7 @@ function UpdateMap()
 
 	if (RxMapInfo != none && RxMapInfo.MapTexture != none) {
 		f -= Pi*0.5;
-		MapScale = RxMapInfo.MinimapNormalZoom/(2.0 * RxMapInfo.MinimapCurrentZoom); //Scale is calculated by = (normalZoom / 2.0 * currentZoom)
+		MapScale =  RxMapInfo.MinimapNormalZoom/(2.0 * RxMapInfo.MinimapCurrentZoom); //Scale is calculated by = (normalZoom / 2.0 * currentZoom)
 	    Mtrx.XPlane.X = -cos(f) * MapScale;
 		Mtrx.XPlane.Y = -sin(f) * MapScale;
 	    Mtrx.YPlane.X = sin(f) * MapScale;
@@ -230,7 +229,7 @@ function UpdatePlayerBlip()
 		LoadTexture("img://" $ PathName(Texture2D'RenxHud.T_Radar_Blip_Infantry_Player'), player_icon.GetObject("playerG"));
 	}
 	displayInfo.hasRotation = true;
-	displayInfo.Rotation = Pawn(RxPC.ViewTarget).Rotation.Yaw * UnrRotToDeg + DirCompassIcon.GetDisplayInfo().Rotation + 0;
+	displayInfo.Rotation = Pawn(RxPC.ViewTarget).Rotation.Yaw * UnrRotToDeg + CompassDir;
 
 	//player_icon.SetDisplayInfo(displayInfo);
 	player_icon.SetDisplayInfo(displayInfo);
@@ -579,14 +578,15 @@ function UpdateIcons(out array<Actor> Actors, out array<GFxObject> ActorIcons, T
 		V = TransformVector(IconMatrix, CurrentMarker.GetRadarActorLocation());
 
 		// Display only within the range of the minimap radius
-		displayInfo.Visible = (VSize2d(V) < RxMapInfo.MinimapRadius);
-		
+		// Handepsilon tweaked the thing a bit because.... box
+		displayInfo.Visible = (WithinMinimapBox(V));
+
 		// Sets up the blips coordinates
 		displayInfo.X = V.X;
 		displayInfo.Y = V.Y;
 
 		//@shahman: icon rotation = actor's rotation + compass's rotation + rotation offset
-		displayInfo.Rotation = (CurrentMarker.GetRadarActorRotation().Yaw * UnrRotToDeg) + DirCompassIcon.GetDisplayInfo().Rotation + IconRotationOffset ;
+		displayInfo.Rotation = (CurrentMarker.GetRadarActorRotation().Yaw * UnrRotToDeg) +  CompassDir + IconRotationOffset ;
 		
 		//Condition for other blips that is not the same team as the player owner
 		if (rxGRI != none && (Pawn(GetPC().viewtarget).GetTeamNum() != Actors[i].GetTeamNum()) ) {
@@ -672,6 +672,17 @@ function string GetVehicleIconName(Actor marker)
 	else return "default";
 }*/
 
+function bool WithinMinimapBox(Vector V)
+{
+	if(V.x > RxMapInfo.MinimapRadius || V.x < (RxMapInfo.MinimapRadius * -1))
+		return false;
+
+	if(V.y > RxMapInfo.MinimapRadius || V.y < (RxMapInfo.MinimapRadius * -1))
+		return false;
+
+	return true;
+}
+
 DefaultProperties
 {
 	IconsFriendlyCount = 0
@@ -682,4 +693,5 @@ DefaultProperties
 	IconsVehicleNeutralCount = 0;
 
 	DebugBlipTexture = Texture2D'RenxHud.T_Radar_Blip_Debug'
+//	UIScale	= 1.f
 }

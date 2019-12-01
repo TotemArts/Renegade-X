@@ -48,7 +48,7 @@ simulated event ReplicatedEvent(name VarName)
 {
 	if(VarName == 'AssignedSlot')
 	{
-		`log("Replicate Assigned Slot"); 
+		//`log("Replicate Assigned Slot"); 
 		if(RxIfc_PassiveAbility(Owner) != none){
 			RxIfc_PassiveAbility(Owner).ReplicatePassiveAbility(AssignedSlot, self); 
 			UsingPawn = Pawn(Owner); 

@@ -38,6 +38,7 @@ var bool bPureServer;
 var bool bEnableCommanders;
 var bool bEnableBotVotes;
 var bool bEnableNuke;
+var int MinPlayersForNukes; // information for PT
 
 var array<class<Rx_StatModifierInfo> >		StatClasses; 
 var array<MaterialInstanceConstant> CustomWeaponMICs; 
@@ -48,7 +49,7 @@ var array<Actor> TechBuildingArray; //Array to hold map tech buildings (Optimiza
 replication
 {
 	if (bNetDirty)
-		WinnerTeamNum,WinnerReason,MapVotes,PurchaseSystem,MapVoteList,NextMap,buildingArmorPercentage, WinBySurrender, MVP, BestOP, BestDP, BestSP, bEnableCommanders, bEnableBotVotes, bEnableNuke;
+		WinnerTeamNum,WinnerReason,MapVotes,PurchaseSystem,MapVoteList,NextMap,buildingArmorPercentage, WinBySurrender, MVP, BestOP, BestDP, BestSP, bEnableCommanders, bEnableBotVotes, bEnableNuke, MinPlayersForNukes;
 }
 
 simulated event PostBeginPlay()
@@ -140,6 +141,11 @@ simulated function array<Rx_UIDataProvider_MapInfo> GetMapDataProviderList()
 
 delegate int MapListSort(Rx_UIDataProvider_MapInfo A, Rx_UIDataProvider_MapInfo B) 
 {
+	if(A.FriendlyName == B.FriendlyName)	// Handepsilon - I spent 4 hours pulling my hair out trying to figure out what was wrong with my game. It turns out this was the culprit. This is never happening again...	
+	{
+		`warn("Error! Sorting failed due to duplicate FriendlyName : ("$A.FriendlyName$") on 2 or more maps! Please use different names!!");
+		return 0;
+	}
 	return A.FriendlyName < B.FriendlyName ? 0 : -1;
 }
 

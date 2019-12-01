@@ -30,6 +30,10 @@ var config bool bCheetozBotzEnabled;
 var bool bCanGetCheatBot;
 var class<UTSquadAI> ScriptedSquadType;
 var bool bDeployableWarnCD;
+var Rx_SquadAI ScriptedSquads;
+
+var array<Rx_BuildingObjective> UnlistedAttackBO;
+var array<Rx_BuildingObjective> UnlistedFriendlyBO;
 
 
 
@@ -176,19 +180,20 @@ function ReAssessDefendedObjective()
 {
 	local UTSquadAI S;
 	local UTGameObjective O;
+	local Array<Rx_BuildingObjective> BOList;
 	local UTBot M;
 	local bool OneNeedsHealing;
-	local int i,SquadSize;
 
 
 	for (O = Objectives; O != None; O = O.NextObjective)
 	{
-		if (!O.bIsDisabled && Rx_BuildingObjective(O) != None && O.DefenderTeamIndex == Team.TeamIndex && Rx_BuildingObjective(O).NeedsHealing())
+		if (Rx_BuildingObjective(O) != None)
 		{
-			OneNeedsHealing = true;
+			BOList.AddItem(Rx_BuildingObjective(O));
 			break;	
 		}
-	}	
+	}
+	OneNeedsHealing = CheckDamagedBO(BOList);	
 	
 	/**
 	if(!OneNeedsHealing) {
@@ -198,90 +203,196 @@ function ReAssessDefendedObjective()
 	
 	for (S = Squads; S != None; S = S.NextSquad)
 	{
-		if(S.CurrentOrders == 'ATTACK' && NumBotsToSwitchToDefense > 0) 
-		{
-			
-		} 
-		else if(S.CurrentOrders != 'DEFEND') 
+		if(S.CurrentOrders != 'DEFEND') 
 		{
 			continue;
 		}
-		
-		i = 0;
-		SquadSize = S.Size;
+	
 		for (M = S.SquadMembers; M != None; M = M.NextSquadMember)
 		{
-			if(i++ == SquadSize) {
-				break;
-			}
 			if(Rx_Bot(M).BaughtVehicleIndex == -1) 
 			{ // dont reassign when Bot just baught a vehicle and should go to it
-				if(S.CurrentOrders == 'ATTACK' && NumBotsToSwitchToDefense > 0 && Vehicle(M.Pawn) == None) 
-				{
-					NumBotsToSwitchToDefense--;
-					PutOnDefense(M);	
-					if(NumBotsToSwitchToDefense == 0)
-						break; 
-				} 
-				else if(S.CurrentOrders == 'DEFEND') 
-				{					
 					if(OneNeedsHealing || Frand() < 0.6) 
 					{
 						PutOnDefense(M);
-					}
-				}				
+					}				
 			}
 		}
 	}
 }
 
+function bool CheckDamagedBO(array<Rx_BuildingObjective> BOList)
+{
+	local Rx_BuildingObjective O;
+
+	foreach BOList (O)
+	{
+		if (!O.bIsDisabled && O.DefenderTeamIndex == Team.TeamIndex && O.NeedsHealing())
+		{
+			return true;
+		}
+	}	
+
+	return false;
+}
+
 function UTGameObjective GetLeastDefendedObjective(Controller InController)
 {
 	local UTGameObjective O, Best;
-	local bool bCheckDistance;
-	local float BestDistSq, NewDistSq;
+	local float BestRate, NewRate;
+	local Array<UTGameObjective> UnlistedO, AllO;
+	local Array<Rx_BuildingObjective> AllBO;
+	local bool bCheckDamagedOnly;
 
-	bCheckDistance = (InController != None) && (InController.Pawn != None);
 	for ( O=Objectives; O!=None; O=O.NextObjective )
 	{
-
 		if(Rx_BuildingObjective(O) != None && Rx_Building_Techbuilding(Rx_BuildingObjective(O).myBuilding) != None)
 			continue;
 
-		if ( (O.DefenderTeamIndex == Team.TeamIndex) && !O.bIsDisabled )
+		AllO.AddItem(O);
+
+	}
+
+	UnlistedO = GetDefenseObjectivesFromUnlistedBuildings();
+
+	if(UnlistedO.Length > 0)
+	{
+		foreach UnlistedO(O)
+			AllO.AddItem(O);
+	}
+
+	foreach AllO(O)
+	{
+		if(Rx_BuildingObjective(O) != None)
+			AllBO.AddItem(Rx_BuildingObjective(O));
+	}
+
+	bCheckDamagedOnly = CheckDamagedBO(AllBO);
+	
+
+	foreach AllO(O)
+	{
+		if(Rx_BuildingObjective(O) != None && Rx_Building_Techbuilding(Rx_BuildingObjective(O).myBuilding) != None)
+			continue;
+
+		if(Best == None)
 		{
-			if ( (Best == None) || (Best.DefensePriority < O.DefensePriority) )
+			BestRate = RateDefendedObjective(O,Incontroller,bCheckDamagedOnly);
+			Best = O;
+		}
+		else
+		{
+			NewRate = RateDefendedObjective(O,Incontroller,bCheckDamagedOnly);
+
+			if(BestRate < NewRate)
 			{
 				Best = O;
-				if (bCheckDistance)
-				{
-					BestDistSq = VSizeSq(Best.Location - InController.Pawn.Location);
-				}
-			}
-			else if ( Best.DefensePriority == O.DefensePriority )
-			{
-				// prioritize less defended or closer nodes
-				if (Best.GetNumDefenders() > O.GetNumDefenders())
-				{
-					Best = O;
-					if (bCheckDistance)
-					{
-						BestDistSq = VSizeSq(Best.Location - InController.Pawn.Location);
-					}
-				}
-				else if (bCheckDistance)
-				{
-					NewDistSq = VSizeSq(Best.Location - InController.Pawn.Location);
-					if (NewDistSq < BestDistSq)
-					{
-						Best = O;
-						BestDistSq = NewDistSq;
-					}
-				}
+				BestRate = NewRate;
 			}
 		}
 	}
+
 	return Best;
+}
+
+function Array<Rx_BuildingObjective> GetDefenseObjectivesFromUnlistedBuildings()
+{
+	local Array<Rx_BuildingObjective> OutVar;
+	local Rx_BuildingObjective BO;
+	local Rx_Building B;
+
+	if(UnlistedFriendlyBO.Length > 0)
+	{
+		foreach UnlistedFriendlyBO(BO)
+		{
+			if(BO.myBuilding.GetTeamNum() == GetTeamNum() && Rx_Building_Techbuilding(BO.myBuilding) == None && !BO.myBuilding.IsDestroyed())
+			{
+				OutVar.AddItem(BO);
+			}
+		}
+	}
+
+	if(OutVar.Length > 0)
+	{
+		UnlistedFriendlyBO = OutVar; //reassign here
+		return OutVar;
+	}
+
+	// If Unlisted BO is empty, get new ones....
+
+	foreach WorldInfo.AllActors(class'Rx_Building', B)
+	{
+		if(B.GetTeamNum() == GetTeamNum() && Rx_Building_Techbuilding(B) == None && !B.IsDestroyed())
+		{
+			if(B.myObjective == None && B.ShouldCreateUnlistedBO())
+			{
+				B.CreateUnlistedBO();
+			}
+
+			if(B.myObjective != None)
+			{			
+				OutVar.AddItem(B.myObjective);
+			}
+		}
+	}
+
+
+	UnlistedFriendlyBO = OutVar;
+	return OutVar;
+}
+
+function float RateDefendedObjective(UTGameObjective O, Controller InController, bool bOnlyDamaged)
+{
+	local float DistSq;
+	local float Rate;
+	local Rx_BuildingObjective BO;
+
+	BO = Rx_BuildingObjective(O);
+
+	if(BO == None || O.bIsDisabled || Rx_Building_Techbuilding(BO.myBuilding) != None || BO.DefenderTeamIndex != InController.GetTeamNum())
+		return -9001.f; // it's under minus 9000!
+
+	if(InController.Pawn != None)
+		DistSq = VSizeSq(O.Location - InController.Pawn.Location);
+	else
+		DistSq = VSizeSq(O.Location - InController.Location);
+
+	Rate = FMin(0.5,FRand()) * DistSq;
+
+	if(BO != None && BO.myBuilding == None) 
+	{
+		if(Rx_Building_Techbuilding(BO.myBuilding) != None)
+		{
+			Rate *= 2.5; //slightly up this a bit, but not too much so it doesn't override the actual important stuffs
+		
+			if(!BO.CanCapture(Rx_Bot(InController)))
+				return -10.f;
+		}
+		else
+		{	
+			if(BO.myBuilding.GetArmor() > 0)
+			{
+				if(BO.myBuilding.GetArmor() >= BO.myBuilding.GetMaxArmor())
+				{
+					if(!bOnlyDamaged)
+						Rate = Rate / 100000.f;
+					else
+						return -9001.f;
+				}
+				else
+				{
+					Rate = (1 / DistSq) * 1000.f / BO.myBuilding.GetArmor(); // reverse the calculation so instead we try to find the closest damaged one
+				}
+			}
+			else
+				Rate = Rate * 100000.f;
+
+			if(BO.myBuilding.GetArmor() / BO.myBuilding.GetMaxArmor() < 0.5)
+				Rate *= 10.f;
+		}
+	}	
+
+	return Rate;
 }
 
 function bool PutOnDefense(UTBot B)
@@ -300,7 +411,7 @@ function bool PutOnDefense(UTBot B)
 	}
 
 	if(Rx_Bot(B).DefendedBuildingNeedsHealing())
-		return true;
+		O = Rx_Bot(B).CurrentBO;
 
 	if((Rx_Bot(B).bIsEmergencyRepairer && Rx_Bot(B).IsInBuilding(Building)))
 		O = Building.myObjective;
@@ -314,7 +425,8 @@ function bool PutOnDefense(UTBot B)
 			CurrentObjective = UTGameObjective(B.Squad.SquadObjective);	
 		}
 		
-		if(CurrentObjective != None && CurrentObjective == O) {
+		if(CurrentObjective != None && CurrentObjective == O) 
+		{
 			return true;
 		}
 				
@@ -437,10 +549,15 @@ function UTGameObjective GetAllInRushObjectiveFor(UTSquadAI AnAttackSquad, Contr
 
 	if(EnemyBO.Length <= 0 && !Rx_Game(WorldInfo.Game).bPedestalDetonated)
 	{
-		if(Rx_SquadAI_Scripted(AnAttackSquad) == None)
-			`warn(Self@" : Enemy team has no buildings or is missing Rx_BuildingObjective! Unable to resolve AllIn attack!");
+//		if(Rx_SquadAI_Scripted(AnAttackSquad) == None)
+//			`warn(Self@" : Enemy team has no buildings or is missing Rx_BuildingObjective! Unable to resolve AllIn attack!");
+		EnemyBO = GetAttackObjectivesFromUnlistedBuildings();
 
-		return None;
+		if(EnemyBO.Length <= 0)
+		{
+			`log(Self@": Can't find building objectives. Resorting to other behavior");
+			return None;
+		}
 	}
 
 	if(Vehicle(InController.Pawn) == None && TowerBO != None)
@@ -630,6 +747,67 @@ function UTGameObjective GetPriorityAttackObjectiveFor(UTSquadAI AnAttackSquad, 
 	}	
 
 	return PickedObjective;
+}
+
+function Array<Rx_BuildingObjective> GetAttackObjectivesFromUnlistedBuildings()
+{
+	local Array<Rx_BuildingObjective> OutVar;
+	local Rx_BuildingObjective BO;
+	local Rx_Building B;
+
+	if(UnlistedAttackBO.Length > 0)
+	{
+		foreach UnlistedAttackBO(BO)
+		{
+			if(BO.myBuilding.GetTeamNum() != GetTeamNum() && Rx_Building_Techbuilding(BO.myBuilding) == None && !BO.myBuilding.IsDestroyed())
+			{
+				OutVar.AddItem(BO);
+			}
+		}
+	}
+
+	if(OutVar.Length > 0)
+	{
+		UnlistedAttackBO = OutVar; //reassign here
+		return OutVar;
+	}
+
+	// If Unlisted BO is empty, get new ones....
+
+	foreach WorldInfo.AllActors(class'Rx_Building', B)
+	{
+		if(B.GetTeamNum() != GetTeamNum() && Rx_Building_Techbuilding(B) == None && !B.IsDestroyed())
+		{
+			if(B.myObjective == None && B.ShouldCreateUnlistedBO())
+			{
+				B.CreateUnlistedBO();
+			}
+
+			if(B.myObjective != None)
+			{			
+				OutVar.AddItem(B.myObjective);
+			}
+		}
+	}
+
+
+	UnlistedAttackBO = OutVar;
+	return OutVar;
+}
+
+function UTGameObjective GetPriorityFreelanceObjectiveFor(UTSquadAI InFreelanceSquad) // edited so that these guys will try to get techies instead
+{
+	local UTGameObjective O; 
+
+	for (O = Objectives; O != None; O = O.NextObjective)
+	{
+		if(Rx_BuildingObjective(O) == None || Rx_Building_Techbuilding(Rx_BuildingObjective(O).myBuilding) == None)
+			continue;
+
+		return O;
+	}	
+
+	return super.GetPriorityFreelanceObjectiveFor(InFreelanceSquad);
 }
 
 /*
@@ -871,8 +1049,8 @@ function UTSquadAI AddSquadWithLeader(Controller C, UTGameObjective O)
 	{
 		S = spawn(ScriptedSquadType);
 		S.Initialize(UTTeamInfo(Team),O,C);
-		S.NextSquad = Squads;
-		Squads = S;
+		Rx_SquadAI_Scripted(S).NextScriptedSquad = ScriptedSquads;
+		ScriptedSquads = Rx_SquadAI_Scripted(S);
 	}
 	return S;
 }
@@ -882,10 +1060,10 @@ function UTSquadAI AddScriptedSquadWithLeader(Controller C, UTGameObjective O)
 {
 	local UTSquadAI S;
 
-	S = spawn(SquadType);
+	S = spawn(ScriptedSquadType);
 	S.Initialize(UTTeamInfo(Team),O,C);
-	S.NextSquad = Squads;
-	Squads = S;
+	Rx_SquadAI_Scripted(S).NextScriptedSquad = ScriptedSquads;
+	ScriptedSquads = Rx_SquadAI_Scripted(S);
 	return S;
 }
 
@@ -930,7 +1108,16 @@ function CriticalObjectiveWarning(UTGameObjective G, Pawn NewEnemy)
 		for (B = S.SquadMembers; B != None; B = B.NextSquadMember)
 		{
 			if(B.Pawn != None)
-				S.CheckSquadObjectives(B);
+			{
+				if(S.SquadObjective == G)
+					S.CheckSquadObjectives(B);
+				else if(Rx_BuildingObjective(S.SquadObjective) == None || !Rx_Bot(B).DefendedBuildingNeedsHealing())
+				{
+					S.SetObjective(G, false);
+					break;
+				}
+
+			}
 		}
 
 		if(NewEnemy != None)
@@ -964,7 +1151,7 @@ DefaultProperties
     
     OrderList_GDI(0)=DEFEND
     OrderList_GDI(1)=ATTACK
-    OrderList_GDI(2)=ATTACK
+    OrderList_GDI(2)=DEFEND
     OrderList_GDI(3)=ATTACK
     OrderList_GDI(4)=ATTACK
     OrderList_GDI(5)=DEFEND
@@ -973,7 +1160,7 @@ DefaultProperties
     
     OrderList_NOD(0)=DEFEND
     OrderList_NOD(1)=ATTACK
-    OrderList_NOD(2)=ATTACK
+    OrderList_NOD(2)=DEFEND
     OrderList_NOD(3)=ATTACK
     OrderList_NOD(4)=ATTACK
     OrderList_NOD(5)=DEFEND

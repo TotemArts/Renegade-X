@@ -8,8 +8,13 @@ var array< class<Rx_Weapon> > WeaponList;
 
 function string GetGameLogMessage(Rx_PRI RecipientPRI, Rx_CratePickup CratePickup)
 {
-    return ((((((("GAME" $ Chr(2)) $ "Crate;") $ Chr(2)) $ "`weapon`") $ Chr(2)) $ "by") $ Chr(2)) $ class'Rx_Game'.static.GetPRILogName(RecipientPRI);
+	local string wepName;
+
+		wepName = WeaponClass.default.PickupMessage;
+
+    return "GAME" `s "Crate;" `s wepName `s "by" `s `PlayerLog(RecipientPRI);
 }
+
 
 function string GetPickupMessage()
 {
@@ -94,6 +99,6 @@ defaultproperties
 	WeaponList(20)=class'Rx_Weapon_TiberiumAutoRifle'
 	WeaponList(21)=class'Rx_Weapon_TiberiumAutoRifle_Blue'
 	WeaponList(22)=class'Rx_Weapon_VoltAutoRifle_Nod'
-    BroadcastMessageIndex=1002
-    PickupSound=SoundCue'Rx_Pickups.Sounds.SC_Pickup_Ammo'
+    BroadcastMessageIndex=21 
+	PickupSound=SoundCue'Rx_Pickups.Sounds.SC_Pickup_Ammo'
 }

@@ -143,6 +143,8 @@ function ChooseTactics()
 	CurrentTactics = new TacList[i];
 	CurrentTactics.OwningSquadAI = self;
 
+	RedistributeSquadMoney();
+
 	for(S=SquadMembers; S!= None; S=S.NextSquadMember)
 	{
 		if(Rx_Bot(S).CheckIfOnboard(CurrentTactics.CreditsNeeded))
@@ -190,6 +192,25 @@ function Array<class<Rx_AITactics> > FilterTactics(Array<class<Rx_AITactics> > L
 	return TacList;
 }
 
+function RedistributeSquadMoney()
+{
+	local Rx_Bot S;
+	local int SquadMoney, SquadMoneyAverage, SquadSize;
+
+	for(S=Rx_Bot(SquadMembers); S!= None; S=Rx_Bot(S.NextSquadMember))
+	{
+		SquadMoney += S.GetCredits();
+		SquadSize++;
+	}
+
+	SquadMoneyAverage = SquadMoney / SquadSize;
+
+	for(S=Rx_Bot(SquadMembers); S!= None; S=Rx_Bot(S.NextSquadMember))
+	{
+		Rx_PRI(S.PlayerReplicationInfo).SetCredits(SquadMoneyAverage);
+	}
+}
+
 function ReassignLeader()
 {
 	local int CurSkill, BestSkill;
@@ -222,7 +243,7 @@ function DiscardFromTactic()
 {
 	NumOfBotsOnboard--;
 
-	if(NumOfBotsOnboard < 0)
+	if(NumOfBotsOnboard <= 0)
 		ResetStrategy();
 	
 }
@@ -665,6 +686,23 @@ function bool CheckDeployablePriority(Rx_Bot B, Rx_Weapon_DeployedActor D)
 
 	return false;
 
+}
+
+function AlertSquad(Rx_Bot B, Pawn Seen)
+{
+	local Rx_Bot SM;
+
+	if(B.GetOrders() != 'Defend')
+		return;
+
+	for(SM=Rx_Bot(SquadMembers); SM!=None; SM=Rx_Bot(SM.NextSquadMember))
+	{
+		if(SM.Enemy == None)
+		{
+			SM.Enemy = Seen;
+			SM.WhatToDoNext();
+		}
+	}
 }
 
 DefaultProperties

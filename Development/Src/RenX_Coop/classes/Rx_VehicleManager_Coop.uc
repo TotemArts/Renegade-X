@@ -165,11 +165,15 @@ function Actor SpawnVehicleCoop(VQueueElementCoop VehToSpawn, Rx_VehicleSpawner 
 {
 
 	local Rx_Vehicle Veh;
+	local Vector Loc;
+	local Rotator Rot;
    
 	if (TeamNum < 0)
 		TeamNum = VehToSpawn.Buyer.GetTeamNum();
+
+	Spawner.GetSpawnerLocAndRot(Loc,Rot);
 	  
-	Veh = Spawn(VehToSpawn.VehClass,,, Spawner.Location,Spawner.Rotation,,true);
+	Veh = Spawn(VehToSpawn.VehClass,,, Loc,Rot,,true);
   
 	if (Veh != none )
 	{

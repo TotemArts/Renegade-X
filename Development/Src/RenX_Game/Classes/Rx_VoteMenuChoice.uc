@@ -171,7 +171,7 @@ function string ComposeTopString()
 	else
 		FontColor = HostColor;
 
-	return "<font color='"$FontColor$"'>"$VoteInstigator.PlayerReplicationInfo.PlayerName$"<font>";
+	return "<font color='"$FontColor$"'>"$VoteInstigator.PlayerReplicationInfo.PlayerName$"</font>";
 }
 
 /** Syntax: [ key | value [... | key | value ] ] */

@@ -1,5 +1,10 @@
 class Rx_FamilyInfo_GDI_Hotwire extends Rx_FamilyInfo_GDI;
 
+static function bool IsEngi()
+{
+	return true;
+}
+
 DefaultProperties
 {
 	FamilyID="GDI"

@@ -35,7 +35,7 @@ var bool bActive;
 var int SpawnedBotNumber, BotRemaining;
 var Rx_SquadAI_Scripted AffiliatedSquad;
 var Rx_TeamInfo AffiliatedTeam;
-var Array<Rx_Bot_Scripted> MyBots;
+var Array<Rx_Bot_Scripted_Customizeable> MyBots;
 
 var bool bWaitForMatch;
 
@@ -89,8 +89,8 @@ event Tick(float DeltaTime)
 
 function StartSpawning (optional bool bForced)
 {
-	local Rx_Bot_Scripted B;
-	local Rx_Pawn_Scripted P;
+	local Rx_Bot_Scripted_Customizeable B;
+	local Rx_Pawn_Scripted_Customizeable P;
 	local Rx_TeamAI TeamAI;
 	local Rx_Vehicle V;
 	local int I, VI;
@@ -118,7 +118,7 @@ function StartSpawning (optional bool bForced)
 		BestSpawn = RateBestSpawn(VehicleTypes[VI]);		
 	}
 	else
-		BestSpawn = RateBestSpawn(class'Rx_Pawn_Scripted');
+		BestSpawn = RateBestSpawn(class'Rx_Pawn_Scripted_Customizeable');
 
 	if(BestSpawn != None)		// if failed, postpone the spawn cycle
 	{
@@ -129,19 +129,20 @@ function StartSpawning (optional bool bForced)
 			{
 				PawnLoc = V.Location;
 				PawnLoc.z += 1000;
-				P = Spawn(class'Rx_Pawn_Scripted',,,PawnLoc,BestSpawn.rotation,,true);
+				P = Spawn(class'Rx_Pawn_Scripted_Customizeable',,,PawnLoc,BestSpawn.rotation,,true);
 			}
 		}
 		else
 		{
-			P = Spawn(class'Rx_Pawn_Scripted',,,BestSpawn.location,BestSpawn.rotation);
+			P = Spawn(class'Rx_Pawn_Scripted_Customizeable',,,BestSpawn.location,BestSpawn.rotation);
 		}
 	}
 
 	if(P != None)	// check if spawn fails
 	{
 		P.TeamNum = TeamIndex;
-		B = Spawn(class'Rx_Bot_Scripted');
+		B = Spawn(class'Rx_Bot_Scripted_Customizeable',self);
+		B.SetOwner(None);
 		Rx_Game(WorldInfo.Game).SetTeam(B, Rx_Game(WorldInfo.Game).Teams[TeamIndex], false);
 		P.MySpawner = Self;
 		B.Possess(P,false);
@@ -278,7 +279,7 @@ function StopSpawning ()
 	ClearTimer('StartSpawning');
 }
 
-function NotifyPawnDeath (Rx_Bot_Scripted B)
+function NotifyPawnDeath (Rx_Bot_Scripted_Customizeable B)
 {
 
 	BotRemaining = Max(0,BotRemaining - 1);
@@ -314,7 +315,7 @@ function Rx_SquadAI_Scripted GetSquadByID(string ID)
 	local Rx_SquadAI S;
 
 
-	for (S=Rx_SquadAI(Rx_Game(WorldInfo.Game).Teams[TeamIndex].AI.Squads); S!=None; S=Rx_SquadAI(S.NextSquad) )
+	for (S=Rx_SquadAI_Scripted(Rx_TeamAI(Rx_Game(WorldInfo.Game).Teams[TeamIndex].AI).ScriptedSquads); S!=None; S=Rx_SquadAI_Scripted(S).NextScriptedSquad )
 	{
 		if(Rx_SquadAI_Scripted(S) == None)
 			continue;
@@ -326,7 +327,7 @@ function Rx_SquadAI_Scripted GetSquadByID(string ID)
 	return none;
 }
 
-function bool DoTaskFor (Rx_Bot_Scripted B)
+function bool DoTaskFor (Rx_Bot_Scripted_Customizeable B)
 {
 	if (SquadObjective != None)
 	{
@@ -397,7 +398,7 @@ function OnChangeObjective(Rx_SeqAct_ScriptedBotChangeObjective Action)
 {
 	local SeqVar_Object ObjVar;
 	local Rx_ScriptedObj NewObjective;
-	local Rx_Bot_Scripted B;
+	local Rx_Bot_Scripted_Customizeable B;
 
 	foreach Action.LinkedVariables(class'SeqVar_Object', ObjVar, "New Objective")
 	{
@@ -422,6 +423,11 @@ function OnChangeObjective(Rx_SeqAct_ScriptedBotChangeObjective Action)
 		}
 	}
 
+}
+
+simulated function byte GetTeamNum()
+{
+	return TeamIndex;
 }
 
 DefaultProperties

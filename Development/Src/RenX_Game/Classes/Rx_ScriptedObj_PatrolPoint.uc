@@ -4,7 +4,7 @@ class Rx_ScriptedObj_PatrolPoint extends Rx_ScriptedObj
 var(ScriptedObjective) bool bWalkingPatrol;
 var(ScriptedObjective) bool bGroupPatrol;
 
-function bool DoTaskFor(Rx_Bot_Scripted B)
+function bool DoTaskFor(Rx_Bot_Scripted_Customizeable B)
 {
 	if((!bGroupPatrol && !B.Pawn.ReachedDestination(Self)) || (bGroupPatrol && !AreAllBotsInHere(B)))
 		return FindPatrolPathTowards(Self, B);
@@ -20,7 +20,7 @@ function bool DoTaskFor(Rx_Bot_Scripted B)
 	return false;
 }
 
-function bool FindPatrolPathTowards(Actor PatrolPoint, Rx_Bot_Scripted B)
+function bool FindPatrolPathTowards(Actor PatrolPoint, Rx_Bot_Scripted_Customizeable B)
 {
 	local Actor BestPath;
 
@@ -48,9 +48,9 @@ function bool FindPatrolPathTowards(Actor PatrolPoint, Rx_Bot_Scripted B)
 
 }
 
-function bool AreAllBotsInHere(Rx_Bot_Scripted B)
+function bool AreAllBotsInHere(Rx_Bot_Scripted_Customizeable B)
 {
-	local Rx_Bot_Scripted Bots;
+	local Rx_Bot_Scripted_Customizeable Bots;
 
 	if(B.MySpawner == None)
 		return true;

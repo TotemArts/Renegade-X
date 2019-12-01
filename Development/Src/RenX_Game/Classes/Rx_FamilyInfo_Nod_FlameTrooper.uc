@@ -12,6 +12,7 @@ DefaultProperties
 	MaxArmor               	= 100 //125
 	Armor_Type 				= A_FLAK
 	SpeedMultiplier			= 1.05
+	Role 					= ROLE_Offense
 
 	CharacterMesh=SkeletalMesh'RX_CH_Nod_Soldier.Mesh.SK_CH_Nod_Soldier_Red'
 	PawnVoiceClass=class'Rx_Pawn_VoiceClass_Nod_Flamethrower'

@@ -33,7 +33,8 @@ enum ENUM_Armor
 enum CharacterRole
 {
 	ROLE_Offense,
-	ROLE_Defense
+	ROLE_Defense,
+	ROLE_All
 };
 
 var array<class<Rx_PickUp> > PowerUpClasses;
@@ -105,7 +106,12 @@ static function Purchase(Rx_PRI Context) {
 	}
 }
 
-static function int Cost(Rx_PRI Context) {
+static function int Cost(Rx_PRI Context) 
+{
+	if(Context == None) // most likely Scripted Bot
+		return default.BasePurchaseCost;
+
+
 	return `RxGameObject.PurchaseSystem.GetClassPrice(Context.Team.TeamIndex, default.Class);
 }
 
@@ -168,6 +174,11 @@ static function bool IsStealthUnit()
 static function string BotPTString()
 {
 	return default.PTString;
+}
+
+static function bool IsEngi()
+{
+	return false;
 }
 
 /** END Rx_IPurchasable */
@@ -319,7 +330,7 @@ DefaultProperties
 	MaxHealth = 100
 	MaxArmor  = 100
 	Armor_Type = A_Kevlar
-	Role = ROLE_Offense
+	Role = ROLE_All
 	SpeedMultiplier=1.0
 	JumpMultiplier=1.0
 	FallspeedModifier = 1.0

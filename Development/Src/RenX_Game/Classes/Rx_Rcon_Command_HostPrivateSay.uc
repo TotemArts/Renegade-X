@@ -23,7 +23,8 @@ function string trigger(string parameters)
 	if (PRI == None)
 		return error;
 	if (PRI.bBot)
-		return "Can't PM bots.";
+		return "Error: Can't PM bots.";
+		
 	Rx_BroadcastHandler(`WorldInfoObject.Game.BroadcastHandler).BroadcastPM(None, Rx_Controller(PRI.Owner), parameters);
 	return "";
 }

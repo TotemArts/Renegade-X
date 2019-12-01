@@ -13,6 +13,9 @@ final function InitRconCommands()
 	SpawnCommand(class'Rx_Rcon_Command_ListMutators');
 	SpawnCommand(class'Rx_Rcon_Command_HostSay');
 	SpawnCommand(class'Rx_Rcon_Command_HostPrivateSay');
+	SpawnCommand(class'Rx_Rcon_Command_AdminMessage');
+	SpawnCommand(class'Rx_Rcon_Command_PrivateAdminMessage');
+	SpawnCommand(class'Rx_Rcon_Command_Warn');
 	SpawnCommand(class'Rx_Rcon_Command_Kick');
 	SpawnCommand(class'Rx_Rcon_Command_KickBan');
 	SpawnCommand(class'Rx_Rcon_Command_ForceKick');

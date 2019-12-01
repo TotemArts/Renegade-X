@@ -1,8 +1,8 @@
 class Rx_SupportVehicle_DropOffChinook extends Rx_SupportVehicle_Air ;
 
 /* Base Clase for all Support Power Vehicles (including Missiles)*/
-var private repnotify float CurrentTime;
-var private bool bGotCurrentTime;
+var protected repnotify float CurrentTime;
+var protected bool bGotCurrentTime;
 var Rx_vehicle CarriedVehicle;
 var Rx_PRI Buyer;
 var int VehicleID;
