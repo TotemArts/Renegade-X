@@ -113,6 +113,96 @@ simulated function SetAnimSet( AnimSet NewAnimSet, name ProfileName )
 	//WeaponAimNode.SetActiveProfileByName(ProfileName);
 }
 
+simulated event PostInitAnimTree(SkeletalMeshComponent SkelComp)
+{
+	local string RelaxName;
+	local int  RelaxNodeCount;
+	local AnimNodeBlendList RelaxNodeTemp;
+
+	RelaxNodeCount = 0;
+	
+	//super.PostInitAnimTree(SkelComp);
+
+	if (SkelComp == ParachuteMesh)
+	{
+		
+		ParachuteClosedWeight = MorphNodeWeight(ParachuteMesh.FindMorphNode('Parachute_OpeningStart'));		
+		ParachuteCurveWeight = MorphNodeWeight(ParachuteMesh.FindMorphNode('Parachute_Curved'));		
+		ParachuteLeftTurnWeight = MorphNodeWeight(ParachuteMesh.FindMorphNode('Parachute_LeftTurn'));		
+		ParachuteRightTurnWeight = MorphNodeWeight(ParachuteMesh.FindMorphNode('Parachute_RightTurn'));
+	}
+
+	if (SkelComp == Mesh)
+	{
+		RunSpeedAnimNode = AnimNodeBlendBySpeed(Mesh.FindAnimNode('RunSpeedNode'));
+		UpdateRunSpeedNode();
+
+		LeftLegControl = SkelControlFootPlacement(Mesh.FindSkelControl(LeftFootControlName));
+		RightLegControl = SkelControlFootPlacement(Mesh.FindSkelControl(RightFootControlName));
+		FeignDeathBlend = AnimNodeBlend(Mesh.FindAnimNode('FeignDeathBlend'));
+		FullBodyAnimSlot = AnimNodeSlot(Mesh.FindAnimNode('FullBodySlot'));
+		TopHalfAnimSlot = AnimNodeSlot(Mesh.FindAnimNode('TopHalfSlot'));
+
+		LeftHandAnimName = AnimNodeSequence( mesh.FindAnimNode('LeftHandAnimSeq') );
+		LeftHandOverride = AnimNodeBlendPerBone(SkelComp.FindAnimNode('LeftHandOverride'));
+		LeftHandIK = SkelControlLimb( mesh.FindSkelControl('LeftHandIK') );		
+		RightHandIK = SkelControlLimb( mesh.FindSkelControl('RightHandIK') );
+		
+		LeftHandIK_SB = SkelControlSingleBone( mesh.FindSkelControl('LeftHandIK_Offset') );
+		LeftHandIK_SBR = SkelControlSingleBone( mesh.FindSkelControl('LeftHandIK_Rotation') );
+		RightHandIK_SB = SkelControlSingleBone( mesh.FindSkelControl('RightHandIK_Offset') );
+		RightHandIK_SBR = SkelControlSingleBone( mesh.FindSkelControl('RightHandIK_Rotation') );
+
+		RootRotControl = SkelControlSingleBone( mesh.FindSkelControl('RootRot') );
+		AimNode = AnimNodeAimOffset( mesh.FindAnimNode('AimNode') );
+		GunRecoilNode = GameSkelCtrl_Recoil( mesh.FindSkelControl('GunRecoilNode') );
+		LeftRecoilNode = GameSkelCtrl_Recoil( mesh.FindSkelControl('LeftRecoilNode') );
+		RightRecoilNode = GameSkelCtrl_Recoil( mesh.FindSkelControl('RightRecoilNode') );
+
+		DrivingNode = UTAnimBlendByDriving( mesh.FindAnimNode('DrivingNode') );
+		VehicleNode = UTAnimBlendByVehicle( mesh.FindAnimNode('VehicleNode') );
+		HoverboardingNode = UTAnimBlendByHoverboarding( mesh.FindAnimNode('Hoverboarding') );
+
+		FlyingDirOffset = AnimNodeAimOffset( mesh.FindAnimNode('FlyingDirOffset') );
+		
+		//Dodge (Dive) Blend node 
+		DodgeNode = AnimNodeBlendList(Mesh.FindAnimNode(name(DodgeNodeName)));
+
+		if (DodgeNode != None)
+			DodgeNode.SetActiveChild(0,1.0);
+		
+		DodgeGroupNode = AnimNodeSequence( mesh.FindAnimNode('DodgeAnimNode') );//Only need Fwd.. The rest are linked to it
+		//`log(DodgeGroupNode);
+	
+		// IF the Aimnode doesnt exist in the tree dont set WeaponAimNode equal to it
+		if (AimNode != none )
+			WeaponAimNode = AimNode;
+
+		// Get Relaxed Aim Node
+		RelaxedAimNode = AnimNodeAimOffset( mesh.FindAnimNode('AimRelaxed') );
+		if( RelaxedAimNode == none )
+		{
+			`warn("Relaxed Aim Node Not Found In AnimTree");
+		}
+
+		// Find all the relax nodes in the tree and cache them
+		do
+		{
+			RelaxNodeCount++;
+			// Set name of next Relax Node
+			RelaxName = RelaxBaseName$RelaxNodeCount;
+			// Get First RelaxNode
+			RelaxNodeTemp = AnimNodeBlendList(Mesh.FindAnimNode(name(RelaxName)));
+			//if it doesnt find a node dont add it to the list
+			if( RelaxNodeTemp != none )
+			{
+				RelaxedBlendLists.AddItem(RelaxNodeTemp);		
+			}
+		} 
+		until( RelaxNodeTemp == none );
+	}
+}
+
 simulated event Destroyed()
 {
 	if (PrimaryAttachedWeapon != none)

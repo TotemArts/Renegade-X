@@ -8,7 +8,7 @@ function OutOfAreaActions(Actor Other, Controller PC)
 {
 	`Logd("Deny Area Volume: OutOfAreaActions",, 'DevScript');
 
-	if(Rx_Controller(PC).IsInPlayArea == true)
+	if(Rx_Controller(PC) == None || Rx_Controller(PC).IsInPlayArea == true)
 		return;
 
 	if(UDKVehicle(Other) != None)
@@ -22,7 +22,7 @@ function InAreaActions(Actor Other, Controller PC)
 {
 	`Logd("Deny Area Volume: InAreaActions",, 'DevScript');
 
-	if(Rx_Controller(PC).IsInPlayArea == false)
+	if(Rx_Controller(PC) == None || Rx_Controller(PC).IsInPlayArea == false)
 		return;
 
 	if (UDKVehicle(Other) != None)

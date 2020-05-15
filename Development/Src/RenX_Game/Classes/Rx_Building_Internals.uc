@@ -1,3 +1,21 @@
+/*********************************************************
+*
+* File: Rx_Building_Internals.uc
+* Author: RenegadeX-Team
+* Pojekt: Renegade-X UDK <www.renegade-x.com>
+*
+* Desc:
+* The Base class of the Buildings' internal functions. 
+* Contains the most basic setup for buildings
+* 
+* See Also :
+* - Rx_Building - The placeable building class that defines the visual look and spawns this class
+* - Rx_Building_Team_Internals - Extension of the base Internals class that contains the rest of the basic inner-working required for both Team Buildings and Capturable tech buildings
+*
+*********************************************************
+*  
+*********************************************************/
+
 class Rx_Building_Internals extends Actor
 	abstract;
 
@@ -283,6 +301,10 @@ DefaultProperties
 	AttachmentClasses.Add(Rx_BuildingDmgFx_SteamSmoke)
 	AttachmentClasses.Add(Rx_BuildingDmgFx_AlarmLarge)
 	AttachmentClasses.Add(Rx_BuildingDmgFx_AlarmSmall)
+
+	AttachmentClasses.Add(Rx_BuildingDmgFx_SmokeStackBlack_Small)
+	AttachmentClasses.Add(Rx_BuildingDmgFx_SmokeStackBlack_Large)
+	AttachmentClasses.Add(Rx_BuildingDmgFx_PowerPlantChimney)
 
 	/***************************************************/
 	/*                Building Skeleton                */

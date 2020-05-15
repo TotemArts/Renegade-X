@@ -591,108 +591,111 @@ simulated function ChangeVisibilityToCloaked() {
      }
 }
 
-simulated function SetMaterialsCloaked(bool cloaked) {
-	
-	local int i,j,Cnt;
-	
-	if(cloaked) {
+simulated function SetMaterialsCloaked(bool cloaked) 
+{
+  local int i, j, count;
+  
+  if (cloaked) 
+  {
+        // Set character to stealth and initalize a MIC
+        Mesh.SetMaterial(0, MICStealthed);
+        Mesh.CreateAndSetMaterialInstanceConstant(0);
+    
+        // Set equipped weapon to stealth and intialize MIC
+        if ((Weapon != None && Weapon.Mesh != none) && (Weapon.default.Mesh.Materials.Length > 0 || Weapon.Mesh.GetNumElements() > 0))
+        {
+            count = Weapon.default.Mesh.Materials.Length > 0 ?  Weapon.default.Mesh.Materials.Length : Weapon.Mesh.GetNumElements();
+            for (i = 0; i < count; i++) 
+            {
+                Weapon.Mesh.SetMaterial(i, MICStealthed);
+                Weapon.Mesh.CreateAndSetMaterialInstanceConstant(i);  
+            }     
+        }   
+    
+        // Set 1st person arms to stealth and intialize MIC
+        for (i = 0; i < 2; i++) 
+        {
+            if(ArmsMesh[i] != None) 
+            {
+                ArmsMesh[i].SetMaterial(0, MICStealthed); 
+                ArmsMesh[i].CreateAndSetMaterialInstanceConstant(0);    
+            }
+        }
+        
+        BodyMaterialInstances[0] = MaterialInstanceConstant(Mesh.GetMaterial(0));
+        Mesh.SetMaterial(0, BodyMaterialInstances[0]);  
+        
+        // Set 3rd person equipped weapon to stealth and intialize MIC
+        if (CurrentWeaponAttachment != None) 
+            for (i = 0; i < CurrentWeaponAttachment.Mesh.SkeletalMesh.Materials.length; i++) 
+            {
+                CurrentWeaponAttachment.Mesh.SetMaterial(i, MICStealthed);
+                CurrentWeaponAttachment.Mesh.CreateAndSetMaterialInstanceConstant(i);
+            }
+        
+        // Set non-equipped equipped weapon to stealth and intialize MIC
+        for (j = 0; j < ArrayCount(CurrentBackWeapons); j++)
+        {
+            if (CurrentBackWeaponComponents[j] != None)
+                for (i = 0; i < CurrentBackWeaponComponents[j].SkeletalMesh.Materials.length; i++) 
+                {
+                    CurrentBackWeaponComponents[j].SetMaterial(i, MICStealthed);
+                    CurrentBackWeaponComponents[j].CreateAndSetMaterialInstanceConstant(i);
+                }
+        }   
+  } 
+    else 
+    {
+        Mesh.SetMaterial(0, MICNormal);
+        Mesh.CreateAndSetMaterialInstanceConstant(0);
 
-  		Mesh.SetMaterial(0, MICStealthed);
-		Mesh.CreateAndSetMaterialInstanceConstant(0);
-		
-		if ( (Weapon != None && Weapon.Mesh != none) && (Weapon.default.Mesh.Materials.Length > 0 || Weapon.Mesh.GetNumElements() > 0) )
-		{
-			
-			if(Rx_Weapon_LaserRifle(Weapon) != none)
-			{
-				Weapon.Mesh.SetMaterial(0, MICStealthed);
-				
-				Weapon.Mesh.CreateAndSetMaterialInstanceConstant(0);
-			}
-			else
-			{
-				Cnt = Weapon.default.Mesh.Materials.Length > 0 ? Weapon.default.Mesh.Materials.Length : Weapon.Mesh.GetNumElements();
-				for ( i=0; i < Cnt; i++ )
-				{
-					Weapon.Mesh.SetMaterial(i, MICStealthed);
-					Weapon.Mesh.CreateAndSetMaterialInstanceConstant(i);	
-				}
-			}
-			
-		}		
-	
-		for (i = 0; i < 2; i++) {
-			if(ArmsMesh[i] != None) {
-				ArmsMesh[i].SetMaterial(0, MICStealthed);	
-				ArmsMesh[i].CreateAndSetMaterialInstanceConstant(0);		
-			}
-		}
-		
-		BodyMaterialInstances[0] = MaterialInstanceConstant(Mesh.GetMaterial(0));
-		Mesh.SetMaterial(0, BodyMaterialInstances[0]);	
-		
-		
-		if(CurrentWeaponAttachment != None) {
-			for (i = 0; i < CurrentWeaponAttachment.Mesh.SkeletalMesh.Materials.length; i++) {
-		        CurrentWeaponAttachment.Mesh.SetMaterial (i, MICStealthed);
-	        	CurrentWeaponAttachment.Mesh.CreateAndSetMaterialInstanceConstant(i);
-	        	WeaponsNormalMICs[0] = MaterialInstanceConstant(CurrentWeaponAttachment.Mesh.SkeletalMesh.Materials[i]);
-			}
-		}
-		
-		for (j = 0; j < ArrayCount(CurrentBackWeapons); j++)
-		{
-			if(CurrentBackWeaponComponents[j] != None)
-				for (i = 0; i < CurrentBackWeaponComponents[j].SkeletalMesh.Materials.length; i++) {
-			        CurrentBackWeaponComponents[j].SetMaterial (i, MICStealthed);
-		        	CurrentBackWeaponComponents[j].CreateAndSetMaterialInstanceConstant(i);
-	        	}
-		}		
-		
-	} else {
-		if(WeaponsNormalMICs.length == 0)
-			return;
-      	Mesh.SetMaterial(0, MICNormal);
-		Mesh.CreateAndSetMaterialInstanceConstant(0);
-		
-		//Rx_Weapon(Weapon).setskin(MICNormal.GetMaterial());
-		if ( (Weapon != None && Weapon.Mesh != none) && (Weapon.default.Mesh.Materials.Length > 0 || Weapon.Mesh.GetNumElements() > 0) )
-		{
-			Cnt = Weapon.default.Mesh.Materials.Length > 0 ? Weapon.default.Mesh.Materials.Length : Weapon.Mesh.GetNumElements();
-			for ( i=0; i < Cnt; i++ )
-			{
-				Weapon.Mesh.SetMaterial(i, MICNormal);
-				Weapon.Mesh.CreateAndSetMaterialInstanceConstant(i);	
-			}
-		}	
-		
-		for (i = 0; i < 2; i++) {
-			if(ArmsMesh[i] != None) {
-				ArmsMesh[i].SetMaterial(0, MICNormal);	
-				ArmsMesh[i].CreateAndSetMaterialInstanceConstant(0);		
-			}
-		}	
-		
-		BodyMaterialInstances[0] = MaterialInstanceConstant(Mesh.GetMaterial(0));
-		Mesh.SetMaterial(0, BodyMaterialInstances[0]);		
-		
-		if(CurrentWeaponAttachment != None) {
-			for (i = 0; i < CurrentWeaponAttachment.Mesh.SkeletalMesh.Materials.length; i++) {
-		        CurrentWeaponAttachment.Mesh.SetMaterial (i, WeaponsNormalMICs[0]);
-	        	CurrentWeaponAttachment.Mesh.CreateAndSetMaterialInstanceConstant(i);
-			}
-		}
-		for (j = 0; j < ArrayCount(CurrentBackWeapons); j++)
-		{
-			if(CurrentBackWeaponComponents[j] != None)
-				for (i = 0; i < CurrentBackWeaponComponents[j].SkeletalMesh.Materials.length; i++) {
-			        CurrentBackWeaponComponents[j].SetMaterial (i, WeaponsNormalMICs[0]);
-		        	CurrentBackWeaponComponents[j].CreateAndSetMaterialInstanceConstant(i);
-	        	}
-		}	
-		
-	}
+        if (Weapon != None && Weapon.Mesh != none) 
+        {
+            for (i = 0; i < Weapon.default.Mesh.Materials.Length; i++) 
+            {
+                Weapon.Mesh.SetMaterial(i, Weapon.default.Mesh.GetMaterial(i));
+                Weapon.Mesh.CreateAndSetMaterialInstanceConstant(i);  
+            }
 
+            if (Weapon.default.Mesh.Materials.Length == 0)
+                for (i = 0; i < Weapon.Mesh.GetNumElements(); i++) 
+                {
+                    Weapon.Mesh.SetMaterial(i, MICNormal);
+                    Weapon.Mesh.CreateAndSetMaterialInstanceConstant(i);
+                }
+
+            Rx_Weapon(Weapon).SetSkin(None);
+        } 
+        
+        for (i = 0; i < 2; i++) 
+        {
+            if (ArmsMesh[i] != None) 
+            {
+                ArmsMesh[i].SetMaterial(0, MICNormal); 
+                ArmsMesh[i].CreateAndSetMaterialInstanceConstant(0);    
+            }
+        } 
+        
+        BodyMaterialInstances[0] = MaterialInstanceConstant(Mesh.GetMaterial(0));
+        Mesh.SetMaterial(0, BodyMaterialInstances[0]);    
+        
+        if (CurrentWeaponAttachment != None)
+            for (i = 0; i < CurrentWeaponAttachment.default.Mesh.Materials.length; i++) 
+            {
+                CurrentWeaponAttachment.Mesh.SetMaterial(i, CurrentWeaponAttachment.Mesh.default.Materials[i]);
+                CurrentWeaponAttachment.Mesh.CreateAndSetMaterialInstanceConstant(i);
+            }
+
+        for (j = 0; j < ArrayCount(CurrentBackWeapons); j++) 
+        {
+            if (CurrentBackWeaponComponents[j] != None)
+                for (i = 0; i < CurrentBackWeaponComponents[j].default.SkeletalMesh.Materials.length; i++)
+                {
+                    CurrentBackWeaponComponents[j].SetMaterial(i, CurrentBackWeaponComponents[j].default.SkeletalMesh.Materials[i]);
+                    CurrentBackWeaponComponents[j].CreateAndSetMaterialInstanceConstant(i);
+                }
+        } 
+    }
 }
 
 simulated function WeaponAttachmentChanged()
@@ -707,7 +710,7 @@ simulated function WeaponAttachmentChanged()
 simulated function SetInvisible(bool bNowInvisible)
 {
 	super.SetInvisible(bNowInvisible);
-	bIsInvisible=false;
+	bIsInvisible = false;
 	bInvisible = bNowInvisible;
 }
 

@@ -276,6 +276,10 @@ function TickHUD()
 	if (!bMovieIsOpen) {
 		return;
 	}
+	if(ChatView != None)
+	{
+		ChatView.TickHUD();
+	}
 
 	if (DonateView != None) {
 		DonateView.TickHUD();
@@ -372,6 +376,13 @@ function CloseDialog()
 function OnPauseMenuGroupChange(GFxClikWidget.EventData ev)
 {
 	local GFxClikWidget SelectedItem;
+
+	//reset all views
+	ScoreboardView = None;
+	DonateView = None;
+	SettingsView = None;
+	ChatView = None;
+	VoteView = None;
 
 	SelectedItem = GFxClikWidget(ev._this.GetObject("item", class'GFxClikWidget'));
 	switch (SelectedItem)

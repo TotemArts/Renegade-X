@@ -99,7 +99,7 @@ var UTWeapon lastWeaponHeld;  //variable containing weapon user had last time hu
 var GFxObject HealthBlock, HealthBar, HealthN, HealthMaxN, HealthText;//nBab
 var GFxObject VArmorN, VArmorBar, VArmorText, VArmorMaxN, PassengerContainer, VehicleMC;
 var GFxObject ArmorBar, ArmorN, ArmorMaxN, ArmorText;
-var GFxObject StaminaBar;
+var GFxObject StaminaMC, StaminaBar;
 var GFxObject AmmoInClipN, AmmoBar, AmmoReserveN, AltAmmoInClipN, AltAmmoBar, InfinitAmmo, AltInfinitAmmo, WeaponBlock, VAltWeaponBlock;
 var GFxObject WeaponListContainer, WeaponMC[5], WeaponName, AltWeaponName;
 var GFxObject AbilityMC, AbilityIconMC, AbilityMeterMC, AbilityTextMC;
@@ -154,9 +154,12 @@ var int LastYesNeededVote;
 var int LastVoteSecondsLeft;
 
 //items that we are diabling for now - THIS LIST SHOULD BE EMPTY BY THE TIME THE HUD IS DONE
-var GFxObject ObjectiveMC, ObjectiveText, TimerMC, TimerText, FadeScreenMC, SubtitlesText, GameplayTipsText, AdminMessageText, WeaponPickup;
+var GFxObject ObjectiveMC, ObjectiveText, TimerMC, TimerText, FadeScreenMC, SubtitlesText, GameplayTipsText, WeaponPickup;
 var float LastTipsUpdateTime;
-var array<string> AdminMessageQueue;
+
+var Rx_GFxAdminMessageMovie AdminMessage;
+var class<Rx_GFxAdminMessageMovie> AdminMessageClass;
+
 //var float VehicleDeathDisplayLength;
 var byte Tick_Cycler; 
 var int	 SkipNum; 
@@ -196,7 +199,7 @@ function Initialize()
 	{
 		InitMessageRow(EMessageType.EMT_CText, NumCTextMessages);
 	}
-	for(i = 0; i < 5; i++) 
+	for(i = 0; i < 7; i++) 
 	{
 		InitMessageRow(EMessageType.EMT_Chat, NumChatMessages);
 	}
@@ -206,7 +209,7 @@ function Initialize()
 
 	for(i = 0; i < 5; i++)
 	{
-		InitMessageRow(EMessageType.EMT_Radio, NumChatMessages);
+		InitMessageRow(EMessageType.EMT_Radio, NumRadioMessages);
 	}
 	for(i = 0; i < 5; i++) 
 	{
@@ -383,7 +386,7 @@ function Initialize()
 // Handepsilon : I've been tormented by text that cannot be decipherable in 800x600 for years, 
 //				it is time to finally balance the scales >:(
 
-function ResizedScreenCheck()
+function ResizedScreenCheck(optional bool bForce)
 {
 	// Resize the HUD after viewport size change
 	local Vector2D ViewportSize;
@@ -397,6 +400,7 @@ function ResizedScreenCheck()
 	local float StageWidthPct, StageHeightPct;
 	local float ResizerX, ResizerY;
 	local ASDisplayInfo DI;
+	local float HUDScale;
 	
 	GetGameViewportClient().GetViewportSize(ViewportSize);
 //	GetVisibleFrameRect(x0, y0, x1, y1);
@@ -406,7 +410,9 @@ function ResizedScreenCheck()
 	if(RenxHUD.GIHudMovie != None)
 		RenxHUD.GIHudMovie.ResizedScreenCheck();
 
-	if(LastResX != int(ViewportSize.X) || LastResY != int(ViewportSize.Y))
+	HUDScale = (FClamp(RenxHUD.SystemSettingsHandler.HUDScale, 75, 125)) / 100.f;
+
+	if(LastResX != int(ViewportSize.X) || LastResY != int(ViewportSize.Y) || bForce)
 	{
 
 //		`Log("LastRes="@LastResX@LastResY@"ViewportSize="@ViewportSize.X@ViewportSize.Y);
@@ -467,37 +473,53 @@ function ResizedScreenCheck()
 		DI.HasYScale = true;
 
 		//HealthBlock
-		DI.XScale = 100.f + (100.f * (1.0 - FMin(ResizerX,ResizerY)));
+		DI.XScale = HUDScale * (100.f + (100.f * (1.0 - FMin(ResizerX,ResizerY))));
 		DI.YScale = DI.XScale;
 //		`log("HealthBlock Scale :"@DI.XScale@DI.YScale);
 		HealthBlock.SetDisplayInfo(DI);
-		HealthBlock.SetPosition(LowerLeftCorner.X,LowerLeftCorner.Y);
+		
+
+		DI.XScale = HUDScale * (100.f + (100.f * (1.0 - FMin(ResizerX,ResizerY))));
+		DI.YScale = DI.XScale;
 
 		//Minimap
-		MinimapBase.SetDisplayInfo(DI);
-		MinimapBase.SetPosition(LowerLeftCorner.X,LowerLeftCorner.Y);
+		if(RenxHUD.SystemSettingsHandler.bMinimap)
+		{
+			MinimapBase.SetVisible(true);
+			MinimapBase.SetDisplayInfo(DI);
+			MinimapBase.SetPosition(LowerLeftCorner.X - ((20 * HUDScale) - 20),LowerLeftCorner.Y + ((20 * HUDScale) - 20));
+			HealthBlock.SetPosition(LowerLeftCorner.X - ((20 * HUDScale) - 20),LowerLeftCorner.Y + ((20 * HUDScale) - 20));
+		}
+		else
+		{
+			MinimapBase.SetVisible(false);
+			HealthBlock.SetPosition(LowerLeftCorner.X - (205.0 * HUDScale) - ((20 * HUDScale) - 20),LowerLeftCorner.Y  - ((20 * HUDScale) - 20));
+		}
 
 
 		//WeaponBlock		
 //		DI.XScale = 100.f + (100.f * (1.0 - FMin(StageHeightPct,StageWidthPct)));
 //		DI.YScale = DI.XScale;
 //		`log("WeaponBlock Scale :"@DI.XScale@DI.YScale);
+		DI.XScale = HUDScale * (108.7 + (108.7 * (1.0 - FMin(ResizerX,ResizerY))));
+		DI.YScale = DI.XScale;		
+
 		WeaponBlock.SetDisplayInfo(DI);
-		WeaponBlock.SetPosition(LowerRightCorner.X,LowerRightCorner.Y);
+		WeaponBlock.SetPosition(LowerRightCorner.X + ((20 * HUDScale) - 20),LowerRightCorner.Y + ((20 * HUDScale) - 20));
  
-		DI.XScale = 100.f + (100.f * (1.0 - FMin(ResizerX,ResizerY)) / 2);
+		DI.XScale = HUDScale * (100.f + (100.f * (1.0 - FMin(ResizerX,ResizerY)) / 2));
 		DI.YScale = DI.XScale;
 		SideMenu.SetDisplayInfo(DI);
-		SideMenu.SetPosition(PositionMod.X,PositionMod.Y + 240);
+		SideMenu.SetPosition(PositionMod.X - ((20 * HUDScale) - 20),PositionMod.Y + 240);
 
 //		FadeScreenMC.SetPosition(UpperLeftCorner.X,UpperLeftCorner.Y);
 
 		//Chattos
 		RadioLogMC.SetPosition(PositionMod.X + 20,PositionMod.Y + 50);
 //		TeamChatLog.SetPosition((PositionMod.X * -1) + 17,(PositionMod.Y * -1) + 120);
-		ChatLogMC.SetPosition(PositionMod.X + 20,600 - PositionMod.Y);
+		ChatLogMC.SetPosition(PositionMod.X + 20,225 + PositionMod.Y);
 		CTextLogMC.SetPosition(440, 203 + PositionMod.Y);
-		DeathLogMC.SetPosition(858 - PositionMod.X, 71 + PositionMod.Y);
+		DeathLogMC.SetPosition(PositionMod.X + 20, 500 - PositionMod.Y);
 		EvaLogMC.SetPosition(PositionMod.X + 20,20 + PositionMod.Y);
 
 		VoteMC.SetPosition(840,PositionMod.Y + 40);
@@ -538,6 +560,7 @@ function TickHUD()
 	local float CompassPos;
 	local ASDisplayInfo CompassDI;
 	local rotator PlayerRot;
+	local Rx_PRI TempPRI;
 
 	
 	if (!bMovieIsOpen) {
@@ -553,8 +576,15 @@ function TickHUD()
 	}
 	else
 	{
-		if(RxPRI == None)
-			RxPRI = Rx_PRI(RxPC.PlayerReplicationInfo);
+		if (RxPC.IsSpectating() && Pawn(RxPC.ViewTarget) != None)
+			TempPRI = Rx_PRI(Pawn(RxPC.ViewTarget).PlayerReplicationInfo);
+		else
+			TempPRI = Rx_PRI(RxPC.PlayerReplicationInfo);
+
+		if(RxPRI == None || RxPRI != TempPRI)
+		{
+			RxPRI = TempPRI;
+		}
 
 		if(RxGRI == None)
 			RxGRI = Rx_GRI(RxPC.WorldInfo.GRI);	
@@ -756,6 +786,7 @@ function TickHUD()
 				WeaponBlock.GotoAndStopI(1);
 				VArmorN.SetVisible(false);
 				VArmorMaxN.SetVisible(false);
+				StaminaMC.SetVisible(true);
 				isInVehicle = false;
 				LastStaminapc = -1;
 				LastArmorpc = -1;
@@ -825,6 +856,7 @@ function TickHUD()
 			if(!isInVehicle) //they were on foot
 			{			
 				HealthBlock.GotoAndStopI(3);
+				StaminaMC.SetVisible(false);
 				UpdateHealthGFx();
 				VArmorN.SetVisible(true);
 				VArmorMaxN.SetVisible(true);
@@ -1013,9 +1045,15 @@ function TickHUD()
 	}
 
 	if(SideMenu.GetBool("visible"))
+	{
 		ChatLogMC.SetVisible(false);
+		DeathLogMC.SetVisible(false);
+	}
 	else
+	{
 		ChatLogMC.SetVisible(true);
+		DeathLogMC.SetVisible(true);
+	}
 
 
 }
@@ -1120,7 +1158,10 @@ function UpdateTips()
 exec function SetLivingHUDVisible(bool visible)
 {
 	//ObjectiveMC.SetVisible(visible);
-	MinimapBase.SetVisible(visible);
+	if(RenxHUD.SystemSettingsHandler.bMinimap)
+	{
+		MinimapBase.SetVisible(visible);
+	}
 	Marker.SetVisible(visible);
 	HealthBlock.SetVisible(visible);
 	WeaponBlock.SetVisible(visible);
@@ -1199,6 +1240,7 @@ function UpdateHealthGFx(optional bool bSkipHealth, optional bool bSkipArmor, op
 
 	//Stamina
 	if(!bSkipStamina)
+		StaminaMC		= GetVariableObject("_root.HealthBlock.stamina");
 		StaminaBar      = GetVariableObject("_root.HealthBlock.stamina.stam_bar.bar");
 
 	if(!bSkipVehicle)
@@ -1322,7 +1364,12 @@ function UpdateLoadingBar()
 function HideLoadingBar()
 {
 	local byte i;
-	i = GetPC().PlayerReplicationInfo.GetTeamNum();
+
+	if(GetPC().PlayerReplicationInfo != None)
+		i = GetPC().PlayerReplicationInfo.GetTeamNum();
+
+	else
+		i = 0;
 
 	if (LoadingBarWidget[i] != none) {
 		LoadingBarWidget[i].SetInt("value", 0);
@@ -1756,7 +1803,7 @@ function UpdateAbility (Rx_WeaponAbility ability)
 		}
 		if(ability.bCanBeSelected() || Rx_Pawn(GetPC().Pawn).Weapon == ability)
 		{
-			AbilityTextMC.SetText("ABILITY[" $ string( AbilityKey ) $ "]"); 
+			AbilityTextMC.SetText("[" $ string( AbilityKey ) $ "]"); 
 		}
 		else
 		{
@@ -1810,12 +1857,12 @@ function UpdateWeapon(UTWeapon weapon)
 
 		if(WeaponName.GetInt("numLines") > 1)
 		{
-			WeaponName.SetPosition(-143.5,-90.0);
+			WeaponName.SetPosition(-141.5,-86.0);
 			DI.Y = -317.f;
 		}
 		else
 		{
-			WeaponName.SetPosition(-143.5,-75.f);
+			WeaponName.SetPosition(-141.5,-71.f);
 			DI.Y = -302.f;
 		}
 		WeaponListContainer.SetDisplayInfo(DI);
@@ -2470,21 +2517,33 @@ function DisableHUDItems()
 	SecWeaponTips = WeaponTipsMaster.GetObject("SecWeapTips");
 	SecWeaponTipsText = SecWeaponTips.GetObject("Textfield");
 	SecWeaponTipsBKG = SecWeaponTips.GetObject("Background");	
-	AdminMessageText = GetVariableObject("_root.Cinema.AdminMessage.Textfield");
 	WeaponPickup = GetVariableObject("_root.WeaponPickup");
 
-	if (GetPC().PlayerReplicationInfo.GetTeamNum() == TEAM_GDI) {
-		LoadingMeterMC[1].SetVisible(false);
-	} else if (GetPC().PlayerReplicationInfo.GetTeamNum() == TEAM_NOD) {
-		LoadingMeterMC[0].SetVisible(false);
+	GetVariableObject("_root.Cinema.AdminMessage.Textfield").SetVisible(false);
+
+	if(GetPC().PlayerReplicationInfo != None)
+	{
+		if (GetPC().PlayerReplicationInfo.GetTeamNum() == TEAM_GDI) 
+		{
+			LoadingMeterMC[1].SetVisible(false);
+		} 
+		else if (GetPC().PlayerReplicationInfo.GetTeamNum() == TEAM_NOD) 
+		{
+			LoadingMeterMC[0].SetVisible(false);
+		}
 	}
+	else
+	{
+			LoadingMeterMC[0].SetVisible(false);
+			LoadingMeterMC[1].SetVisible(false);
+	}
+
 	ObjectiveMC.SetVisible(false);
 	ObjectiveText.SetVisible(false);
 	TimerMC.SetVisible(false);
 	TimerText.SetVisible(false);
 	SubtitlesText.SetVisible(false);
 	GameplayTipsText.SetVisible(false);
-	AdminMessageText.SetVisible(false);
 	WeaponPickup.SetVisible(false);
 	//hide respawn hud (nBab);
 	hideRespawnHud();
@@ -2578,38 +2637,16 @@ function AddCTextMessage(coerce string sMessage, optional int ShownTime = 60)
 // Admin message management
 
 function bool HasAdminMessage() {
-	return AdminMessageQueue.Length != 0;
-}
-
-function UpdateAdminMessage() {
-	if (HasAdminMessage()) {
-		// There's an admin message in the queue; set it
-		AdminMessageText.SetString("htmlText", AdminMessageQueue[0]);
-		AdminMessageText.SetVisible(true);
-	}
-	else {
-		// There is no admin message to display; hide text
-		AdminMessageText.SetVisible(false);
-	}
+	return AdminMessage != None && AdminMessage.HasAdminMessage();
 }
 
 function PushAdminMessage(coerce string sMessage) {
-	// Push message to queue
-	AdminMessageQueue.AddItem(sMessage);
-
-	// Update current message
-	UpdateAdminMessage();
-}
-
-function PopAdminMessage() {
-	if (HasAdminMessage()) {
-		// Pop front message from queue
-		// TODO: Log message confirmation back to server?
-		AdminMessageQueue.Remove(0, 1);
-
-		// Update current message
-		UpdateAdminMessage();
+	if (AdminMessage == None) {
+		AdminMessage = new AdminMessageClass;
+    	AdminMessage.Init();
 	}
+
+	AdminMessage.PushAdminMessage(sMessage);
 }
 
 /**
@@ -2623,6 +2660,7 @@ function DisplayOptions(array<MenuOption> Options)
 
     local int i, ii;
     local GFxObject key, line;
+    local bool bShowMenu;
 
 
 	if(RxPC == None) 
@@ -2666,6 +2704,7 @@ function DisplayOptions(array<MenuOption> Options)
 		ii = Options.Find('Position', i); // Find the next position
 			if(ii == -1) continue; // If the position doesn't exist, go to the next.
 
+		bShowMenu = true;
 		if(Left(Options[ii].Key, 3) == "-X-") {
 
 			Options[ii].Key = Mid(Options[ii].Key, 3); // Remove -X-
@@ -2677,8 +2716,11 @@ function DisplayOptions(array<MenuOption> Options)
 
 		Keys[i].SetText(Options[ii].Key$":");
 	
-		SideMenuVis(true); // Display the actual menu.
+		
 	} 
+
+	if(bShowMenu)
+		SideMenuVis(true); // Display the actual menu.
 }
 
 function SideMenuVis(bool type)
@@ -3027,7 +3069,7 @@ function AddGameEventMessage(string text)
 	}
 
 	mrow.MC.GotoAndPlay("show");
-	mrow.MC.GetObject("message").GotoAndStopI(1);
+	mrow.MC.GetObject("message").GotoAndStopI(5);
 	mrow.TF = mrow.MC.GetObject("message").GetObject("textField");
 	mrow.TF.SetString("htmlText", text);
 	mrow.Y = 0;
@@ -3191,46 +3233,54 @@ function string ParseDamageType( class<DamageType> Dmg, optional PlayerReplicati
 function updateVeterancy()
 {
 	local int VetProgress;
+	local string VetName;
 
 	if(GetPC().IsSpectating() && Pawn(GetPC().ViewTarget) != None)
 		RxPRI = Rx_PRI(Pawn(GetPC().ViewTarget).PlayerReplicationInfo); 	
 
 	if (RxPRI != None)
 	{
+
+
 		//set veterancy title and progress
 		switch (RxPRI.VRank)
 		{
 			case 0:
-				setVetText("RECRUIT");
+				setVetText("RECRUIT \n"$int(RxPRI.Veterancy_Points - RxPRI.default.Veterancy_Points)@"/"@int(class'Rx_Game'.default.VPMilestones[0] - RxPRI.default.Veterancy_Points));
+				VetName = "RECRUIT";
 				VetProgress = (RxPRI.Veterancy_Points - RxPRI.default.Veterancy_Points) * 100 / (class'Rx_Game'.default.VPMilestones[0] - RxPRI.default.Veterancy_Points);
 				break;
 			case 1:
-				setVetText("VETERAN");
+				setVetText("VETERAN \n"$int(RxPRI.Veterancy_Points - class'Rx_Game'.default.VPMilestones[0])@"/"@(class'Rx_Game'.default.VPMilestones[1] - class'Rx_Game'.default.VPMilestones[0]));
+				VetName = "VETERAN";
 				VetProgress = (RxPRI.Veterancy_Points - class'Rx_Game'.default.VPMilestones[0]) * 100 / (class'Rx_Game'.default.VPMilestones[1] - class'Rx_Game'.default.VPMilestones[0]);
 				break;
 			case 2:
-				setVetText("ELITE");
+				setVetText("ELITE \n"$int(RxPRI.Veterancy_Points - class'Rx_Game'.default.VPMilestones[1])@"/"@(class'Rx_Game'.default.VPMilestones[2] - class'Rx_Game'.default.VPMilestones[1]));
+				VetName = "ELITE";
 				VetProgress = (RxPRI.Veterancy_Points - class'Rx_Game'.default.VPMilestones[1]) * 100 / (class'Rx_Game'.default.VPMilestones[2] - class'Rx_Game'.default.VPMilestones[1]);
 				break;
 			case 3:
-				setVetText("HEROIC");
+				setVetText("HEROIC \nMAX");
+				VetName = "HEROIC";
 				VetProgress = 100;	
 				break;
 			default:
 				setVetText("KANE!");
+				VetName = "KANE!";
 				VetProgress = 100;	
 				break;
 		}
 
 		//set veterancy icon
-		if (RxPRI.VRank == VRank+1)
+		if (RxPRI.VRank != VRank)
 		{
 			VeterancyIconCurrent.GotoAndStopI(VRank+1);
 			VeterancyIconNext.GotoAndStopI(RxPRI.VRank+1);
 			VeterancyIcon.GotoAndPlayI(2);
-			GetVariableObject("_root.centerTextRoot.centerText.textField").setText("Promoted to "$GetVariableObject("_root.HealthBlock.vet.vet_tf").getText());
+			GetVariableObject("_root.centerTextRoot.centerText.textField").setText("Promoted to "$VetName);
 			GetVariableObject("_root.centerTextRoot").GotoAndPlayI(2);
-			VRank++;
+			VRank = RxPRI.VRank;
 
 			UpdateVeterancyGFx(false);
 			//play sound
@@ -3529,7 +3579,7 @@ function showVote(String content, int yes, int no, int yesNeeded, int timeLeft)
 		VoteTitleText = VoteTextContainerMC.GetObject("VoteTitleText");
 		VoteChoiceText = VoteTextContainerMC.GetObject("VoteChoiceText");
 		
-		VoteTitle = "<font color='#00FF00'>"$"VOTE INITIATED"$"</font>"$" : " $caps(content)$ "["$"<font color='#00FF00'>"$String(yes)$"/"$String(yesNeeded)$"</font>"$"] | ["$"<font color='#FF0000'>"$String(no)$"</font>"$"]";	
+		VoteTitle = caps(content)$ "\n || YES - ["$String(yes)$"/"$String(yesNeeded)$"] | NO - ["$String(no)$"] ||";	
 		VoteTitleText.SetString("htmlText",VoteTitle);
 		VoteChoice = "<font color='#00FF00'>"$"["$VoteYesBind$"]: YES"$"</font>"$" "$"<font color='#FF0000'>"$"["$VoteNoBind$"]: NO"$"</font> | "$String(timeLeft)$" seconds left";
 		VoteChoiceText.SetString("htmlText",VoteChoice);
@@ -3559,7 +3609,7 @@ function showVote(String content, int yes, int no, int yesNeeded, int timeLeft)
 		LastYesNeededVote = yesNeeded;
 		LastVoteSecondsLeft = timeLeft;
 
-		VoteTitle = "<font color='#00FF00'>"$"VOTE INITIATED"$"</font>"$" : " $caps(content)$ "["$"<font color='#00FF00'>"$String(yes)$"/"$String(yesNeeded)$"</font>"$"] | ["$"<font color='#FF0000'>"$String(no)$"</font>"$"]";	
+		VoteTitle = caps(content)$ "\n || YES - ["$String(yes)$"/"$String(yesNeeded)$"] | NO - ["$String(no)$"] ||";	
 		VoteTitleText.SetString("htmlText",VoteTitle);
 		VoteChoice = "<font color='#00FF00'>["$VoteYesBind$"]: YES</font> <font color='#FF0000'>["$VoteNoBind$"]: NO</font> | "$String(timeLeft)$" seconds left";
 		VoteChoiceText.SetString("htmlText",VoteChoice);
@@ -3567,6 +3617,7 @@ function showVote(String content, int yes, int no, int yesNeeded, int timeLeft)
 		VoteChoiceText.SetPosition(0,30 * VoteTitleText.GetInt("numLines"));
 	}
 }
+
 //remove child object (nBab)
 function removeChild(GFxObject childObject)
 {
@@ -3599,7 +3650,7 @@ function bool FilterButtonInput(int ControllerId, name ButtonName, EInputEvent I
 {
 	if (HasAdminMessage()) {
 		if (ButtonName == 'Enter' && InputEvent == IE_Released) {
-			PopAdminMessage();
+			AdminMessage.PopAdminMessage();
 		}
 
 		// Trap user input when displaying an admin message
@@ -3634,5 +3685,5 @@ DefaultProperties
 
 	LastWeaponTips = "WEAPON TIPS"
 	LastSecWeaponTips = "WEAPON TIPS"
-
+	AdminMessageClass = class'Rx_GFxAdminMessageMovie'
 }

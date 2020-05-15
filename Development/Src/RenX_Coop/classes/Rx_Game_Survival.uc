@@ -8,10 +8,14 @@ var int WaveNumber;
 var config float TimeBeforeCountdown;
 var config float WaveGraceTime;
 var config int MaximumEnemy;
+var config bool bHardcoreMode;
+var config float HardcoreDamageTakenMult;
 var Rx_MapInfo_Survival SurvivalInfo;
 
 var int WaveCountdown;
 var Array<Rx_SurvivalSpawner> Spawners;
+
+var Array<Controller> KilledPlayerList;
 
 /*REWARD MECHANIC */
 var config float BaseWaveCreditsReward;
@@ -89,7 +93,7 @@ function CheckBuildingsDestroyed(Actor destroyedBuilding, Rx_Controller StarPC)
 
 	if (Role == ROLE_Authority && destroyedBuilding.GetTeamNum() == GetPlayerTeam())
 	{
-		CurrentBuildingVPModifier +=0.5;
+		CurrentBuildingVPModifier[GetPlayerTeam()] +=0.5;
 
 		if(Rx_Building(destroyedBuilding).bSignificant)
 		{
@@ -134,6 +138,9 @@ function ReduceDamage(out int Damage, pawn injured, Controller instigatedBy, vec
 
 	if(Rx_Bot_Survival(instigatedBy) != None)
 		Damage = Damage * Rx_Bot_Survival(instigatedBy).DamageDealtModifier;
+
+	if(bHardcoreMode && injured.Controller != None && injured.Controller.bIsPlayer && HardcoreDamageTakenMult > 0)
+		Damage *= HardcoreDamageTakenMult;
 
 	TempDifficulty = WorldInfo.Game.GameDifficulty;
 	WorldInfo.Game.GameDifficulty = 5.0;
@@ -292,6 +299,7 @@ function WaveCount()
 			ClearTimer('WaveCount');
 			SetTimer(1.0, true, 'BatchSpawn');
 			bIsWaveActive = true;
+			ActivateWaveSeqEvent(true);
 		}
 	}
 }
@@ -506,6 +514,8 @@ function bool CanSpawnHere(class<Pawn> PawnClass, Rx_SurvivalSpawner CurrentSpaw
 
 function NotifyEnemyDeath(Rx_Bot_Survival B)
 {
+	local Controller C;
+
 	CurrentEnemies.RemoveItem(B);
 	RemainingEnemy--;
 
@@ -524,6 +534,8 @@ function NotifyEnemyDeath(Rx_Bot_Survival B)
 			{
 				if(!bIsWaveActive)
 					return;
+
+				ActivateWaveSeqEvent(false);
 
 				WaveNumber++;
 
@@ -555,6 +567,15 @@ function NotifyEnemyDeath(Rx_Bot_Survival B)
 				Rx_GRI_Survival(WorldInfo.GRI).bNearWaveEnd = false;
 				bIsWaveActive = false;
 				ClearTimer('CleanUpBots');
+				if(KilledPlayerList.Length > 0)
+				{
+					foreach KilledPlayerList(C)
+					{
+						RestartPlayer(C);
+					}
+
+					KilledPlayerList.Length = 0;
+				}
 			}
 
 			else 
@@ -571,6 +592,17 @@ function NotifyEnemyDeath(Rx_Bot_Survival B)
 			}
 		}
 	}
+}
+
+function RestartPlayer(Controller NewPlayer)
+{
+	if(bHardcoreMode && bIsWaveActive && Rx_PRI_Survival(NewPlayer.PlayerReplicationInfo) != None && Rx_PRI_Survival(NewPlayer.PlayerReplicationInfo).bOverrun)
+		return;
+
+	super.RestartPlayer(NewPlayer);
+
+	if(Rx_PRI_Survival(NewPlayer.PlayerReplicationInfo) != None)
+		Rx_PRI_Survival(NewPlayer.PlayerReplicationInfo).bOverrun = false;
 }
 
 function CleanUpBots()
@@ -592,9 +624,50 @@ function CleanUpBots()
 	}
 }
 
+function ActivateWaveSeqEvent(bool bStarted) // if not started, then it's finished
+{
+	local Sequence GameSeq;
+	local array<SequenceObject> AllSeqEvents;
+	local array<int> ActivateIndices;
+	local int i;
+	local Rx_SeqEvent_WaveEvent WE;
+	local SeqVar_Int IntVar;
+
+	// reset Kismet and activate any Level Reset events
+	GameSeq = WorldInfo.GetGameSequence();
+	if (GameSeq != None)
+	{
+		// reset the game sequence
+		GameSeq.Reset();
+
+		// find any Level Loaded events that exist
+		GameSeq.FindSeqObjectsByClass(class'Rx_SeqEvent_WaveEvent', true, AllSeqEvents);
+
+		// activate them
+		if(bStarted)
+			ActivateIndices[0] = 2;
+		else
+			ActivateIndices[1] = 2;
+
+		for (i = 0; i < AllSeqEvents.Length; i++)
+		{
+			WE = Rx_SeqEvent_WaveEvent(AllSeqEvents[i]);
+
+			if(WE != None && WE.CheckActivate(WorldInfo, None, false, ActivateIndices))
+			{
+				foreach WE.LinkedVariables(class'SeqVar_Int', IntVar, "WaveNumber")
+				{
+						IntVar.IntValue = WaveNumber;
+				}
+			}
+		}
+	}
+}
+
+
 function EndRxGame(string Reason, byte WinningTeamNum )
 {
-	local PlayerReplicationInfo PRI;
+//	local PlayerReplicationInfo PRI;
 	local Rx_Controller c;
 	local int GDICount, NodCount;
 
@@ -663,22 +736,25 @@ function EndRxGame(string Reason, byte WinningTeamNum )
 		if (StatAPI != None)
 		{
 			ForEach class'WorldInfo'.static.GetWorldInfo().AllControllers(class'Rx_Controller', c)
-			if (c.GetTeamNum() == 0)
-				GDICount++;
-			else if (c.GetTeamNum() == 1)
-				NodCount++;
+			{
+				if (c.GetTeamNum() == 0)
+					GDICount++;
+				else if (c.GetTeamNum() == 1)
+					NodCount++;
+
+			}
 
 			StatAPI.GameEnd(string(Rx_TeamInfo(Teams[TEAM_GDI]).GetDisplayRenScore()), string(Rx_TeamInfo(Teams[TEAM_NOD]).GetDisplayRenScore()), string(GDICount), string(NodCount), int(WinningTeamNum), Reason);
 			ClearTimer('GameUpdate');
 		}
 		
 		// Store score
-		foreach WorldInfo.GRI.PRIArray(pri)
+/*		foreach WorldInfo.GRI.PRIArray(pri)
 			if (Rx_PRI(pri) != None)
 			{
 				Rx_PRI(pri).OldRenScore = CalcPlayerScoreThisMatch(Rx_PRI(pri));
 			}
-
+*/
 		//M.Palko endgame crash track log.
 		`log("------------------------------Triggering game ended kismet events");
 
@@ -851,6 +927,21 @@ function Killed( Controller Killer, Controller KilledPlayer, Pawn KilledPawn, cl
 	}
 
 	super.Killed(Killer,KilledPlayer,KilledPawn,damageType);
+
+	if(bHardcoreMode && KilledPlayer != None && KilledPlayer.GetTeamNum() == GetPlayerTeam() && Rx_Pawn(KilledPawn) != None && Rx_Pawn_Scripted(KilledPawn) == None)
+	{
+		if(PlayerController(KilledPlayer) != None)
+			KilledPlayer.GoToState('Spectating');
+
+		KilledPlayerList.AddItem(KilledPlayer);
+		if(Rx_PRI_Survival(KilledPlayer.PlayerReplicationInfo) != None)
+			Rx_PRI_Survival(KilledPlayer.PlayerReplicationInfo).bOverrun = true;
+
+		if(Rx_Controller(KilledPlayer) != None)
+			Rx_Controller(KilledPlayer).CTextMessage("YOU'RE DEAD! You'll respawn at the end of the wave...",'Red',180,,false,true);
+		CTextBroadcast(255,KilledPlayer.PlayerReplicationInfo.PlayerName@"is overrun!",'Red',120);
+	}
+
 }
 
 function Tick(float DeltaTime)
@@ -1126,11 +1217,13 @@ function FrustrationCoolOff();
 DefaultProperties
 {
 	PurchaseSystemClass        = class'Rx_PurchaseSystem_Survival'
+	VehicleManagerClass        = class'Rx_VehicleManager_Survival'
 	TeamAIType(0)              = class'Rx_TeamAI_Survival'
 	TeamAIType(1)              = class'Rx_TeamAI_Survival'
 
 	HudClass                   = class'Rx_HUD_Survival'
 
 	GameReplicationInfoClass   = class'Rx_GRI_Survival'
+	PlayerReplicationInfoClass = class'Rx_PRI_Survival'
 
 }

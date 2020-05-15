@@ -93,8 +93,8 @@ struct MapImageFile
 
 function OnViewLoaded(Rx_GFXFrontEnd FrontEnd)
 {
-	MainFrontEnd = FrontEnd;
-	
+	MainFrontEnd = FrontEnd;	
+
 	rxGame = Rx_Game(class'WorldInfo'.static.GetWorldInfo().Game);
 	rxGame.NotifyPingFinished = OnPingFinished;
 	rxGame.NotifyServerListUpdate = OnNotifyFromServer;
@@ -103,6 +103,7 @@ function OnViewLoaded(Rx_GFXFrontEnd FrontEnd)
 	
 	ActionScriptVoid("validateNow");
 	refreshServers();
+
 }
 
 function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widget)
@@ -736,8 +737,7 @@ function RefreshServers()
 	`Logd(`Location@"Clearing server list variables",,'DevNet');
 
 	rxGame.ListServers.Length = 0;
-	rxGame.PingIpList = "";
-	rxgame.VersionCheck.StartPingAll(""); //clears ping dll(versioncheck.dll) variables
+	`RxEngineObject.DllCore.clear_pings();
 	//rxGame.ServerListRawData = "";
 
 	if (ServerList != none) {
@@ -877,20 +877,12 @@ function OnMultiplayerServerActionBarItemClick(GFxClikWidget.EventData ev)
     }
 }
 
-function OnPingFinished(int SrvIndex)
+function OnPingFinished()
 {
 
  	//bRefreshing = true;
 
 	`Entry(,'DevNet');
-
-	/*
-	if (SrvIndex >= rxGame.ListServers.Length - 1) {
-		MainFrontEnd.CloseProgressDialog();
-	} else {
-		ShowProgressDialog (float(SrvIndex), float(rxGame.ListServers.Length));
-	}
-	*/	
 
 	SetUpDataProvider(ServerList);
 	ServerList.ActionScriptVoid("validateNow");

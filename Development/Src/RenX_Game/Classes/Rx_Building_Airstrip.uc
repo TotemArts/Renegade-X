@@ -114,5 +114,7 @@ defaultproperties
 		Translation = (Z=0)
 	End Object
 
+	VehicleSpawnSocket = Veh_DropOff
+
 	SpawnsC130 = true
 }

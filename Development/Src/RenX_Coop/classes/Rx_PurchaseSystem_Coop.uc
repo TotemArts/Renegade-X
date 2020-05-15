@@ -2,6 +2,13 @@ class Rx_PurchaseSystem_Coop extends Rx_PurchaseSystem;
 
 var array<Rx_VehicleSpawnerManager> VehicleSpawnerManagers;
 
+simulated function PostBeginPlay()
+{
+	super.PostBeginPlay();
+
+	GetVehicleSpawners();
+}
+
 simulated function bool GetVehicleSpawners()
 {
 	local Rx_VehicleSpawnerManager VSM;
@@ -214,3 +221,7 @@ simulated function bool DoesClassExist( byte TeamID, int ClassNumber)
 		return ClassNumber <= NodInfantryClasses.Length - 1;
 }
 
+simulated function bool AirdropAvailable(PlayerreplicationInfo pri)
+{
+	return false;
+}

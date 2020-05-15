@@ -201,7 +201,7 @@ function AdjustLockTarget(actor NewLockTarget)
 simulated function bool CanLockOnTo(Actor TA)
 {
 	if ( (TA == None) || !TA.bProjTarget || TA.bDeleteMe || (Pawn(TA) == None) || (TA == Instigator) || (Pawn(TA).Health <= 0) 
-			|| TA.IsInState('Stealthed') || TA.IsInState('BeenShot') || Rx_Pawn(TA) != none ) //|| Rx_SupportVehicle(TA) != none ) //Because the dropoff Chinook is a mess. 
+			|| TA.IsInState('Stealthed') || TA.IsInState('BeenShot') || Rx_Pawn(TA) != none || Rx_Sentinel(TA) != None || Rx_Sentinel_Obelisk_Laser_Base(TA) != None) //|| Rx_SupportVehicle(TA) != none ) //Because the dropoff Chinook is a mess. 
 	{
 		return false;
 	}
@@ -412,9 +412,32 @@ simulated function Projectile ProjectileFire()
 	SpawnedProjectile = super.ProjectileFire();
     if (bLockedOnTarget && Rx_Projectile_Rocket(SpawnedProjectile) != None)
     {
-       Rx_Projectile_Rocket(SpawnedProjectile).SeekTarget = LockedTarget;
+       Rx_Projectile_Rocket(SpawnedProjectile).FinalSeekTarget = LockedTarget;
        Rx_Projectile_Rocket(SpawnedProjectile).GotoState('Homing');
     }  
+
+	return SpawnedProjectile;
+}
+
+simulated function Projectile ProjectileFireOld()
+{
+	local Projectile SpawnedProjectile;
+
+	SpawnedProjectile = super.ProjectileFireOld();
+    
+	
+	if (bLockedOnTarget && Rx_Projectile_Rocket(SpawnedProjectile) != None)
+    {
+		if(Rx_Projectile_Rocket(SpawnedProjectile).RocketStages.Length > 0 &&  Rx_Projectile_Rocket(SpawnedProjectile).RocketStages[0].bIgnoreHoming )
+		{
+			Rx_Projectile_Rocket(SpawnedProjectile).FinalSeekTarget = LockedTarget;
+		}
+		else
+			Rx_Projectile_Rocket(SpawnedProjectile).SeekTarget = LockedTarget;
+	   //Rx_Projectile_Rocket(SpawnedProjectile).Target = LockedTarget.GetTargetLocation();
+       Rx_Projectile_Rocket(SpawnedProjectile).GotoState('Homing');
+    }
+	
 
 	return SpawnedProjectile;
 }

@@ -1,5 +1,5 @@
 class Rx_AlienAbductionBeam extends Actor
-	placeable;
+notplaceable;
 
 var SpotLightComponent BLight;
 var StaticMeshComponent Mesh;

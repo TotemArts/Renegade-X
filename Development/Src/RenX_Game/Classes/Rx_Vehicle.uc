@@ -235,6 +235,9 @@ replication
 	if (bNetDirty && Role == ROLE_Authority && Seats.Length >= 5)
 		Passenger4PRI;
 
+	if (bNetDirty && Role == ROLE_Authority && Seats.Length >= 6)
+		Passenger5PRI;
+
 	if (bNetDirty)
         DevFlagTexture;
 }
@@ -389,8 +392,7 @@ simulated event ReplicatedEvent(name VarName)
 			UDKVehicleSimChopper(SimObj).MaxYawRate = bSprintingServer ? UDKVehicleSimChopper(SimObj).Default.MaxYawRate * Rx_Vehicle_Air(self).MaxYawRate : UDKVehicleSimChopper(SimObj).Default.MaxYawRate;
 			UDKVehicleSimChopper(SimObj).RollTorqueStrafeFactor = bSprintingServer ? UDKVehicleSimChopper(SimObj).Default.RollTorqueStrafeFactor * Rx_Vehicle_Air(self).RollTorqueStrafeFactor : UDKVehicleSimChopper(SimObj).Default.RollTorqueStrafeFactor;
 			UDKVehicleSimChopper(SimObj).PitchTorqueFactor = bSprintingServer ? UDKVehicleSimChopper(SimObj).Default.PitchTorqueFactor * Rx_Vehicle_Air(self).PitchTorqueFactor : UDKVehicleSimChopper(SimObj).Default.PitchTorqueFactor;	
-		} 
-		 			
+		}  			
 	}
 	else if(VarName == 'MinSprintSpeedMultiplier')
 	{
@@ -503,6 +505,8 @@ simulated function PlayerReplicationInfo GetSeatPRI(int SeatNum)
 			return Passenger3PRI;
 		case 4:
 			return Passenger4PRI;
+		case 5:
+			return Passenger5PRI;		
 		}
 	}
 }
@@ -516,8 +520,7 @@ function SetSeatStoragePawn(int SeatIndex, Pawn PawnToSit)
 	switch(SeatIndex)
 	{
 	case 2:
-		 Passenger2PRI = (PawnToSit == None) ? None : Seats[SeatIndex].SeatPawn.PlayerReplicationInfo;
-		
+		 Passenger2PRI = (PawnToSit == None) ? None : Seats[SeatIndex].SeatPawn.PlayerReplicationInfo;	
 	case 3:
 		Passenger3PRI = (PawnToSit == None) ? None : Seats[SeatIndex].SeatPawn.PlayerReplicationInfo;
 	case 4:
@@ -1069,14 +1072,16 @@ simulated event PostInitAnimTree(SkeletalMeshComponent SkelComp)
  */
 event SetTeamNum(byte toTeam)
 {
-	local byte from;
+//	local byte from;
+
 	if ( toTeam != Team )
 	{
-		from = Team;
+//		from = Team;
 		Team = toTeam;
-		NotifyCaptuePointsOfTeamChange(from, toTeam);
 		TeamChanged();
 	}
+
+	NotifyCaptuePointsOfTeamChange();
 }
 
 simulated function TeamChanged()
@@ -1085,12 +1090,21 @@ simulated function TeamChanged()
 		Rx_GRI(WorldInfo.GRI).VehChangedTeam(self);
 }
 
-function NotifyCaptuePointsOfTeamChange(byte from, byte to)
+function NotifyCaptuePointsOfTeamChange()
 {
 	local Rx_CapturePoint CP;
+	local Rx_Volume_CaptureArea VCA;
 
 	foreach TouchingActors(class'Rx_CapturePoint', CP)
-		CP.NotifyVehicleTeamChange(self,from,to);
+		CP.NotifyVehicleTeamChange(self);
+
+	foreach TouchingActors(class'Rx_Volume_CaptureArea', VCA)
+	{
+		CP = VCA.CapturePoint;
+			
+		if(CP != None)
+			CP.NotifyVehicleTeamChange(self);
+	}
 }
 
 /**
@@ -1287,6 +1301,9 @@ function bool ChangeSeat(Controller ControllerToMove, int RequestedSeat)
 		{
 			PlayerController(ControllerToMove).ClientPlaySound(VehicleLockedSound);
 			PlayerController(ControllerToMove).ReceiveLocalizedMessage(class'Rx_Message_Vehicle',VM_NoEntry_DriverLocked,BoundPRI);
+
+			if(PlayerController(BoundPRI.Owner) != None)
+				PlayerController(BoundPRI.Owner).ReceiveLocalizedMessage(class'Rx_Message_Vehicle',VM_TeammateEntered_Locked,,ControllerToMove.PlayerReplicationInfo,Class);
 		}
 		return false;
 	}
@@ -1389,6 +1406,10 @@ function InitializeSeats()
 
 function bool PassengerEnter(Pawn P, int SeatIndex)
 {
+	local int FromTeam;
+
+	FromTeam = GetTeamNum();
+
 	// Restrict someone not on the same team
 	if ( WorldInfo.Game.bTeamGame && GetTeamNum() != 255 && !WorldInfo.GRI.OnSameTeam(P,self) )
 	{
@@ -1411,8 +1432,10 @@ function bool PassengerEnter(Pawn P, int SeatIndex)
 	SetSeatStoragePawn(SeatIndex,P);
 
 	bHasBeenDriven = true;
-	if (GetTeamNum() == 255)
+	if (FromTeam > 1 || FromTeam < 0)
+	{
 		SetTeamNum(P.GetTeamNum());
+	}
 	return true;
 }
 
@@ -1489,9 +1512,11 @@ simulated function bool EMPHit(Controller InstigatedByController, Actor EMPCausi
 	bEMPd = true;
 	
 	//This is done through replication in a client server environment
-	if(WorldInfo.NetMode == NM_StandAlone) StartEMPEffects();
+	if(WorldInfo.NetMode == NM_StandAlone) 
+		StartEMPEffects();
 	
-	if(bSprinting) StopSprinting(); 
+	if(bSprinting) 
+		StopSprinting(); 
 	
 	
 	
@@ -1534,7 +1559,7 @@ simulated function bool EMPHit(Controller InstigatedByController, Actor EMPCausi
 	SetTimer(1.0, true, 'EMPBleed');
 	
 	if(Rx_Controller(EMPInstigator) != none && EMPInstigator.GetTeamNum() != LastTeamToUse ) {
-		Rx_Controller(EMPInstigator).DisseminateVPString("[Vehicle EMP'd]&" $ class'Rx_VeterancyModifiers'.default.Ev_VehicleEMP $ "&"); 
+		Rx_Controller(EMPInstigator).DisseminateVPString("[" $ GetHumanReadableName() @ "EMP'd]&" $ class'Rx_VeterancyModifiers'.default.Ev_VehicleEMP $ "&"); 
 	}
 	
 	if(Rx_PRI(EMPInstigator.PlayerReplicationInfo) != none && EMPInstigator.GetTeamNum() != LastTeamToUse){
@@ -1653,10 +1678,10 @@ function bool Died(Controller Killer, class<DamageType> DamageType, vector HitLo
 						TempAssistPoints = fmin(default.VPReward[VRank], fmax(1,default.VPReward[VRank]*( (1.0*PRII.DamageDone)/(HealthMax*1.0))))  ;//Damage_Taken)); // at least 2 points
 						TempAssistPoints=fmax(1.0,TempAssistPoints+BuildAssistVPString(C));
 						if(Rx_Controller(C) != none ) 
-							Rx_Controller(C).DisseminateVPString("[Vehicle Kill Assist]&" $ TempAssistPoints $ "&"); 
+							Rx_Controller(C).DisseminateVPString("[" $ GetHumanReadableName() @ "Kill Assist]&" $ TempAssistPoints $ "&"); 
 						else
 						if(Rx_Bot(C) != none ) 
-							Rx_Bot(C).DisseminateVPString("[Vehicle Kill Assist]&" $ TempAssistPoints $ "&"); 
+							Rx_Bot(C).DisseminateVPString("[" $ GetHumanReadableName() @ "Kill Assist]&" $ TempAssistPoints $ "&"); 
 					}
 				}
 			}
@@ -1674,9 +1699,9 @@ function bool Died(Controller Killer, class<DamageType> DamageType, vector HitLo
 						C=Controller(RPRII.PPRI.Owner); 
 						//`log(RPRII.PPRI.Owner @ EventInstigator @ RPRII.DamageDone); 
 						TempAssistPoints=class'Rx_VeterancyModifiers'.default.Ev_VehicleRepairAssist;
-						if(Rx_Controller(C) != none ) Rx_Controller(C).DisseminateVPString("[Vehicle Kill Repair Assist]&" $ TempAssistPoints $ "&"); 
+						if(Rx_Controller(C) != none ) Rx_Controller(C).DisseminateVPString("[" $ GetHumanReadableName() @ "Kill Repair Assist]&" $ TempAssistPoints $ "&"); 
 						else
-						if(Rx_Bot(C) != none ) Rx_Bot(C).DisseminateVPString("[Vehicle Kill Repair Assist]&" $ TempAssistPoints $ "&"); 
+						if(Rx_Bot(C) != none ) Rx_Bot(C).DisseminateVPString("[" $ GetHumanReadableName() @ "Kill Repair Assist]&" $ TempAssistPoints $ "&"); 
 					}
 				}
 			}
@@ -1758,8 +1783,18 @@ function bool Died(Controller Killer, class<DamageType> DamageType, vector HitLo
 function NotifyCaptuePointsOfDied(byte WasTeam)
 {
 	local Rx_CapturePoint CP;
+	local Rx_Volume_CaptureArea VCA;
+
 	foreach TouchingActors(class'Rx_CapturePoint', CP)
 		CP.NotifyVehicleDied(self, WasTeam);
+
+	foreach TouchingActors(class'Rx_Volume_CaptureArea', VCA)
+	{
+		CP = VCA.CapturePoint;
+			
+		if(CP != None)
+			CP.NotifyVehicleDied(self, WasTeam);
+	}
 }
 
 function bool RecommendLongRangedAttack()
@@ -1867,6 +1902,7 @@ simulated function bool CanEnterVehicle(Pawn P)
 	local bool bSeatAvailable, bIsHuman;
 	local PlayerReplicationInfo SeatPRI;
 	local Rx_Bot_Scripted SB;
+	local bool bPilotEmptyButLocked;
 
 	if (Rx_Pawn(P) != None && !Rx_Pawn(P).CanEnterVehicles)
 		return false;
@@ -1902,9 +1938,14 @@ simulated function bool CanEnterVehicle(Pawn P)
 	bSeatAvailable = false;
 	for (i=0;i<Seats.Length;i++)
 	{
-		if (i == 0 && bDriverLocked && BoundPRI != P.PlayerReplicationInfo && BoundPRI.GetTeamNum() == P.GetTeamNum())
-			continue;
 		SeatPRI = GetSeatPRI(i);
+
+		if (i == 0 && bDriverLocked && BoundPRI != P.PlayerReplicationInfo && BoundPRI.GetTeamNum() == P.GetTeamNum())
+		{
+			if(SeatPRI == None)
+				bPilotEmptyButLocked = true;
+			continue;
+		}
 		if (SeatPRI == None)
 		{
 			bSeatAvailable = true;
@@ -1918,6 +1959,9 @@ simulated function bool CanEnterVehicle(Pawn P)
 			bSeatAvailable = true;
 		}
 	}
+
+	if(bPilotEmptyButLocked && PlayerController(BoundPRI.Owner) != None)
+		PlayerController(BoundPRI.Owner).ReceiveLocalizedMessage(class'Rx_Message_Vehicle',VM_TeammateEntered_Locked,,P.PlayerReplicationInfo,Class);
 
 	return bSeatAvailable;
 }
@@ -2015,15 +2059,18 @@ function bool DriverEnter(Pawn P)
 	    CurrentHornSound = class'Rx_DevManager'.static.GetHornSound(SteamID, Rx_Controller(Controller).bIsDev, default.HornSounds[HornIndex]);
 
 		HornSounds[0] = CurrentHornSound;
-    	DevFlagTexture = class'Rx_DevManager'.static.GetFlagTexture(SteamID, Rx_Controller(P.Controller).bIsDev);
-	
-    	if (DevFlagTexture != None)
-    	{
-    	    UpdateDevFlag(DevFlagTexture);
-    	}
-    	else
-    	{
-    	    UpdateDevFlag(None);
+		if(Controller != None)
+		{
+	    	DevFlagTexture = class'Rx_DevManager'.static.GetFlagTexture(SteamID, Rx_Controller(Controller).bIsDev);
+		
+	    	if (DevFlagTexture != None)
+	    	{
+	    	    UpdateDevFlag(DevFlagTexture);
+	    	}
+	    	else
+	    	{
+	    	    UpdateDevFlag(None);
+    		}
     	}
 	}
 	
@@ -2124,7 +2171,8 @@ function bool DriverEnter(Pawn P)
 			Rx_Vehicle_MultiWeapon(Weapon).CurrentAmmoInClip[1] = Rx_Vehicle_MultiWeapon(Weapon).GetMaxAltAmmoInClip();
 		}
 	}
-	
+
+	NotifyCaptuePointsOfTeamChange(); //because DriverEnter no longer triggers SetTeamNum, we change it from here
 	return true;
 }
 
@@ -2153,23 +2201,29 @@ event bool DriverLeave(bool bForceLeave)
 
 simulated function UpdateDevFlag(Texture2D NewFlagTexture)
 {
-    if (NewFlagTexture == None)
+    if (NewFlagTexture == None || DevFlag == None)
     {
         DevFlag.SetHidden(true);
 
-        FlagAmbient.Stop();
+        if(FlagAmbient != None)
+        {
+        	FlagAmbient.Stop();
+        }
     }
 
     else
     {
-    	if (DevFlag.AttachedToSkelComponent == None) return;
+    	if (DevFlag.AttachedToSkelComponent == None || DevFlag == None) return;
 
         DevFlag.SetHidden(false);
 
         if (FlagMIC == None) FlagMIC = DevFlag.CreateAndSetMaterialInstanceConstant(0);
         FlagMIC.SetTextureParameterValue('FlagTexture', NewFlagTexture);
 
-        FlagAmbient.Play();
+        if(FlagAmbient != None)
+        {
+        	FlagAmbient.Play();
+    	}
     }
 }
 
@@ -2293,6 +2347,8 @@ simulated event TakeDamage(int Damage, Controller EventInstigator, vector HitLoc
 	if(Health <= 0)
 		return;
 
+	
+	//ScriptTrace();
 	//`log("took damage from" @ Damage @ EventInstigator@ DamageType); 
 
 	if((WorldInfo.Netmode == NM_DedicatedServer || WorldInfo.Netmode == NM_StandAlone) && AIController(EventInstigator) == None)
@@ -2747,7 +2803,7 @@ simulated function StartFire(byte FireModeNum)
  	{	 	
  	    foreach CollidingActors(class'Rx_Vehicle', veh, 3, location, true)
    		{
-			if(veh == self)
+			if(veh.GetTeamNum() == GetTeamNum())
 				continue;	
 			UTVehicleWeapon(weapon).ClearPendingFire(UTVehicleWeapon(weapon).CurrentFireMode);
 			return;
@@ -3475,18 +3531,23 @@ simulated function BlowupVehicle()
 
 simulated state DyingVehicle
 {
-	
-	
 	simulated function DoVehicleExplosion(bool bDoingSecondaryExplosion)
 	{
 		local rotator PerpendicularVelocity; 
 		
+		SetPhysics(PHYS_FALLING);
+		
 		super.DoVehicleExplosion(bDoingSecondaryExplosion);
+		
+		
+		
 			//Mesh.SetRBRotation(PerpendicularVelocity*500);
 			
 			//Mesh.AddTorque(9000*vector(PerpendicularVelocity));
 			//Let aircraft crash 
 			if(Rx_Vehicle_Air(self) != none || Rx_Vehicle_Air_Jet(self) != none){
+				
+				SetCollision(false,false);  //Remove collission so we don't crush everybody 
 				
 				PerpendicularVelocity.Pitch = Mesh.rotation.pitch+DestroyedRotatorAddend.pitch;
 				PerpendicularVelocity.Roll=Mesh.rotation.Roll+DestroyedRotatorAddend.Roll;
@@ -3496,7 +3557,10 @@ simulated state DyingVehicle
 				bStayUpright = bStayUprightOnDeath;
 				
 				if(!bDoingSecondaryExplosion)
+				{
 					return;
+				}
+					
 				else{
 					Mesh.SetHidden(true);
 					SetCollision(false,false); 
@@ -3699,7 +3763,7 @@ function string BuildDeathVPString(Controller Killer, class<DamageType> DamageTy
 	
 	bNeutral = true; 
 	
-	VPString = "[Vehicle Kill]&+" $ BaseVP $ "&" ; 
+	VPString = "["$ GetHumanReadableName() @"Kill]&+" $ BaseVP $ "&" ; 
 	
 	/**************************************************/
 	/*Look for neutral Modifiers (Pawns and Vehicles)*/
@@ -4068,7 +4132,7 @@ function static bool VerifyVPPrice(byte Iterator,int Cost)
 	
 }
 
-function HealerKillAssistBonus (int Amount) //For infantry... may just make it for everyone honestly
+function HealerKillAssistBonus (int Amount, string KilledNameFriendly) //For infantry... may just make it for everyone honestly
 {
 	local Repairer RPRII;
 	local Controller C; 
@@ -4080,9 +4144,9 @@ function HealerKillAssistBonus (int Amount) //For infantry... may just make it f
 				{
 				C=Controller(RPRII.PPRI.Owner); 
 				//`log(RPRII.PPRI.Owner @ EventInstigator @ RPRII.DamageDone); 
-				if(Rx_Controller(C) != none ) Rx_Controller(C).DisseminateVPString("[Infantry Kill Repair Assist]&" $ Amount $ "&"); 
+				if(Rx_Controller(C) != none ) Rx_Controller(C).DisseminateVPString("["$KilledNameFriendly$" Kill Repair Assist]&" $ Amount $ "&"); 
 				else
-				if(Rx_Bot(C) != none ) Rx_Bot(C).DisseminateVPString("[Infantry Kill Repair Assist]&" $ Amount $ "&"); 
+				if(Rx_Bot(C) != none ) Rx_Bot(C).DisseminateVPString("["$KilledNameFriendly$" Kill Repair Assist]&" $ Amount $ "&"); 
 				}
 			}
 		}
@@ -4599,7 +4663,9 @@ DefaultProperties
         //Rotation=(Yaw=49152)
         LightEnvironment = MyLightEnvironment
         HiddenGame=true
+        HiddenEditor=true
     End Object
+    Components.Add(SDevFlag)
     DevFlag=SDevFlag
 	
 	fpCameraTag = CamView1P

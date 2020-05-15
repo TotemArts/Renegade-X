@@ -40,7 +40,8 @@ simulated function NotifyTeamChanged()
 	local int i;
 
 	// set mesh to the one in the PRI, or default for this team if not found
-	SetCharacterClassFromInfo(NextClassCharInfo);
+	if(NextClassCharInfo != None)
+		SetCharacterClassFromInfo(NextClassCharInfo);
 
 	if (WorldInfo.NetMode != NM_DedicatedServer)
 	{

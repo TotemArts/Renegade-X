@@ -875,14 +875,7 @@ function bool CanAttack(Actor Other)
 	}
 
 	ret = super.CanAttack(Other);
-	
-	if(!ret)
-	{
-		if(Other == None)
-			FireAssessment = "No Target....";
-		else
-			FireAssessment = "CANNOT ATTACK - Weapon cannot attack"@Other;
-	}
+
 
 	return ret;
 }
@@ -1280,7 +1273,7 @@ function bool BombMCT() {
 			DoRangedAttackOn(MCT);
 
 			if(Skill > 4 && bCanTalk)			
-				BroadCastSpotMessage(15, "Planting &gt;&gt;C4&lt;&lt; inside "@CurrentBO.myBuilding.GetHumanReadableName()$"!");
+				BroadCastSpotMessage(15, 44, CurrentBO.myBuilding.GetHumanReadableName());
 			
 			return true;
 		}
@@ -1441,6 +1434,7 @@ event SeePlayer(Pawn Seen)
 	local bool inDetectionRange;
 	local bool inWalkingDetectionRange;
 	local bool inRunningDetectionRange;
+	local Rx_Building B;
 
 	distanceToPlayer = VSizeSq(pawn.location - Seen.location);
 	playerSpeed = VSizeSq(Seen.velocity);
@@ -1463,8 +1457,11 @@ event SeePlayer(Pawn Seen)
 
 	super.SeePlayer(Seen);
 
-	if(Seen.GetTeamNum() != GetTeamNum())
-		Rx_SquadAI(Squad).AlertSquad(Self, Seen);
+	if(Seen.GetTeamNum() != GetTeamNum() && ActorInBuilding(Seen,B))
+	{
+		if(B.GetTeamNum() == GetTeamNum())
+			Rx_SquadAI(Squad).AlertSquad(Self, Seen);
+	}
 }
 
 
@@ -1896,7 +1893,10 @@ function bool BotRandomBuyVehicle()
 	PurchaseSystem = Rx_Game(WorldInfo.Game).GetPurchaseSystem();
 
 	if(PurchaseSystem.AreVehiclesDisabled(GetTeamNum(), None))
+	{
+		PTTask = "";
 		return false;	
+	}
 	
 	if(GetTeamNum() == TEAM_GDI)
 		PickedVehicle = GetGdiVehicle();	
@@ -1953,13 +1953,21 @@ function bool CanBuyCurrentPTTask()
 	local class<Rx_FamilyInfo> PickedClass;
 	local int PickedVehicle;
 	local int VehicleCost;
+	local Rx_PurchaseSystem PurchaseSystem;
 
+	PurchaseSystem = Rx_Game(WorldInfo.Game).GetPurchaseSystem();
 
 	if(Left(PTTask, 11) == "Buy Vehicle")
 	{
 		PickedVehicle = -1;
 
 		ParseBuyVehicle(PTTask, PickedVehicle, VehicleCost);
+
+		if(!PurchaseSystem.AreVehiclesDisabled(GetTeamNum(), None))
+		{
+			PTTask = "";
+			return false;
+		}
 
 		if(PickedVehicle != -1 && VehicleCost <= GetCredits())
 			return true;
@@ -1971,8 +1979,15 @@ function bool CanBuyCurrentPTTask()
 	{
 		PickedClass = ParseBuyChar(PTTask);
 
-		if(PickedClass != None && PickedClass.static.Cost(Rx_PRI(PlayerReplicationInfo)) <= GetCredits())
-			return true;
+		if(PickedClass != None)
+		{
+			if (PurchaseSystem.IsHighTierClass(PickedClass) && PurchaseSystem.AreHighTierPayClassesDisabled(GetTeamNum()))
+			{
+				PTTask = "";
+				return false;
+			}
+			return PickedClass.static.Cost(Rx_PRI(PlayerReplicationInfo)) <= GetCredits();
+		}
 
 		return false;
 
@@ -3160,6 +3175,7 @@ function bool VehicleShouldAttackEnemyInRush()
 		return false;
 
 	if((CanAttack(Enemy) && Vehicle(Enemy) != None) 
+		|| (CanAttack(Enemy) && (CurrentBO == None || !CanAttack(CurrentBO.myBuilding)))
 		|| (CanAttack(Enemy) && VSizeSq(Enemy.Location-Pawn.Location) <= 62500) 
 		|| (Rx_Pawn(Enemy) != None && Rx_Weapon(Rx_Pawn(Enemy).Weapon) != None && Rx_Weapon(Rx_Pawn(Enemy).Weapon).bOkAgainstVehicles) 
 		|| (Rx_Pawn(Enemy) != None && Rx_Game(WorldInfo.Game).PurchaseSystem.DoesHaveRepairGun(Rx_Pri(Enemy.PlayerReplicationInfo).CharClassInfo)))
@@ -3371,9 +3387,9 @@ function BroadcastDeployableSpotMessage(Rx_Weapon_DeployedActor DA)
 		if(Rx_Weapon_DeployedBeacon(DA) != None)
 		{
 			if(DA.GetTeamNum() == GetTeamNum())
-				BroadCastSpotMessage(15, "Defend BEACON"@GetSpottargetLocationInfo(Rx_Weapon_DeployedBeacon(DA))@"!!!");
+				BroadCastSpotMessage(15, 32, GetSpottargetLocationInfo(Rx_Weapon_DeployedBeacon(DA))@"!!!");
 			else
-				BroadCastSpotMessage(-1, "I've located an ENEMY BEACON"@GetSpottargetLocationInfo(Rx_Weapon_DeployedBeacon(DA))@"!!!");	
+				BroadCastSpotMessage(-1, 45, GetSpottargetLocationInfo(Rx_Weapon_DeployedBeacon(DA))@"!!!");	
 		}
 		else if (Rx_Weapon_DeployedC4(DA) != None)
 		{	
@@ -3385,9 +3401,9 @@ function BroadcastDeployableSpotMessage(Rx_Weapon_DeployedActor DA)
 				if(BuildingName == "MCT")
 					BuildingName = "MCT"@GetSpottargetLocationInfo(Rx_Weapon_DeployedC4(DA));			
 				if(DA.GetTeamNum() == GetTeamNum())
-					BroadCastSpotMessage(15, "Defend &gt;&gt;C4&lt;&lt; at "@BuildingName@"!!!");
+					BroadCastSpotMessage(15, 34, BuildingName@"!!!");
 				else if (Rx_Building(Rx_Weapon_DeployedC4(DA).ImpactedActor).GetTeamNum() == GetTeamNum())
-					BroadCastSpotMessage(-1, "I've located an ENEMY &gt;&gt;C4&lt;&lt; at "@BuildingName@"!!!");
+					BroadCastSpotMessage(-1, 46, BuildingName);
 			}
 		}
 	}
@@ -3396,102 +3412,92 @@ function BroadcastDeployableSpotMessage(Rx_Weapon_DeployedActor DA)
 	{
 		if(Rx_Weapon_DeployedBeacon(DA) != None && DA.GetTeamNum() != GetTeamNum() && Skill > 5  && VSizeSq(Pawn.Location - DA.Location) > Square(800.0 * Skill))	// Skilled enough Bots can announce beacon from afar
 		{
-			BroadCastSpotMessage(25, "I'm detecting a BEACON near"@GetSpottargetLocationInfo(Self)@"!!!");
+			BroadCastSpotMessage(25, 47, GetSpottargetLocationInfo(Self));
 		}
 	}
 }
 
 function BroadcastBuildingSpotMessages(Rx_Building Building) 
 {
-	local String msg;
-	local int nr;
+	local String ContextString;
+	local int SoundIndex, TextIndex;
 	
 	if(!bCanTalk || (GetTeamNum() == Building.GetTeamNum() && Building.myObjective != None && Building.myObjective.bAlreadyReported))
 		return;
 
-	if(Building.GetTeamNum() == GetTeamNum()) 
-	{
-		
-		if(Building.GetMaxArmor() <= 0) 
-		{ /*We're not using armour*/
-		
-		if(Building.GetHealth() == Building.GetMaxHealth() || Rx_Building_Techbuilding(Building) != none) 
-		{ 
+	if(Building.GetTeamNum() == GetTeamNum()) {
+		if(Building.GetMaxArmor() <= 0) {
+			/*We're not using armour*/
+			if(Building.GetHealth() == Building.GetMaxHealth() || Rx_Building_Techbuilding(Building) != none) { 
+				TextIndex = 37;
+				ContextString = Building.GetHumanReadableName();
 			
-			msg = "Defend the "$Building.GetHumanReadableName()$"!";
-			
-			if(Rx_Building_Refinery(Building) != None)
-				nr = 28;
-			else if(Rx_Building_PowerPlant(Building) != None)
-				nr = 29;
-			else
-				nr = 27;
+				if (Rx_Building_Refinery(Building) != None)
+					SoundIndex = 28;
+				else if(Rx_Building_PowerPlant(Building) != None)
+					SoundIndex = 29;
+				else
+					SoundIndex = 27;
+			}
+			else if((Building.GetHealth() + Building.GetArmor()) > Building.GetMaxHealth()/3) {
+				ContextString = Building.GetHumanReadableName() @ "<font color='" $ ArmourColor $ "'>" $ FFloor(100 * Float(Building.GetHealth()) / Float(Building.GetMaxHealth())) $ "%</font>";
+				TextIndex = 38;
+				SoundIndex = 0;
+			} 
+			else {
+				ContextString = Building.GetHumanReadableName() @ "<font color='" $ ArmourColor $ "'>" $ FFloor(100 * Float(Building.GetHealth()) / Float(Building.GetMaxHealth())) $ "%</font>";
+				TextIndex = 39;
+				SoundIndex = 0;
+			}
 		}
-		else if((Building.GetHealth() + Building.GetArmor()) > Building.GetMaxHealth()/3) 
-		{
-			msg = "The"@Building.GetHumanReadableName()@ "<font color='"$ArmourColor$"'>"$Building.GetArmor()/24$"%</font>"@"needs repair!";
-			nr = 0;
-		} 
-		else 
-		{
-			msg = "The"@Building.GetHumanReadableName()@ "<font color='"$ArmourColor$"'>"$Building.GetArmor()/24$"%</font>"@"needs repair immediately!";	
-			nr = 0;
-			}
-		
-									}
-			else /*We are using armour*/
-			
-		 { 
-		
-		if((Building.GetArmor()) == Building.GetMaxArmor() || Rx_Building_Techbuilding(Building) != none) 
-		{ 
-			
-			if(Rx_Building_Techbuilding(Building) != none) 
-			{
-				msg = "Defend the "$Building.GetHumanReadableName()$"!";
-				BroadCastSpotMessage(0, msg);
-				return;
-			}
+		else { /*We are using armour*/
+			if((Building.GetArmor()) == Building.GetMaxArmor() || Rx_Building_Techbuilding(Building) != none) { 
+				if(Rx_Building_Techbuilding(Building) != none) {
+					BroadCastSpotMessage(0, 37, Building.GetHumanReadableName());
+					return;
+				}
 
-			msg = "Defend the"@Building.GetHumanReadableName()@"<font color='"$ArmourColor$"'>"$Building.GetArmor()/24$"%</font>"$"!";
+				ContextString = Building.GetHumanReadableName() @ "<font color='" $ ArmourColor $ "'>" $ Building.GetArmorPct() $ "%</font>";
+				TextIndex = 37;
 			
-			if(Rx_Building_Refinery(Building) != None)
-				nr = 28;
-			else if(Rx_Building_PowerPlant(Building) != None)
-				nr = 29;
-			else
-				nr = 27;
-		}
-		else if((Building.GetArmor()) > Building.GetMaxArmor()/4) 
-		{
-			msg = "The"@Building.GetHumanReadableName()@"<font color='"$ArmourColor$"'>"$Building.GetArmor()/24$"%</font>"@"needs repair!";
-			nr = 0;
-		} 
-		else 
-		{
-			msg = "The"@Building.GetHumanReadableName()@"<font color='"$ArmourColor$"'>"$Building.GetArmor()/24$"%</font>"@"needs repair immediately!";	
-			nr = 0;
+				if(Rx_Building_Refinery(Building) != None)
+					SoundIndex = 28;
+				else if(Rx_Building_PowerPlant(Building) != None)
+					SoundIndex = 29;
+				else
+					SoundIndex = 27;
 			}
-			
+			else if((Building.GetArmor()) > Building.GetMaxArmor()/4) {
+				ContextString = Building.GetHumanReadableName() @ "<font color='" $ ArmourColor $ "'>" $ Building.GetArmorPct() $ "%</font>";
+				TextIndex = 38;
+				SoundIndex = 0;
+			}
+			else {
+				ContextString = Building.GetHumanReadableName() @ "<font color='" $ ArmourColor $ "'>" $ Building.GetArmorPct() $ "%</font>";
+				TextIndex = 39;
+				SoundIndex = 0;
+			}
 		}
 	} 
-	else 
-	{ //Enemy building
-		if(Rx_Building_Techbuilding(Building) != none)
-		{
-			msg="Capture the"@Building.GetHumanReadableName()$"!";
-			nr=11;
+	else { //Enemy building
+		ContextString = Building.GetHumanReadableName();
+		if(Rx_Building_Techbuilding(Building) != none) {
+			TextIndex = 41;
+			SoundIndex = 11;
 		}
-		msg = "Attack the"@Building.GetHumanReadableName()$"!";
+		else {
+			TextIndex = 40;
+		}
+
 		if(Rx_Building_Refinery(Building) != None)
-			nr = 23;
+			SoundIndex = 23;
 		else if(Rx_Building_PowerPlant(Building) != None)
-			nr = 24;
+			SoundIndex = 24;
 		else
-			nr = 22;		
+			SoundIndex = 22;		
 	}
 
-	BroadCastSpotMessage(nr, msg);
+	BroadCastSpotMessage(SoundIndex, TextIndex, ContextString);
 }
 
 function DetermineEnemySpotBroadcast()
@@ -3582,7 +3588,7 @@ function BroadcastEnemySpotMessages()
 	
 	else if(Rx_Vehicle_Harvester(Enemy) != None)
 	{
-		BroadCastSpotMessage(21, RadioCommandsText[21]);
+		BroadCastSpotMessage(21, 21, "");
 		return;
 	}
 	
@@ -3590,11 +3596,11 @@ function BroadcastEnemySpotMessages()
 	{
 		SpottingMsg = Rx_Vehicle(Enemy).GetHumanReadableName();
 		if(Enemy.GetTeamNum() == TEAM_GDI)
-			SpottingMsg = "<font color ='" $GDIColor$ "'>"$SpottingMsg$"</font>";
+			SpottingMsg = "<font color ='" $ GDIColor $ "'>" $ SpottingMsg $ "</font>";
 		else
-			SpottingMsg = "<font color ='" $NodColor$ "'>"$SpottingMsg$"</font>";
+			SpottingMsg = "<font color ='" $ NodColor $ "'>" $ SpottingMsg $ "</font>";
 
-		BroadCastSpotMessage(11, "Attack that"@SpottingMsg);
+		BroadCastSpotMessage(11, 48, SpottingMsg);
 	}
 	else if(Rx_Vehicle(Enemy) != None)
 	{
@@ -3608,8 +3614,11 @@ function BroadcastEnemySpotMessages()
 	else 
 		return;
 
-
-	BroadCastSpotMessage(9, "An enemy"@SpottingMsg@"has been spotted"@LocationInfo);
+	// Append location to context
+	if (Len(LocationInfo) > 0) {
+		SpottingMsg @= "(" $ LocationInfo $ ")";
+	}
+	BroadCastSpotMessage(9, 49, SpottingMsg);
 }
 
 
@@ -3659,21 +3668,25 @@ function string GetSpottargetLocationInfo(Actor FirstSpotTarget, optional out in
 	return LocationInfo;
 }
 
-function BroadCastSpotMessage(int nr, String Text)
+function BroadCastSpotMessage(int SoundIndex, int TextIndex, String Context)
 {
 	local PlayerController PC;
-	local bool	bBroadcastSound; 
+	local bool	bBroadcastSound;
+	local string Text;
 
 	if(!bCanTalk)
 		return;
 
+	// Build text string
+	Text = TextIndex $ "|" $ Context;
+
 		
 	bBroadcastSound = true; 
 		
-	if(nr == 11) 
+	if(SoundIndex == 11) 
 		Rx_Pawn(Pawn).setUISymbol(2); //Take the point e.g for Tech Building.
 		
-	if(nr==9)
+	if(SoundIndex == 9)
 	{
 		bBroadcastSound = bCanPlayEnemySpotted; 
 		bCanPlayEnemySpotted = false;
@@ -3683,10 +3696,10 @@ function BroadCastSpotMessage(int nr, String Text)
 	{
 		if (PC.PlayerReplicationInfo.Team ==  PlayerReplicationInfo.Team)
 		{
-			if(nr > -1 && bBroadcastSound)  
-				PC.ClientPlaySound(RadioCommands[nr]);
+			if(SoundIndex > -1 && bBroadcastSound)  
+				PC.ClientPlaySound(RadioCommands[SoundIndex]);
 			
-			WorldInfo.Game.BroadcastHandler.BroadcastText(PlayerReplicationInfo, PC,Text, 'Radio');
+			WorldInfo.Game.BroadcastHandler.BroadcastText(PlayerReplicationInfo, PC, Text, 'Radio');
 		}
 	}
 	
@@ -3804,7 +3817,7 @@ function AcknowledgeOrder()
 
 function PlayAffirmative()
 {
-	BroadCastSpotMessage(6, "Affirmative,"@AckPlayer.GetHumanReadableName());
+	BroadCastSpotMessage(6, 6, AckPlayer.GetHumanReadableName());
 	AckPlayer = None;
 }
 
@@ -3818,7 +3831,7 @@ function RejectOrder()
 
 function PlayNegative()
 {
-	BroadCastSpotMessage(7, "Negative,"@AckPlayer.GetHumanReadableName());
+	BroadCastSpotMessage(7, 7, AckPlayer.GetHumanReadableName());
 	AckPlayer = None;
 }
 

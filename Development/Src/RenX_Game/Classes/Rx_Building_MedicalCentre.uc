@@ -3,7 +3,7 @@ placeable;
 
 simulated function String GetHumanReadableName()
 {
-	return "Medical Center";
+	return "Medical Centre";
 }
 
 defaultproperties

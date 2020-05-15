@@ -208,15 +208,15 @@ defaultproperties
         TurnTorqueMax=10000.0
         TurnDamping=1.2
         MaxYawRate=0.75
-        PitchTorqueFactor=450.0
-        PitchTorqueMax=300.0
-        PitchDamping=0.3
-        RollTorqueTurnFactor=2000.0
-        RollTorqueStrafeFactor=1000.0
-        RollTorqueMax=500.0
-        RollDamping=1.0
-        MaxRandForce=30.0
-        RandForceInterval=0.5
+        PitchTorqueFactor=50.0
+        PitchTorqueMax=20.0
+        PitchDamping=0.0
+        RollTorqueTurnFactor=700.0
+        RollTorqueStrafeFactor=200.0
+        RollTorqueMax=50.0
+        RollDamping=0.1
+        MaxRandForce=5.0
+        RandForceInterval=0.75
         StopThreshold=10
         bShouldCutThrustMaxOnImpact=true
     End Object
@@ -251,7 +251,7 @@ defaultproperties
     bStayUpright=true
     StayUprightRollResistAngle=5.0
     StayUprightPitchResistAngle=5.0
-    StayUprightStiffness=1200
+    StayUprightStiffness=200
     StayUprightDamping=20
 	
 	bIsConsoleTurning=False

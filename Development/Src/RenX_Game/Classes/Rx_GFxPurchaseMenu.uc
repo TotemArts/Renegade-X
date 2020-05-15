@@ -1330,7 +1330,7 @@ function TickHUD()
 						VehicleMenuButton[i].SetString("costLabel", "$" $ rxPurchaseSystem.GetVehiclePrices(TeamID, NodVehicleMenuData[i].ID, rxPurchaseSystem.AirdropAvailable(rxPRI)));
 					}				
 				
-					if (PlayerCredits > rxPurchaseSystem.GetVehiclePrices(TeamID, data, rxPurchaseSystem.AirdropAvailable(rxPRI)) ){
+					if (PlayerCredits >= rxPurchaseSystem.GetVehiclePrices(TeamID, data, rxPurchaseSystem.AirdropAvailable(rxPRI)) ){
 						VehicleMenuButton[i].SetBool("enabled", true);
 					} else {
 						VehicleMenuButton[i].SetBool("enabled", false);

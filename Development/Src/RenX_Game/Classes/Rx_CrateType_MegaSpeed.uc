@@ -36,7 +36,7 @@ function ExecuteCrateBehaviour(Rx_Pawn Recipient, Rx_PRI RecipientPRI, Rx_CrateP
 	if ( CrateHelper != None )
 	{
 		CrateHelper.RestoreNormalSpeed(Recipient);
-		Recipient.SpeedUpgradeMultiplier = 1.5f;
+		Recipient.SpeedUpgradeMultiplier = 1.65f;
 		Recipient.UpdateRunSpeedNode();
 		Recipient.SetGroundSpeed();
 	}

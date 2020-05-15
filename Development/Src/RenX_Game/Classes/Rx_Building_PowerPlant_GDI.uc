@@ -3,7 +3,7 @@ class Rx_Building_PowerPlant_GDI extends Rx_Building_GDI_PowerFactory
 
 simulated function String GetHumanReadableName()
 {
-	return "GDI Power Plant";
+	return "Power Plant";
 }
 
 DefaultProperties

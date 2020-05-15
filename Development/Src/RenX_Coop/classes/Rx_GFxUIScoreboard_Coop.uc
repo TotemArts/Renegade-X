@@ -4,7 +4,7 @@ var GFxObject Score;
 var GFxObject BuildingStats;
 var GFxObject VictoryText;
 var Array<Buildings>BuildingsCoop;
-
+/*
 function bool Start(optional bool StartPaused = false)
 {
 	//cache variables we use alot
@@ -26,7 +26,7 @@ function bool Start(optional bool StartPaused = false)
 
     return true;
 }
-
+*/
 function EndGameMode() 
 {
 	EndGameTime = RxGRI.RenEndTime;
@@ -132,15 +132,11 @@ function Draw()
 		TickEndGameScoreboard();	
 //		UpdateBuildings(true);
 	} 
-	else if(bHasInitialized)
+	else
 	{
 		UpdateBuildings(false);
 	}
-	else
-	{
-		UpdateBuildings(true);
-		bHasInitialized = true;
-	}
+
 
 	UpdatePlayers();
 	UpdateScoreTotals();
@@ -173,6 +169,7 @@ function TickEndGameScoreboard()
 	local float TimeLeft;
 	local int i;
 	local bool bVoteNeedUpdate;
+	local string CurrentNextMap;
 //	local GFxObject TempObj, DataProvider;
 
 //	DataProvider = CreateObject("scaleform.clik.data.DataProvider");
@@ -207,15 +204,28 @@ function TickEndGameScoreboard()
 			NextRound.SetText(int(TimeLeft));
 	}
 
-	if (RxGRI.NextMap != "") {
+	if (RxGRI.NextMap != "") 
+	{
 		// Set Map Rotation mode
-		if (NextMap != none)
+		if (NextMap != none && LastNextMap != RxGRI.NextMap)
+		{
+			LastNextMap = RxGRI.NextMap;
 			NextMap.SetText(GetMapFriendlyName(RxGRI.NextMap));
-	} else {
+		}
+	} 
+	else 
+	{
 		// End of Map Vote mode
-		if (RxGRI.GetMapVote() >= 0) {
-			if (NextMap != none) 
-				NextMap.SetText(GetMapFriendlyName(RxGRI.MapVoteList[RxGRI.GetMapVote()]));	
+		if (RxGRI.GetMapVote() >= 0) 
+		{
+
+			CurrentNextMap = RxGRI.MapVoteList[RxGRI.GetMapVote()];
+
+			if (NextMap != none && CurrentNextMap != LastNextMap) 
+			{
+				LastNextMap = CurrentNextMap;
+				NextMap.SetText(GetMapFriendlyName(LastNextMap));	
+			}
 		}
 	}
 

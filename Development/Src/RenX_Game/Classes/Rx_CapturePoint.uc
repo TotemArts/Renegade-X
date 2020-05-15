@@ -1,3 +1,23 @@
+/*********************************************************
+*
+* File: Rx_CapturePoint.uc
+* Author: RenegadeX-Team
+* Pojekt: Renegade-X UDK <www.renegade-x.com>
+*
+* Desc:
+* A proximity-based capture point. This class is not placeable, but spawned from (usually) actors utilizing it
+* By itself, the CapturePoint does nothing but calculating results, as well as giving team score for capturing it. The other abilities are handled by its' associated actor
+* 
+* See Also :
+* - RxIfc_Capturable - Any actor with this Interface can make use of Rx_CapturePoint
+* - Rx_Building_TechBuildingPoint - Tech building that utilizes this class
+* - Rx_Building_TechBuildingPoint_Internals - The internal of earlier-mentioned building. This is the class that both spawns the Rx_CapturePoint and is linked to it. All functions called from this class are processed in the Internals class
+* - Rx_Volume_CaptureArea - A Volume that can be utilized (if the associated actor supports it) as an alternative to using radius check on CapturePoint.
+*
+*********************************************************
+*  
+*********************************************************/
+
 class Rx_CapturePoint extends Actor;
 
 // TODO Saved list of PRIs who aided in the cap/neutralise for score distribution
@@ -32,6 +52,7 @@ var int NodCount;
 var array<Rx_PRI> CappingPRIs;	// Saved list of people who helped the capture/neutralise
 
 var RxIfc_Capturable AssociatedActor;
+var String PointName;
 
 `define CalcGDICount (TouchingGDIPawns.Length+TouchingGDIVehicles.Length)
 `define CalcNodCount (TouchingNodPawns.Length+TouchingNodVehicles.Length)
@@ -41,37 +62,41 @@ var RxIfc_Capturable AssociatedActor;
 `define OffendersCapRate FMin(BaseCapRatePerSecond + (Offenders - Defenders - 1)*BonusCapRatePerSecond, MaxCapRatePerSecond)
 `define DefendersCapRate FMin(BaseCapRatePerSecond + (Defenders - Offenders - 1)*BonusCapRatePerSecond, MaxCapRatePerSecond)
 
-`define HudCondition (bInfantryCanCap && Rx_Pawn(P) != None && Rx_Pawn(P).Controller != None && Rx_Pawn(P).Controller.IsLocalPlayerController()) || (bVehiclesCanCap && Rx_Vehicle(P) != None && Rx_Defence(P) == None && Rx_Defence_Emplacement(P) == None && Rx_Vehicle(P).Controller != None && Rx_Vehicle(P).Controller.IsLocalPlayerController())
-
 replication
 {
 	if (bNetDirty)
-		bCaptured, CapturingTeam, ReplicatedProgress, GDICount, NodCount;
+		bCaptured, CapturingTeam, ReplicatedProgress, GDICount, NodCount, AssociatedActor, bInfantryCanCap, bVehiclesCanCap, PointName;
 }
 
-event PostBeginPlay()
+simulated event PostBeginPlay()
 {
 	super.PostBeginPlay();
-	if (InitialTeam != 255)
+
+	if(WorldInfo.NetMode != NM_Client)
 	{
-		CapturingTeam=InitialTeam;
-		CaptureProgress=1;
-		bCaptured=true;
-		GotoState('CapturedIdle');
+		if (InitialTeam != 255)
+		{
+			CapturingTeam=InitialTeam;
+			CaptureProgress=1;
+			bCaptured=true;
+			GotoState('CapturedIdle');
+		}
+
+		SetTimer(ReplicateProgressTime, true, 'RepProgress');
+
+		if (RxIfc_Capturable(Owner) != None)
+			AssociatedActor = RxIfc_Capturable(Owner);
 	}
-	if (RxIfc_Capturable(Owner) != None)
-		AssociatedActor = RxIfc_Capturable(Owner);
-	SetTimer(ReplicateProgressTime, true, 'RepProgress');
 }
 
 function AddTouchingPawn(Rx_Pawn P, byte TeamIndex)
 {
-	if (TeamIndex == TEAM_GDI)
+	if (TeamIndex == TEAM_GDI && TouchingGDIPawns.Find(P) < 0)
 	{
 		TouchingGDIPawns.AddItem(P);
 		GDICount = `CalcGDICount;
 	}
-	else if (TeamIndex == TEAM_Nod)
+	else if (TeamIndex == TEAM_Nod && TouchingNodPawns.Find(P) < 0)
 	{
 		TouchingNodPawns.AddItem(P);
 		NodCount = `CalcNodCount;
@@ -99,12 +124,12 @@ function RemoveTouchingPawnBothTeams(Rx_Pawn P)
 }
 function AddTouchingVehicle(Rx_Vehicle V, byte TeamIndex)
 {
-	if (TeamIndex == TEAM_GDI)
+	if (TeamIndex == TEAM_GDI && TouchingGDIVehicles.Find(V) < 0)
 	{
 		TouchingGDIVehicles.AddItem(V);
 		GDICount = `CalcGDICount;
 	}
-	else if (TeamIndex == TEAM_Nod)
+	else if (TeamIndex == TEAM_Nod && TouchingNodVehicles.Find(V) < 0)
 	{
 		TouchingNodVehicles.AddItem(V);
 		NodCount = `CalcNodCount;
@@ -134,11 +159,6 @@ simulated event Touch( Actor Other, PrimitiveComponent OtherComp, vector HitLoca
 			AddTouchingVehicle(Rx_Vehicle(Other), Other.GetTeamNum());
 		Wake();
 	}
-	if (WorldInfo.NetMode != NM_DedicatedServer)
-	{
-		if (Pawn(Other) != None)
-			TryDisplayHUD(Pawn(Other));
-	}
 }
 
 simulated event UnTouch( Actor Other )
@@ -151,29 +171,50 @@ simulated event UnTouch( Actor Other )
 			RemoveTouchingVehicle(Rx_Vehicle(Other), Other.GetTeamNum());
 		Wake();
 	}
-	if (WorldInfo.NetMode != NM_DedicatedServer)
-	{
-		if (Pawn(Other) != None)
-			TryUndisplayHUD(Pawn(Other));
-	}
 }
 
 simulated function bool TryDisplayHUD(Pawn P)
 {
 	// This condition won't work for vehicle passengers?
-	if (`HudCondition)
+	if (P.Controller != None && PawnShouldDisplayHUD(P))
 	{
-		Rx_Hud(UTPlayerController(P.Controller).myHud).DisplayCapturePoint(self);
+		if(Rx_Hud(UTPlayerController(P.Controller).myHud) != None)
+			Rx_Hud(UTPlayerController(P.Controller).myHud).DisplayCapturePoint(self);
+
 		return true;
 	}
 	return false;
 }
 
+simulated function bool PawnShouldDisplayHUD(Pawn P)
+{
+	local Rx_Vehicle V;
+
+	if(Rx_Pawn(P) != None)
+		return bInfantryCanCap;
+
+	if(!bVehiclesCanCap)
+		return false;
+
+	if(Rx_Vehicle(P) != None)
+		V = Rx_Vehicle(P);
+
+	else if(Rx_VehicleSeatPawn(P) != None && Rx_Vehicle(Rx_VehicleSeatPawn(P).MyVehicle) != None)
+		V = Rx_Vehicle(Rx_VehicleSeatPawn(P).MyVehicle);
+
+	if(Rx_Defence(V) != None || Rx_Defence_Emplacement(V) != None)
+		return false;
+
+	return true;
+}
+
 simulated function bool TryUndisplayHUD(Pawn P)
 {
-	if (P.Controller != None && P.Controller.IsLocalPlayerController())
+	if (P.Controller != None)
 	{
-		Rx_Hud(UTPlayerController(P.Controller).myHud).UndisplayCapturePoint(self);
+		if(Rx_Hud(UTPlayerController(P.Controller).myHud) != None)
+			Rx_Hud(UTPlayerController(P.Controller).myHud).UndisplayCapturePoint(self);
+
 		return true;
 	}
 	return false;
@@ -200,14 +241,38 @@ function NotifyVehicleDied(Rx_Vehicle V, byte FromTeam)
 	Wake();
 }
 
-function NotifyVehicleTeamChange(Rx_Vehicle V, byte from, byte to)
+function NotifyVehicleTeamChange(Rx_Vehicle V)
 {
+	local int i, j;
+
 	if (!bVehiclesCanCap)
 		return;
 
-	RemoveTouchingVehicle(V, from);
-	AddTouchingVehicle(V, to);
+	// tried anything else and returns with imprecise numbers. Let's just get this over with....
 
+	i = TouchingGDIVehicles.Find(V);
+	j = TouchingNodVehicles.Find(V);
+
+	if(i >= 0 && V.GetTeamNum() != 0)
+	{
+		RemoveTouchingVehicle(V, 0);
+	}
+	else if(i < 0 && V.GetTeamNum() == 0)
+	{
+		AddTouchingVehicle(V, 0);
+	}
+
+	if(j >= 0 && V.GetTeamNum() != 1)
+	{
+		RemoveTouchingVehicle(V, 1);
+	}
+	else if(j < 0 && V.GetTeamNum() == 1)
+	{
+		AddTouchingVehicle(V, 1);
+	}
+
+
+	
 	Wake();
 }
 
@@ -234,7 +299,7 @@ state NeutralActive
 {
 	event Tick( float DeltaTime )
 	{		
-		if (GDICount > NodCount)
+		if (GDICount > NodCount && AssociatedActor.IsCapturableBy(Team_GDI))
 		{
 			if (CapturingTeam == TEAM_GDI)
 			{
@@ -257,8 +322,9 @@ state NeutralActive
 					BeginCaptureBy(TEAM_GDI);
 				}
 			}
+			AssociatedActor.NotifyUnderAttack(TEAM_GDI);
 		}
-		else if (NodCount > GDICount)
+		else if (NodCount > GDICount && AssociatedActor.IsCapturableBy(Team_NOD))
 		{
 			if (CapturingTeam == TEAM_Nod)
 			{
@@ -281,6 +347,7 @@ state NeutralActive
 					BeginCaptureBy(TEAM_Nod);
 				}
 			}
+			AssociatedActor.NotifyUnderAttack(TEAM_Nod);
 		}
 		else if (GDICount == 0 && NodCount == 0)
 		{
@@ -295,7 +362,8 @@ state NeutralActive
 		}
 		else	// implies (GDICount == NodCount && GDICount > 0 && NodCount > 0)
 		{
-			; // stalemate - do nothing.
+			AssociatedActor.NotifyUnderAttack(255);
+		    // stalemate - do nothing.
 		}
 	}
 }
@@ -330,7 +398,7 @@ state CapturedActive
 			Offenders = GDICount;
 		}
 
-		if (Offenders > Defenders)
+		if (Offenders > Defenders && AssociatedActor.IsCapturableBy(1 - CapturingTeam))
 		{
 			if (CaptureProgress >= 1)
 				BeginNeutralizeBy( CapturingTeam == TEAM_GDI ? TEAM_Nod : TEAM_GDI );
@@ -342,12 +410,14 @@ state CapturedActive
 				NeutralizedBy( CapturingTeam == TEAM_GDI ? TEAM_Nod : TEAM_GDI );
 				GotoState('NeutralActive');
 			}
+
+			AssociatedActor.NotifyUnderAttack(CapturingTeam == TEAM_GDI ? TEAM_Nod : TEAM_GDI );
 		}
 		else if (Offenders == Defenders && Offenders > 0)
 		{
 			// Stalemate - do nothing
 		}
-		else	// implies (Defenders > Offenders || Defenders == 0 && Offenders == 0)
+		else if (AssociatedActor.IsCapturableBy(CapturingTeam))	// implies (Defenders > Offenders || Defenders == 0 && Offenders == 0)
 		{
 			if (CaptureProgress < 1)
 			{
@@ -486,6 +556,7 @@ DefaultProperties
 
 
 	bAlwaysRelevant=true
+	bGameRelevant=true
 
 	bCaptured=false
 	CapturingTeam=255

@@ -1315,7 +1315,12 @@ function bool CanAttack(Actor Other)
 			if(Rx_BuildingObjective(Other) != None && Rx_BuildingObjective(Other).myBuilding != None) 
 				RealTarget = Rx_BuildingObjective(Other).myBuilding;
 
-			if(RealTarget != Trace( out_HitLocation, out_HitNormal, RealTarget.GetTargetLocation(), projStart,TRUE,,,TRACEFLAG_Bullet)) {
+			if(RealTarget != GetTraceOwner().Trace( out_HitLocation, out_HitNormal, RealTarget.GetTargetLocation(), projStart,TRUE,,,TRACEFLAG_Bullet)) 
+			{
+				if(Rx_Bot(Instigator.Controller) != None)
+				{
+					Rx_Bot(Instigator.Controller).FireAssessment = "CANNOT ATTACK"@Other@"- LOS obstructed";
+				}
 				return false;
 			}
 			Dist = VSizeSq(Instigator.Location - out_HitLocation);
@@ -1328,6 +1333,10 @@ function bool CanAttack(Actor Other)
 	            //DrawDebugLine(Instigator.Location,Other.location,0,0,255,true);
 	            //DrawDebugLine(Instigator.Location,out_HitLocation,0,255,0,true);
             	//DebugFreezeGame();   
+            	if(Rx_Bot(Instigator.Controller) != None)
+				{
+					Rx_Bot(Instigator.Controller).FireAssessment = "CANNOT ATTACK"@Other@"- Out of Range";
+				}
 				return false;
 			} 
 		} 
@@ -2524,6 +2533,8 @@ simulated function RecoverFromActionTimer(){
 
 simulated function SetMuzzleMICs()
 {
+	if (`WorldInfoObject.NetMode == NM_DedicatedServer) return;
+
 	if (MuzzleHeatMIC == None)
 		MuzzleHeatMIC = Mesh.CreateAndSetMaterialInstanceConstant(0);
 
@@ -2533,6 +2544,7 @@ simulated function SetMuzzleMICs()
 
 simulated function UpdateMuzzleHeatParameter(float NewHeat)
 {
+	if (`WorldInfoObject.NetMode == NM_DedicatedServer) return;
 	if (MuzzleHeatMIC == None || MuzzleHeatMICAttachment == None)
 		SetMuzzleMICs();
 
@@ -2542,11 +2554,13 @@ simulated function UpdateMuzzleHeatParameter(float NewHeat)
 
 simulated function StartMuzzleHeatCooldownTick()
 {
+	if (`WorldInfoObject.NetMode == NM_DedicatedServer) return;
 	SetTimer(MuzzleHeatCooldownTimeInterval, true, nameof(MuzzleHeatCooldownTick));
 }
 
 simulated function MuzzleHeatCooldownTick()
 {
+	if (`WorldInfoObject.NetMode == NM_DedicatedServer) return;
 	if (MuzzleHeatCooldownAmount > GetMuzzleHeat() || GetMuzzleHeat() == 0)
 	{
 		ResetMuzzleHeat();
@@ -2562,6 +2576,7 @@ simulated function MuzzleHeatCooldownTick()
 simulated function UpdateMuzzleHeat(float AmountToAdd)
 {
 	MuzzleHeat += AmountToAdd;
+	if (`WorldInfoObject.NetMode == NM_DedicatedServer) return;
 
 	if (MuzzleHeat < MinMuzzleHeatRequired && AmountToAdd > 0) return;
 
@@ -2626,6 +2641,11 @@ simulated static function string GetPurchaseDescription()
 }
 
 //PT stuff ends here
+
+/*Some projectiles (Rockets) may need to adjust their initial yaw depending on what barrel they're spawned at.*/ 
+simulated function int GetRProjectileYaw(){
+	return 1.0; //Modifier... usually 1.0 or -1.0 
+}
 
 DefaultProperties
 {

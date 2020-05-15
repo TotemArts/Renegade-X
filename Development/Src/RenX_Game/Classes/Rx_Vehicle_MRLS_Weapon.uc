@@ -20,55 +20,6 @@ var	SoundCue WeaponDistantFireSnd;	// A second firing sound to be played when we
  * Shoot methods
  *********************************************************************************************/
 
- 
-simulated function Projectile ProjectileFireOld() //Edited to change the accelrate on missiles fired whilst the turret is locked.
-{
-    local UDKProjectile SpawnedProjectile;
-    local vector ForceLoc;
-
-    SpawnedProjectile = UDKProjectile(Super(UTVehicleWeapon).ProjectileFire());
-	
-	//`log("Call Projectile Fire Old" @ SpawnedProjectile); 
-	//ScriptTrace();
-	
-	if(Rx_Projectile(SpawnedProjectile) != none ) 
-	{
-		Rx_Projectile(SpawnedProjectile).Vrank=VRank; 
-		Rx_Projectile(SpawnedProjectile).FMTag=CurrentFireMode; 
-		Rx_Projectile(SpawnedProjectile).SetWeaponInstigator(self);
-	}
-	else if(Rx_Projectile_Rocket(SpawnedProjectile) != none)
-	{
-		Rx_Projectile_Rocket(SpawnedProjectile).SetWeaponInstigator(self);
-		if(Rx_Vehicle_MRLS(Instigator).bLockTurret)
-		{
-			Rx_Projectile_Rocket(SpawnedProjectile).AccelRate = (SpawnedProjectile.default.AccelRate*0.4);
-			Rx_Vehicle_MRLS_Projectile(SpawnedProjectile).bUseAlternateAccelRate = true;
-		}
-			
-	}
-	
-	if(bLockedOnTarget && bDropOnTarget && CurrentFireMode != 1) 
-	{
-		UseArcShot( Rx_Projectile_Rocket(SpawnedProjectile) );
-		SpawnedProjectile.Init( vector(AddSpread(MyVehicle.GetWeaponAim(self))) );
-	}
-    if ( (Role==ROLE_Authority) && (SpawnedProjectile != None) && MyVehicle != none && MyVehicle.Mesh != none)
-    {
-        // apply force to vehicle
-        ForceLoc = MyVehicle.GetTargetLocation();
-        ForceLoc.Z += 100;
-        MyVehicle.Mesh.AddImpulse(RecoilImpulse*SpawnedProjectile.Velocity, ForceLoc);
-    }  
-
-	
-	if (bTargetLockingActive && Rx_Projectile_Rocket(SpawnedProjectile) != None)
-    {
-		SetRocketTarget(Rx_Projectile_Rocket(SpawnedProjectile));
-    }    
-    return SpawnedProjectile;
-}
-
 simulated function SetRocketTarget(Rx_Projectile_Rocket Rocket)
 {
 	local vector CameraLocation, HitLocation, HitNormal, DesiredAimPoint;
@@ -109,13 +60,28 @@ simulated function SetRocketTarget(Rx_Projectile_Rocket Rocket)
  
 simulated function FireAmmunition()
 {
+	/**if(GetTurretLockState())
+	{
+		 WeaponProjectiles[0] = Class'Rx_Vehicle_MRLS_Projectile_Arc';
+		 WeaponProjectiles[1] = Class'Rx_Vehicle_MRLS_Projectile_Arc';
+		 WeaponProjectiles_Heroic[0] = Class'Rx_Vehicle_MRLS_Projectile_Arc';
+		 WeaponProjectiles_Heroic[1] = Class'Rx_Vehicle_MRLS_Projectile_Arc';
+	}
+	else{
+		 WeaponProjectiles[0] = default.WeaponProjectiles[0];
+		 WeaponProjectiles[1] =  default.WeaponProjectiles[1];
+		 WeaponProjectiles_Heroic[0] = default.WeaponProjectiles_Heroic[0];
+		 WeaponProjectiles_Heroic[1] = default.WeaponProjectiles_Heroic[1];
+	}*/
+	
     Super.FireAmmunition();
 	WeaponPlaySound( WeaponDistantFireSnd );
 }
 
 simulated function bool UsesClientSideProjectiles(byte CurrFireMode)
 {
-	return false;
+	return false; 
+	//return GetTurretLockState();
 }
 
 simulated function GetFireStartLocationAndRotation(out vector SocketLocation, out rotator SocketRotation) {
@@ -169,6 +135,26 @@ simulated function ProcessViewRotation( float DeltaTime, out rotator out_ViewRot
 		//loginternal("DeltaPitch"$DeltaPitch);
 	}
 }
+
+simulated function bool GetTurretLockState()
+{
+	return Rx_Vehicle_MRLS(Instigator).bLockTurret; 
+}
+
+simulated function SetTargetLocking(bool bUseLocking){
+	
+	if(bUseLocking)
+	{
+		bTargetLockingActive = true;
+	}
+	else 		{
+		bTargetLockingActive = false;
+		LockedTarget = none;
+	}
+	
+	
+}
+		 
 
 DefaultProperties
 {

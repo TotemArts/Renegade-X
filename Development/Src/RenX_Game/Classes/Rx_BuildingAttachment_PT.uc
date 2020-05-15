@@ -21,6 +21,11 @@ simulated function string GetTooltip(Rx_Controller PC)
 	return "";
 }
 
+simulated function bool ShouldSubstitute()
+{
+	return false;
+}
+
 simulated function bool IsTouchingOnly()
 {
 	return true;
@@ -44,11 +49,28 @@ simulated event byte ScriptGetTeamNum()
 simulated function bool AreAircraftDisabled()
 {
 	local Rx_MapInfo mi;
+	local Rx_Building b;
+
 	mi = Rx_MapInfo(WorldInfo.GetMapInfo());
-	if( mi != none )
+
+	ForEach WorldInfo.AllActors(class'Rx_Building', b)
+	{
+		if (b.GetTeamNum() != TeamNum)
+			continue;
+
+		if (Rx_Building_Helipad_GDI(b) != None)
+			return b.IsDestroyed();
+
+		if (Rx_Building_Helipad_Nod(b) != None)
+			return b.IsDestroyed();
+	}
+
+
+	if (mi != none)
 	{
 		return mi.bAircraftDisabled;
 	}
+
 	return true;
 }
 

@@ -651,15 +651,15 @@ defaultproperties
 		TurnTorqueMax=10000.0
 		TurnDamping=1.0
 		MaxYawRate=1.25
-		PitchTorqueFactor=2000.0
-		PitchTorqueMax=300.0
-		PitchDamping=0.5
-		RollTorqueTurnFactor=8500.0
-		RollTorqueStrafeFactor=750.0
-		RollTorqueMax=3000.0
-		RollDamping=1.0
-		MaxRandForce=30.0
-		RandForceInterval=0.5
+		PitchTorqueFactor=50.0
+		PitchTorqueMax=25.0
+		PitchDamping=0.0
+		RollTorqueTurnFactor=700.0
+		RollTorqueStrafeFactor=200.0
+		RollTorqueMax=100.0
+		RollDamping=0.1
+		MaxRandForce=5.0
+		RandForceInterval=0.75
 		StopThreshold=10
 		bAllowZThrust False
 		bFullThrustOnDirectionChange False
@@ -723,7 +723,7 @@ defaultproperties
 	bStayUpright=true
 	StayUprightRollResistAngle=5.0
 	StayUprightPitchResistAngle=5.0
-	StayUprightStiffness=1200
+	StayUprightStiffness=200
 	StayUprightDamping=20
 
 	SpawnRadius=180.0

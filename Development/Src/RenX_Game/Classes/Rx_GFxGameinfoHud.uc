@@ -40,7 +40,7 @@ var int LastPlayerNum[2], LastTeamScore[2];
 var const int NumPlayerStats;
 var array<SBPlayerEntry> PlayerInfo;
 var int CurrentNumberPRIs;
-
+var float LastBuildingUpdateTime;
 
 
 // TeamInfo
@@ -60,8 +60,9 @@ var int CurrentNumMines;
 var int CurrentMaxMines;
 // Kill/Death
 
-Var GFxObject ScoreContainer, ScoresText, PlayerPosText, PlayerMaxText;
-var float LastScore, LastPos, LastMaxPlayer;
+Var GFxObject ScoreContainer, ScoresText, PlayerPosText, PlayerMaxText, PlayerKillText, PlayerDeathText;
+var float LastScore;
+var int LastKill, LastPos, LastMaxPlayer, LastDeath;
 
 var bool bPlayerDead;
 
@@ -107,12 +108,14 @@ exec function InitializeHUDVars()
 	ScoreContainer = GetVariableObject("_root.ScoreContainer");
 	ScoresText = ScoreContainer.GetObject("Scores");
 //	KNDText = ScoreContainer.GetObject("KND");
+	PlayerKillText = ScoreContainer.GetObject("Kill");
+	PlayerDeathText = ScoreContainer.GetObject("Death");
 	PlayerPosText = ScoreContainer.GetObject("CurrentPos");
 	PlayerMaxText = ScoreContainer.GetObject("PlayerNum");
 
 	LastScore = -1;
-//	LastKill = -1;
-//	LastDeath = -1;
+	LastKill = -1;
+	LastDeath = -1;
 	LastPos = -1;
 	LastMaxPlayer = -1;
 }
@@ -121,9 +124,10 @@ function TickHUD()
 {
 	local Pawn MyPawn;
 	local int CurrentPos;
-	local int RenScore;
+	local int RenScore, RenKill, RenDeath;
 	local Array<PlayerReplicationInfo> PRIList;
 	local PlayerReplicationInfo PRI;
+	local Rx_PRI TempPRI;
 
 	if (!bMovieIsOpen) {
 		return;
@@ -138,14 +142,24 @@ function TickHUD()
 	}
 	else
 	{
-		if(RxPRI == None)
-			RxPRI = Rx_PRI(RxPC.PlayerReplicationInfo);
+		if (RxPC.IsSpectating() && Pawn(RxPC.ViewTarget) != None)
+			TempPRI = Rx_PRI(Pawn(RxPC.ViewTarget).PlayerReplicationInfo);
+		else
+			TempPRI = Rx_PRI(RxPC.PlayerReplicationInfo);
+
+		if(RxPRI == None || RxPRI != TempPRI)
+		{
+			RxPRI = TempPRI;
+		}
 
 		if(RxGRI == None)
 			RxGRI = Rx_GRI(RxPC.WorldInfo.GRI);	
 	}
 
-	MyPawn = RxPC.Pawn;
+	if(RxPC.IsSpectating() && Pawn(RxPC.ViewTarget) != None)
+		MyPawn = Pawn(RxPC.ViewTarget);
+	else
+		MyPawn = RxPC.Pawn;
 
 	if(MyPawn != None)
 	{
@@ -169,6 +183,15 @@ function TickHUD()
 
 	if(!bBuildingSetup)
 		SetupBuildings();
+	else
+	{
+		if(RxPC.WorldInfo.TimeSeconds - LastBuildingUpdateTime > 0.5)
+		LastBuildingUpdateTime = RxPC.WorldInfo.TimeSeconds;
+		if(IsBuildingAmountMismatched()) // if there's a mismatch in building number, reupdate 
+		{
+			bBuildingSetup = false;
+		}
+	}
 
 	if (RxPC.WorldInfo != none && RxPC.WorldInfo.GRI !=none)
 	{
@@ -195,6 +218,8 @@ function TickHUD()
 		if(RxPRI != None && ScoreContainer != None)
 		{
 			RenScore = RxPRI.GetRenScore();
+			RenKill = RxPRI.GetRenKills();
+			RenDeath = RxPRI.Deaths;
 
 
 			if(LastScore != RenScore)
@@ -211,6 +236,16 @@ function TickHUD()
 			{
 				LastMaxPlayer = PRIList.Length;
 				PlayerMaxText.SetText(String(PRIList.Length));
+			}
+			if(LastDeath != RenDeath)
+			{
+				LastDeath = RenDeath;
+				PlayerDeathText.SetText(String(LastDeath));
+			}
+			if(LastKill != RenKill)
+			{
+				LastKill = RenKill;
+				PlayerKillText.SetText(String(LastKill));
 			}
 		}
 
@@ -243,6 +278,37 @@ function TickHUD()
 	if(RxPRI.Team != None)
 		CommPoints.SetText(int(Rx_TeamInfo(RxPRI.Team).GetCommandPoints())$"/"$int(Rx_TeamInfo(RxPRI.Team).GetMaxCommandPoints()));
 
+}
+
+function bool IsBuildingAmountMismatched()
+{
+	local int BuildingAmount;
+	local Rx_Building Building;
+
+
+	foreach GetPC().WorldInfo.AllActors(class'Rx_Building', Building)
+	{
+		if(Rx_Building_Team_Internals(Building.BuildingInternals) == None || !Building.bSignificant)
+			continue;
+
+		if(Rx_Building_TechBuilding(Building) != None)
+			continue;
+
+		if(Rx_Building_AirTower(Building) != None)
+			continue;	// also don't count the tower and instead take from the Strip
+
+		BuildingAmount++;
+		// start counting
+	}
+
+	if(BuildingInfo_GDI.Length + BuildingInfo_Nod.Length != BuildingAmount)
+	{
+		`log("Client has run into a mismatch, resetting building informations....");
+		return true;
+	}
+
+
+	return false;
 }
 
 function UpdateVehicleCount( int numVehicles, int maxVehicles )
@@ -380,11 +446,19 @@ function SetupBuildings()
 	local float BuildPosX,BuildPosY;
 	local Array<Rx_Building> BList;
 	local Vector BLocs;
+	local Array<BuildingInfo> BuildingInfo_GDI_OLD;
+	local Array<BuildingInfo> BuildingInfo_Nod_OLD;
 
 	if(bBuildingSetup)
 		return;
 
 	bBuildingSetup = true;
+
+	if(BuildingInfo_GDI.Length > 0)
+		BuildingInfo_GDI_OLD = BuildingInfo_GDI;
+
+	if(BuildingInfo_Nod.Length > 0)
+		BuildingInfo_Nod_OLD = BuildingInfo_Nod;
 
 	BuildingInfo_GDI.Length = 0;
 	BuildingInfo_Nod.Length = 0;
@@ -423,7 +497,11 @@ function SetupBuildings()
 
 		if(Building.GetTeamNum() == 0)
 		{
-			CurrentBuilding.Icon = SBBuildContainer[0].AttachMovie("BuildingInfo_Icon", "GDIBuilding"$BuildingInfo_GDI.Length);
+			if(BuildingInfo_GDI.length + 1 <= BuildingInfo_GDI_OLD.Length)
+				CurrentBuilding.Icon = BuildingInfo_GDI_OLD[BuildingInfo_GDI.length].Icon;
+			else	
+				CurrentBuilding.Icon = SBBuildContainer[0].AttachMovie("BuildingInfo_Icon", "GDIBuilding"$BuildingInfo_GDI.Length);
+			
 			LoadTexture("img://" $ PathName(Building.IconTexture), CurrentBuilding.Icon);
 
 			BuildPosX = 0 - (25 * (BuildingInfo_GDI.Length));
@@ -437,7 +515,10 @@ function SetupBuildings()
 
 		else if (Building.GetTeamNum() == 1)
 		{
-			CurrentBuilding.Icon = SBBuildContainer[1].AttachMovie("BuildingInfo_Icon", "NodBuilding"$BuildingInfo_Nod.Length);
+			if(BuildingInfo_Nod.length + 1 <= BuildingInfo_Nod_OLD.Length)
+				CurrentBuilding.Icon = BuildingInfo_Nod_OLD[BuildingInfo_Nod.length].Icon;
+			else	
+				CurrentBuilding.Icon = SBBuildContainer[1].AttachMovie("BuildingInfo_Icon", "NodBuilding"$BuildingInfo_Nod.Length);
 			LoadTexture("img://" $ PathName(Building.IconTexture), CurrentBuilding.Icon);
 
 			BuildPosX = 0 + (25 * (BuildingInfo_Nod.Length));
@@ -584,11 +665,14 @@ function UpdateBuildings()
 
 exec function SetLivingHUDVisible(bool visible)
 {
-	BottomInfo.SetVisible(visible);
-	ScoreContainer.SetVisible(visible);
+	if(RenxHUD.SystemSettingsHandler.bGameInfo)
+		BottomInfo.SetVisible(visible);
+
+	if(RenxHUD.SystemSettingsHandler.bPersonalInfo)
+		ScoreContainer.SetVisible(visible);
 }
 
-function ResizedScreenCheck()
+function ResizedScreenCheck(optional bool bForce)
 {
 	// Resize the HUD after viewport size change
 	local Vector2D ViewportSize;
@@ -602,14 +686,16 @@ function ResizedScreenCheck()
 	local float StageWidthPct, StageHeightPct;
 	local float ResizerX, ResizerY;
 	local ASDisplayInfo DI;
+	local float HUDScale;
 	
 	GetGameViewportClient().GetViewportSize(ViewportSize);
 //	GetVisibleFrameRect(x0, y0, x1, y1);
 	HudMovieSize.X = ViewportSize.X;
 	HudMovieSize.Y = ViewportSize.Y;
 
+	HUDScale = (FClamp(RenxHUD.SystemSettingsHandler.HUDScale, 75, 125)) / 100;
 	
-	if(LastResX != int(ViewportSize.X) || LastResY != int(ViewportSize.Y))
+	if(LastResX != int(ViewportSize.X) || LastResY != int(ViewportSize.Y) || bForce)
 	{
 
 //		`Log("LastRes="@LastResX@LastResY@"ViewportSize="@ViewportSize.X@ViewportSize.Y);
@@ -670,21 +756,50 @@ function ResizedScreenCheck()
 		DI.HasYScale = true;
 
 		//HealthBlock
-		DI.XScale = 100.f + (100.f * (1.0 - FMin(ResizerX,ResizerY)));
+		DI.XScale = HUDScale * (100.f + (100.f * (1.0 - FMin(ResizerX,ResizerY))));
 		DI.YScale = DI.XScale;
 
-		BottomInfo.SetDisplayInfo(DI);
-		BottomInfo.SetPosition(LowerLeftCorner.X,LowerLeftCorner.Y);
+		if(RenxHUD.SystemSettingsHandler.bGameInfo)
+		{
+			BottomInfo.SetVisible(true);
+			BottomInfo.SetDisplayInfo(DI);
+			BottomInfo.SetPosition(LowerLeftCorner.X  - ((20 * HUDScale) - 20),LowerLeftCorner.Y + ((20 * HUDScale) - 20));
+		}
+		else
+		{
+			BottomInfo.SetVisible(false);
+		}
 
-		ScoreContainer.SetDisplayInfo(DI);
-		ScoreContainer.SetPosition(UpperRightCorner.X,UpperRightCorner.Y);
+		if(RenxHUD.SystemSettingsHandler.bPersonalInfo)
+		{
+			ScoreContainer.SetVisible(true);
+			ScoreContainer.SetDisplayInfo(DI);
+			ScoreContainer.SetPosition(UpperRightCorner.X + ((20 * HUDScale) - 20),UpperRightCorner.Y - ((20 * HUDScale) - 20));
+		}
+		else
+		{
+			ScoreContainer.SetVisible(false);
+		}
 
 		//Scoreboard
 //		DI.XScale = 100.f + (100.f * (1.0 - FMin(StageHeightPct,StageWidthPct)));
 //		DI.YScale = DI.XScale;
 //		`log("Scoreboard Scale :"@DI.XScale@DI.YScale);
-		Scoreboard.SetDisplayInfo(DI);
-		Scoreboard.SetPosition(840,1050 - PositionMod.Y); // Lower Center
+	//	Scoreboard.SetDisplayInfo(DI);
+
+		DI.XScale = HUDScale * 100.f;
+		DI.YScale = DI.XScale;
+
+		if(RenxHUD.SystemSettingsHandler.bTeamInfo)
+		{
+			Scoreboard.SetVisible(true);
+			Scoreboard.SetDisplayInfo(DI);
+			Scoreboard.SetPosition(840,1050 - PositionMod.Y + ((20 * HUDScale) - 20)); // Lower Center
+		}
+		else
+		{
+			Scoreboard.SetVisible(false);
+		}
 
 
 	}
@@ -700,6 +815,22 @@ function int SortBuildingDelegate( coerce Rx_Building B1, coerce Rx_Building B2 
 		if(VSizeSq(BuildingDistanceAverage - B1.Location) > VSizeSq(BuildingDistanceAverage - B2.Location))
 			return 1;
 
+		else if(VSizeSq(BuildingDistanceAverage - B1.Location) == VSizeSq(BuildingDistanceAverage - B2.Location)) // should only happen when there are only 2 buildings existing
+		{	
+			if(B1.GetTeamNum() < B2.GetTeamNum()) // prioritize GDI (huehuehue~)
+				return 1;
+
+			else if (B1.GetTeamNum() == B2.GetTeamNum())
+			{		
+				//Uh oh! same team number! What happened there? (probably tests, either way, try to avoid crash)
+				if(Asc(String(B1.Name)) < Asc(String(B1.Name))) // might be dodgy, but theoretically no name should ever be the same
+					return 1;
+				else
+					return -1;
+			}
+			else
+				return -1;
+		}
 		else
 			return -1;
 	}

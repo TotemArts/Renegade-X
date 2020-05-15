@@ -3,7 +3,7 @@ class Rx_Building_RepairFacility_Nod extends Rx_Building_Nod_RepairFactory
 
 simulated function String GetHumanReadableName()
 {
-	return "Nod Repair Facility";
+	return "Repair Facility";
 }
 
 defaultproperties

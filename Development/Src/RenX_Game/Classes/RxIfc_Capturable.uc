@@ -11,3 +11,7 @@ function NotifyNeutralizedBy(byte TeamIndex, byte PreviousOwner);
 function NotifyRestoredNeutral();
 
 function NotifyRestoredCaptured();
+
+function NotifyUnderAttack(byte TeamIndex);
+
+simulated function bool IsCapturableBy(byte TeamIndex);

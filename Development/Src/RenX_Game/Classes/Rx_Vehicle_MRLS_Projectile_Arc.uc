@@ -72,7 +72,6 @@ DefaultProperties
 	Speed=1900
 	MaxSpeed=1900
 	TerminalVelocity=1900.0
-	AccelRate=200
 	LifeSpan=8.0
 	Damage=78
 	DamageRadius=300

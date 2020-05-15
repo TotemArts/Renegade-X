@@ -513,6 +513,9 @@ simulated function DrawCrosshair( Hud HUD )
 	local bool	bTargetBehindUs;
 	local float XResScale; 
 	//set initial color based on settings (nBab)
+
+	if (!bDrawCrosshair) return;
+	
 	LC.A = 1.f;
 	switch (Rx_HUD(Rx_Controller(Instigator.Controller).myHUD).SystemSettingsHandler.GetCrosshairColor())
 	{

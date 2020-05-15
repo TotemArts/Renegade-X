@@ -43,6 +43,8 @@ DefaultProperties
     ProjectileLightClass=class'Rx_Light_Bullet_GDI'
     ExplosionLightClass=class'Rx_Light_Tank_MuzzleFlash'
     MyDamageType=Class'Rx_Vehicle_A10_DmgType_GattlingGun'
+
+    bEnableExplosionShake=True
     
     DrawScale= 4.0
     

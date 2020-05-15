@@ -23,11 +23,11 @@ simulated event PostBeginPlay()
 			else if (Building.GetTeamNum() == 1)
 				NodPowerPlants.AddItem(Rx_Building_PowerPlant(building));
 		}
-		else if (Rx_Building_GDI_VehicleFactory(building) != None)
+		else if (Rx_Building_GDI_VehicleFactory(building) != None && Rx_Building_Helipad_GDI(Building) == None)
 		{
 			WeaponsFactory.AddItem(Rx_Building_GDI_VehicleFactory(building));
 		}
-		else if (Rx_Building_Nod_VehicleFactory(building) != None)
+		else if (Rx_Building_Nod_VehicleFactory(building) != None && Rx_Building_Helipad_Nod(Building) == None)
 		{
 			AirStrip.AddItem(Rx_Building_Nod_VehicleFactory(building));
 		}

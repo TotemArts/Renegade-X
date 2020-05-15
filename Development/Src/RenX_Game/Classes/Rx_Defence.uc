@@ -11,11 +11,12 @@ var Rx_PRI Deployer;
 var bool bOwnedDefence;
 var int SellBack;
 var float SellTime;
+var bool bSold;
 
 replication
 {
 	if (bNetDirty && Role == ROLE_Authority)
-		bAIControl, Deployer, bOwnedDefence, SellTime;
+		bAIControl, Deployer, bOwnedDefence, SellTime, ai;
 
 }
 
@@ -70,6 +71,7 @@ reliable server function bool SellMe(Rx_PRI Seller)
 	Rx_Controller(Deployer.Owner).CTextMessage("Sold"@GetHumanReadableName()@"for ["$SellBack$"] credits",'Green');
 	Deployer.AddCredits(SellBack);	
 	Deployer = None;
+	bSold = true;
 	return true;
 }
 
@@ -121,7 +123,7 @@ function bool Died(Controller Killer, class<DamageType> DamageType, vector HitLo
 
 // Rx_Defence don't count towards CapturePoints, no need to notify.
 function NotifyCaptuePointsOfDied(byte FromTeam);
-function NotifyCaptuePointsOfTeamChange(byte from, byte to);
+function NotifyCaptuePointsOfTeamChange();
 
 function startUpDriving() { }
 
@@ -254,7 +256,7 @@ function string BuildDeathVPString(Controller Killer, class<DamageType> DamageTy
 
 	if(Killer == none || LastTeamToUse == Killer.GetTeamNum() ) return ""; //Meh, you get nothing
 
-		return "[Emplacement Destroyed]&+" $ default.VPReward[VRank] $ "&" ;
+		return "[" $ GetHumanReadableName() $ " Destroyed]&+" $ default.VPReward[VRank] $ "&" ;
 	
 }
 
@@ -307,7 +309,7 @@ simulated function string GetTooltip(Rx_Controller PC)
 
 	else if(VSizeSq(PC.Pawn.Location - Location) <= 16000000)
 	{
-		UseKey = "<font color='#ff0000'>["$Caps(Rx_PlayerInput(PC.PlayerInput).GetUDKBindNameFromCommand("GBA_Use"))$"]</font>";
+		UseKey = "<font color='#ff0000'>["$Caps(Rx_PlayerInput(PC.PlayerInput).GetUDKBindNameFromCommand("GBA_Selling"))$"]</font>";
 
 		return "Hold"@UseKey@"to sell this"@GetHumanReadableName()@"for <font color='#00ff00'>"$SellBack$"</font>";
 	}
@@ -344,6 +346,10 @@ DefaultProperties
     bReplicateMovement=false
     bAlwaysRelevant=true
 	RadarVisibility = 1
+
+	Begin Object Name=SDevFlag
+        SkeletalMesh=None
+    End Object
 	
 	VPCost(0) = 0
 	VPCost(1) = 0

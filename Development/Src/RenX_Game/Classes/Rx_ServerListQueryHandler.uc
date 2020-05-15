@@ -28,7 +28,8 @@ function GetFromServer()
 
 function ClearDelegates()
 {
-	Request.OnProcessRequestComplete = none;
+	if (Request != None)
+		Request.OnProcessRequestComplete = none;
 }
 
 /**

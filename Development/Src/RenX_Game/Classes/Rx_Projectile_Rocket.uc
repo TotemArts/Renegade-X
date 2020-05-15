@@ -10,6 +10,9 @@ var() float SlowHeadshotScale;
 /** headshot scale factor when running or falling */
 var() float RunningHeadshotScale;
 
+/** Scale Multiplier for explosion particle */
+var() float ProjExplosionScale;
+
 //percentage of weapon damage done by bots
 var float BotDamagePercentage;
 
@@ -29,6 +32,56 @@ var Weapon MyWeaponInstigator;
 var ParticleSystem				AirburstExplosionTemplate; 
 var vector						ExplosionSmokeColour;
 
+var CameraAnim ExplosionShake;
+var bool bEnableExplosionShake;		//Enables camera shake via camera anim
+
+//Test stuff 
+var ParticleSystem 					TargetMarker ; 
+
+var bool bIgnoreOptimizationChecks;
+
+struct Stage {
+	var int Stage_AccelRate;
+	var float Stage_HomingStrength;
+	var float Stage_BaseTrackingStrength;
+	var int Stage_MaxSpeed; 
+	
+	/*Use for timed stage*/
+	var float Stage_Time; //Time this stage should last
+
+	/*Use for vector based stages*/
+	var float Stage_MorphDistance; /*How close we need to get to our target vector before calling the next stage*/ 
+	
+	var float Stage_DamageMultiplier; /*Useful for making early stages do less damage... as the weapon wouldn't be properly armed and ired */
+	
+	/*True target location + this vector will be where the missile flies toward (E.g: +10000 Z will force the missile to fly well above the target)*/
+	var vector Stage_TargetOffset; 
+	
+	var bool   bSeekFinalTarget; //If true, it will seek our actual target in this stage (Incase you want another stage if the missile misses)
+	var bool   bIgnoreHoming; /*Ignores all acceleration created by homing and just does its own thing. Use for initial stages, or to make missiles to loops and whatnot*/
+	
+	/*If bIgnoreHoming is true, we look to these*/
+	var rotator DirToGo;
+	
+	var SoundCue Stage_TransitionSound; 
+	
+	structdefaultProperties
+	{
+		Stage_Time = 0; 
+		Stage_DamageMultiplier = 1.0; 
+	}
+};
+
+var array<Stage> RocketStages; /*If there are no stages, then the behaviour is ignored. */
+var byte CurrentStage; /*Should never be more than 255 stages I'd assume... unless you want to do something stupid */ 
+
+/*Modifier for rocket stages that allows vehicle weapons to multiply yaw values. Example: The HMRLS can make their rockets' initial stage veer left or right depending on which launcher bay the rocket spawned from */
+var float YawModifier; 
+
+/*Replacement for Seek target that doesn't enforce native code execution when set*/
+var Actor FinalSeekTarget; 
+var bool  bInitialTargetSet; //Used to see if this is the 1st Target being replicated
+
 simulated function PostBeginPlay()
 {
 	super.PostBeginPlay();
@@ -40,11 +93,12 @@ simulated function PostBeginPlay()
 
 replication
 {
-	if ( bNetInitial && Role == ROLE_Authority )
-		Target;
-		
-    if (Role == ROLE_Authority && bNetDirty)
-        VRank;
+	
+    if (Role == ROLE_Authority && (bNetDirty || bNetInitial))
+        VRank, Target, FinalSeekTarget;/*We actually need Final seek target, as SeekTarget links back to native code and needs to be set to none occasionally for multi-stage rockets*/
+	
+	/**if(bNetDirty)
+		CurrentStage;*/
 
 }
 
@@ -52,6 +106,7 @@ simulated function ReplicatedEvent(name VarName)
 {
 	if (VarName == 'Target')
 	{
+		//`log("-----Target Replicated----" @ Target); 
       	ClientAdjustState();
 	}
 	else
@@ -60,9 +115,17 @@ simulated function ReplicatedEvent(name VarName)
 	}
 }
 
+/**if(VarName == 'CurrentStage')
+	{
+		`log("Replicate Current Stage" @ CurrentStage);
+		GotoNextStage(); 
+	}*/
+	
 /**
  * Initialize the Projectile [RX] Add modifiers for veterancy
  */
+ 
+ 
 function Init(vector Direction)
 {
 	local Rx_Weapon Rx_Inst; 
@@ -72,21 +135,42 @@ function Init(vector Direction)
 	
 	Rx_VInst=Rx_Vehicle_Weapon(Instigator.Weapon) ;
 	
-	if(Rx_Inst != none) 
+	if(Rx_Inst != none)
+	{
 		VRank=Rx_Inst.VRank; 
+		YawModifier = Rx_Inst.GetRProjectileYaw();
+	}			
 	else
 	if(Rx_VInst != none) 
+	{
 		VRank=Rx_VInst.VRank; 
+		YawModifier = Rx_VInst.GetRProjectileYaw();
+	}
+		
 	
 	SetRotation(rotator(Direction));
 	
-	MaxSpeed = default.MaxSpeed*Vet_SpeedIncrease[VRank] ; 
 	Velocity = (Speed*Vet_SpeedIncrease[VRank]) * Direction;
 	
 	Velocity.Z += TossZ;
 	
 	Acceleration = AccelRate * Normal(Velocity);
+	
+	//`log("INIT"); 
+	
+	if(RocketStages.Length == 0)
+	{
+		MaxSpeed = default.MaxSpeed*Vet_SpeedIncrease[VRank] ; 
+	}
+	else
+	{
+		CurrentStage = 0; 
+		
+		SetRocketStageParameters(); 
+	}
+	
 }
+
 
 simulated function ShutDownBeforeEndOfLife() 
 {
@@ -104,7 +188,16 @@ simulated function ShutDownBeforeEndOfLife()
 
 simulated function ClientAdjustState()
 {
-   GotoState('Homing');
+	if(!bInitialTargetSet && RocketStages.Length > 0)
+	{
+		SetRocketStageParameters();
+		bInitialTargetSet = true;
+		GotoState('Homing');		
+	}
+	else
+		GotoState('Homing');
+		
+	
 }
 
 simulated state Homing
@@ -113,39 +206,97 @@ simulated state Homing
 	{
 		local vector TargetLocation;
 		local bool bDontLock;
+		local bool bUsingStages;
 		
+		bUsingStages = RocketStages.Length > 0; 
+		
+		//`log("Target/Stage" @ Target @ SeekTarget @ "/" @ FinalSeekTarget); //Acceleration.Z @ AccelRate);
+		
+		if(bUsingStages && RocketStages[CurrentStage].bIgnoreHoming )
+		{
+			//`log("Acceleration in Homing" @ Acceleration);
+			return; 
+		}
+			
 		if(bDontLockAnymore) {
+			//`log("Don't lock anymore");
 			return;
 		}
 		
-		if(SeekTarget != none) {
-			TargetLocation = SeekTarget.GetTargetLocation();
-		} else {
-			TargetLocation = Target;		
-		}	
+		/*Initial Target Location, whether we have stages or not*/
 		
-		if(class'Rx_Utils'.static.OrientationOfLocAndRotToBLocation(Location,Rotation,TargetLocation) > 0.0) { // else we already are past the target
+		if(!bUsingStages)
+			{
+				if(FinalSeekTarget != none) {
+					TargetLocation = FinalSeekTarget.GetTargetLocation();
+				} else {
+					TargetLocation = Target ;		
+				}	
+			}
+			else {
+				//If we use stages then we actually need some damn replication I guess
+				if(FinalSeekTarget != none) {
+					TargetLocation = ROLE == ROLE_Authority ? FinalSeekTarget.GetTargetLocation() + RocketStages[CurrentStage].Stage_TargetOffset : FinalSeekTarget.GetTargetLocation() ;
+					//`log("Target Offset:" @ RocketStages[CurrentStage].Stage_TargetOffset);
+					Target = TargetLocation;
+				} else {
+					TargetLocation = Target + RocketStages[CurrentStage].Stage_TargetOffset;	
+				}
+			}
+			
+			//`log("Target/Stage" @ Target @ CurrentStage);
+		
+		//`log( "Orientation: " @ class'Rx_Utils'.static.OrientationOfLocAndRotToBLocation(Location,Rotation,TargetLocation) );
+		/* else we already are past the target EDIT: Also tear off if we're EXTREMELY close, so we don't try and straight up stop*/
+		if((!bUsingStages || CurrentStage == RocketStages.Length-1) && class'Rx_Utils'.static.OrientationOfLocAndRotToBLocation(Location,Rotation,TargetLocation) < 0.0){ // || VSizeSq(TargetLocation - Location) < MaxSpeed*0.5) { 
 			bDontLock = true;	
 		}
-		if(GetTimerCount('ShutDownBeforeEndOfLife',self) < 2.0)
-			bDontLock = false;	
+		/**if(GetTimerCount('ShutDownBeforeEndOfLife',self) < 2.0)
+			bDontLock = false;*/	
 		
-		if(!bDontLock) {
-			if(RxIfc_SeekableTarget(SeekTarget) != none && VSizeSq(SeekTarget.Velocity) > 22500 && RxIfc_SeekableTarget(SeekTarget).GetAimAheadModifier() > 0.0) { 
-				TargetLocation = TargetLocation + Normal(SeekTarget.Velocity) * RxIfc_SeekableTarget(SeekTarget).GetAimAheadModifier();
+		if(!bDontLock || FinalSeekTarget != none) {
+			if(RxIfc_SeekableTarget(FinalSeekTarget) != none && VSizeSq(FinalSeekTarget.Velocity) > 22500 && RxIfc_SeekableTarget(FinalSeekTarget).GetAimAheadModifier() > 0.0) { 
+				TargetLocation = TargetLocation + Normal(FinalSeekTarget.Velocity) * RxIfc_SeekableTarget(FinalSeekTarget).GetAimAheadModifier();
 			}
-			if(RxIfc_SeekableTarget(SeekTarget) != none && RxIfc_SeekableTarget(SeekTarget).GetAccelrateModifier() > 0.0) { 
-				AccelRate = default.AccelRate * RxIfc_SeekableTarget(SeekTarget).GetAccelrateModifier();
+			if(RxIfc_SeekableTarget(FinalSeekTarget) != none && RxIfc_SeekableTarget(FinalSeekTarget).GetAccelrateModifier() > 0.0) { 
+				
+				if(bUsingStages)
+					AccelRate = RocketStages[CurrentStage].Stage_AccelRate * RxIfc_SeekableTarget(FinalSeekTarget).GetAccelrateModifier();
+				else
+					AccelRate = default.AccelRate * RxIfc_SeekableTarget(FinalSeekTarget).GetAccelrateModifier();
 			}
-			Acceleration = 16.0 * AccelRate * Normal(TargetLocation - Location);
+			
+			Acceleration = HomingTrackingStrength * AccelRate * Normal(TargetLocation - Location);
 		} else {
+			Acceleration = BaseTrackingStrength * AccelRate * Normal(TargetLocation - Location);
+			//Acceleration = 16.0 * Velocity;
 			bDontLockAnymore = true;
-		}		
+		}
+		
+		
+			if(bUsingStages && (RocketStages[CurrentStage].Stage_MorphDistance > 0 && VSizeSq(TargetLocation - Location) <= RocketStages[CurrentStage].Stage_MorphDistance*RocketStages[CurrentStage].Stage_MorphDistance)) 
+			{
+				GotoNextStage(); 
+			}
 	}
 
 	simulated function BeginState(name PreviousStateName)
 	{
 		InitialState = 'Homing';
+		
+		if(ROLE == ROLE_Authority && FinalSeekTarget == none)
+			FinalSeekTarget = SeekTarget; 
+		//`log("Seek Target / Final:" @ SeekTarget @ FinalSeekTarget);
+		
+		if(ROLE == ROLE_Authority && RocketStages.Length > 0 && RocketStages[CurrentStage].bIgnoreHoming)
+		{
+			if(FinalSeekTarget != none)
+				Target = FinalSeekTarget.GetTargetLocation();
+			
+			SeekTarget = none; 
+			bNetDirty = true; 
+		}
+			
 		Timer();
 		SetTimer(0.1, true);
 	}
@@ -322,7 +473,7 @@ simulated function SpawnExplosionEffects(vector HitLocation, vector HitNormal)
 			Distance = VSizeSq(PC.ViewTarget.Location - HitLocation);
 			 
 			// dont spawn explosion effect if far away and no direct line of sight or if behind and relativly far away   
-			if ( ( PC.ViewTarget != None && Distance > 81000000 && !FastTrace(PC.ViewTarget.Location, HitLocation) ) 
+			if ( (PC.ViewTarget != None && Distance > 81000000 && !FastTrace(PC.ViewTarget.Location, HitLocation) ) 
 			 		|| ( vector(PC.Rotation) dot (HitLocation - PC.ViewTarget.Location) < 0.0 && Distance > 25000000 && !FastTrace(PC.ViewTarget.Location, HitLocation)) )
 			{
 				
@@ -361,6 +512,8 @@ simulated function SpawnExplosionEffects(vector HitLocation, vector HitNormal)
 simulated function SetExplosionEffectParameters(ParticleSystemComponent ProjExplosion)
 {
     Super.SetExplosionEffectParameters(ProjExplosion);
+
+    ProjExplosion.SetScale(ProjExplosionScale);
 	
 	ProjExplosion.SetVectorParameter('SurfaceImpactColour', ExplosionSmokeColour);
 }
@@ -418,14 +571,158 @@ simulated function CleanupAmbientSound()
 	}
 }
 
+simulated function PlayCamerashakeAnim()
+{
+   local UTPlayerController UTPC;
+   local float Dist;
+   local float ExplosionShakeScale;
+      
+   foreach LocalPlayerControllers(class'UTPlayerController', UTPC)
+   {
+      Dist = VSizeSq(Location - UTPC.ViewTarget.Location);
+
+      if (Dist < Square((default.DamageRadius*4)))
+      {
+         if (ExplosionShake != None)
+         {
+            ExplosionShakeScale = default.damage / 400;
+            if (Dist > Square((default.DamageRadius/3)))
+            {
+               ExplosionShakeScale -= (Sqrt(Dist) - (default.DamageRadius/3)) / ((default.DamageRadius*4) - (default.DamageRadius/3));
+            }
+            UTPC.PlayCameraAnim(ExplosionShake, FClamp(ExplosionShakeScale, 0.0 , 1.0));
+         }
+      }
+   }
+}
+
+
+simulated function Explode(vector HitLocation, vector HitNormal)
+{
+	CleanupAmbientSound();
+
+	if (bEnableExplosionShake)
+	{	
+		PlayCamerashakeAnim();
+		super.Explode(HitLocation, HitNormal);
+	}
+	else
+	{
+		super.Explode(HitLocation, HitNormal);
+	}
+}
+
+simulated function SetRocketStageParameters(){
+	
+	//`log("SetRocket Parameters: " @ CurrentStage); 
+
+	AccelRate = RocketStages[CurrentStage].Stage_AccelRate; 
+	MaxSpeed = RocketStages[CurrentStage].Stage_MaxSpeed; 
+	
+	if(CurrentStage == 0)
+		Speed = RocketStages[CurrentStage].Stage_MaxSpeed; 
+	
+	HomingTrackingStrength = RocketStages[CurrentStage].Stage_BaseTrackingStrength;
+	BaseTrackingStrength = RocketStages[CurrentStage].Stage_BaseTrackingStrength;
+	
+	if(RocketStages[CurrentStage].bSeekFinalTarget && FinalSeekTarget != none){
+		SeekTarget = FinalSeekTarget;
+	}
+	else
+	{
+		SeekTarget = none; /*Erase SeekTarget so UDK Native code doesn't interfere with missile stage code*/ 
+	}
+		
+	
+	if(RocketStages[CurrentStage].bIgnoreHoming)
+	{
+		//`log("Seek Target Was:" @ SeekTarget);
+		if(FinalSeekTarget == none && SeekTarget != none)
+		{
+			FinalSeekTarget = SeekTarget; 
+			SeekTarget = none;
+		}
+
+		if(ROLE < ROLE_Authority)
+			YawModifier = GetYawModifier();
+		
+		RocketStages[CurrentStage].DirToGo.Yaw*=YawModifier;  //Usually 1.0. Can be reversed with a -1.0 
+		
+		RocketStages[CurrentStage].DirToGo = RocketStages[CurrentStage].DirToGo+rotation;
+
+		//`log("Old Acceleration:" @ Acceleration);
+		
+		Acceleration = Acceleration + vector(RocketStages[CurrentStage].DirToGo) * 5000; //1500 just to be safe, but probably too much  ;
+		
+		//`log("New Acceleration:" @ Acceleration);
+	}
+	
+	if(RocketStages[CurrentStage].Stage_Time > 0.0 && CurrentStage < RocketStages.Length){
+		SetTimer(RocketStages[CurrentStage].Stage_Time, false, 'GotoNextStage'); 
+	}
+}
+
+simulated function GotoNextStage()
+{
+	//if(ROLE == ROLE_Authority)
+	CurrentStage=Min(CurrentStage+1, RocketStages.Length-1); 
+	
+	if(WorldInfo.NetMode != NM_DedicatedServer && RocketStages[CurrentStage].Stage_TransitionSound != none)
+	{
+		PlaySound(RocketStages[CurrentStage].Stage_TransitionSound, true);
+	}
+		
+	
+	SetRocketStageParameters(); 
+}
+
+simulated function SetYawModifier(float NewMod)
+{
+	YawModifier = NewMod; 
+}
+
+simulated function float GetYawModifier()
+{
+	local Rx_Weapon Rx_Inst; 
+	local Rx_Vehicle_Weapon Rx_VInst;
+	local float rYaw; 
+	
+	Rx_Inst=Rx_Weapon(Instigator.Weapon);
+	
+	Rx_VInst=Rx_Vehicle_Weapon(Instigator.Weapon) ;
+	
+	if(Rx_Inst != none)
+	{
+		VRank=Rx_Inst.VRank; 
+		rYaw = Rx_Inst.GetRProjectileYaw();
+	}			
+	else
+	if(Rx_VInst != none) 
+	{
+		VRank=Rx_VInst.VRank; 
+		rYaw = Rx_VInst.GetRProjectileYaw();
+	}
+	
+	return rYaw; 
+}
+
 DefaultProperties
 {
 	HeadShotDamageMult=2.0
 	SlowHeadshotScale=1.75
 	RunningHeadshotScale=1.5
+
+	ProjExplosionScale=1.0
 	
 	ExplosionDecal=none
+	ExplosionSound=none
     bWaitForEffectsAtEndOfLifetime = true
+
+    ExplosionShake=CameraAnim'Envy_Effects.Camera_Shakes.C_VH_Death_Shake'
+	bEnableExplosionShake=False
+	bIgnoreOptimizationChecks=false
+	
+	YawModifier = 1.0 
 	
 	/*************************/
 	/*VETERANCY*/
@@ -443,6 +740,8 @@ DefaultProperties
 	Vet_SpeedIncrease(1)=1 //Veteran 
 	Vet_SpeedIncrease(2)=1 //Elite
 	Vet_SpeedIncrease(3)=1 //Heroic 
+	
+	TargetMarker = ParticleSystem'rx_fx_envy.Fire.P_Flare_Large_Yellow'
 	
 	/***********************/
 }

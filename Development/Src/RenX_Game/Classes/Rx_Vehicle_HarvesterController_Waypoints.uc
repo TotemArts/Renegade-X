@@ -26,7 +26,7 @@ var rotator refineryRot;
 var Rx_BuildingAttachment DockingStation;
 var bool bTurnLeftToFaceRef;
 
-
+var float SelfDestructStuckTime;
 
 var Rx_BlockedForHarvesterPathnode	Nav;
 
@@ -36,6 +36,13 @@ var Actor NavPointWhenHalted;
 var bool bIgnoreBlockHarvNodes; 
 
 var bool bHasntCheckedForIntialStop; //Check the team info for if we need to stop on creation 
+
+replication
+{
+	// Things the server should send to the client.
+	if (bNetDirty)
+		tibNode;
+}
 
 event PostBeginPlay()
 {
@@ -327,7 +334,7 @@ state MovingToTib
 	{
 		harv_vehicle.SetFriendlyStateName("Moving to Tiberium");
 		ClearTimer('destroyIfHarvSeemsToBeStuck');
-		setTimer(480.0, false, 'destroyIfHarvSeemsToBeStuck');
+		setTimer(SelfDestructStuckTime, false, 'destroyIfHarvSeemsToBeStuck');
 		// get all the nav points first
 		if(refNode == None) {
 			refNode = GetRefNode();
@@ -546,6 +553,9 @@ function Rx_Ref_NavigationPoint GetRefNode()
    local Rx_Ref_NavigationPoint Node;
    local byte Num;
 
+   if(Refinery != None)
+   		return Refinery.RefNode;
+
    foreach AllActors(class'Rx_Ref_NavigationPoint', Node)
    {
       Num++;
@@ -684,9 +694,20 @@ function TimerLogState()
 function CloseToHaltedWaypoint() 
 {} 
 
+function ReassignRefinery(Rx_Building_Refinery Ref)
+{
+	Super.ReassignRefinery(Ref);
+
+	if(ScriptedMoveTarget == refNode)
+		ScriptedMoveTarget = Ref.RefNode;
+
+	refNode = Ref.RefNode;
+}
+
 
 
 defaultproperties
 {
 	bHasntCheckedForIntialStop = true 
+	SelfDestructStuckTime=480.0
 }

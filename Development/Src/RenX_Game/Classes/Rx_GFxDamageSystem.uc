@@ -7,6 +7,7 @@ var bool bHealthDirty;
 var int DamageRate;
 var int BleedType;
 var bool bCritical;
+var Rx_HUD RenxHUD;
 
 function Init(optional LocalPlayer LocPlay)
 {
@@ -27,11 +28,14 @@ function TickHUD(PlayerController PC)
 	}
 
 	PC = GetPC();
+	if(RenXHud == None)
+		return;
+
 	if (PC != None)
 	{
 		if (Rx_Pawn(PC.Pawn) != None)
 		{
-			DamageRate = Rx_Pawn(PC.Pawn).DamageRate;
+			DamageRate = RenXHud.DamageIntensity;
 			if( PC.Pawn.Health <= 25 && !bCritical)
 			{
 				bCritical = true;
@@ -42,8 +46,8 @@ function TickHUD(PlayerController PC)
 				bCritical = false;
 				DeInitCriticalScreen();
 			}
-			BleedType=Rx_Pawn(PC.Pawn).BleedDamageType;
-			Rx_Pawn(PC.Pawn).BleedDamageType=0;
+			BleedType=RenXHud.PendingBleed;
+			RenXHud.PendingBleed=0;
 			InitDamageScreen();
 
 		}
@@ -75,7 +79,7 @@ function InitDamageScreen()
 	if(BleedType > 0)
 		BleedType=0;		//Always set back to 0 after use
 			
-	DamageScreen.GotoAndStopI(100 - (DamageRate));
+	DamageScreen.GotoAndStopI(100 - Min(99, DamageRate));
 }
 
 function InitCriticalScreen()

@@ -3,11 +3,11 @@ class Rx_PurchaseSystem extends ReplicationInfo
 	config(PurchaseSystem);
 
 var protectedwrite array<class<Rx_FamilyInfo> >	GDIInfantryClasses;
-var protectedwrite array<class<Rx_Vehicle_PTInfo> >     GDIVehicleClasses;
+var array<class<Rx_Vehicle_PTInfo> >     GDIVehicleClasses;
 var array<class<Rx_Weapon> >      		GDIWeaponClasses;
 var array<class<Rx_Weapon> >      		GDIItemClasses;
 var protectedwrite array<class<Rx_FamilyInfo> >			NodInfantryClasses;
-var protectedwrite array<class<Rx_Vehicle_PTInfo> >     NodVehicleClasses;
+var array<class<Rx_Vehicle_PTInfo> >     NodVehicleClasses;
 var array<class<Rx_Weapon> >      		NodWeaponClasses;
 var array<class<Rx_Weapon> >      		NodItemClasses;
 
@@ -85,19 +85,62 @@ function SetVehicleManager( Rx_VehicleManager vm )
 
 simulated function class<Rx_FamilyInfo> GetStartClass(byte TeamID, PlayerReplicationInfo PRI)
 {
+	local int FinalClassSelection;
+
+	//Due to possibility for the players to get empty class if the default class selection doesn't support it, we'll try to dynamically sort things out so the game will not crash
+	FinalClassSelection = CheckValidClass(TeamID,Rx_PRI(PRI).LastFreeCharacterClass);
+
 	if ( TeamID == TEAM_GDI )
 	{
 		//set starting class based on the last free class (nBab)
 		//return GDIInfantryClasses[0]; (Old line)
 		//return GDIInfantryClasses[Rx_Hud(GetALocalPlayerController().myHud).HudMovie.lastFreeClass];
-		return GDIInfantryClasses[Rx_PRI(PRI).LastFreeCharacterClass];
+		return GDIInfantryClasses[FinalClassSelection];
 	} 
 	else
 	{
 		//set starting class based on the last free class (nBab)
 		//return NodInfantryClasses[0]; (Old line)
-		return NodInfantryClasses[Rx_PRI(PRI).LastFreeCharacterClass];
+		return NodInfantryClasses[FinalClassSelection];
 	}
+
+}
+
+simulated function int CheckValidClass(byte TeamID, int ClassID, optional int LoopCount)
+{
+	local Array<class<Rx_FamilyInfo> > List;
+
+	if(TeamID == Team_GDI)
+		List = GDIInfantryClasses;
+	else
+		List = NodInfantryClasses;
+
+	if(List[ClassID] != None)
+		return ClassID;
+
+	if(LoopCount > 5)
+	{
+		`log("Error determining free class, overflowing to upper level");
+		if(LoopCount == 6)
+		{
+			ClassID = 5;
+		}
+		else
+		{
+			ClassID++;
+		}
+	}
+	else
+	{
+		ClassID--;
+
+		if(ClassID < 0)
+		{
+			ClassID = 4;
+		}
+	}
+
+	return CheckValidClass(TeamID, ClassID, LoopCount + 1);
 }
 
 simulated function class<Rx_FamilyInfo> GetHealerClass(byte TeamID)
@@ -230,12 +273,16 @@ function bool PurchaseVehicle(Rx_PRI Buyer, int TeamID, int VehicleID )
 {
 	local class<Rx_Vehicle> vehicleClass;
 
+//	`log(Buyer@"attempting to buy Vehicle"@VehicleID);
 	if (FFloor(Buyer.GetCredits()) >= GetVehiclePrices(TeamID,VehicleID,AirdropAvailable(Buyer)) && !AreVehiclesDisabled(TeamID, Controller(Buyer.Owner)) )
 	{
 		vehicleClass = GetVehicleClass(TeamID,VehicleID);
 		if((AreHighTierVehiclesDisabled(TeamID) && VehicleID > 1 && !ClassIsChildOf(vehicleClass, class'Rx_Vehicle_Air'))
 			|| AreAirVehiclesDisabled(TeamId) && ClassIsChildOf(vehicleClass, class'Rx_Vehicle_Air'))
+		{
+//			`log(Buyer@"failed to buy Vehicle"@VehicleID);
 			return false; //Limit airdrops to APCs and Humvees/Buggies. 
+		}
 		
 		if(VehicleManager.QueueVehicle(vehicleClass,Buyer,VehicleID))
 		{
@@ -281,6 +328,7 @@ function PerformRefill( Rx_Controller cont )
 			Rx_Pawn_SBH(p).ChangeState('WaitForSt');
 		cont.RefillCooldownTime = cont.default.RefillCooldownTime;
 		cont.SetTimer(1.0,true,'RefillCooldownTimer');	
+		cont.ClientResetVignette();	
 	}
 
 	if(Rx_InventoryManager(p.InvManager) != none )
@@ -413,7 +461,10 @@ simulated function int GetItemPrices(byte teamID, int charid)
 
 simulated function bool IsItemBuyable (Rx_Controller Player, byte teamID, int charid)
 {
-	return GetItemClass(teamID, charid).static.IsBuyable(Player);
+	local class<Rx_Weapon> W;
+	W = GetItemClass(teamID, charid);
+
+	return Rx_InventoryManager(Player.Pawn.InvManager).IsItemAllowed(W) && W.static.IsBuyable(Player);
 }
 
 simulated function class<Rx_FamilyInfo> GetFamilyClass(byte teamID, int charid)
@@ -730,6 +781,10 @@ simulated function bool AreAirVehiclesDisabled(byte TeamID)
 
 simulated function bool AirdropAvailable(PlayerreplicationInfo pri)
 {
+
+	if(!AreTeamFactoriesDestroyed(pri.GetTeamNum())) // you shouldn't be using airdrop when factories are available anyways :v - Handepsilon
+		return false;
+
 	if(Rx_Pri(pri).LastAirdropTime == 0 && Rx_Pri(pri).AirdropCounter == 0) /*This didn't take into account whether or not the Airdrop counter was active or not. If WorldTime was 0 (like when a player joins), it just said screw your airdrops forever n00b. FIXED -Yosh */ 
 		return false;
 	if (default.AirdropCooldownTime < 0) 

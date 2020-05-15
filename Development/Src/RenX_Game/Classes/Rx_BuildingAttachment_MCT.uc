@@ -3,6 +3,11 @@ class Rx_BuildingAttachment_MCT extends Rx_BuildingAttachment implements (Rx_Obj
     
 var StaticMeshComponent MCTSkeletalMesh;
 
+simulated function bool ShouldSubstitute()
+{
+	return false;
+}
+
 simulated function string GetTooltip(Rx_Controller PC)
 {
 	if (OwnerBuilding != None)

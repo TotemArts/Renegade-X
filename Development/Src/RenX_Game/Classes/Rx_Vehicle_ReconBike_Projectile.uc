@@ -58,7 +58,7 @@ DefaultProperties
 
 	ExplosionLightClass=Class'Rx_Light_Tank_MuzzleFlash'
 	MaxExplosionLightDistance=7000.000000
-	Speed=500
+	Speed=1500 //500
 	MaxSpeed=5000
 	AccelRate=500.0
 	TossZ=100
@@ -69,8 +69,8 @@ DefaultProperties
 	MomentumTransfer=100000.000000
    
 	LockWarningInterval			= 1.5
-	BaseTrackingStrength		= 6.0	// 0.7
-	HomingTrackingStrength		= 2.0 		// 0.7
+	BaseTrackingStrength		= 8.0	// 0.7
+	HomingTrackingStrength		= 10.0 //2.0 		// 0.7
 
 	MyDamageType=Class'Rx_Vehicle_ReconBike_DmgType'
 

@@ -133,17 +133,40 @@ function ToggleDevFlag()
 	SaveConfig();
 }
 
+function TriggerRadioCommand(int KeyIndex) {
+	local array<int> RadioCommandIndexes;
+	local Rx_Hud RxHud;
+
+	// Get appropriate key page from Rx_HUD
+	RxHud = Rx_HUD(Player.Actor.myHUD);
+	if (bRadio0Pressed && bRadio1Pressed) {
+		// Ctrl + Alt
+		RadioCommandIndexes = RxHud.RadioCommandsCtrlAlt;
+	}
+	else if (bRadio1Pressed) {
+		// Alt
+		RadioCommandIndexes = RxHud.RadioCommandsAlt;
+	}
+	else if (bRadio0Pressed) {
+		// Ctrl
+		RadioCommandIndexes = RxHud.RadioCommandsCtrl;
+	}
+
+	// Sanity check KeyIndex
+	if (KeyIndex < 0 || KeyIndex >= RadioCommandIndexes.Length) {
+		// Invalid radio command index; return
+		return;
+	}
+
+	// Trigger the command
+	Rx_Controller(Player.Actor).RadioCommand(RadioCommandIndexes[KeyIndex]);
+}
+
 function bool InputKey(int ControllerId, name Key, EInputEvent Event, float AmountDepressed = 1.f, bool bGamepad = FALSE)
 {
 	local Rx_Controller pc;
-	local bool bMapVoting;
 
 	pc = Rx_Controller(Player.Actor);
-	if(WorldInfo.GRI != None && WorldInfo.GRI.bMatchIsOver) {
-		bMapVoting = true;	
-	}
-	
-
 
 	if(Rx_Vehicle(Player.Actor.pawn) != None 
 			&& Rx_Vehicle(Player.Actor.pawn).IsReversedSteeringInverted() != bThreadedVehReverseSteeringInverted) {
@@ -151,116 +174,45 @@ function bool InputKey(int ControllerId, name Key, EInputEvent Event, float Amou
 	} 
 
     if ( event == ie_pressed ) {
+		//if(PC.bSuspect) 
+			PC.AddToKeyString(string(Key)); 
 	
-	//if(PC.bSuspect) 
-		PC.AddToKeyString(string(Key)); 
-	
-	if( isBannedCommand(GetBind(key))) 
-	{
-	return true; 
-	}
-       
-	   switch( key ) {
-			
+		if( isBannedCommand(GetBind(key))) {
+			return true; 
+		}
+
+
+
+		switch( key ) {
 			case 'one':
-				if (bRadio0Pressed && bRadio1Pressed) {
-					pc.RadioCommand(20);
-				} else if (bRadio1Pressed) {
-					pc.RadioCommand(10);
-				} else if (bRadio0Pressed || bMapVoting) {
-					pc.RadioCommand(0);
-				}
+				TriggerRadioCommand(0);
                 break;
             case 'two':
-				if (bRadio0Pressed && bRadio1Pressed) {
-					pc.RadioCommand(21);
-				} else if (bRadio1Pressed) {
-					pc.RadioCommand(11);
-				} else if (bRadio0Pressed || bMapVoting) {
-					pc.RadioCommand(1);
-				}
+				TriggerRadioCommand(1);
                 break;
 			case 'three':
-				if (bRadio0Pressed && bRadio1Pressed) {
-					pc.RadioCommand(22);
-				} else if (bRadio1Pressed) {
-					pc.RadioCommand(12);
-				} else if (bRadio0Pressed || bMapVoting) {
-					pc.RadioCommand(2);
-				}
+				TriggerRadioCommand(2);
                 break;
             case 'four':
-				if (bRadio0Pressed && bRadio1Pressed) {
-					pc.RadioCommand(23);
-				} else if (bRadio1Pressed) {
-					pc.RadioCommand(13);
-				} else if (bRadio0Pressed || bMapVoting) {
-					pc.RadioCommand(3);
-				}
+				TriggerRadioCommand(3);
                 break;
 			case 'five':
-				if (bRadio0Pressed && bRadio1Pressed) {
-					pc.RadioCommand(24);
-				} else if (bRadio1Pressed) {
-					pc.RadioCommand(14);
-				} else if (bRadio0Pressed || bMapVoting) {
-					pc.RadioCommand(4);
-				}
+				TriggerRadioCommand(4);
                 break;
             case 'six':
-				if (bRadio0Pressed && bRadio1Pressed) {
-					pc.RadioCommand(25);
-				} else if (bRadio1Pressed) {
-					pc.RadioCommand(15);
-				} else if (bRadio0Pressed || bMapVoting) {
-					pc.RadioCommand(5);
-				}
+				TriggerRadioCommand(5);
                 break;
 			case 'seven':
-				if (bRadio0Pressed && bRadio1Pressed) {
-					pc.RadioCommand(26);
-				} else if (bRadio1Pressed) {
-					pc.RadioCommand(16);
-				} else if (bRadio0Pressed || bMapVoting) {
-					pc.RadioCommand(6);
-				}
+				TriggerRadioCommand(6);
                 break;
             case 'eight':
-				if (bRadio0Pressed && bRadio1Pressed) {
-					pc.RadioCommand(27);
-				} else if (bRadio1Pressed) {
-					pc.RadioCommand(17);
-				} else if (bRadio0Pressed || bMapVoting) {
-					pc.RadioCommand(7);
-				}
+				TriggerRadioCommand(7);
                 break;
 			case 'nine':
-				if (bRadio0Pressed && bRadio1Pressed) 
-				{
-					pc.RadioCommand(28);
-				} 
-				else if (bRadio1Pressed) 
-				{
-					pc.RadioCommand(18);
-				} 
-				else if (bRadio0Pressed || bMapVoting) 
-				{
-					pc.RadioCommand(8);
-				}
+				TriggerRadioCommand(8);
                 break;
             case 'zero':
-				if (bRadio0Pressed && bRadio1Pressed) 
-				{
-					pc.RadioCommand(29);
-				} 
-				else if (bRadio1Pressed) 
-				{
-					pc.RadioCommand(19);
-				} 
-				else if (bRadio0Pressed || bMapVoting) 
-				{
-					pc.RadioCommand(9);
-				}
+				TriggerRadioCommand(9);
                 break;
 				/** one1: added */
 			case 'V':

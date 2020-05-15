@@ -43,7 +43,7 @@ function float GetProbabilityWeight(Rx_Pawn Recipient, Rx_CratePickup CratePicku
 
 function ExecuteCrateBehaviour(Rx_Pawn Recipient, Rx_PRI RecipientPRI, Rx_CratePickup CratePickup)
 {
-	credits = ((Rand(2)+1) * 100) + (Rand(4) * 50) + (Rand(3) * 50);
+	credits = ((Rand(2)+1) * 100) + (Rand(4) * 50) + 50 + (Rand(3) * 50);
 	RecipientPRI.AddCredits(credits);
 	Recipient.ClientMessage("You found a Super Money crate, and have shared it's worth with your team!");
 	GiveCreditsToAll(Recipient);
@@ -56,7 +56,7 @@ reliable server function GiveCreditsToAll(Rx_Pawn Sender)
 	local Controller c;
 	
 	// How many credits to give to each player on the team
-	credits = ((Rand(2)) * 100) + (Rand(3) * 50) + (Rand(3) * 25);
+	credits = (25 + (Rand(2)) * 100) + (Rand(3) * 50) + (Rand(3) * 25);
 	teamNum = Sender.GetTeamNum();
 	plyrController = Sender.Controller;
 	

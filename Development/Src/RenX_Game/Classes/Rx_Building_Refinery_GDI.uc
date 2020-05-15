@@ -3,7 +3,7 @@ class Rx_Building_Refinery_GDI extends Rx_Building_GDI_MoneyFactory
 
 simulated function String GetHumanReadableName()
 {
-	return "GDI Refinery";
+	return "Refinery";
 }
 
 DefaultProperties

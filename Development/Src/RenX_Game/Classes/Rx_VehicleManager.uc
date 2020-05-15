@@ -78,8 +78,9 @@ function Initialize(GameInfo Game, UTTeamInfo GdiTeamInfo, UTTeamInfo NodTeamInf
 		 return;
 	  }
    }   
-  Teams[TEAM_GDI] = GdiTeamInfo;
-  Teams[TEAM_NOD] = NodTeamInfo;
+
+   Teams[TEAM_GDI] = GdiTeamInfo;
+   Teams[TEAM_NOD] = NodTeamInfo;
   	
   	foreach WorldInfo.AllNavigationPoints(class'Rx_Tib_NavigationPoint',N) 
   	{

@@ -68,8 +68,8 @@ var bool 		           bCheckIfBarrelInsideWorldGeomBeforeFiring;
 var bool 		           bCheckIfFireStartLocInsideOtherVehicle;
 var bool 				   CurrentlyReloadingClientside;
 var bool				   bReloadAfterEveryShot;
-var bool				   bDropOnTarget; 
 var float				   TossZ_Mod, TrackingMod; //Used for missiles that drop on their target. 
+var bool bDrawCrosshair;
 
 /**
  * For reload capable weapons. Reload time and Reload Anim name's 
@@ -136,6 +136,9 @@ var bool bOkAgainstLightVehicles;
 var bool bOkAgainstArmoredVehicles;
 var float CloseRangeAimAdjustment;
 
+//Temporarily hold the client side actor we should be locking on to
+var Actor LastClientLockonTarget; 
+
 replication
 {
     if (Role == ROLE_Authority && bNetDirty)
@@ -175,6 +178,7 @@ simulated function DrawCrosshair( Hud HUD )
 	local bool	bTargetBehindUs; 
 	local float XResScale;
 
+	if (!bDrawCrosshair) return;
 	
 	//set initial color based on settings (nBab)
 	LC.A = 1.f;
@@ -712,6 +716,7 @@ simulated function Projectile ProjectileFire()	// Add impulse on the vehicle eve
 {
     local UDKProjectile SpawnedProjectile;
     local vector ForceLoc;
+	local Rx_Projectile RxProj; 
 
 	if(!UsesClientSideProjectiles(CurrentFireMode)) {
 		return ProjectileFireOld();
@@ -719,17 +724,20 @@ simulated function Projectile ProjectileFire()	// Add impulse on the vehicle eve
 	
 	IncrementFlashCount();
 	//`log("Using New PF"); 
-	if(bCheckIfBarrelInsideWorldGeomBeforeFiring && IsBarrelInGeometry()) SpawnedProjectile = UDKProjectile(Spawn(GetProjectileClassSimulated(),,, Rx_Vehicle(MyVehicle).GetAdjustedPhysicalFireStartLoc(self)));
+	if(bCheckIfBarrelInsideWorldGeomBeforeFiring && IsBarrelInGeometry()) 
+		SpawnedProjectile = UDKProjectile(Spawn(GetProjectileClassSimulated(),,, Rx_Vehicle(MyVehicle).GetAdjustedPhysicalFireStartLoc(self)));
 	else
-	SpawnedProjectile = UDKProjectile(Spawn(GetProjectileClassSimulated(),,, MyVehicle.GetPhysicalFireStartLoc(self)));
+		SpawnedProjectile = UDKProjectile(Spawn(GetProjectileClassSimulated(),,, MyVehicle.GetPhysicalFireStartLoc(self)));
+	
 	if ( SpawnedProjectile != None )
 	{
+		RxProj = Rx_Projectile(SpawnedProjectile); 
 		SpawnedProjectile.Init( vector(AddSpread(MyVehicle.GetWeaponAim(self))) );
-		if(Rx_Projectile(SpawnedProjectile) != none ) 
+		if(RxProj != none ) 
 		{
-			Rx_Projectile(SpawnedProjectile).SetWeaponInstigator(self);
-			Rx_Projectile(SpawnedProjectile).Vrank=VRank; 
-			Rx_Projectile(SpawnedProjectile).FMTag=CurrentFireMode;
+			RxProj.SetWeaponInstigator(self);
+			RxProj.Vrank=VRank; 
+			RxProj.FMTag=CurrentFireMode;
 			//Rx_Projectile(SpawnedProjectile).RxInitLifeSpan();
 		}
 		
@@ -749,7 +757,8 @@ simulated function Projectile ProjectileFire()	// Add impulse on the vehicle eve
     if (bTargetLockingActive && Rx_Projectile_Rocket(SpawnedProjectile) != None)
     {
 		SetRocketTarget(Rx_Projectile_Rocket(SpawnedProjectile));
-    }    
+    }   
+	
     return SpawnedProjectile;
 }
 
@@ -762,30 +771,30 @@ simulated function Projectile ProjectileFireOld()
 {
     local UDKProjectile SpawnedProjectile;
     local vector ForceLoc;
-	
-	
+	local Rx_Projectile_Rocket RxRocket; 
+	local Rx_Projectile RxProj; 
 	
     SpawnedProjectile = UDKProjectile(Super.ProjectileFire());
 	
-	//`log("Call Projectile Fire Old" @ SpawnedProjectile); 
+	//`log("Locked Target:" @ LockedTarget);
+	
+	RxProj = Rx_Projectile(SpawnedProjectile) ;
+	RxRocket = Rx_Projectile_Rocket(SpawnedProjectile)  ;
+	
+	//`log("Call Projectile Fire Old" @ SpawnedProjectile @ bTargetLockingActive); 
 	//ScriptTrace();
 	
-	if(Rx_Projectile(SpawnedProjectile) != none ) 
+	if(RxProj != none ) 
 	{
-		Rx_Projectile(SpawnedProjectile).Vrank=VRank; 
-		Rx_Projectile(SpawnedProjectile).FMTag=CurrentFireMode; 
-		Rx_Projectile(SpawnedProjectile).SetWeaponInstigator(self);
+		RxProj.Vrank=VRank; 
+		RxProj.FMTag=CurrentFireMode; 
+		RxProj.SetWeaponInstigator(self);
 	}
-	else if(Rx_Projectile_Rocket(SpawnedProjectile) != none)
+	else if(RxRocket != none)
 	{
-		Rx_Projectile_Rocket(SpawnedProjectile).SetWeaponInstigator(self);
+		RxRocket.SetWeaponInstigator(self);
 	}
 	
-	if(bLockedOnTarget && bDropOnTarget && CurrentFireMode != 1) 
-	{
-		UseArcShot( Rx_Projectile_Rocket(SpawnedProjectile) );
-		SpawnedProjectile.Init( vector(AddSpread(MyVehicle.GetWeaponAim(self))) );
-	}
     if ( (Role==ROLE_Authority) && (SpawnedProjectile != None) && MyVehicle != none && MyVehicle.Mesh != none)
     {
         // apply force to vehicle
@@ -795,9 +804,9 @@ simulated function Projectile ProjectileFireOld()
     }  
 
 	
-	if (bTargetLockingActive && Rx_Projectile_Rocket(SpawnedProjectile) != None)
+	if (Role == ROLE_Authority && bTargetLockingActive && RxRocket != None)
     {
-		SetRocketTarget(Rx_Projectile_Rocket(SpawnedProjectile));
+		SetRocketTarget(RxRocket);
     }    
     return SpawnedProjectile;
 }
@@ -807,10 +816,12 @@ simulated function SetRocketTarget(Rx_Projectile_Rocket Rocket)
 	local vector CameraLocation, HitLocation, HitNormal, DesiredAimPoint;
 	local rotator CameraRotation;	
 	local Controller C;
-	
+	//`log("Set Rocket Target"); 
 	if (bLockedOnTarget && (!SecondaryLockingDisabled || CurrentFireMode != 1 || AIController(UTVehicle(Owner).Controller) != None ))
 	{
+		//`log("----SET ROCKET TARGET---" @ LockedTarget @ ROLE); 
 		Rocket.SeekTarget = LockedTarget;
+		Rocket.Target = LockedTarget.GetTargetLocation();
 		Rocket.GotoState('Homing');
 	}
 	else
@@ -838,13 +849,6 @@ simulated function SetRocketTarget(Rx_Projectile_Rocket Rocket)
 		
 		Rocket.GotoState('Homing');
 	}
-}
-
-simulated function UseArcShot(Rx_Projectile_Rocket Rocket)
-{
-	Rocket.TossZ=TossZ_Mod;
-	Rocket.BaseTrackingStrength=TrackingMod; 
-	
 }
 
 function float GetOptimalRangeFor(Actor Target)
@@ -944,7 +948,7 @@ function AdjustLockTarget(actor NewLockTarget)
 simulated function bool CanLockOnTo(Actor TA)
 {
     if ( (TA == None) || !TA.bProjTarget || TA.bDeleteMe || (Pawn(TA) == None) || (TA == Instigator) || (Pawn(TA).Health <= 0)
-    		|| TA.IsInState('Stealthed') || TA.IsInState('BeenShot') || Rx_Pawn(TA) != none || Rx_SupportVehicle_DropOffChinook(TA) != none)
+    		|| TA.IsInState('Stealthed') || TA.IsInState('BeenShot') || Rx_Pawn(TA) != none || Rx_SupportVehicle_DropOffChinook(TA) != none || Rx_Sentinel(TA) != None)
     {
         return false;
     }
@@ -1902,6 +1906,7 @@ function bool CanAttack(Actor Other)
 	local float CachedMaxRangeTemp;
 	local bool ret;
 	local Actor RealTarget;
+	local Actor TracedTarget;
 	
 	if (Instigator == None || Instigator.Controller == None)
 	{
@@ -1921,7 +1926,13 @@ function bool CanAttack(Actor Other)
 			if(Rx_BuildingObjective(Other) != None && Rx_BuildingObjective(Other).myBuilding != None) 
 				RealTarget = Rx_BuildingObjective(Other).myBuilding;
 
-			if(RealTarget != Trace( out_HitLocation, out_HitNormal, RealTarget.GetTargetLocation(), projStart,TRUE,,,TRACEFLAG_Bullet)) {
+			TracedTarget = GetTraceOwner().Trace( out_HitLocation, out_HitNormal, RealTarget.GetTargetLocation(), projStart,TRUE,,,TRACEFLAG_Bullet);
+			if(RealTarget != TracedTarget) 
+			{
+				if(Rx_Bot(Instigator.Controller) != None)
+				{
+					Rx_Bot(Instigator.Controller).FireAssessment = "CANNOT ATTACK"@Other@"- LOS obstructed by"@TracedTarget;
+				}
 				return false;
 			}
 			Dist = VSizeSq(Instigator.GetWeaponStartTraceLocation() - out_HitLocation);
@@ -1934,6 +1945,10 @@ function bool CanAttack(Actor Other)
 	            //DrawDebugLine(Instigator.Location,Other.location,0,0,255,true);
 	            //DrawDebugLine(Instigator.Location,out_HitLocation,0,255,0,true);
             	//DebugFreezeGame();   
+            	if(Rx_Bot(Instigator.Controller) != None)
+				{
+					Rx_Bot(Instigator.Controller).FireAssessment = "CANNOT ATTACK"@Other@"- Out of Range";
+				}
 				return false;
 			} 
 		} 
@@ -2098,10 +2113,17 @@ simulated function LinearColor GetSecondTipsColor()
 	return MakeLinearColor(1.0, 1.0, 1.0, 1.0);
 }
 
+/*Some projectiles (Rockets) may need to adjust their initial yaw depending on what barrel they're spawned at.*/ 
+simulated function int GetRProjectileYaw(){
+	return 1.0; //Modifier... usually 1.0 or -1.0 
+}
+
 DefaultProperties
 {
 	InventoryGroup=0
 	FireOffset=(X=0,Y=0,Z=0)
+
+	bDrawCrosshair = true
 
 	bDebugWeapon = false
 	BobDamping=0.7

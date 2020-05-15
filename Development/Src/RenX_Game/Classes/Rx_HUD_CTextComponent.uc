@@ -183,10 +183,14 @@ function SetFlashText(string TEXT,color C,optional float TIME = 60, optional flo
 //	MSG.bCommandMessage = bCommanderMessage; 
 	
 	local String HexString;
+	local String cleanTEXT;
 
 	HexString = "#"$Right(ToHex(C.R),2)$Right(ToHex(C.G),2)$Right(ToHex(C.B),2);
 
-	TEXT = "<font color = '"$HexString$"'>"$TEXT$"</font>";
+	cleanTEXT = class'Rx_HUD'.static.CleanHTMLMessage(TEXT);
+	cleanTEXT = class'Rx_HUD'.static.RestoreHTMLFormat(cleanTEXT);
+	
+	TEXT = "<font color = '"$HexString$"'>"$cleanTEXT$"</font>";
 
 	
 	

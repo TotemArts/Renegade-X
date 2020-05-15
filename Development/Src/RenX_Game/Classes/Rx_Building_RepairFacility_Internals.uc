@@ -8,9 +8,8 @@ var private UTParticleSystemComponent RepairJet1, RepairJet2, RepairJet3, Repair
 var private AudioComponent RepairStartAC, RepairOnAC, RepairStopAC;
 var private bool bStopping, bStarting; // Vars to fix single player animations
 var private SoundCue RepairStart, RepairOn, RepairStop;
-var(RenX_Buildings) int RepairRate; // The amount of healing per 0.1 seconds. (RepairRate * 10 = repair per second)
-var(RenX_Buildings) int RepairDistance; // How far the repair pad will repair from the center (don't change unless you scale it for some reason)
 var private bool IgnoreHiddenCollidingActors;
+var private Rx_Building_RepairFacility MyRepB;
 
 replication
 {
@@ -27,6 +26,10 @@ simulated event ReplicatedEvent(name VarName)
 		else
 			StopRepairPadVisuals();
 	}
+	else
+	{
+		Super.ReplicatedEvent(VarName);
+	}
 }
 
 simulated function PostBeginPlay()
@@ -34,6 +37,8 @@ simulated function PostBeginPlay()
 	Super.PostBeginPlay();
 
 	SetupAttachments();
+
+	MyRepB = Rx_Building_RepairFacility(BuildingVisuals);
 
 	// Start our repairpad tick
 	SetTimer(0.1f, true, nameof(RepairPadTick));
@@ -51,17 +56,22 @@ function RepairPadTick()
 		ClearTimer(nameof(RepairPadTick)); // Stop the timer
 		return;
 	}
+
+	if (MyRepB == None)
+		MyRepB = Rx_Building_RepairFacility(BuildingVisuals);
+	if (MyRepB == None)
+		return;
 	
 	thisLocation = BuildingVisuals.Location;
 	thisLocation.Z += 50.0f;
 
 	ForEach `WorldInfoObject.AllActors(class'UTVehicle', thisVehicle) //thisVehicle, RepairDistance, thisLocation, IgnoreHiddenCollidingActors)
 	{
-		if (!IsValidVehicle(thisVehicle) || VSizeSq(thisVehicle.Location - thisLocation) > Square(RepairDistance)) continue;
+		if (!IsValidVehicle(thisVehicle) || VSizeSq(thisVehicle.Location - thisLocation) > Square(MyRepB.RepairDistance)) continue;
 
 		if (thisVehicle.Health < thisVehicle.HealthMax)
 		{
-			thisVehicle.HealDamage(RepairRate, thisVehicle.Controller, class'Rx_DmgType_RepairFacility');
+			thisVehicle.HealDamage(MyRepB.RepairRate, thisVehicle.Controller, class'Rx_DmgType_RepairFacility');
 
 			if(`WorldInfoObject.NetMode == NM_DedicatedServer)
 				StartRepairPadVisualsServer();
@@ -321,12 +331,6 @@ DefaultProperties
     ActiveAnimName     = "Active"
     EmitterBoneName    = "b_Emitters"
     RepairJetsTemplate = ParticleSystem'RX_BU_RepairPad.Effects.P_Repair_Beam'
-
-    // The distance to check for applicable vehicles to be repaired on each pad
-	RepairDistance = 300
-
-	// How much HP to repair the vehicle per 0.1 second when power is online. RepairRate * 10 = Repair Per Second
-	RepairRate = 20
 
 	// Ignore this, do not change
 	IgnoreHiddenCollidingActors = true

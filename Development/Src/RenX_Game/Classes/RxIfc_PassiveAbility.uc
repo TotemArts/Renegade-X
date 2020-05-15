@@ -14,7 +14,8 @@ simulated function bool ActivateAbility1(bool Toggle); //(Usually Tied to 'G') R
 
 simulated function NotifyPassivesLanded();
 
-simulated function NotifyPassivesDodged(int Dir); 
+/*Notify passives we hit the dodge button in one of 8 directions. Return value useful if we need to interrupt other behaviour. */
+simulated function bool NotifyPassivesDodged(int Dir); 
 
 simulated function NotifyPassivesCrouched(bool Toggle); //Called when crouch is PRESSED.
 

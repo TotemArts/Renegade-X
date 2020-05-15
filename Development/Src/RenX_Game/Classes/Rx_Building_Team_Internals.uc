@@ -1,3 +1,21 @@
+/*********************************************************
+*
+* File: Rx_Building_Team_Internals.uc
+* Author: RenegadeX-Team
+* Pojekt: Renegade-X UDK <www.renegade-x.com>
+*
+* Desc:
+* The Internals class of team and tech building. 
+* Contains logic such as health/armor, damage registring, team-changing
+* 
+* See Also :
+* - Rx_Building_Internals - The base class of this class
+* - Rx_Building - The placeable building class that defines the visual look and spawns this class
+*
+*********************************************************
+*  
+*********************************************************/
+
 class Rx_Building_Team_Internals extends Rx_Building_Internals;
 
 `include(RenX_Game\RenXStats.uci);
@@ -60,7 +78,7 @@ replication
 	if( bNetInitial && Role == ROLE_Authority )
 		HealthMax, TrueHealthMax;
 	if( bNetDirty && Role == ROLE_Authority )
-		Health, Armor, bDestroyed, DamageLodLevel, bNoPower; 
+		Health, Armor, bDestroyed, DamageLodLevel, bNoPower, Destroyer; 
 }
 
 simulated event ReplicatedEvent( name VarName )
@@ -874,11 +892,11 @@ function ArmorBreak(Controller Con)
 		{
 				if (PC.GetTeamNum() == Con.GetTeamNum() )
 				{
-				PC.DisseminateVPString("[Armour Break Bonus]&" $ class'Rx_VeterancyModifiers'.default.Ev_BuildingArmorBreak $ "&");
+				PC.DisseminateVPString("[" $ BuildingVisuals.GetHumanReadableName() @ "Armour Break Bonus]&" $ class'Rx_VeterancyModifiers'.default.Ev_BuildingArmorBreak $ "&");
 				}
 		}
 		bCanArmorBreak = false; 
-		SetTimer(ArmorResetTime,false,'ResetArmorBreakEventTimer'); 
+		//SetTimer(ArmorResetTime,false,'ResetArmorBreakEventTimer'); 
 }
 
 function ResetArmorBreakEventTimer()

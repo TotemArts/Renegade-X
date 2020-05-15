@@ -1,4 +1,5 @@
-class Rx_BuildingAttachment extends Actor;
+class Rx_BuildingAttachment extends Actor
+implements(RxIfc_TargetedSubstitution);
 
 var const string            SpawnName;
 var const string            SocketPattern;  // What is matched to see if this attachment is spawned on a socket
@@ -19,6 +20,15 @@ simulated function Init( Rx_Building_Internals inBuilding, optional name SocketN
 	SetOwner(inBuilding);
 	OwnerBuilding = inBuilding;
 	bAttachmentDebug = OwnerBuilding.bBuildingDebug;
+}
+
+simulated function Actor GetActualActorTarget()
+{
+	return OwnerBuilding;
+}
+simulated function bool ShouldSubstitute()
+{
+	return true;
 }
 
 event TakeDamage( int DamageAmount, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser )

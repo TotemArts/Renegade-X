@@ -94,7 +94,7 @@ function TeamInfo GetInitialTeam(PlayerReplicationInfo PRI)
 	index = GDIPlayers.Find('PlayersID',ID);
 	if (index >= 0)
 	{
-		Rx_Pri(PRI).OldRenScore = GDIPlayers[index].PlayerAggregateScore;
+//		Rx_Pri(PRI).OldRenScore = GDIPlayers[index].PlayerAggregateScore;
 		return `RxGameObject.Teams[TEAM_GDI];
 	}
 
@@ -102,7 +102,7 @@ function TeamInfo GetInitialTeam(PlayerReplicationInfo PRI)
 	index = NodPlayers.Find('PlayersID',ID);
 	if (index >= 0)
 	{
-		Rx_Pri(PRI).OldRenScore = NodPlayers[index].PlayerAggregateScore;
+//		Rx_Pri(PRI).OldRenScore = NodPlayers[index].PlayerAggregateScore;
 		return `RxGameObject.Teams[TEAM_NOD];
 	}
 

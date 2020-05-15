@@ -54,7 +54,24 @@ event PostLogin( PlayerController NewPlayer )
 	local Rx_Mutator Rx_Mut;
 	local Rx_PRI NewPRI; 
 
+	local string NewPlayerUUID;
+	local int PlayerListIndex, i;
+
+	local bool bRejoined;
+
+	NewPlayerUUID = Rx_Controller(NewPlayer).PlayerUUID;
+
 	NewPRI = Rx_Pri(NewPlayer.PlayerReplicationInfo);
+
+	i = JoinedPlayerIDs.Find(NewPlayerUUID);
+	if(i >= 0)
+	{
+		bRejoined = true;
+	}
+	else
+	{
+		JoinedPlayerIDs.AddItem(NewPlayerUUID);
+	}
 	ID = `WorldInfoObject.Game.OnlineSub.UniqueNetIdToString(NewPRI.UniqueId);
 	
 	SetTeam(NewPlayer, Teams[GetPlayerTeam()], false);
@@ -98,6 +115,29 @@ event PostLogin( PlayerController NewPlayer )
 	Rx_Pri(NewPlayer.PlayerReplicationInfo).ReplicatedNetworkAddress = NewPlayer.PlayerReplicationInfo.SavedNetworkAddress;
 	Rx_Controller(NewPlayer).RequestDeviceUUID();
 	
+
+	PlayerListIndex = PlayerMonitor.MyPlayersInfo.Find('UUID',NewPlayerUUID);
+	if(PlayerListIndex >= 0)
+	{
+		if(!bRejoined)
+		{
+			PlayerMonitor.MyPlayersInfo[PlayerListIndex].JoinedGame += 1;	
+		}	
+		else
+		{
+			PlayerMonitor.MyPlayersInfo[PlayerListIndex].SavedScore -= 	PlayerMonitor.MyPlayersInfo[PlayerListIndex].LastGameScore;
+		}
+		PlayerMonitor.MyPlayersInfo[PlayerListIndex].LastGameScore = 0;
+
+		NewPRI.OldRenScore = PlayerMonitor.MyPlayersInfo[PlayerListIndex].SavedScore / PlayerMonitor.MyPlayersInfo[PlayerListIndex].JoinedGame;	
+		PlayerMonitor.MyPlayersInfo[PlayerListIndex].PlayerName = NewPRI.PlayerName;
+		PlayerMonitor.SaveConfig();
+	}
+	else
+	{
+		PlayerMonitor.AddNewInfo(NewPlayerUUID,0,NewPRI.PlayerName);
+	}
+
 	if(bDelayedStart) // we want bDelayedStart, but still want players to spawn immediatly upon connect
 		RestartPlayer(newPlayer);		
 	
@@ -198,7 +238,7 @@ function CheckBuildingsDestroyed(Actor destroyedBuilding, Rx_Controller StarPC)
 
 	if (Role == ROLE_Authority)
 	{
-		CurrentBuildingVPModifier +=0.5;
+		CurrentBuildingVPModifier[StarPC.GetTeamNum()] +=0.5;
 		Check = CheckBuildings();
 		if(Rx_MapInfo_Cooperative(WorldInfo.GetMapInfo()) == None)
 		{
@@ -281,7 +321,7 @@ function CheckObjectives()
 
 function EndRxGame(string Reason, byte WinningTeamNum )
 {
-	local PlayerReplicationInfo PRI;
+//	local PlayerReplicationInfo PRI;
 	local Rx_Controller c;
 	local int GDICount, NodCount;
 
@@ -347,22 +387,24 @@ function EndRxGame(string Reason, byte WinningTeamNum )
 		if (StatAPI != None)
 		{
 			ForEach class'WorldInfo'.static.GetWorldInfo().AllControllers(class'Rx_Controller', c)
-			if (c.GetTeamNum() == 0)
-				GDICount++;
-			else if (c.GetTeamNum() == 1)
-				NodCount++;
+			{
+				if (c.GetTeamNum() == 0)
+					GDICount++;
+				else if (c.GetTeamNum() == 1)
+					NodCount++;
+			}
 
 			StatAPI.GameEnd(string(Rx_TeamInfo(Teams[TEAM_GDI]).GetDisplayRenScore()), string(Rx_TeamInfo(Teams[TEAM_NOD]).GetDisplayRenScore()), string(GDICount), string(NodCount), int(WinningTeamNum), Reason);
 			ClearTimer('GameUpdate');
 		}
 		
 		// Store score
-		foreach WorldInfo.GRI.PRIArray(pri)
+/*		foreach WorldInfo.GRI.PRIArray(pri)
 			if (Rx_PRI(pri) != None)
 			{
 				Rx_PRI(pri).OldRenScore = CalcPlayerScoreThisMatch(Rx_PRI(pri));
 			}
-
+*/
 		//M.Palko endgame crash track log.
 		`log("------------------------------Triggering game ended kismet events");
 

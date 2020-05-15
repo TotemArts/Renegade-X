@@ -39,6 +39,9 @@ var float Vet_RechargeSpeedMult[4];
 
 var repnotify byte  AssignedSlot; //ID replicated to owner so they can find this ability client side 
 
+var class<Rx_PassiveAbilityAttachment> AttachmentClass; 
+var Rx_PassiveAbilityAttachment	Attachment; 
+
 replication {
 	if(bNetDirty && bNetOwner)
 		AssignedSlot;
@@ -63,9 +66,7 @@ simulated event ReplicatedEvent(name VarName)
 simulated event PostBeginPlay()
 {
 	if(ROLE < ROLE_Authority)
-		
-	
-	super.PostBeginPlay();
+		super.PostBeginPlay();
 }
 
 simulated function bool bReadyToFire()
@@ -146,20 +147,34 @@ simulated function Init(Pawn InitiatingPawn, byte SlotNum)
 	if(ROLE == ROLE_Authority)
 	{
 		UsingPawn = InitiatingPawn; 
-		`log("Initialize Passive Ability" @ self @ "with Pawn " @ UsingPawn);
-		`log("AbilityNum:" @ SlotNum);
+		/**`log("Initialize Passive Ability" @ self @ "with Pawn " @ UsingPawn);
+		`log("AbilityNum:" @ SlotNum);*/
 		AssignedSlot = SlotNum; 
+		
+		//Create replication attachment for all non-owning clients
+		Attachment = Spawn(AttachmentClass, InitiatingPawn);
+		Attachment.InitAttachment(InitiatingPawn);
 	}
 } 
 
-function RemoveUser()
+simulated function RemoveUser()
 {
+	//`log("User Removed"); 
 	UsingPawn = none; 
+	
+	//Get rid of our Attachment. Our old Pawn will dispose of it on its own. 
+	Attachment = none; 
+	
 	SetTimer(0.5,false,'ToDestroy');
 	
 }
 
-function ToDestroy()
+reliable client function ClientRemoveUser()
+{
+	RemoveUser(); 
+}
+
+simulated function ToDestroy()
 {
    Destroy();
 }
@@ -184,7 +199,7 @@ reliable server function ServerDeactivateAbility(bool bForce){
 
 simulated function NotifyLanded(); //Called when our pawn lands 
 
-//Called if our Pawn pulls a dodge move. 
+//Called if our Pawn pulls a dodge move. Return true if it should override its usual dodge behaviour. 
 simulated function bool NotifyDodged(int DodgeDir){
 	return false; 
 }
@@ -226,5 +241,6 @@ DefaultProperties
 	End Object
 	AbilityAudioComponent=AbilityAudio
 	Components.Add(AbilityAudio);
+
 	
 }

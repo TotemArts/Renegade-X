@@ -27,7 +27,9 @@ enum VehicleMessage
 	VM_OwnerLocked,
 	
 	VM_EnemyStolen_Enemy,
-	VM_EnemyStolen_Unbound
+	VM_EnemyStolen_Unbound,
+
+	VM_TeammateEntered_Locked
 };
 
 static function ClientReceive(

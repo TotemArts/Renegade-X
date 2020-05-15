@@ -126,7 +126,7 @@ var config array<TacticStyle> TacticStyles;
 function OnViewLoaded(Rx_GFXFrontEnd FrontEnd)
 {
 	MainFrontEnd = FrontEnd;
-	MapDataProviderList = Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList;
+    MapDataProviderList = Rx_Game(GetPC().WorldInfo.Game).MapDataProviderList;
     GetAvailableGameModes();
     GetAvailableMapDataProviders();
 	SkirmishMapSettings =  AvailableMapDataProviders[0];

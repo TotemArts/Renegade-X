@@ -55,6 +55,9 @@ var array<Actor> PiercedActors; //Don't double dip on actors you've pierced but 
 
 var class<DamageType>	ExplosionDamageType; //Used for the damage type for the explosion. If blank, just use normal damage type (The Usual case) 
 
+var CameraAnim ExplosionShake;
+var bool bEnableExplosionShake;		//Enables camera shake via camera anim
+
 simulated function PostBeginPlay()
 {
 	super.PostBeginPlay();
@@ -282,7 +285,7 @@ simulated function ProcessTouch(Actor Other, Vector HitLocation, Vector HitNorma
 		
 		
 	
-    if(CurrentPiercingPower == 0 && DamageRadius == 0.0 && TryHeadshot(Other, HitLocation, HitNormal, VAdjustedDamage)) {
+    if(TryHeadshot(Other, HitLocation, HitNormal, VAdjustedDamage) && CurrentPiercingPower == 0 && DamageRadius == 0.0 ) {
         SpawnExplosionEffects(HitLocation, HitNormal);
         return;
     } else {
@@ -632,9 +635,15 @@ simulated function Explode(vector HitLocation, vector HitNormal)
 	if (bLogExplosion && WorldInfo.NetMode != NM_Client)
 		`LogRxPub("GAME"`s "ProjectileExploded;" `s self.Class `s "at" `s HitLocation `s "by" `s `PlayerLog(InstigatorController.PlayerReplicationInfo));
 	
-	
-	
-	super.Explode(HitLocation, HitNormal);
+	if (bEnableExplosionShake)
+	{	
+		PlayCamerashakeAnim();
+		super.Explode(HitLocation, HitNormal);
+	}
+	else
+	{
+		super.Explode(HitLocation, HitNormal);
+	}
 }
 
 simulated function CleanupAmbientSound()
@@ -685,9 +694,37 @@ simulated static function float GetDamageModifier(byte Rank, Controller RxC)
 		return 1.0; 
 }
 
+
+simulated function PlayCamerashakeAnim()
+{
+   local UTPlayerController UTPC;
+   local float Dist;
+   local float ExplosionShakeScale;
+      
+   foreach LocalPlayerControllers(class'UTPlayerController', UTPC)
+   {
+      Dist = VSizeSq(Location - UTPC.ViewTarget.Location);
+
+      if (Dist < Square((default.DamageRadius*4)))
+      {
+         if (ExplosionShake != None)
+         {
+            ExplosionShakeScale = default.damage / 400;
+            if (Dist > Square((default.DamageRadius/3)))
+            {
+               ExplosionShakeScale -= (Sqrt(Dist) - (default.DamageRadius/3)) / ((default.DamageRadius*4) - (default.DamageRadius/3));
+            }
+            UTPC.PlayCameraAnim(ExplosionShake, FClamp(ExplosionShakeScale, 0.0 , 1.0));
+         }
+      }
+   }
+}
+
 DefaultProperties
 {    
     ImpactSound=SoundCue'RX_SoundEffects.Bullet_Impact.SC_BulletImpact_Flesh'
+
+    ExplosionSound=none
 	
     HeadShotDamageMult=5.0 
     SlowHeadshotScale=1.75
@@ -724,6 +761,9 @@ DefaultProperties
     bAttachExplosionToVehicles=False
     bCanBeDamaged=false
 	bLogExplosion=false
+
+	ExplosionShake=CameraAnim'Envy_Effects.Camera_Shakes.C_VH_Death_Shake'
+	bEnableExplosionShake=False
     
 	//    bAttachExplosionToPawns=False    This needs to return
 

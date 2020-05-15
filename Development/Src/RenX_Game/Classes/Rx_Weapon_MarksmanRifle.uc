@@ -150,7 +150,7 @@ defaultproperties
 	EquipTime=0.5
 //	PutDownTime=0.5
 	
-	Spread(0)=0.0 //0.01
+	Spread(0)=0.1 //0.01
 	IronSightAndScopedSpread(0)= 0.0//0.0001
 	
 	WeaponRange=30000.0

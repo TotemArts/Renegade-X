@@ -195,8 +195,8 @@ DefaultProperties
 	OuterExplosionShakeRadius=550.0
 	ExplosionShakeScale=1.5
 	
-	ExplosionDamage=500
-	ExplosionRadius=800
+	ExplosionDamage=1200//500
+	ExplosionRadius=1200 //800
 	DamageMomentum=10000
 	DamageTypeClass=class'Rx_DmgType_Kamikaze'
 	ExplosionScale = 1.0f

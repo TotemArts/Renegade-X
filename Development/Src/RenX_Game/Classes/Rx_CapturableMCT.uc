@@ -58,4 +58,6 @@ defaultproperties
 	Mesh = SiloScreens
 	ReadableName = "MCT"
 	ToolTip="Use the <font color='#ff0000' size='20'>Repair Gun</font> to capture."
+
+	IconTexture = Texture2D'RenxHUD.T_Tech_Silo'
 }

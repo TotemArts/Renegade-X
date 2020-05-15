@@ -140,7 +140,7 @@ simulated function UpdateBeam(float DeltaTime)
 			RealImpact.HitActor = PrevHitActor;	
 		}
 	}	
-
+	
 	if(RealImpact.HitActor != None)
 	{
 		CurrHitLocation = RealImpact.HitLocation;
@@ -336,6 +336,11 @@ simulated function DisplayDebug(HUD HUD, out float out_YL, out float out_YPos)
 	    HUD.Canvas.DrawText("Beam:"@BeamEmitter[CurrentFireMode]@BeamEmitter[CurrentFireMode].HiddenGame);
 	    out_YPos+= out_YL;
 	}
+}
+
+simulated function bool UsesClientSideHitDetection(byte FireMode)
+{
+	return false;
 }
 
 defaultproperties

@@ -81,6 +81,7 @@ var bool bRepairing;
 var int DamageRate;
 var bool bTakingDamage;
 var int BleedDamageType; 			// HANDEPSILON - 0 for none, 1 for burn, 2 for Tiberium
+var bool bPersistVignette;
 
 //Enumerated values for armour types. 
 enum ENUM_Armor 
@@ -321,7 +322,19 @@ var float BlendPct;
 var float BlendSpeed;
 var vector lastRxPawnOutCamLoc;
 
-var Rx_PassiveAbility PassiveAbilities[3]; //What passive abilities, if any, does this pawn have? (0 = Jump / 1 = G key / 2 = X Key) 
+/*Passive abilities [Nonreplicated array that lets the server know what abilities should just be on the owning client]*/
+var Rx_PassiveAbility PassiveAbilities[3]; //What passive abilities, if any, does this pawn have? (0 = Jump / 1 = G key / 2 = X Key) In Netplay these only exist on the server and owning client//
+//Passive Ability replication [Placed into a struct to give array functionality, without static array limitations of replication]
+
+struct PassiveAbilityStruct{
+	var class<Rx_PassiveAbilityAttachment> PassiveAbilityAttachmentClass[3]; /*Replicated to non-owning clients. When changed, they create an authoritative attachment for this pawn of the specified class*/
+	var byte bPassiveActive[3]; 
+	};
+
+var repnotify PassiveAbilityStruct PassiveAbilityHandler; 
+	
+var Rx_PassiveAbilityAttachment	PassiveAbilityAttachments[3]; //Purely visual/audio replication to non-owning clients, so they don't need a full instance of others' abilities  	   
+
 
 var bool bTickHandIK; //Controls if we need to be ticking hand IK on this Pawn usually only briefly after reloads
 var bool bUpdate3rdPersonEyeHeightBob;
@@ -343,9 +356,14 @@ var bool  bCanSuicide; //Can we take the ultimate way out?
 replication
 {
 	if ( bNetDirty)
-		Armor, ArmorMax, CurrentBackWeapons, AirstrikeLocation, SpeedUpgradeMultiplier, Armor_Type, JumpHeightMultiplier, bIsTarget, VRank, RadarVisibility, bSpotted, bFocused, ReplicatedVoice; 
+		Armor, ArmorMax, CurrentBackWeapons, AirstrikeLocation, SpeedUpgradeMultiplier, Armor_Type, JumpHeightMultiplier, bIsTarget, 
+		VRank, RadarVisibility, bSpotted, bFocused, ReplicatedVoice; //PassiveAbility should be under !bNetOwner 
 	if ( bNetDirty && (!bNetOwner || bDemoRecording))
 		bDoingDodge, ReloadAnim, BoltReloadAnim, ParachuteDeployed, bRepairing, bBeaconDeployAnimating, UISymbol, bSprintingServer; //bBlinkingName
+	
+	if( !bNetOwner && (bNetDirty || bNetInitial))
+		PassiveAbilityHandler; //PassiveAbilityAttachmentClass, bPassiveActive; 
+	
 	// Only replicate if our current weapon is a shotgun. Otherwise this is irrelivant.
 	if ( bNetDirty && (!bNetOwner || bDemoRecording) && RemoteRole == ROLE_SimulatedProxy && Rx_Weapon_Shotgun(Weapon) != none)
 		ShotgunPelletHitLocations;
@@ -598,7 +616,8 @@ simulated event ReplicatedEvent(name VarName)
 	else
 		if(VarName == 'bIsTarget')
 		{
-			if(bIsTarget) SetTargetAlarm(25);
+			if(bIsTarget) 
+				SetTargetAlarm(25);
 		}
 	else
 		if(VarName == 'ReplicatedVoice')
@@ -608,6 +627,12 @@ simulated event ReplicatedEvent(name VarName)
 				PlayVoiceSound(ReplicatedVoice.SoundType, 
 			ReplicatedVoice.bCanOverride, ReplicatedVoice.VoiceIndex) ;
 		}
+		else
+			if(VarName == 'PassiveAbilityHandler'){
+				
+				PassiveAttachmentChanged();
+				PassivesChanged(); 
+			}
 	else
 	{
 		Super.ReplicatedEvent(VarName);
@@ -845,7 +870,8 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 	local Rx_PRI InstigatorPRI; 
 	local Controller DefenseOwner;
 	
-	//`log("Took Damage"); 
+	//ScriptTrace(); 
+		
 		
 	if(EventInstigator != none && !ValidRotation(EventInstigator, DamageCauser)) {
 		return;	
@@ -903,6 +929,10 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 		AdjustDamage(ActualDamage, Momentum, EventInstigator, HitLocation, DamageType, HitInfo, DamageCauser );
 	}
 	
+	if(!CanTakeZeroDmgFromSource(EventInstigator) && !InGodMode())
+		ActualDamage = max(1,ActualDamage); //Minimum of 1 damage from anything 
+	
+	//`log("Took Damage" @ ActualDamage);
 
 	// Controller is set to None by Actor.TakeDamage
 	Killed = Controller;
@@ -1004,22 +1034,24 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 		//Divi out assist points to those who didn't get the kill
 		foreach DamagingParties(PRII)
 		{
-		if(PRII.PPRI != none)
+			if(PRII.PPRI != none)
 			{
-			if(PRII.DamageDone >= 50 && EventInstigator != none && PRII.PPRI.Owner != EventInstigator) 
+				if(PRII.DamageDone >= 50 && EventInstigator != none && PRII.PPRI.Owner != EventInstigator) 
 				{
 					C=Controller(PRII.PPRI.Owner); 
 					//`log(PRII.PPRI.Owner @ EventInstigator @ PRII.DamageDone); 
 					TempAssistPoints =fmax(1, GetRxFamilyInfo().default.VPReward[VRank]*(PRII.DamageDone/Damage_Taken)); // at least one point
 					TempAssistPoints=fmax(1,TempAssistPoints+BuildAssistVPString(C));
 			
-					if(Rx_Controller(C) != none ) {
-						Rx_Controller(C).DisseminateVPString("[Infantry Kill Assist]&" $ TempAssistPoints $ "&");
+					if(Rx_Controller(C) != none ) 
+					{
+						Rx_Controller(C).DisseminateVPString("["$ GetCharacterClassName() @ "Kill Assist]&" $ TempAssistPoints $ "&");
 						if(Rx_Pawn(C.Pawn) != none) Rx_Pawn(C.Pawn).PlayVoiceSound('Assist', false);
 					}
 					else
-					if(Rx_Bot(C) != none ) {
-						Rx_Bot(C).DisseminateVPString("[Infantry Kill Assist]&" $ TempAssistPoints $ "&"); 
+					if(Rx_Bot(C) != none ) 
+					{
+						Rx_Bot(C).DisseminateVPString("[" $ GetCharacterClassName() @ "Kill Assist]&" $ TempAssistPoints $ "&"); 
 						if(Rx_Pawn(C.Pawn) != none) Rx_Pawn(C.Pawn).PlayVoiceSound('Assist', false);
 					}
 				}
@@ -1028,7 +1060,7 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 		
 		//Give points to vehicle healers 
 		if(Killer != none && Rx_Vehicle(Killer.Pawn) != none)
-			Rx_Vehicle(Killer.Pawn).HealerKillAssistBonus(class'Rx_VeterancyModifiers'.default.Ev_InfantryRepairKillAssists);		
+			Rx_Vehicle(Killer.Pawn).HealerKillAssistBonus(class'Rx_VeterancyModifiers'.default.Ev_InfantryRepairKillAssists, GetCharacterClassName());		
 		
 		if(EventInstigator == none)
 		{
@@ -1113,10 +1145,17 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 	DamageRate += ActualDamage * 4;
 	Clamp(DamageRate,0,100);
 
-	if ( DamageRate > 0)
+	if (ActualDamage > 0)
 	{
+		PC = PlayerController(Controller);
+		if(PC != None && Rx_Controller(PC) != None)
+			Rx_Controller(PC).ClientAddDamageVignette(ActualDamage*5, BleedDamageType);
+	}
+
+	if ( DamageRate > 0)
+	{		
 		bTakingDamage = true;
-		SetTimer(0.5, false, 'DelayRegen');
+		SetTimer(8.0, false, 'DelayRegen'); //SetTimer(0.5, false, 'DelayRegen');
 	}
 
 	if (EventInstigator != none)
@@ -1206,6 +1245,18 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 		if(ClassIsChildOf(DamageType, class'Rx_DmgType_Tiberium'))
 			 `RecordDamage(DAMAGE_TIBERIUM, Controller, DamageType, Controller, Damage_Taken);
 	}
+}
+
+function bool CanTakeZeroDmgFromSource(Controller EventInstigator)
+{
+	if(GetTeamNum() == EventInstigator.GetTeamNum()) // Prevent friendlies to be able to damage each others
+		return true;
+
+	if(Rx_Bot_Scripted(Controller) != None) // Scripted bot might be invulnerable to damage, so allow it
+		return true;
+
+	return false;
+
 }
 
 function bool ValidRotation(Controller EventInstigator, Actor DamageCauser)
@@ -1350,7 +1401,7 @@ function string BuildDeathVPString(Controller Killer, class<DamageType> DamageTy
 	//VP count starts here. 
 	BaseVP = Victim_FamInfo.default.VPReward[VRank]; 
 	
-	VPString = "[Infantry Kill]&+" $ BaseVP $ "&" ; 
+	VPString = "[" $ GetCharacterClassName() @ "Kill]&+" $ BaseVP $ "&" ; 
 	
 	//Are THEY defending a beacon 
 	
@@ -1494,7 +1545,7 @@ function string BuildDeathVPString(Controller Killer, class<DamageType> DamageTy
 	if(bNeutral)
 		KillerPRI.AddNeutralKill(); 
 		
-	return "[Infantry Kill]&+" $ BaseVP $ "&" ;
+	return "[" $ GetCharacterClassName() @ "Kill]&+" $ BaseVP $ "&" ;
 		
 	//Uncomment to use full feat strings 
 	//return VPString ; /*Complicated for the sake of you entitled, ADHD kids that need flashing lights to pet your ego. BaseVP$"&"$*/
@@ -1676,6 +1727,7 @@ function bool Died(Controller Killer, class<DamageType> damageType, vector HitLo
 {
 	local Rx_Bot bot;
 	local Rx_CapturePoint CP;
+	local Rx_Volume_CaptureArea VCA;
 	local byte WasTeam;
 	//local Rx_ORI ORI; 
 	
@@ -1720,6 +1772,15 @@ function bool Died(Controller Killer, class<DamageType> damageType, vector HitLo
 	{
 		foreach TouchingActors(class'Rx_CapturePoint', CP)
 			CP.NotifyPawnDied(self, WasTeam);
+
+		foreach TouchingActors(class'Rx_Volume_CaptureArea', VCA)
+		{
+			CP = VCA.CapturePoint;
+			
+			if(CP != None)
+				CP.NotifyPawnDied(self, WasTeam);
+		}
+
 		return true;
 	}
 	else
@@ -1801,7 +1862,18 @@ simulated function TakeRadiusDamage
 )
 {
 	//The hell ACTUALLY shot me? 
-	local Weapon ProjectileWeaponOwner; 
+	local Weapon ProjectileWeaponOwner;
+
+	local Rx_BuildingAttachment_Door PossibleDoor;
+	local vector OutLoc, OutNorm;
+
+	if(Rx_Weapon_DeployedC4(DamageCauser) == None && Rx_Weapon_DeployedBeacon(DamageCauser) == None) // allows c4 and beacon to hit through
+	{
+		foreach TraceActors(class'Rx_BuildingAttachment_Door', PossibleDoor, OutLoc, OutNorm, HurtOrigin, Location,,,TRACEFLAG_Bullet)
+		{
+			return;
+		} 
+	}
 	
 	if(InstigatedBy != None 
 			&& (InstigatedBy.GetTeamNum() == GetTeamNum() && InstigatedBy != Controller) 
@@ -1852,13 +1924,16 @@ simulated function byte GetHealNecessity() //On a scale from 0 to 5, how much do
 	HealthFraction = (float(Health+Armor)/float(HealthMax+ArmorMax))*100.0 ;
 	
 	
-	if(HealthFraction < 33) return 3 ; //Critical
+	if(HealthFraction < 33) 
+		return 3 ; //Critical
 	else
-	if(HealthFraction <= 66) return 2 ; // Should probably heal me, bro 
+	if(HealthFraction <= 66) 
+		return 2 ; // Should probably heal me, bro 
 	else
-	if(HealthFraction <= 95) return 1; //Not much in the way of necessity on healing
+	if(HealthFraction <= 95) 
+		return 1; //Not much in the way of necessity on healing
 	else
-	return 0 ; 
+		return 0 ; 
 }
 
 function bool HealDamage(int Amount, Controller Healer, class<DamageType> DamageType)
@@ -2570,7 +2645,6 @@ simulated function SetAnimSet( AnimSet NewAnimSet, name ProfileName)
 /** we dont need to set any other mats so make sure we dont override old */
 simulated function SetCharacterMeshInfo(SkeletalMesh SkelMesh, MaterialInterface HeadMaterial, MaterialInterface BodyMaterial)
 {
-	//`log("-----SET CHARACTER MESH INFO----");
    Mesh.SetSkeletalMesh(SkelMesh);
 	if (WorldInfo.NetMode != NM_DedicatedServer)
 	{
@@ -2579,6 +2653,7 @@ simulated function SetCharacterMeshInfo(SkeletalMesh SkelMesh, MaterialInterface
 	}
 	
 	NotifyPassivesMeshChanged(); 
+	
 }
 
 simulated function ResetRelaxStance(optional bool RestartTimer)
@@ -3020,7 +3095,7 @@ function DoDodge(eDoubleClickDir DoubleClickMove)
 	GroundSpeed = bWasSprintingBeforeDodge ? SprintDodgeSpeed : DodgeSpeed;
 	Velocity.Z = -default.GroundSpeed;
 
-	`log("bWasSprinting:" @ bWasSprintingBeforeDodge @ AirSpeed @ GroundSpeed @ DoubleClickMove); 
+	//`log("bWasSprinting:" @ bWasSprintingBeforeDodge @ AirSpeed @ GroundSpeed @ DoubleClickMove); 
 	
 	switch ( DoubleClickMove )
 	{
@@ -3093,7 +3168,7 @@ function Dodging(float DeltaTime)
 	local float  AirSpeedTemp;	
 	local float  GroundSpeedTemp;	
 
-	`log("DOOOOOOOOOOODGE!!!!!");
+	//`log("DOOOOOOOOOOODGE!!!!!");
 	if( !bDodging ) {
 		return;	
 	}
@@ -3259,11 +3334,15 @@ simulated function SetCharacterClassFromInfo(class<UTFamilyInfo> Info) {
 	local class<UTFamilyInfo> prev;
 	local array<class<Rx_Weapon> > prevItems;
 	local class<Rx_Weapon> weapClass;
-
+	
+	/*Clear Our passive abilities if the class doesn't have any.. otherwise they're just overwritten, or removed as needed*/
+	if(class<Rx_FamilyInfo>(Info).static.HasPassiveAbilities() == false)
+		ClearPassiveAbilities(); 
+	
 	prev = CurrCharClassInfo;
 
 	resetZoom();
-
+	
 	super.SetCharacterClassFromInfo(Info);
 	
 	if(Mesh.SkeletalMesh != None) {
@@ -3277,7 +3356,6 @@ simulated function SetCharacterClassFromInfo(class<UTFamilyInfo> Info) {
 	{
 		//Reseed Taunts 
 		ReseedVoiceOvers(); 
-		
 		
 		if (prev == Info)
 			return; // no changes, skip
@@ -3294,10 +3372,15 @@ simulated function SetCharacterClassFromInfo(class<UTFamilyInfo> Info) {
 		InvManager.SetupFor(self);
 		foreach prevItems(weapClass)
 		{
-			Rx_InventoryManager(InvManager).AddWeaponOfClass(weapClass, CLASS_ITEM);
+			if(Rx_InventoryManager(InvManager).IsItemAllowed(weapClass))
+				Rx_InventoryManager(InvManager).AddWeaponOfClass(weapClass, CLASS_ITEM);
 		}
-		
-	}		
+			
+	//Clear and Set passive abilities
+		for(i=0;i<3;i++){
+			GivePassiveAbility(i, class<Rx_FamilyInfo>(Info).default.PassiveAbilities[i]) ;
+		}
+	}
 }
 
 simulated event StartDriving(Vehicle V)
@@ -3358,8 +3441,8 @@ simulated event StopDriving(Vehicle V)
     local Controller cntrl;
     
 
-	if(DamageRate > 0)
-		DelayRegen();				//HANDEPSILON - Immediately try to fade out the remaining vignette
+//	if(DamageRate > 0)
+//		FadeVignette();				//HANDEPSILON - Immediately try to fade out the remaining vignette
 	
 	OldPositions.Length = 0;
     if(Rx_Vehicle(V) != None)
@@ -5579,7 +5662,8 @@ function ClearReplicatedVoice()
 simulated function WeaponAttachmentChanged()
 {
 	super.WeaponAttachmentChanged();
-	if(Vrank == 3 && Rx_WeaponAttachment_Varying(CurrentWeaponAttachment) != none ) Rx_WeaponAttachment_Varying(CurrentWeaponAttachment).SetHeroic(true); 
+	if(Vrank == 3 && Rx_WeaponAttachment_Varying(CurrentWeaponAttachment) != none ) 
+		Rx_WeaponAttachment_Varying(CurrentWeaponAttachment).SetHeroic(true); 
 }
 
 
@@ -6062,30 +6146,119 @@ function float GetInventoryWeight(){
 		return 0.0; 
 	else
 		return Rx_InventoryManager(InvManager).GetInventoryWeight();
-	
+}
+
+simulated function float GetStamina()
+{
+	return Stamina;
 }
 
 function GivePassiveAbility(byte AbilityNum, class<Rx_PassiveAbility> PassiveAbility)
 {
+	/*Null abilitiy given, or we just need to clean out the slot Delete the ability in this number slot then */
+	if(PassiveAbilities[AbilityNum] != none)
+	{
+		PassiveAbilities[AbilityNum].RemoveUser(); 
+		PassiveAbilities[AbilityNum] = none; 
+		
+	}
+	
 	if(PassiveAbility == none)
 	{
+		PassiveAbilities[AbilityNum] = none; 
 		return; 
 	}
+		
 	
 	PassiveAbilities[AbilityNum] = Spawn(PassiveAbility, self);
 	
 	//`log("AbilityNum: " @ AbilityNum); 
 	PassiveAbilities[AbilityNum].Init(self, AbilityNum); 
+	
+	PassiveAbilityHandler.PassiveAbilityAttachmentClass[AbilityNum] = PassiveAbility.default.AttachmentClass;
+	
 	//Handle client replication with the ability itself 
-	/**if(WorldInfo.NetMode == NM_DedicatedServer)
-		ClientGivePassiveAbility(AbilityNum, PassivesID);*/
 }
 
 //Called on the client. Passes an actual instance of an ability class 
 simulated function ReplicatePassiveAbility (byte AbilityNum, Rx_PassiveAbility PassiveAbility){
 	//`log("Set Passive ability: " @ AbilityNum @ PassiveAbility);
+	
+	//We're not yours anymore
+	if(PassiveAbilities[AbilityNum] != none) 
+		PassiveAbilities[AbilityNum].RemoveUser();
+	
 	PassiveAbilities[AbilityNum] = PassiveAbility;
 } 
+
+/**
+ * Called when there is a need to change the ability attachment (either via
+ * replication or locally if controlled.
+ */
+simulated function PassiveAttachmentChanged()
+{
+	local int i; 
+
+	for(i=0; i<3; i++)
+	{
+		if ((PassiveAbilityAttachments[i] == None || PassiveAbilityAttachments[i].Class != PassiveAbilityHandler.PassiveAbilityAttachmentClass[i]) && Mesh.SkeletalMesh != None)
+		{
+			// Detach/Destroy the current attachment if we have one
+			if (PassiveAbilityAttachments[i]!=None)
+			{
+				PassiveAbilityAttachments[i].DestroyAttachment();
+			}
+			// Create the new Attachment.
+			if (PassiveAbilityHandler.PassiveAbilityAttachmentClass[i] != None)
+			{
+				PassiveAbilityAttachments[i] = Spawn(PassiveAbilityHandler.PassiveAbilityAttachmentClass[i],self);
+				PassiveAbilityAttachments[i].Instigator = self;
+			}
+			else
+				PassiveAbilityAttachments[i] = none;
+			// If all is good, attach it to the Pawn's Mesh.
+			if (PassiveAbilityAttachments[i] != None)
+			{
+				PassiveAbilityAttachments[i].InitAttachment(self);
+			}
+		}
+	}
+	
+	
+} 
+
+function PlayPassiveEffects(byte SlotNumber)
+{
+	PassiveAbilityHandler.bPassiveActive[SlotNumber] = 1;
+}
+
+function StopPassiveEffects(byte SlotNumber)
+{
+	PassiveAbilityHandler.bPassiveActive[SlotNumber] = 0;
+}
+
+simulated function PassivesChanged(){
+	local int i; 
+	
+		//class and active 
+	
+	for(i=0;i<3;i++){
+		if(PassiveAbilityAttachments[i] == none)
+			continue;
+		
+		if(PassiveAbilityHandler.bPassiveActive[i] == 1){
+			//`log("PlayPassive Effects");
+			PassiveAbilityAttachments[i].PlayEffects();
+		}
+		else
+			PassiveAbilityAttachments[i].StopEffects();
+				
+	}
+}
+
+/**reliable client function LinkClientToPassiveAttachment(Rx_PassiveAbilityAttachment PassiveAttachment){
+	PassiveAttachment.SetClientOwnerPawn();
+}*/
 
 simulated function ClearPassiveAbilities()
 {
@@ -6093,36 +6266,37 @@ simulated function ClearPassiveAbilities()
 	
 	for(i=0;i<3;i++){
 			if(PassiveAbilities[i] != none)
-					PassiveAbilities[i].RemoveUser(); 
+			{
+				PassiveAbilities[i].RemoveUser();
+				PassiveAbilityHandler.PassiveAbilityAttachmentClass[i] = none;
+			}
+					 
 			PassiveAbilities[i] = none; 
 		}
+		//`log("Passives Cleared" @ PassiveAbilities[0]);
 }
 
 /*Passive Abilities Interface*/
 
 simulated function bool ActivateJumpAbility(bool bToggle) {
 	
-	if(bToggle) //Toggle it on
+	//`log("Passive Ability" @ PassiveAbilities[0]); 
+	if(PassiveAbilities[0] == none)
 	{
-		if(PassiveAbilities[0] != none) 
-		{
-			PassiveAbilities[0].ActivateAbility();
-			return true; 			
-		}
-		
-		return false; 
-	}
-	else //Toggle it off 
-	{
-		if(PassiveAbilities[0] != none) 
-		{
-			PassiveAbilities[0].DeactivateAbility(false); //Only abilities themselves will force deactivate 
-			return true; 	
-		}
-		
 		return false; 
 	}
 	
+	if(bToggle) //Toggle it on
+	{
+			PassiveAbilities[0].ActivateAbility();
+			return true; 			
+	}
+	else //Toggle it off 
+	{
+		PassiveAbilities[0].DeactivateAbility(false); //Only abilities themselves will force deactivate 
+		return true; 	
+	}
+
 	return false; //I don't know how you'd get here... but just in case
 }
 
@@ -6130,13 +6304,16 @@ simulated function bool ActivateAbility0(bool Toggle);
 
 simulated function bool ActivateAbility1(bool Toggle); 
 
-simulated function NotifyPassivesDodged(int DodgeDir){
+simulated function bool NotifyPassivesDodged(int DodgeDir){
 	local int i; 
+	local bool bOverrideDodge;
 	
 	for(i=0;i<3;i++){
 		if(PassiveAbilities[i] != none)
-			PassiveAbilities[i].NotifyDodged(0); 
+			bOverrideDodge = PassiveAbilities[i].NotifyDodged(0); 
 	}
+	
+	return bOverrideDodge;
 }
 
 simulated function NotifyPassivesCrouched(bool Toggle){
@@ -6172,11 +6349,27 @@ simulated function NotifyPassivesMeshChanged()
 	
 	for(i=0;i<3;i++){
 		if(PassiveAbilities[i] != none)
+		{
 			PassiveAbilities[i].NotifyMeshChanged(); 
+		}
+		
+		if(PassiveAbilityAttachments[i] != none)
+		{
+			PassiveAbilityAttachments[i].NotifyMeshChanged(); 
+		}
+		
+			
 	}
 }
 
 /*END Passive ability interface*/
+
+simulated function SetFiringMode(Weapon InWeapon, byte InFiringMode)
+{
+	//scripttrace();
+	//`log( WorldInfo.TimeSeconds @ GetFuncName() @ "old:" @ FiringMode @  "new:" @ InFiringMode );
+	super.SetFiringMode(InWeapon, InFiringMode); 
+}
 
 DefaultProperties
 {
@@ -6515,10 +6708,17 @@ DefaultProperties
 	bCanSuicide = true
 	
 	//bSmoothNetUpdates = 
+	
+	/**
+	bSmoothNetUpdates=true
+	MaxSmoothNetUpdateDist=84.0
+	NoSmoothNetUpdateDist=128.0
+	SmoothNetUpdateTime=0.125
+	*/
+	
+	MaxSmoothNetUpdateDist=256.0 //192.0
+	NoSmoothNetUpdateDist= 384.0 //256.0
+	SmoothNetUpdateTime=0.2//0.125
 
-	//MaxSmoothNetUpdateDist;
-
-	//NoSmoothNetUpdateDist;
-
-	//SmoothNetUpdateTime;
+	bPushesRigidBodies = true
 }

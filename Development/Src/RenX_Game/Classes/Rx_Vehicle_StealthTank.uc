@@ -872,6 +872,10 @@ DefaultProperties
     Translation=(X=0.0,Y=0.0,Z=0.0)
     End Object
 
+    Begin Object Name=SDevFlag
+    SkeletalMesh=None
+    End Object
+
    	TimeStealthDelay = 4.0f    //  seconds we need to stay without action to get stealthed
    	LowHpMult = 0.15f           //  HealthMax * LowHpMult is the value for LowHP (damaged) use
 

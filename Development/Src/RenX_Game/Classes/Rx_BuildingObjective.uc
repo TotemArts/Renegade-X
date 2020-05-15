@@ -21,6 +21,7 @@ simulated function PostBeginPlay()
 	local array<NavigationPoint> NavPoints;
 	local NavigationPoint N,BestN;
 	local float Dist, BestDist;
+	local Actor InfilPathPointer;
 	
 	NearestBuildingDistance = -1; 
 	//Failed to find a building objective
@@ -43,14 +44,18 @@ simulated function PostBeginPlay()
 
 	BestDist = 10000000;
 
-	class'NavigationPoint'.static.GetAllNavInRadius(myBuilding.GetMCT(),myBuilding.GetMCT().location,1000.0,NavPoints);
+	InfilPathPointer = myBuilding.GetMCT();
+	if(InfilPathPointer == None)
+		InfilPathPointer = myBuilding;
+
+	class'NavigationPoint'.static.GetAllNavInRadius(InfilPathPointer,InfilPathPointer.location,1000.0,NavPoints);
 	
 		Foreach NavPoints(N)
 		{
 			if(N.PathList.Length <= 0)
 				continue;
  
-			Dist = VSizeSq(myBuilding.GetMCT().location - N.location);
+			Dist = VSizeSq(InfilPathPointer.location - N.location);
 
 			if(Dist <= BestDist)
 			{

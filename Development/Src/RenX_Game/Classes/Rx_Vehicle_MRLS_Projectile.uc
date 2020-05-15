@@ -13,22 +13,10 @@
 *
 *********************************************************/
 class Rx_Vehicle_MRLS_Projectile extends Rx_Vehicle_Projectile_SeekingRocket;
-var repnotify bool bUseAlternateAccelRate; 
 
-replication{
-	if(bNetDirty)
-		bUseAlternateAccelRate;
-}
-
-simulated function ReplicatedEvent(name VarName) {
-    if (VarName == 'bUseAlternateAccelRate') {
-        if(bUseAlternateAccelRate)
-			AccelRate = default.AccelRate*0.4; 
-    }
-    else {
-        super.ReplicatedEvent(VarName);
-    }
-}
+simulated event Tick(float DeltaTime){
+	super.Tick(DeltaTime);
+	}
 
 DefaultProperties
 {
@@ -78,8 +66,8 @@ DefaultProperties
 	MomentumTransfer=100000.000000
    
 	LockWarningInterval			= 1.5
-	BaseTrackingStrength		= 2.5 		// 0.7
-	HomingTrackingStrength		= 6.0 		// 0.7
+	BaseTrackingStrength		= 12.0 //6.0 //5.0 //2.0 		// 0.7 //Without a target 
+	HomingTrackingStrength		= 12.0 //6.0 //6.0 		// 0.7 //With a target
 	HeadShotDamageMult=2.0 // 5.0
 	
 	MyDamageType=Class'Rx_DmgType_MRLS'

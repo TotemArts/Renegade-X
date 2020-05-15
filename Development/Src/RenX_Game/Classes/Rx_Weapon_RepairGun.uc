@@ -839,7 +839,7 @@ DefaultProperties
 	Spread(0)=0.0
 	Spread(1)=0.0
 
-	HealAmount = 20
+	HealAmount = 30 //20
 	MinHealAmount = 1
 	MineDamageModifier  = 2 //3
 	EMPHealMultiplier = 0.15 //0.25
@@ -901,9 +901,9 @@ DefaultProperties
 	/******************/
 	
 	Vet_DamageModifier(0)=1  //Applied to instant-hits only
-	Vet_DamageModifier(1)=1.10 //22
-	Vet_DamageModifier(2)=1.20 //24
-	Vet_DamageModifier(3)=1.30 //26
+	Vet_DamageModifier(1)=1.0 //1.10 //22
+	Vet_DamageModifier(2)=1.0 //1.20 //24
+	Vet_DamageModifier(3)=1.0 //1.30 //26
 	
 	Vet_RangeModifier(0) = 1.0 //Also applied to instant hits only
 	Vet_RangeModifier(1) = 1.1  

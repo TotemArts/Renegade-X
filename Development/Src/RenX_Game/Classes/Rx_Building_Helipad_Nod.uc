@@ -3,7 +3,7 @@ class Rx_Building_Helipad_Nod extends Rx_Building_Nod_VehicleFactory
 
 simulated function String GetHumanReadableName()
 {
-	return "Nod Helipad";
+	return "Helipad";
 }
 
 simulated function PostBeginPlay()

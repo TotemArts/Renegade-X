@@ -3,7 +3,7 @@ class Rx_Building_TeamSilo_Nod extends Rx_Building_Nod_MoneyFactory
 
 simulated function String GetHumanReadableName()
 {
-	return "Nod Silo";
+	return "Silo";
 }
 
 function bool ShouldSpawnHarvester()

@@ -462,8 +462,8 @@ DefaultProperties
 	
 	//-------------- Recoil
 	RecoilDelay = 0.02
-	MinRecoil = 45.0
-	MaxRecoil = 60.0
+	MinRecoil = 25.0
+	MaxRecoil = 30.0
 	MaxTotalRecoil = 2000.0
 	RecoilYawModifier = 0.5 // will be a random value between 0 and this value for every shot
 	RecoilYawMultiplier = 2.0
@@ -471,7 +471,7 @@ DefaultProperties
 	RecoilDeclinePct = 0.5
 	RecoilDeclineSpeed = 6.0
 	MaxSpread = 0.2
-	RecoilSpreadIncreasePerShot = 0.00025
+	RecoilSpreadIncreasePerShot = 0.000175
 	RecoilSpreadDeclineSpeed = 0.3
 	RecoilSpreadDecreaseDelay = 0.2
 	RecoilSpreadCrosshairScaling = 1000
@@ -491,21 +491,21 @@ DefaultProperties
     ShotCost(1)=1
 	
     FireInterval(0)=0.06 //+0.065
-    FireInterval(1)=0.06 //+0.065
+    FireInterval(1)=0.12
     ReloadTime(0) = 3.5
     ReloadTime(1) = 3.5
     
     EquipTime=1.0
 //	PutDownTime=0.7
 
-    Spread(0)=0.01 //08 //0.005 //0.001 //0.01
-    Spread(1)=0.01 //08 //0.005 //0.001 //0.01
+    Spread(0)=0.017
+    Spread(1)=0.0
     
     WeaponRange=3000.0
 
-    InstantHitDamage(0)=14 //10
+    InstantHitDamage(0)=13 //14 //10
 	
-	HeadShotDamageMult=1.25 //2.0
+	HeadShotDamageMult=1.25 //1.25 //2.0
 	
     InstantHitMomentum(0)=10000.0
 
@@ -635,15 +635,41 @@ DefaultProperties
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_VoltAutoRifle'
     
-    MaxCharge=40//30
-    AutoDischargeTime=3 //5
-    MinCharge=15 //10 
-    CooldownLength=2
+    MaxCharge=25
+    AutoDischargeTime=3
+    MinCharge=5
+    CooldownLength=1.5
 	
 	bLocSync = true; 
 	LocSyncIncrement = 25; 
 	
-	Elite_Building_DamageMod = 1.15 //1.33
+	Elite_Building_DamageMod = 1.15
+
+
+    /*******************/
+    /*Veterancy*/
+    /******************/
+    
+    Vet_DamageModifier(0)=1  //Applied to instant-hits only
+    Vet_DamageModifier(1)=1.05
+    Vet_DamageModifier(2)=1.175 
+    Vet_DamageModifier(3)=1.25 
+    
+    Vet_ROFModifier(0) = 1
+    Vet_ROFModifier(1) = 0.9667 
+    Vet_ROFModifier(2) = 0.9334  
+    Vet_ROFModifier(3) = 0.9  
+    
+    Vet_ClipSizeModifier(0)=0 //Normal (should be 1)    
+    Vet_ClipSizeModifier(1)=0 //Veteran 
+    Vet_ClipSizeModifier(2)=0 //Elite
+    Vet_ClipSizeModifier(3)=0 //Heroic
+
+    Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+    Vet_ReloadSpeedModifier(1)=0.9667 //Veteran 
+    Vet_ReloadSpeedModifier(2)=0.9334 //Elite
+    Vet_ReloadSpeedModifier(3)=0.9 //Heroic
+    /**********************/
 
     
 }

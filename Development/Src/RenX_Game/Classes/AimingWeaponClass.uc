@@ -399,8 +399,8 @@ defaultproperties
 	JumpDamping=0.1
 
 	//These reduce the weapon lagging behind the crosshair effect to ensure the sights are properly lined up when you enter zoom aiming mode
-	MaxPitchLag=40
-	MaxYawLag=70
+	MaxPitchLag=0
+	MaxYawLag=0
 
 	//This says the weapon isn't zoom aiming when the weapon is first equipped
 	bIronsightActivated=false

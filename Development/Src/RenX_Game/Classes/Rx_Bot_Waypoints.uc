@@ -1067,7 +1067,7 @@ Moving:
 		
 
 		Pawn.bWantsToCrouch = false;
-		if (HasRepairGun() && (GetNearbyDeployables(true) != None || DefendedBuildingNeedsHealing()))
+		if (GetOrders() == 'DEFEND' && HasRepairGun() && (GetNearbyDeployables(true) != None || DefendedBuildingNeedsHealing()))
 		{
 			GoToState('Defending');
 		}
@@ -1570,11 +1570,23 @@ function bool FindInfiltrationPath()
 	
 	BestPath = FindPathToward(InfilPoint,true);
 
-	if (VSizeSq(CurrentBO.myBuilding.GetMCT().location - Pawn.location) < 250000
-		&&  Trace(Dummy1, Dummy2, CurrentBO.myBuilding.GetMCT().location, Pawn.location) == CurrentBO.myBuilding.GetMCT())
+	if(CurrentBO.myBuilding.GetMCT() != None)
 	{
-		BestPath = CurrentBO.myBuilding.GetMCT();
-		RouteGoal = BestPath;
+		if (VSizeSq(CurrentBO.myBuilding.GetMCT().location - Pawn.location) < 250000
+			&&  Trace(Dummy1, Dummy2, CurrentBO.myBuilding.GetMCT().location, Pawn.location) == CurrentBO.myBuilding.GetMCT())
+		{
+			BestPath = CurrentBO.myBuilding.GetMCT();
+			RouteGoal = BestPath;
+		}
+	}
+	else
+	{
+		if (VSizeSq(CurrentBO.myBuilding.location - Pawn.location) < 250000
+			&&  Trace(Dummy1, Dummy2, CurrentBO.myBuilding.location, Pawn.location) == CurrentBO.myBuilding)
+		{
+			BestPath = CurrentBO.myBuilding;
+			RouteGoal = BestPath;
+		}
 	}
 
 	if(BestPath == None)
@@ -2271,7 +2283,7 @@ Moving:
 	MoveToward(MoveTarget,FaceActor(1),GetDesiredOffset(),ShouldStrafeTo(MoveTarget));
 
 
-	if(CanAttack(CurrentBO.myBuilding.GetMCT()) && (Enemy == None || Rx_Weapon_TimedC4(Pawn.Weapon) != None))
+	if((CurrentBO.myBuilding.GetMCT() != None && CanAttack(CurrentBO.myBuilding.GetMCT())) && (Enemy == None || Rx_Weapon_TimedC4(Pawn.Weapon) != None))
 		AssaultMCT();
 
 	else if(Enemy != None && CanAttack(Enemy))
@@ -2359,6 +2371,8 @@ Moving:
 
 	else 
 	{
+		StopMovement();
+
 		if(IsRushing() && Rx_SquadAI(Squad).bTacticsCommenced)
 			FireWeaponAt(CurrentBO.myBuilding);
 		else
@@ -2454,7 +2468,10 @@ Moving:
 		GoToState('VehicleRush','Begin');
 	}
 
-	MoveToward(MoveTarget,FaceActor(1),GetDesiredOffset(),ShouldStrafeTo(MoveTarget));
+	if(Enemy == None || (Rx_SquadAI(Squad).CurrentTactics != None && Rx_SquadAI(Squad).CurrentTactics.bIsRush && Rx_SquadAI(Squad).bTacticsCommenced))
+		MoveToward(MoveTarget,FaceActor(1),GetDesiredOffset(),ShouldStrafeTo(MoveTarget));
+	else if (!LineOfSightTo(Enemy))
+		MoveToward(Enemy,FaceActor(1),GetDesiredOffset(),ShouldStrafeTo(MoveTarget));
 
 	GoalString = "Charging with Vehicle towards "@CurrentBO.myBuilding.GetBuildingName()@" - Enemy Engaged";
 

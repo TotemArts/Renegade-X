@@ -44,6 +44,7 @@ DefaultProperties
 	ImpactEffects(18)=(MaterialType=Snow, ParticleTemplate=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Medium_Snow',Sound=SoundCue'RX_SoundEffects.Explosions.SC_Explosion_Rockets_Shells')
 	ImpactEffects(19)=(MaterialType=SnowStone, ParticleTemplate=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Medium_Snow',Sound=SoundCue'RX_SoundEffects.Explosions.SC_Explosion_Rockets_Shells')
 	
+	bEnableExplosionShake=True
 	
 	ExplosionLightClass=Class'Rx_Light_Tank_Explosion'
 	MaxExplosionLightDistance=7000.000000

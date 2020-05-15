@@ -314,19 +314,21 @@ function bool GotoVehicle(UTVehicle SquadVehicle, UTBot B)
 function DelayedAnnounceAttackPlan()
 {
 	local UTBot S,FirstS;
-	local String Announcement, OtherMembers;
+	local String ContextString, OtherMembers;
 	local int i;
 
 	if(Rx_BuildingObjective(SquadObjective) == None)
 		return;
 
+	// Build base context string
+	ContextString = CurrentTactics.TacticName @ "on" @ Rx_BuildingObjective(SquadObjective).myBuilding.GetHumanReadableName();
+
 	if(Size == 1 && Rx_Bot(SquadMembers).bOnboardForTactics)
 	{
 		FirstS = SquadMembers;
-		Announcement = "I'm commencing"@CurrentTactics.TacticName@"on"@Rx_BuildingObjective(SquadObjective).myBuilding.GetHumanReadableName()@" on my own!";
+		ContextString @= "on my own!";
 		i = 1;
 	}
-
 	else
 	{
 		for ( S=SquadMembers; S!=None; S=S.NextSquadMember )
@@ -348,9 +350,9 @@ function DelayedAnnounceAttackPlan()
 		}
 
 		if(i > 1)		
-			Announcement = OtherMembers@"and I are commencing"@CurrentTactics.TacticName@"on"@Rx_BuildingObjective(SquadObjective).myBuilding.GetHumanReadableName()$"!";
+			ContextString @= "with" @ OtherMembers @ "!";
 		else
-			Announcement = "I'm commencing"@CurrentTactics.TacticName@"on"@Rx_BuildingObjective(SquadObjective).myBuilding.GetHumanReadableName()@" on my own!";
+			ContextString @= "on my own!";
 			
 	}
 	if(FirstS == None)
@@ -359,7 +361,7 @@ function DelayedAnnounceAttackPlan()
 		return;
 	}
 
-	Rx_Bot(FirstS).BroadcastSpotMessage(12,Announcement);
+	Rx_Bot(FirstS).BroadcastSpotMessage(12, 50, ContextString);
 }
 
 function int GetEngiNumber()

@@ -45,6 +45,18 @@ var config int KillSoundPreference;
 // Use team colors for player names. Otherwise show friendly/enemy
 var config bool NicknamesUseTeamColors;
 
+
+//UI config (Handepsilon)
+var config float HUDScale;
+var config bool bMinimap;
+var config bool bGameInfo;
+var config bool bTeamInfo;
+var config bool bPersonalInfo;
+var config bool bScorePanel;
+var config int RadioCommand;
+// custom radios (Handepsilon)
+var config array<int> RadioCommandsCtrl, RadioCommandsAlt, RadioCommandsCtrlAlt;
+
 /*
 ;Audio Settings here
 UIVolume = 1.0
@@ -811,6 +823,16 @@ final function int GetTechBuildingIcon()
 final function SetTechBuildingIcon(int data)
 {
 	TechBuildingIconPreference = data;
+	saveConfig();
+}
+
+final function int GetRadioCommand()
+{
+	return RadioCommand;
+}
+final function SetRadioCommand(int data)
+{
+	RadioCommand = data;
 	saveConfig();
 }
 //nBab

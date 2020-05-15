@@ -97,7 +97,7 @@ function bool AddToTeam( Controller Other )
    }
    Size = ReplicatedSize;
 
-   if(PlayerController(Other) != None)
+   if(PlayerController(Other) != None && !Other.PlayerReplicationInfo.bOnlySpectator)
   	 PlayerSize++;
    return bRet;
 }
@@ -112,7 +112,7 @@ function RemoveFromTeam(Controller Other)
 	super.RemoveFromTeam(Other);
 	Size = ReplicatedSize;
 
-   if(PlayerController(Other) != None)
+   if(PlayerController(Other) != None && !Other.PlayerReplicationInfo.bOnlySpectator)
   	 PlayerSize--;
 }
 

@@ -23,10 +23,12 @@ defaultproperties
 TauntSounds(0)=SoundNodeWave'RX_CharSnd_Generic.nod_taunts_sakura.Taunts_Sakura_Sloppy'
 TauntSounds(1)=SoundNodeWave'RX_CharSnd_Generic.nod_taunts_sakura.Taunts_Sakura_SkillsPiqued'
 TauntSounds(2)=SoundNodeWave'RX_CharSnd_Generic.nod_taunts_sakura.Sakura_Kill_Sting'
+TauntSounds(3)=SoundNodeWave'RX_CharSnd_Generic.nod_taunts_sakura.Sakura_Taunt_ItsSister'
 
-TauntLines(0)="Looking sloppy today";
-TauntLines(1)="Thought skills had peaked";
-TauntLines(2)="This is going to sting.";
+TauntLines(0)="Looking sloppy today"
+TauntLines(1)="Thought skills had peaked"
+TauntLines(2)="This is going to sting."
+TauntLines(3)="It's sister, honey"
 
 //Kill sounds
 KillConfirmSounds(0)=SoundNodeWave'RX_CharSnd_Generic.nod_taunts_sakura.Sakura_Kill_DidThatHurt'

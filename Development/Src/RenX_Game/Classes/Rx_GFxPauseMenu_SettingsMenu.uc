@@ -82,7 +82,7 @@ var GFxClikWidget keyBindScroll;
 var GFxClikWidget SettingsInputActionBar;
 
 //nBab
-var GFxClikWidget TechBuildingIconDropDown;
+// var GFxClikWidget TechBuildingIconDropDown;
 var GFxClikWidget BeaconIconDropDown;
 var GFxClikWidget CrosshairColorDropDown;
 var GFxClikWidget AllowD3D9MSAACheckBox;
@@ -90,6 +90,24 @@ var GFxClikWidget UseHardwarePhysicsCheckBox;
 var GFxClikWidget KillSoundDropDown;
 var GFxClikWidget MusicCheckBoxlist;
 var GFxClikWidget KillSoundPlayButton;
+
+//UI - Handepsilon
+var GFxClikWidget HUDScaleLabel;
+var GFxClikWidget HUDScaleSlider;
+var GFxClikWidget MinimapCheckBox;
+var GFxClikWidget GameInfoCheckBox;
+var GFxClikWidget TeamInfoCheckBox;
+var GFxClikWidget PersonalInfoCheckBox;
+var GFxClikWidget ScorePanelCheckBox;
+var GFxClikWidget RadioCommandDropDown;
+
+var GFxClikWidget CustomRadioCurrent;
+var GFxClikWidget CustomRadioNextButton;
+var GFxClikWidget CustomRadioPrevButton;
+
+var Array<GFxClikWidget> CustomRadioDropDown;
+
+var GFxClikWidget SettingsInterfaceActionBar;
 
 struct SettingsVideoOption
 {
@@ -159,11 +177,27 @@ struct SettingsInputOption
 	var int BindingPrimaryItemPosition;
 	var int BindingSecondaryItemPosition;
 	//nBab
-	var int TechBuildingIcon;
+//	var int TechBuildingIcon;
 	var int BeaconIcon;
 	var int CrosshairColor;
 };
 var SettingsInputOption SettingsCurrentInput;
+
+struct SettingsInterfaceOption
+{
+	var float HUDScale;
+	var bool bMinimap;
+	var bool bGameInfo;
+	var bool bTeamInfo;
+	var bool bPersonalInfo;
+	var bool bScorePanel;
+	var int RadioCommand;
+
+	var int CustomRadioCurrentPosition;
+	var Array<int> RadioCommandsCtrl, RadioCommandsAlt, RadioCommandsCtrlAlt;
+};
+
+var SettingsInterfaceOption SettingsCurrentInterface;
 
 /************************************
 *  CONFIG                           *
@@ -205,6 +239,7 @@ function OnViewLoaded(Rx_GFxPauseMenu Menu)
 	ResetSettingsVideoOption();
 	ResetSettingsAudioOption();
 	ResetSettingsInputOption();
+	ResetSettingsInterfaceOption();
 
 	PlayerControlGroup = InitButtonGroupWidget("PlayerControlGroup", PauseMenu.SettingsView);
 	PlayerControlGroup.AddEventListener('CLIK_change', OnPlayerControlGroupChange);
@@ -243,6 +278,63 @@ function SetSelectedButton  (GFxClikWidget button)
 function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widget)
 {
 	local byte i;
+	local string WidgetString;
+	local int CustomRadioNumber;
+
+
+	WidgetString = String(WidgetName);
+
+	// to save time, handle the custom radio command here
+	if(Left(Caps(WidgetString),19) == "CUSTOMRADIODROPDOWN")
+	{
+		if(CustomRadioDropDown.Length < 10)
+			CustomRadioDropDown.Length = 10;
+
+		CustomRadioNumber = int(Split(WidgetString,"CustomRadioDropDown", true));
+//		`log(CustomRadioNumber);
+		if(CustomRadioDropDown[CustomRadioNumber] == None || CustomRadioDropDown[CustomRadioNumber] != Widget)
+		{
+			CustomRadioDropDown[CustomRadioNumber] = GFxClikWidget(Widget);
+		}
+		RadioSetUpDataProvider(CustomRadioNumber);
+
+		switch(CustomRadioNumber)
+		{
+			case 0:
+				CustomRadioDropDown[CustomRadioNumber].AddEventListener('CLIK_change', OnCustomRadioDropdownOneChange);
+				break;
+			case 1:
+				CustomRadioDropDown[CustomRadioNumber].AddEventListener('CLIK_change', OnCustomRadioDropdownTwoChange);
+				break;
+			case 2:
+				CustomRadioDropDown[CustomRadioNumber].AddEventListener('CLIK_change', OnCustomRadioDropdownThreeChange);
+				break;
+			case 3:
+				CustomRadioDropDown[CustomRadioNumber].AddEventListener('CLIK_change', OnCustomRadioDropdownFourChange);
+				break;
+			case 4:
+				CustomRadioDropDown[CustomRadioNumber].AddEventListener('CLIK_change', OnCustomRadioDropdownFiveChange);
+				break;
+			case 5:
+				CustomRadioDropDown[CustomRadioNumber].AddEventListener('CLIK_change', OnCustomRadioDropdownSixChange);
+				break;
+			case 6:
+				CustomRadioDropDown[CustomRadioNumber].AddEventListener('CLIK_change', OnCustomRadioDropdownSevenChange);
+				break;
+			case 7:
+				CustomRadioDropDown[CustomRadioNumber].AddEventListener('CLIK_change', OnCustomRadioDropdownEightChange);
+				break;
+			case 8:
+				CustomRadioDropDown[CustomRadioNumber].AddEventListener('CLIK_change', OnCustomRadioDropdownNineChange);
+				break;
+			case 9:
+				CustomRadioDropDown[CustomRadioNumber].AddEventListener('CLIK_change', OnCustomRadioDropdownTenChange);
+				break;
+		}
+		RadioGetLastSelection(CustomRadioNumber);
+
+		return true;
+	}
 	
 	switch(WidgetName)
 	{
@@ -825,6 +917,8 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			SettingsInputActionBar.AddEventListener('CLIK_itemClick', OnSettingsInputActionBarChange);
 			break;
 		//setting tech building icon widget (nBab)
+
+		/*
 		case 'TechBuildingIconDropDown':
 			if (TechBuildingIconDropDown == none || TechBuildingIconDropDown != Widget) {
 				TechBuildingIconDropDown = GFxClikWidget(Widget);
@@ -834,6 +928,18 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			TechBuildingIconDropDown.AddEventListener('CLIK_change', OnTechBuildingIconDropDownChange);
 			TechBuildingIconDropDown.SetBool("disabled", true);
 			break;
+		*/
+
+		case 'RadioCommandDropDown':
+			if (RadioCommandDropDown == none || RadioCommandDropDown != Widget) {
+				RadioCommandDropDown = GFxClikWidget(Widget);
+			}
+			SetUpDataProvider(RadioCommandDropDown);
+			GetLastSelection(RadioCommandDropDown);
+			RadioCommandDropDown.AddEventListener('CLIK_change', OnRadioCommandDropDownChange);
+//			RadioCommandDropDown.SetBool("disabled", true);
+			break;
+
 		//setting beacon icon widget (nBab)
 		case 'BeaconIconDropDown':
 			if (BeaconIconDropDown == none || BeaconIconDropDown != Widget) {
@@ -861,9 +967,9 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			Widget.setText("Beacon Icon:");
 			break;
 		//setting tech building icon text widget (nBab)
-		case 'TechBuildingIconText':
-			Widget.setText("Tech Building Icon:");
-			break;
+//		case 'TechBuildingIconText':
+//			Widget.setText("Tech Building Icon:");
+//			break;
 		//setting use hardware physics text widget (nBab)
 		case 'UseHardwarePhysicsText':
 			Widget.setText("Use Hardware PhysX:");
@@ -876,11 +982,89 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 		case 'KillSoundText':
 			Widget.setText("Kill Sound:");
 			break;
+		case 'HUDScaleLabel':
+			if (HUDScaleLabel == none || HUDScaleLabel != Widget) {
+				HUDScaleLabel = GFxClikWidget(Widget);
+			}
+			HUDScaleLabel.SetText(int(SettingsCurrentInterface.HUDScale)@"%");
+			break;
+		case 'HUDScaleSlider':
+			if (HUDScaleSlider == none || HUDScaleSlider != Widget) {
+				HUDScaleSlider = GFxClikWidget(Widget);
+			}
+			GetLastSelection(HUDScaleSlider);
+			HUDScaleSlider.AddEventListener('CLIK_change', OnHUDScaleSliderChange);
+			break;
+		case 'MinimapCheckBox':
+			if (MinimapCheckBox == none || MinimapCheckBox != Widget) {
+				MinimapCheckBox = GFxClikWidget(Widget);
+			}
+			GetLastSelection(MinimapCheckBox);
+			MinimapCheckBox.AddEventListener('CLIK_select', OnMinimapCheckBoxSelect);
+			break;
+		case 'GameInfoCheckBox':
+			if (GameInfoCheckBox == none || GameInfoCheckBox != Widget) {
+				GameInfoCheckBox = GFxClikWidget(Widget);
+			}
+			GetLastSelection(GameInfoCheckBox);
+			GameInfoCheckBox.AddEventListener('CLIK_select', OnGameInfoCheckBoxSelect);
+			break;
+		case 'TeamInfoCheckBox':
+			if (TeamInfoCheckBox == none || TeamInfoCheckBox != Widget) {
+				TeamInfoCheckBox = GFxClikWidget(Widget);
+			}
+			GetLastSelection(TeamInfoCheckBox);
+			TeamInfoCheckBox.AddEventListener('CLIK_select', OnTeamInfoCheckBoxSelect);
+			break;
+		case 'PersonalInfoCheckBox':
+			if (PersonalInfoCheckBox == none || PersonalInfoCheckBox != Widget) {
+				PersonalInfoCheckBox = GFxClikWidget(Widget);
+			}
+			GetLastSelection(PersonalInfoCheckBox);
+			PersonalInfoCheckBox.AddEventListener('CLIK_select', OnPersonalInfoCheckBoxSelect);
+			break;
+		case 'ScorePanelCheckBox':
+			if (ScorePanelCheckBox == none || ScorePanelCheckBox != Widget) {
+				ScorePanelCheckBox = GFxClikWidget(Widget);
+			}
+			GetLastSelection(ScorePanelCheckBox);
+			ScorePanelCheckBox.AddEventListener('CLIK_select', OnScorePanelCheckBoxSelect);
+			break;
+		case 'CustomRadioCurrent':
+			if(CustomRadioCurrent == None || CustomRadioCurrent != Widget)
+			{
+				CustomRadioCurrent = GFxClikWidget(Widget);
+			}
+			UpdateCustomRadioLabel();
+			break;
+		case 'CustomRadioNextButton':
+			if(CustomRadioNextButton == None || CustomRadioNextButton != Widget)
+			{
+				CustomRadioNextButton = GFxClikWidget(Widget);
+			}
+			CustomRadioNextButton.AddEventListener('CLIK_click', OnCustomRadioNextButtonClick);
+			break;
+
+		case 'CustomRadioPrevButton':
+			if(CustomRadioPrevButton == None || CustomRadioPrevButton != Widget)
+			{
+				CustomRadioPrevButton = GFxClikWidget(Widget);
+			}
+			CustomRadioPrevButton.SetBool("disabled", true);
+			CustomRadioPrevButton.AddEventListener('CLIK_click', OnCustomRadioPrevButtonClick);
+			break;
+		case 'SettingsInterfaceActionBar':
+			if (SettingsInterfaceActionBar == none || SettingsInterfaceActionBar != Widget) {
+				SettingsInterfaceActionBar = GFxClikWidget(Widget);
+			}
+			SetUpDataProvider(SettingsInterfaceActionBar);
+			SettingsInterfaceActionBar.AddEventListener('CLIK_itemClick', OnSettingsInterfaceActionBarChange);
+			break;
 		default:
 			`log("Unknown Widget: " $ WidgetName);
-			break;
+			return false;
 	}
-	return false;
+	return true;
 }
 
 function SetUpDataProvider(GFxClikWidget Widget)
@@ -1099,10 +1283,16 @@ function SetUpDataProvider(GFxClikWidget Widget)
 			DataProvider.SetElementString(1, "APPLY");
 			break;
 		//setting tech building icon data provider (nBab)
-		case (TechBuildingIconDropDown):
-			DataProvider.SetElementString(0, "ANIMATING");
-			DataProvider.SetElementString(1, "COLOR CHANGING");
-			DataProvider.SetElementString(2, "NONE");
+//		case (TechBuildingIconDropDown):
+//			DataProvider.SetElementString(0, "ANIMATING");
+//			DataProvider.SetElementString(1, "COLOR CHANGING");
+//			DataProvider.SetElementString(2, "NONE");
+//			break;
+		//setting radio command data provider
+		case (RadioCommandDropDown):
+			DataProvider.SetElementString(0, "NEW");
+			DataProvider.SetElementString(1, "CLASSIC");
+			DataProvider.SetElementString(2, "CUSTOM");
 			break;
 		//setting beacon icon data provider (nBab)
 		case (BeaconIconDropDown):
@@ -1117,11 +1307,42 @@ function SetUpDataProvider(GFxClikWidget Widget)
 			DataProvider.SetElementString(3, "BLUE");
 			DataProvider.SetElementString(4, "CYAN");
 			break;
+		case (SettingsInterfaceActionBar) :
+			DataProvider.SetElementString(0, "BACK");
+			DataProvider.SetElementString(1, "APPLY");
+			break;
 		default:
 			return;
 	}
 	Widget.SetObject("dataProvider", DataProvider);
 }
+
+function RadioSetUpDataProvider(int Num)
+{
+	local GFxObject DataProvider;
+	local Rx_Controller C;
+	local string RadioStringList;
+	local int i;
+
+	C = Rx_Controller(GetPC());
+
+	if(C == None)
+		return;
+
+	i = 0;
+
+	DataProvider = CreateArray();
+	foreach C.RadioCommandsText(RadioStringList)
+	{
+		DataProvider.SetElementString(i, RadioStringList);
+		i++;
+	}
+	DataProvider.SetElementString(i, "--NONE--");
+
+	CustomRadioDropDown[Num].SetBool("disabled",(SettingsCurrentInterface.RadioCommand != 2));
+	CustomRadioDropDown[Num].SetObject("dataProvider", DataProvider);
+}
+
 function GetLastSelection(GFxClikWidget Widget)
 {
 	local byte i;
@@ -1366,8 +1587,11 @@ function GetLastSelection(GFxClikWidget Widget)
 				Widget.SetInt("selectedIndex", -1);
 				break;
 			//nBab
-			case (TechBuildingIconDropDown) :
-				Widget.SetInt("selectedIndex", SettingsCurrentInput.TechBuildingIcon);
+//			case (TechBuildingIconDropDown) :
+//				Widget.SetInt("selectedIndex", SettingsCurrentInput.TechBuildingIcon);
+//				break;
+			case (RadioCommandDropDown) :
+				Widget.SetInt("selectedIndex", SettingsCurrentInterface.RadioCommand);
 				break;
 			//nBab
 			case (BeaconIconDropDown) :
@@ -1377,9 +1601,45 @@ function GetLastSelection(GFxClikWidget Widget)
 			case (CrosshairColorDropDown) :
 				Widget.SetInt("selectedIndex", SettingsCurrentInput.CrosshairColor);
 				break;
+
+			case (HUDScaleSlider) :
+				Widget.SetInt("value", SettingsCurrentInterface.HUDScale);
+				break;
+			case (MinimapCheckBox) :
+				Widget.SetBool("selected", SettingsCurrentInterface.bMinimap);
+				break;			
+			case (GameInfoCheckBox) :
+				Widget.SetBool("selected", SettingsCurrentInterface.bGameInfo);
+				break;
+			case (TeamInfoCheckBox) :
+				Widget.SetBool("selected", SettingsCurrentInterface.bTeamInfo);
+				break;
+			case (PersonalInfoCheckBox)	:		  
+				Widget.SetBool("selected", SettingsCurrentInterface.bPersonalInfo);
+				break;
+			case (ScorePanelCheckBox) :			
+				Widget.SetBool("selected", SettingsCurrentInterface.bScorePanel);
+				break;				
 			default:
 				return;
 		}
+	}
+}
+
+
+function RadioGetLastSelection(int i)
+{
+	switch(SettingsCurrentInterface.CustomRadioCurrentPosition)
+	{
+		case 0:
+			CustomRadioDropDown[i].SetInt("selectedIndex",SettingsCurrentInterface.RadioCommandsCtrl[i]);
+			break;
+		case 1:
+			CustomRadioDropDown[i].SetInt("selectedIndex",SettingsCurrentInterface.RadioCommandsAlt[i]);
+			break;
+		case 2:
+			CustomRadioDropDown[i].SetInt("selectedIndex",SettingsCurrentInterface.RadioCommandsCtrlAlt[i]);
+			break;
 	}
 }
 
@@ -1473,7 +1733,6 @@ function ResetSettingsAudioOption()
 function ResetSettingsInputOption()
 {
 	SettingsCurrentInput.bADS = Rx_HUD(GetPC().myHUD).SystemSettingsHandler.GetToggleADS();
-	SettingsCurrentInput.bNicknamesUseTeamColors = Rx_HUD(GetPC().myHUD).SystemSettingsHandler.GetNicknamesUseTeamColors();
 	//bNicknamesUseTeamColors
 	SettingsCurrentInput.BindingPrimaryItemPosition = -1;
 	SettingsCurrentInput.BindingSecondaryItemPosition = -1;
@@ -1484,10 +1743,44 @@ function ResetSettingsInputOption()
 	SettingsCurrentInput.GamepadSensitivityValue = 0;                                                                                           //need to figure out 
 	SettingsCurrentInput.MouseSensitivityValue = Rx_HUD(GetPC().myHUD).SystemSettingsHandler.GetMouseSensitivity();
 	SettingsCurrentInput.WeaponHandItemPosition = Rx_HUD(GetPC().myHUD).SystemSettingsHandler.GetWeaponHand();                                          //will be basing on UTPC Weapon Hand Preference
+
+}
+
+function ResetSettingsInterfaceOption()
+{
+	local Rx_HUD myHUD;
+
+	myHUD = Rx_HUD(GetPC().myHUD);
+
+	// if some people gets a bit naughty with the settings, clamp it up
+	myHUD.SystemSettingsHandler.HUDScale = FClamp(Rx_HUD(GetPC().myHUD).SystemSettingsHandler.HUDScale ,75, 125);
+
+	SettingsCurrentInterface.HUDScale = myHUD.SystemSettingsHandler.HUDScale;
+	SettingsCurrentInterface.bMinimap = myHUD.SystemSettingsHandler.bMinimap;
+	SettingsCurrentInterface.bGameInfo = myHUD.SystemSettingsHandler.bGameInfo;
+	SettingsCurrentInterface.bTeamInfo = myHUD.SystemSettingsHandler.bTeamInfo;
+	SettingsCurrentInterface.bPersonalInfo = myHUD.SystemSettingsHandler.bPersonalInfo;
+	SettingsCurrentInterface.bScorePanel = myHUD.SystemSettingsHandler.bScorePanel;
+	SettingsCurrentInterface.RadioCommand = Rx_HUD(GetPC().myHUD).SystemSettingsHandler.GetRadioCommand();
+
+
+	SettingsCurrentInput.bNicknamesUseTeamColors = Rx_HUD(GetPC().myHUD).SystemSettingsHandler.GetNicknamesUseTeamColors();
 	//nBab
-	SettingsCurrentInput.TechBuildingIcon = Rx_HUD(GetPC().myHUD).SystemSettingsHandler.GetTechBuildingIcon();
+//	SettingsCurrentInput.TechBuildingIcon = Rx_HUD(GetPC().myHUD).SystemSettingsHandler.GetTechBuildingIcon();
 	SettingsCurrentInput.BeaconIcon = Rx_HUD(GetPC().myHUD).SystemSettingsHandler.GetBeaconIcon();
 	SettingsCurrentInput.CrosshairColor = Rx_HUD(GetPC().myHUD).SystemSettingsHandler.GetCrosshairColor();
+
+	SettingsCurrentInterface.RadioCommandsCtrl = Rx_HUD(GetPC().myHUD).SystemSettingsHandler.RadioCommandsCtrl;
+	if(SettingsCurrentInterface.RadioCommandsCtrl.Length < 10)
+		SettingsCurrentInterface.RadioCommandsCtrl.Length = 10;
+
+	SettingsCurrentInterface.RadioCommandsAlt = Rx_HUD(GetPC().myHUD).SystemSettingsHandler.RadioCommandsAlt;
+	if(SettingsCurrentInterface.RadioCommandsAlt.Length < 10)
+		SettingsCurrentInterface.RadioCommandsAlt.Length = 10;
+
+	SettingsCurrentInterface.RadioCommandsCtrlAlt = Rx_HUD(GetPC().myHUD).SystemSettingsHandler.RadioCommandsCtrlAlt;
+	if(SettingsCurrentInterface.RadioCommandsCtrlAlt.Length < 10)
+		SettingsCurrentInterface.RadioCommandsCtrlAlt.Length = 10;
 }
 
 function OpenConfirmApplyVideoSettingsDialog()
@@ -1825,16 +2118,46 @@ function ApplyInputSettings()
 	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.SetToggleTankReverse(SettingsCurrentInput.bTankReverse);
 	//case 'EnableGamepadCheckBox':
 	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.SetToggleADS(SettingsCurrentInput.bADS);
-	//case 'NicknamesUseTeamColors'
-	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.SetNicknamesUseTeamColors(SettingsCurrentInput.bNicknamesUseTeamColors);
-	//nBab
-	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.SetTechBuildingIcon(SettingsCurrentInput.TechBuildingIcon);
-	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.SetBeaconIcon(SettingsCurrentInput.BeaconIcon);
-	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.SetCrosshairColor(SettingsCurrentInput.CrosshairColor);
 
+	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.SaveConfig();
 	//case 'KeyBindingList':
 	//case 'BindingPrimaryList':
 	//case 'BindingSecondaryList':
+}
+
+
+function ApplyInterfaceSettings()
+{
+	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.HUDScale = SettingsCurrentInterface.HUDScale;
+	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.bMinimap = SettingsCurrentInterface.bMinimap;
+	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.bGameInfo = SettingsCurrentInterface.bGameInfo;
+	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.bTeamInfo = SettingsCurrentInterface.bTeamInfo;
+	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.bPersonalInfo = SettingsCurrentInterface.bPersonalInfo;
+	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.bScorePanel = SettingsCurrentInterface.bScorePanel;
+
+	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.SetRadioCommand(SettingsCurrentInterface.RadioCommand);
+
+	//case 'NicknamesUseTeamColors'
+	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.SetNicknamesUseTeamColors(SettingsCurrentInput.bNicknamesUseTeamColors);
+	//nBab
+//	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.SetTechBuildingIcon(SettingsCurrentInput.TechBuildingIcon);
+	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.SetBeaconIcon(SettingsCurrentInput.BeaconIcon);
+	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.SetCrosshairColor(SettingsCurrentInput.CrosshairColor);
+
+	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.RadioCommandsCtrl = SettingsCurrentInterface.RadioCommandsCtrl;
+	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.RadioCommandsAlt = SettingsCurrentInterface.RadioCommandsAlt;
+	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.RadioCommandsCtrlAlt = SettingsCurrentInterface.RadioCommandsCtrlAlt;
+
+
+	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.SaveConfig();
+	Rx_HUD(GetPC().myHUD).UpdateRadioCommandList();
+
+	if(Rx_HUD(GetPC().myHUD).HudMovie != None && Rx_HUD(GetPC().myHUD).GIHudMovie != None)
+	{
+		Rx_HUD(GetPC().myHUD).HudMovie.ResizedScreenCheck(true);
+		Rx_HUD(GetPC().myHUD).GIHudMovie.ResizedScreenCheck(true);
+	}
+	
 }
 
 function SetGraphicPresetsToCustom()
@@ -2375,10 +2698,165 @@ function OnWeaponHandDropDownChange(GFxClikWidget.EventData ev)
 	SettingsCurrentInput.WeaponHandItemPosition = ev._this.GetInt("index");
 }
 //nBab
+/*
 function OnTechBuildingIconDropDownChange(GFxClikWidget.EventData ev)
 {
 	SettingsCurrentInput.TechBuildingIcon = ev._this.GetInt("index");
 }
+*/
+
+
+function OnCustomRadioNextButtonClick(GFxClikWidget.EventData ev)
+{
+	local int i;
+
+	SettingsCurrentInterface.CustomRadioCurrentPosition++;
+	SettingsCurrentInterface.CustomRadioCurrentPosition = Clamp(SettingsCurrentInterface.CustomRadioCurrentPosition, 0, 2);
+	for(i = 0;i< 10;i++)
+		RadioGetLastSelection(i);
+
+	if(SettingsCurrentInterface.CustomRadioCurrentPosition >= 2)
+	{
+		CustomRadioNextButton.SetBool("disabled", true);
+	}
+	if(SettingsCurrentInterface.CustomRadioCurrentPosition > 0)
+	{
+		CustomRadioPrevButton.SetBool("disabled", false);
+	}
+	UpdateCustomRadioLabel();
+}
+
+function OnCustomRadioPrevButtonClick(GFxClikWidget.EventData ev)
+{
+	local int i;
+
+	SettingsCurrentInterface.CustomRadioCurrentPosition--;
+	SettingsCurrentInterface.CustomRadioCurrentPosition = Clamp(SettingsCurrentInterface.CustomRadioCurrentPosition, 0, 2);
+	for(i = 0;i< 10;i++)
+		RadioGetLastSelection(i);
+
+	if(SettingsCurrentInterface.CustomRadioCurrentPosition <= 0)
+	{
+		CustomRadioPrevButton.SetBool("disabled", true);
+	}
+	if(SettingsCurrentInterface.CustomRadioCurrentPosition < 2)
+	{
+		CustomRadioNextButton.SetBool("disabled", false);
+	}
+	UpdateCustomRadioLabel();
+}
+
+function UpdateCustomRadioLabel()
+{
+	switch(SettingsCurrentInterface.CustomRadioCurrentPosition)
+	{
+		case 0:
+			CustomRadioCurrent.SetText("CTRL");
+			break;
+		case 1:
+			CustomRadioCurrent.SetText("ALT");
+			break;
+		case 2:
+			CustomRadioCurrent.SetText("CTRLALT");
+			break;
+		default:
+			CustomRadioCurrent.SetText("UNKNOWN");
+			break;
+	}
+}
+
+function OnRadioCommandDropDownChange(GFxClikWidget.EventData ev)
+{
+	local bool bCustomEnabled;
+
+	if(SettingsCurrentInterface.RadioCommand == 2)
+		bCustomEnabled = true;
+
+	SettingsCurrentInterface.RadioCommand = ev._this.GetInt("index");
+
+	if((SettingsCurrentInterface.RadioCommand == 2 && !bCustomEnabled) || (SettingsCurrentInterface.RadioCommand != 2 && bCustomEnabled))
+	{
+		UpdateCustomRadioStatus(!bCustomEnabled);
+	}
+}
+
+
+function UpdateCustomRadioStatus(bool bCustom)
+{
+	local GFxClikWidget Widget;
+
+	foreach CustomRadioDropDown(Widget)
+	{
+		Widget.SetBool("disabled",!bCustom);
+	}
+}
+
+function OnCustomRadioDropdownOneChange(GFxClikWidget.EventData ev)
+{
+	OnCustomRadioDropdownChange(ev, 0);
+}
+
+function OnCustomRadioDropdownTwoChange(GFxClikWidget.EventData ev)
+{
+	OnCustomRadioDropdownChange(ev, 1);
+}
+
+function OnCustomRadioDropdownThreeChange(GFxClikWidget.EventData ev)
+{
+	OnCustomRadioDropdownChange(ev, 2);
+}
+
+function OnCustomRadioDropdownFourChange(GFxClikWidget.EventData ev)
+{
+	OnCustomRadioDropdownChange(ev, 3);
+}
+
+function OnCustomRadioDropdownFiveChange(GFxClikWidget.EventData ev)
+{
+	OnCustomRadioDropdownChange(ev, 4);
+}
+
+function OnCustomRadioDropdownSixChange(GFxClikWidget.EventData ev)
+{
+	OnCustomRadioDropdownChange(ev, 5);
+}
+
+function OnCustomRadioDropdownSevenChange(GFxClikWidget.EventData ev)
+{
+	OnCustomRadioDropdownChange(ev, 6);
+}
+
+function OnCustomRadioDropdownEightChange(GFxClikWidget.EventData ev)
+{
+	OnCustomRadioDropdownChange(ev, 7);
+}
+
+function OnCustomRadioDropdownNineChange(GFxClikWidget.EventData ev)
+{
+	OnCustomRadioDropdownChange(ev, 8);
+}
+
+function OnCustomRadioDropdownTenChange(GFxClikWidget.EventData ev)
+{
+	OnCustomRadioDropdownChange(ev, 9);
+}
+
+function OnCustomRadioDropdownChange(GFxClikWidget.EventData ev, int RadioNumber)
+{
+	switch(SettingsCurrentInterface.CustomRadioCurrentPosition)
+	{
+		case 0:
+			SettingsCurrentInterface.RadioCommandsCtrl[RadioNumber] = ev._this.GetObject("target").GetInt("selectedIndex");
+			break;
+		case 1:
+			SettingsCurrentInterface.RadioCommandsAlt[RadioNumber] = ev._this.GetObject("target").GetInt("selectedIndex");
+			break;
+		case 2:
+			SettingsCurrentInterface.RadioCommandsCtrlAlt[RadioNumber] = ev._this.GetObject("target").GetInt("selectedIndex");
+			break;
+	}
+}
+
 //nBab
 function OnBeaconIconDropDownChange(GFxClikWidget.EventData ev)
 {
@@ -2592,6 +3070,54 @@ function OnSettingsInputActionBarChange(GFxClikWidget.EventData ev)
 	  default: break;
 	}
 }
+
+function OnSettingsInterfaceActionBarChange(GFxClikWidget.EventData ev)
+{
+	switch (ev._this.GetInt("index"))
+	{
+		case 0: PauseMenu.ReturnToBackground(); break;
+		case 1: 
+	  		//ApplyAudioSettings(); 
+	  		//ApplyVideoSettings();
+			ApplyInterfaceSettings();
+	  	break;
+	  default: break;
+	}
+}
+
+// UI SETTINGS Feedback
+
+function OnHUDScaleSliderChange(GFxClikWidget.EventData ev)
+{
+	local string text;
+
+	SettingsCurrentInterface.HUDScale = ev._this.GetObject("target").GetFloat("value");
+	text = int(SettingsCurrentInterface.HUDScale)@"%";
+	HUDScaleLabel.SetText(text);
+}
+
+function OnMinimapCheckBoxSelect(GFxClikWidget.EventData ev)
+{
+	SettingsCurrentInterface.bMinimap = ev._this.GetObject("target").GetBool("selected");
+}
+function OnGameInfoCheckBoxSelect(GFxClikWidget.EventData ev)
+{
+	SettingsCurrentInterface.bGameInfo = ev._this.GetObject("target").GetBool("selected");
+}
+function OnTeamInfoCheckBoxSelect(GFxClikWidget.EventData ev)
+{
+	SettingsCurrentInterface.bTeamInfo = ev._this.GetObject("target").GetBool("selected");
+}
+function OnPersonalInfoCheckBoxSelect(GFxClikWidget.EventData ev)
+{
+	SettingsCurrentInterface.bPersonalInfo = ev._this.GetObject("target").GetBool("selected");
+}
+function OnScorePanelCheckBoxSelect(GFxClikWidget.EventData ev)
+{
+	SettingsCurrentInterface.bScorePanel = ev._this.GetObject("target").GetBool("selected");
+}
+
+
 DefaultProperties
 {
 	//Settings
@@ -2669,7 +3195,8 @@ DefaultProperties
 	SubWidgetBindings.Add((WidgetName="keyBindScroll",WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="SettingsInputActionBar",WidgetClass=class'GFxClikWidget'))
 	//nBab
-	SubWidgetBindings.Add((WidgetName="TechBuildingIconDropDown", WidgetClass=class'GFxClikWidget'))
+//	SubWidgetBindings.Add((WidgetName="TechBuildingIconDropDown", WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="RadioCommandDropDown", WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="BeaconIconDropDown", WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="CrosshairColorDropDown", WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="AllowD3D9MSAACheckBox",WidgetClass=class'GFxClikWidget'))
@@ -2677,4 +3204,39 @@ DefaultProperties
 	SubWidgetBindings.Add((WidgetName="KillSoundDropDown", WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="MusicCheckBoxlist",WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="KillSoundPlayButton",WidgetClass=class'GFxClikWidget'))
+
+	SubWidgetBindings.Add((WidgetName="HUDScaleLabel",WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="HUDScaleSlider",WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="MinimapCheckBox",WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="GameInfoCheckBox",WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="TeamInfoCheckBox",WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="PersonalInfoCheckBox",WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="ScorePanelCheckBox",WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="SettingsInterfaceActionBar",WidgetClass=class'GFxClikWidget'))
+
+	SubWidgetBindings.Add((WidgetName="CustomRadioNextButton",WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="CustomRadioPrevButton",WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="CustomRadioCurrent",WidgetClass=class'GFxClikWidget'))
+
+	SubWidgetBindings.Add((WidgetName="CustomRadioDropDown0",WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="CustomRadioDropDown1",WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="CustomRadioDropDown2",WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="CustomRadioDropDown3",WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="CustomRadioDropDown4",WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="CustomRadioDropDown5",WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="CustomRadioDropDown6",WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="CustomRadioDropDown7",WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="CustomRadioDropDown8",WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="CustomRadioDropDown9",WidgetClass=class'GFxClikWidget'))
+
+	CustomRadioDropDown[0] = None;
+	CustomRadioDropDown[1] = None;
+	CustomRadioDropDown[2] = None;
+	CustomRadioDropDown[3] = None;
+	CustomRadioDropDown[4] = None;
+	CustomRadioDropDown[5] = None;
+	CustomRadioDropDown[6] = None;
+	CustomRadioDropDown[7] = None;
+	CustomRadioDropDown[8] = None;
+	CustomRadioDropDown[9] = None;
 }

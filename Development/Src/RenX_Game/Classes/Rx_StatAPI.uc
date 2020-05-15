@@ -71,7 +71,7 @@ function PostToAPI(string Type, JsonObject DataToSend)
 
 	Payload = class'JsonObject'.static.EncodeJson(DataToSend);
 
-	`log("Posting to API"@`showvar(Type));
+	`log("Posting"@`showvar(Type),, 'RenX API');
 
 	HTTPRequest = class'HttpFactory'.static.CreateRequest();
 	HTTPRequest.SetURL(StatAPIURL);
@@ -88,7 +88,7 @@ function OnComplete(HttpRequestInterface OriginalRequest, HttpResponseInterface 
 
 	if (!bDidSucceed)
 	{
-		`log("Post to Stat API failed."@`showvar(StatAPIURL));
+		`log("Post failed."@`showvar(StatAPIURL),, 'RenX API');
 		return;
 	}
 
@@ -101,6 +101,6 @@ function OnComplete(HttpRequestInterface OriginalRequest, HttpResponseInterface 
 	if (Response != None && InHttpResponse.GetResponseCode() == `HTTP_STATUS_OK && Response.GetObject("data").HasKey("gameID"))
 	{
 		gameId = Response.GetObject("data").GetStringValue("gameID");
-		`log("API Game ID:"@gameID);
+		`log("Game ID:"@gameID,, 'RenX API');
 	}
 }

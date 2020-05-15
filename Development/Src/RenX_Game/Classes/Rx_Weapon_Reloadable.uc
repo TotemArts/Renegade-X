@@ -1424,10 +1424,11 @@ simulated function TickPartialReload()
 		
 		if(bLoseAmmoOnMagDrop && CurrentReloadPart == 1)
 		{
+			ClientAmmoCount -= CurrentAmmoInClip;
 			CurrentAmmoInClip = 0;
 		
-			if(bUseClientAmmo && WorldInfo.Netmode == NM_Client) 
-				ClientAmmoCount =  0;
+			//if(bUseClientAmmo && WorldInfo.Netmode == NM_Client) 
+			//	ClientAmmoCount =  0;
 		}
 		//`log(CurrentReloadPart); 
 	}

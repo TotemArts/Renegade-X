@@ -212,17 +212,19 @@ simulated function StopEngineSound()
 
 function DamageVehicleSurfers()
 {
-	local float DmgRadius;
 	local Pawn P;
 	
-	DmgRadius=400.0;
-	
-	foreach CollidingActors(class'Pawn', P, DmgRadius, Location, false)
+	foreach BasedActors(class'Pawn', P)
     {
-    	if(self == P)
+    	if(self == P 
+    		|| Rx_Pawn(P) == None 
+    		|| P == Driver 
+    		|| P.bHardAttach
+    		|| Seats.Find('StoragePawn',P) >= 0)
+
     		continue;
-    	if(p.base == self)	
-    		P.TakeDamage(10, none, P.Location, vect(0,0,1), class'Rx_DmgType_Fell');	
+
+    	P.TakeDamage(10, none, P.Location, vect(0,0,1), class'Rx_DmgType_Fell');	
     }
 }
 

@@ -374,12 +374,11 @@ DefaultProperties
 
 	TossZ_Mod = 2000
 	TrackingMod=20.0
-	bDropOnTarget=false
 	
     bTargetLockingActive = true
     bHasRecoil = true
     bIgnoreDownwardPitch = true
-    bCheckIfFireStartLocInsideOtherVehicle = true
+    bCheckIfFireStartLocInsideOtherVehicle = false // doesent seem to be needed anymore (?) Was introduced to counter when it was possible to drive a stank into or under other tanks and shot them without them beeing able to shoot back
 	
 	FM0_ROFTurnover = 2; //9 for most automatics. Single shot weapons should be more, except the shotgun
 	FM1_ROFTurnover = 2

@@ -14,7 +14,7 @@ event bool DriverLeave(bool bForceLeave)
 
 // Rx_Defence_Emplacement don't count towards CapturePoints, no need to notify.
 function NotifyCaptuePointsOfDied(byte FromTeam);
-function NotifyCaptuePointsOfTeamChange(byte from, byte to);
+function NotifyCaptuePointsOfTeamChange();
 
 simulated function bool CanEnterVehicle(Pawn P)
 {
@@ -32,10 +32,10 @@ DefaultProperties
 	
 	//VP Given on death (by VRank)
 
-	VPReward(0) = 4
-	VPReward(1) = 6
-	VPReward(2) = 8
-	VPReward(3) = 10
+	VPReward(0) = 0
+	VPReward(1) = 0
+	VPReward(2) = 0
+	VPReward(3) = 0
 	
 	/*************/
 

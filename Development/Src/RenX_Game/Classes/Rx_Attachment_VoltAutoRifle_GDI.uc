@@ -7,7 +7,7 @@ DefaultProperties
 
     WeaponClass = class'Rx_Weapon_VoltAutoRifle_GDI'
     
-    BeamTemplate=ParticleSystem'RX_WP_VoltAutoRifle.Effects.P_Lightning_Blue_Thick'
+    BeamTemplate=ParticleSystem'RX_WP_VoltAutoRifle.Effects.P_Lightning_Blue'
 	AltBeamTemplate=ParticleSystem'RX_WP_VoltAutoRifle.Effects.P_Lightning_Blue'
 
     MuzzleFlashPSCTemplate=ParticleSystem'RX_WP_VoltAutoRifle.Effects.P_VoltRifle_MuzzleFlash_3P_Blue'

@@ -75,6 +75,7 @@ function vector GetVelocity()
 
 function bool DoJump(bool bUpdating)
 {
+	return false; /*Remove to re-enable turret locking*/
     if (Role == ROLE_Authority)
     {
         switch (bLockTurret)
@@ -101,6 +102,22 @@ simulated function ChangeFireMode(bool FM)
     bLockTurret = FM; 
     
     Skel_TurretRotate.bConstrainYaw = FM;
+	
+	/**
+	if(Weapon != none)
+	{
+		switch(FM){
+			case(true):
+			Rx_Vehicle_MRLS_Weapon(Weapon).SetTargetLocking(false);
+			break; 
+			
+			case(false):
+			Rx_Vehicle_MRLS_Weapon(Weapon).SetTargetLocking(true);
+			break; 
+		}
+		
+	}*/
+		
 }
 
 

@@ -340,8 +340,7 @@ simulated function bool BothWeaponsFiring(){
 
 simulated function FireAmmunition()
 {
-	//scripttrace();
-	if(IsReloading(CurrentFireMode)) {
+	if(IsReloading(CurrentFireMode) || !HasAmmo(CurrentFireMode)) {
 		//`log("Is Reloading Firemode" @ CurrentFireMode);
 		return;
 	}
@@ -384,17 +383,27 @@ simulated state WeaponFiring
 		/*For multiweapons, EndState for WeaponFiring means both guns are done firing. Clear them both out*/
 		
 		//Cleanup 1st weapon 
-		if(IsTimerActive('RefireCheckTimer')){
+		if(IsTimerActive('RefireCheckTimer') ){
 			SetCurrentFireMode(0);
 			ClearFlashCount();
 			ClearFlashLocation();
+			//Still check if we need to reload 
+			if( !IsReloading(0) && !HasAmmo(0) && !PrimaryReloading){
+				PrimaryReload();	
+			}
+			
 			ClearTimer( nameof(RefireCheckTimer) );
 		}
 		//Clean up second weapon
-		if(IsTimerActive('SecondaryRefireCheckTimer')){
+		if(IsTimerActive('SecondaryRefireCheckTimer') && !IsReloading(1)){
 			SetCurrentFireMode(1);
 			ClearFlashCount();
 			ClearFlashLocation();
+			//Still check if we need to reload 
+			if( !IsReloading(1) && !HasAmmo(1) && !SecondaryReloading){
+				PrimaryReload();	
+			}
+			
 			ClearTimer( nameof(SecondaryRefireCheckTimer) );
 		}
 		
@@ -449,6 +458,8 @@ simulated state WeaponFiring
 			return;
 		}
 		
+//		`log("Refire Chek Timer"); 
+		
 		//`log("Pending Fires:" @ PendingFire(0) @ PendingFire(1));
 		//Evaluate with us as current fire mode
 		SetCurrentFireMode(0); 		
@@ -467,8 +478,7 @@ simulated state WeaponFiring
 		
 			{
 				//`log("Reloading Primary");
-				PrimaryReload();
-				
+				PrimaryReload();	
 			}
 			
 			HandleFinishedFiring();
@@ -757,6 +767,8 @@ simulated function DrawCrosshair( Hud HUD )
 	local int targetTeam;
 	local LinearColor LC; //nBab	
 	local float XResScale; 
+
+	if (!bDrawCrosshair) return;
 	
 	//set initial color based on settings (nBab)
 	LC.A = 1.f;
@@ -1136,6 +1148,7 @@ function PlayWeaponReloadEffects(byte FM)
 simulated function SecondaryRefireCheckTimer()
 {
 	`log("Called Secondary Refire outside of Correct state"); 
+	ClearTimer('SecondaryRefireCheckTimer'); 
 }
 
 simulated function TimeWeaponFiring( byte FireModeNum )

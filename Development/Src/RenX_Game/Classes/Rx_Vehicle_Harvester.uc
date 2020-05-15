@@ -25,6 +25,7 @@ var repnotify bool 					bPlayClosingAnim;
 var repnotify bool 					bPlayHarvestingAnim;
 var bool 							bTurningToDock;
 var string							FriendlyStateName; 
+var class<Rx_Message_Harvester>     HarvyMessageClass;
 
 var SkeletalMeshComponent AntennaMesh;
 
@@ -108,6 +109,10 @@ function harvInit() {
 
 	SetTimer(0.1f, false, 'Start');
 	SetTimer(1.0, true, 'regenerateHealth');
+	if(Rx_Game(WorldInfo.Game) != None)
+	{
+		Rx_Game(WorldInfo.Game).ReassignHarvester(Self);
+	}
 	
 }
 
@@ -223,7 +228,7 @@ simulated event TakeDamage(int Damage, Controller EventInstigator, vector HitLoc
 
 function BroadcastAttack()
 {
-	BroadcastLocalizedMessage(class'Rx_Message_Harvester',0,self.PlayerReplicationInfo);
+	BroadcastLocalizedMessage(HarvyMessageClass,0,self.PlayerReplicationInfo);
 }
 
 function BroadcastDestroyed()
@@ -245,7 +250,7 @@ function BroadcastDestroyed()
 			}
 		}
 
-	BroadcastLocalizedMessage(class'Rx_Message_Harvester',1,self.PlayerReplicationInfo);
+	BroadcastLocalizedMessage(HarvyMessageClass,1,self.PlayerReplicationInfo);
 }
 
 simulated function Destroyed()
@@ -264,6 +269,25 @@ simulated state DyingVehicle
 		BroadcastDestroyed();
 		super.BeginState(PreviousStateName);
 	}
+}
+
+event bool DriverLeave(bool bForceLeave)
+{
+	local bool bLeft;
+
+	bLeft = Super.DriverLeave(bForceLeave);
+
+	if(bLeft && Health > 0 && !CanUnmanHarvy())
+	{
+		BlowUpVehicle();
+	}
+
+	return bLeft;
+}
+
+function bool CanUnmanHarvy() // in case anyone wants to mod the harvy to be able to be unmanned
+{
+	return false;
 }
 
 simulated function byte GetTeamNum() {
@@ -308,6 +332,7 @@ DefaultProperties
     Translation=(X=0.0,Y=0.0,Z=64.0)
     End Object
 
+    HarvyMessageClass = class'Rx_Message_Harvester'
 
 //========================================================\\
 //************** Vehicle Physics Properties **************\\

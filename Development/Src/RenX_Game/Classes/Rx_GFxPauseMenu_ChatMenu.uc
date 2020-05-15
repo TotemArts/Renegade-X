@@ -41,6 +41,9 @@ var Rx_PRI PrivateSelectedPlayer;
  * */
 
 var string lastPlayerName;
+var string LastPublicChatMessageLog;
+var string LastPrivateChatMessageLog;
+
 
 /** Configures the view when it is first loaded. */
 function OnViewLoaded(Rx_GFxPauseMenu Menu)
@@ -218,10 +221,12 @@ function GetLastSelection(GFxClikWidget Widget)
 				Widget.SetString("text", "");
 				break;
 			case (publicChatTextArea):
+				LastPublicChatMessageLog = Rx_HUD(GetPC().myHUD).PublicChatMessageLog;
 				Widget.SetString("htmlText", Rx_HUD(GetPC().myHUD).PublicChatMessageLog);
 				Widget.SetFloat("position", Widget.GetFloat("maxscroll"));
 				break;
 			case (privateChatTextArea):
+				LastPrivateChatMessageLog = Rx_HUD(GetPC().myHUD).PrivateChatMessageLog;
 				Widget.SetString("htmlText", Rx_HUD(GetPC().myHUD).PrivateChatMessageLog);
 				Widget.SetFloat("position", Widget.GetFloat("maxscroll"));
 				break;
@@ -229,6 +234,45 @@ function GetLastSelection(GFxClikWidget Widget)
 				return;
 		}
 	}
+}
+
+function TickHUD() 
+{
+	local float MaxScroll;
+
+	if (!bMovieIsOpen) {
+		return;
+	}
+
+	if(publicChatTextArea != None)
+	{
+		if(LastPublicChatMessageLog != Rx_HUD(GetPC().myHUD).PublicChatMessageLog)
+		{
+			LastPublicChatMessageLog = Rx_HUD(GetPC().myHUD).PublicChatMessageLog;
+			publicChatTextArea.SetString("htmlText", Rx_HUD(GetPC().myHUD).PublicChatMessageLog);
+
+			MaxScroll = publicChatTextArea.GetFloat("maxscroll");
+
+			if(publicChatTextArea.GetFloat("maxscroll") >= MaxScroll - 5.f)
+				publicChatTextArea.SetFloat("position", MaxScroll);
+		}
+	}
+
+	if(privateChatTextArea != None)
+	{
+		if(LastPrivateChatMessageLog != Rx_HUD(GetPC().myHUD).PrivateChatMessageLog)
+		{
+			LastPrivateChatMessageLog = Rx_HUD(GetPC().myHUD).PrivateChatMessageLog;
+			privateChatTextArea.SetString("htmlText", Rx_HUD(GetPC().myHUD).PrivateChatMessageLog);
+
+			MaxScroll = privateChatTextArea.GetFloat("maxscroll");
+
+			if(privateChatTextArea.GetFloat("maxscroll") >= MaxScroll - 5.f)
+				privateChatTextArea.SetFloat("position", MaxScroll);
+		}
+	}
+
+
 }
 
 function AddChatMessage(string html, string raw, bool bIsPM)

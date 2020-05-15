@@ -56,19 +56,22 @@ simulated function PostBeginPlay()
 	{
 		AnimNode = DoorSkeleton.FindAnimNode(OpenAnimName);
 	}
+
+//	SetTimer(1.0, true, nameof(CheckGameStart));
+}
+
+simulated function CheckGameStart()
+{
+	if (WorldInfo.GRI.bMatchHasBegun)
+	{
+		bWorldGeometry = true;
+		ClearTimer(nameof(CheckGameStart));
+	}
 }
 
 simulated event byte ScriptGetTeamNum()
 {
     return TeamID;
-}
-
-function TakeDamage(int DamageAmount, Controller EventInstigator, Vector HitLocation, Vector Momemtum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)
-{
-}
-
-function bool HealDamage(int Amount, Controller Healer, class<DamageType> DamageType)
-{
 }
 
 simulated function SensorTouch( Actor Other )
@@ -167,6 +170,7 @@ defaultproperties
 	bCollideActors      = True
 	bBlockActors        = true
 	bOpenForVehicles    = true
+	//bWorldGeometry 		= true
 
 	Begin Object Class=DynamicLightEnvironmentComponent Name=MyLightEnvironment
 		bEnabled                        = True

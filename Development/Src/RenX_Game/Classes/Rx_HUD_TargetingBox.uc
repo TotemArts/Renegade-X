@@ -72,6 +72,7 @@ var private float InteractIconBobAmplitude;
 var private float InteractIconBobFrequency;
 
 var Actor TargetedActor;
+var bool bLookingAtSubstitute;
 var Vector TargetActorHitLoc;
 var Box ActualBoundingBox;
 var String TargetName;
@@ -210,6 +211,18 @@ function UpdateTargetedObject (float DeltaTime)
 
 function SetTarget(actor Target)
 {
+	if(RxIfc_TargetedSubstitution(Target) != None && RxIfc_TargetedSubstitution(Target).ShouldSubstitute())
+	{
+		Target = RxIfc_TargetedSubstitution(Target).GetActualActorTarget();
+		bLookingAtSubstitute = true;
+	}
+	else
+		bLookingAtSubstitute = false;
+
+
+	if(Rx_Building_Internals(Target) != None)
+		Target = Rx_Building_Internals(Target).BuildingVisuals;
+
 	if (Target != TargetedActor) // We don't already have this actor targeted
 	{
 		if (Rx_Pawn(TargetedActor) != none) {
@@ -256,7 +269,8 @@ function bool IsValidTarget (actor potentialTarget)
 		(Rx_Pawn(potentialTarget) != none && Rx_Pawn(potentialTarget).Health > 0)||
 		(Rx_DestroyableObstaclePlus(potentialTarget) !=none && Rx_DestroyableObstaclePlus(potentialTarget).bShowHealth && Rx_DestroyableObstaclePlus(potentialTarget).GetHealth() > 0) ||
 		(Rx_BasicPawn(potentialTarget) !=none && Rx_BasicPawn(potentialTarget).bShowHealth && Rx_BasicPawn(potentialTarget).GetHealth() > 0) ||
-		(Rx_CratePickup(potentialTarget) != none && !Rx_CratePickup(potentialTarget).bPickupHidden)
+		(Rx_CratePickup(potentialTarget) != none && !Rx_CratePickup(potentialTarget).bPickupHidden) ||
+		(RxIfc_TargetedSubstitution(potentialTarget) != None && RxIfc_TargetedSubstitution(potentialTarget).GetActualActorTarget() != None && IsValidTarget(RxIfc_TargetedSubstitution(potentialTarget).GetActualActorTarget()))
 		)
 	{
 		if (IsStealthedEnemyUnit(Pawn(potentialTarget)) ||
@@ -276,12 +290,22 @@ function Actor GetActorAtScreenCentre()
 
 function UpdateTargetHealthPercent ()
 {
+	local Rx_CapturePoint CP;
+
 	TargetArmorPercent = 0;
 	bHasArmor = false;
 	
 	if (IsTechBuildingComponent(TargetedActor) && !IsPTorMCT(TargetedActor))
 	{
 		TargetHealthPercent = -1;
+		if(Rx_Building_TechbuildingPoint(TargetedActor) != None)
+		{
+			CP = Rx_Building_TechbuildingPoint_Internals(Rx_Building_TechbuildingPoint(TargetedActor).BuildingInternals).CP;
+			if(CP != None)
+			{
+				TargetHealthPercent = CP.ReplicatedProgress;
+			}
+		}
 		return;
 	}
 	
@@ -364,7 +388,7 @@ function UpdateBoundingBox()
 	local box BBox, BBox2;
 	local int i;
 
-	if (IsBuildingComponent(TargetedActor) && !IsPTorMCT(TargetedActor) && Rx_BuildingAttachment_BeaconPedestal(TargetedActor) == None)
+	if (bLookingAtSubstitute || (IsBuildingComponent(TargetedActor) && !IsPTorMCT(TargetedActor) && Rx_BuildingAttachment_BeaconPedestal(TargetedActor) == None))
 	{
 		BBox2.Min.X = Canvas.SizeX * 0.4;
 		BBox2.Max.X = Canvas.SizeX * 0.6;
@@ -759,12 +783,13 @@ private function DrawHealthBar()
 			}
 		}
 
-		if (TargetHealthPercent <= 0)
+		if (TargetHealthPercent <= 0 && Rx_Building_Techbuilding(TargetedActor) == None)
 		{
 			Canvas.DrawColor = ColorGreen; 
-		if(ArmorHealthPercentTemp > 0)	X = VisualBoundsCenterX + BA_LabelXOffset;
-		else
-		X = VisualBoundsCenterX + LabelXOffset;
+			if(ArmorHealthPercentTemp > 0)	
+				X = VisualBoundsCenterX + BA_LabelXOffset;
+			else
+				X = VisualBoundsCenterX + LabelXOffset;
 			Canvas.Font = LabelFont;
 			Canvas.SetPos(X,Y,0);
 			Canvas.DrawText("(Destroyed)");
@@ -1018,6 +1043,8 @@ private function DrawTeamLogo()
 {
 	local float X,Y;
 	local byte VRank, StanceToDraw; //0:FRIENDLY, 1: ENEMY, 2: NEUTRAL
+	local byte MyTeamNum;
+	local Rx_CapturePoint CP;
  	
 	if(Rx_Pawn(TargetedActor) != none ) VRank = Rx_Pawn(TargetedActor).VRank; 
 	else
@@ -1137,7 +1164,43 @@ private function DrawTeamLogo()
 		}
 		else
 		{
-			Canvas.DrawIcon(NeutralIcon,X,Y);
+			if(Rx_Building_TechbuildingPoint(TargetedActor) != None)
+			{
+				MyTeamNum = RenxHud.PlayerOwner.GetTeamNum();
+				if(Rx_Building_TechbuildingPoint(TargetedActor) != None)
+					CP = Rx_Building_TechbuildingPoint_Internals(Rx_Building_TechbuildingPoint(TargetedActor).BuildingInternals).CP;
+			}
+			if(CP == None || CP.CapturingTeam == 255)
+			{
+				Canvas.DrawIcon(NeutralIcon,X,Y);
+			}
+			else
+			{
+				if(MyTeamNum != CP.CapturingTeam)
+				{
+					if(CP.CapturingTeam == TEAM_GDI)
+					{
+						Canvas.DrawIcon(GDIEnemyIcon,X,Y);	
+					}
+					else
+					{
+						Canvas.DrawIcon(NodEnemyIcon,X,Y);	
+					}
+				}
+				else
+				{
+					if(CP.CapturingTeam == TEAM_GDI)
+					{
+						Canvas.DrawIcon(GDIFriendlyIcon,X,Y);	
+					}
+					else
+					{
+						Canvas.DrawIcon(NodFriendlyIcon,X,Y);	
+					}
+				}
+
+			}
+
 			StanceToDraw=2;
 		}
 			

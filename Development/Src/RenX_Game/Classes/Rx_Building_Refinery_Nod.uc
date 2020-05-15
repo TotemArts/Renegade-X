@@ -3,7 +3,7 @@ class Rx_Building_Refinery_Nod extends Rx_Building_Nod_MoneyFactory
 
 simulated function String GetHumanReadableName()
 {
-	return "Nod Refinery";
+	return "Refinery";
 }
 
 DefaultProperties

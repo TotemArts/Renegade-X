@@ -80,21 +80,21 @@ DefaultProperties
     MyDamageType=class'Rx_DmgType_VoltRifle_Alt'
 
     DrawScale= 1.0f
-    BaseDrawScale=0.4
-    BonusDrawScale=0.6
+    BaseDrawScale=0.2
+    BonusDrawScale=0.8
 
     bCollideComplex=true
-    Speed=2000
-    MaxSpeed=2000
+    Speed=3000
+    MaxSpeed=3000
     AccelRate=0
-    LifeSpan=2.5
-    Damage=100.0
+    LifeSpan=2.0
+    Damage=40
     DamageRadius=100
-	HeadShotDamageMult=2.0
+	HeadShotDamageMult=1.25
     MomentumTransfer=100000
 
-    BonusDamage=125 //175//200
-    BonusDamageRadius=100
+    BonusDamage=190
+    BonusDamageRadius=200
 
 /*	
 	Begin Object Name=CollisionCylinder
@@ -110,4 +110,20 @@ DefaultProperties
     
     ProjectileLightClass=none
     ExplosionLightClass=none
+
+    /*************************/
+    /*VETERANCY*/
+    /************************/
+    
+    Vet_DamageIncrease(0)=1 //Normal (should be 1)
+    Vet_DamageIncrease(1)=1.05 //Veteran 
+    Vet_DamageIncrease(2)=1.175 //Elite
+    Vet_DamageIncrease(3)=1.25 //Heroic
+
+    Vet_SpeedIncrease(0)=1 //Normal (should be 1)
+    Vet_SpeedIncrease(1)=1.25 //Veteran 
+    Vet_SpeedIncrease(2)=1.5 //Elite
+    Vet_SpeedIncrease(3)=2.0 //Heroic 
+    
+    /***********************/
 }

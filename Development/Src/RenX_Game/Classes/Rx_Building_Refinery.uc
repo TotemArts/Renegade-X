@@ -13,6 +13,8 @@ var SoundCue 				CreditFlowSound;
 var private SkeletalMeshComponent DockingMesh, GarageDoorMesh;
 var AnimNode                      AnNodeDockStation, AnNodeDoor;
 
+var Rx_Ref_NavigationPoint RefNode;
+
 var(RenX_Refinery) float HarvesterUnloadTime;
 var(RenX_Refinery) float HarvesterHarvestTime;
 var(RenX_Refinery) float HarvesterCreditDump;

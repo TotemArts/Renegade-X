@@ -347,6 +347,11 @@ function SetQueuedStop(Rx_Controller StopController)
 	Rx_Game(WorldInfo.Game).CTextBroadCast(GetTeamNum(),"Harvester Stop Queued",'LightBlue');
 }
 
+function ReassignRefinery(Rx_Building_Refinery Ref)
+{
+	refinery = Ref;
+}
+
 DefaultProperties
 {
 	RadarVisibility = 1 

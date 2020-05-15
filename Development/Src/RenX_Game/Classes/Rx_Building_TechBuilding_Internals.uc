@@ -207,14 +207,14 @@ function TriggerUnderAttack()
 
 function NotifyBeginCaptureBy(byte TeamIndex)
 {
-	if (TeamIndex == TEAM_GDI)
-	{
-		ChangeFlag(TEAM_GDI);
-	}
-	else if (TeamIndex == TEAM_Nod)
-	{
-		ChangeFlag(TEAM_Nod);
-	}
+//	if (TeamIndex == TEAM_GDI)
+//	{
+//		ChangeFlag(TEAM_GDI);
+//	}
+//	else if (TeamIndex == TEAM_Nod)
+//	{
+//		ChangeFlag(TEAM_Nod);
+//	}
 }
 
 function NotifyCapturedBy(byte TeamIndex)
@@ -226,14 +226,22 @@ function NotifyCapturedBy(byte TeamIndex)
 		BroadcastLocalizedMessage(MessageClass,NOD_CAPTURED,,,self);
 
 	if (TeamIndex == TEAM_GDI)
-		ChangeTeamReplicate(TEAM_GDI);
+		ChangeTeamReplicate(TEAM_GDI,true);
 	else if (TeamIndex == TEAM_Nod)
-		ChangeTeamReplicate(TEAM_Nod);
+		ChangeTeamReplicate(TEAM_Nod,true);
+
+	BuildingVisuals.TriggerEventClass(Class'Rx_SeqEvent_TechCapture',None,0);
 }
 
 function NotifyBeginNeutralizeBy(byte TeamIndex)
 {
-	TriggerUnderAttack();
+	
+}
+
+function NotifyUnderAttack(byte TeamIndex)
+{
+	if(TeamIndex != GetTeamNum())
+		TriggerUnderAttack();
 }
 
 function NotifyNeutralizedBy(byte TeamIndex, byte PreviousOwner)
@@ -244,16 +252,18 @@ function NotifyNeutralizedBy(byte TeamIndex, byte PreviousOwner)
 	else
 		BroadcastLocalizedMessage(MessageClass,NOD_LOST,,,self);
 
-	ChangeTeamReplicate(255);
-	if (TeamIndex == TEAM_GDI)
-		ChangeFlag(TEAM_GDI);
-	else if (TeamIndex == TEAM_Nod)
-		ChangeFlag(TEAM_Nod);
+	ChangeTeamReplicate(255,true);
+//	if (TeamIndex == TEAM_GDI)
+//		ChangeFlag(TEAM_GDI);
+//	else if (TeamIndex == TEAM_Nod)
+//		ChangeFlag(TEAM_Nod);
+
+	BuildingVisuals.TriggerEventClass(Class'Rx_SeqEvent_TechCapture',None,1);
 }
 
 function NotifyRestoredNeutral()
 {
-	ChangeFlag(255);
+//	ChangeFlag(255);
 }
 
 function NotifyRestoredCaptured();
@@ -334,6 +344,11 @@ static function string GetLocalString(
 		}
 	}
 	return "";
+}
+
+simulated function bool IsCapturableBy(byte TeamIndex)
+{
+	return true;
 }
 
 simulated event byte ScriptGetTeamNum()

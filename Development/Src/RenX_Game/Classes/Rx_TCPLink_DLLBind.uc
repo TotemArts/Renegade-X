@@ -23,3 +23,6 @@ dllimport final function write_ss(out ByteArrayWrapper in_data);
 dllimport final function int copy_array_to_buffer(out ByteBufferWrapper destination, out ByteArrayWrapper source, int offset); // returns bytes copied
 dllimport final function set_cap(out ByteBufferWrapper buffer, out ByteArrayWrapper cap);
 dllimport final function int read_cap(int in_offset);
+dllimport final function bool start_ping_request(string in_str);
+dllimport final function int get_ping(string in_str);
+dllimport final function clear_pings();

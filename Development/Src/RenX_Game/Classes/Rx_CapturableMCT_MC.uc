@@ -15,4 +15,6 @@ defaultproperties
 {
    BuildingInternalsClass  = class'Rx_CapturableMCT_MC_Internals'
    TeamID = 255
+
+	IconTexture = Texture2D'RenxHUD.T_Tech_MC'
 }

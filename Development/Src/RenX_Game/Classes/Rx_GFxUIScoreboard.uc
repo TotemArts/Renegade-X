@@ -87,7 +87,7 @@ var array<Rx_UIDataProvider_MapInfo> MapDataProviderList;
 var bool bHasFadeIn;
 
 var string CommanderName[2]; 
-var bool bHasInitialized;
+var string LastNextMap;
 var float ChatMaxRubberband;
 var int BeepPoint;
 
@@ -98,6 +98,8 @@ var vector BuildingDistanceAverage;
 var int LastGDIHarvHealth, LastNodHarvHealth;
 var bool bGDIHasHarv, bNodHasHarv;
 var Rx_TeamInfo GDITeam, NodTeam;
+var bool bMovieInit;
+var bool bGameWasOver;
 
 
 function bool Start(optional bool StartPaused = false)
@@ -109,17 +111,29 @@ function bool Start(optional bool StartPaused = false)
     super.Start();
     Advance(0.f);
 
-    LastGDIScore = -1;
-    LastNodScore = -1;
-    GDITeam = Rx_TeamInfo(PC.WorldInfo.GRI.Teams[TEAM_GDI]);
-    NodTeam = Rx_TeamInfo(PC.WorldInfo.GRI.Teams[TEAM_NOD]);
-	
-	LoadGfxObjects();
+    if((bGameWasOver && !RxGRI.bMatchIsOver) || (!bGameWasOver && RxGRI.bMatchIsOver))
+    {
+    	bGameWasOver = RxGRI.bMatchIsOver;
+    	bMovieInit = false; //reset
+    }
 
-	if(RxGRI.bMatchIsOver)
-		EndGameMode();
-	else
-		InitScoreboard();
+    if(!bMovieInit)
+    {
+	    LastGDIScore = -1;
+	    LastNodScore = -1;
+	    GDITeam = Rx_TeamInfo(PC.WorldInfo.GRI.Teams[TEAM_GDI]);
+	    NodTeam = Rx_TeamInfo(PC.WorldInfo.GRI.Teams[TEAM_NOD]);
+	
+		LoadGfxObjects();
+		if(RxGRI.bMatchIsOver)
+			EndGameMode();
+		else
+			InitScoreboard();
+
+		bMovieInit = true;
+	}
+
+	UpdateBuildings(true);
 
 	AddFocusIgnoreKey('Escape');
 
@@ -164,10 +178,10 @@ function LoadGfxObjects()
 		Scoreboard = RootMC.GetObject("sb");
 		HarvGDI = Scoreboard.GetObject("GDIHarv");
 		HarvStatusGDI = HarvGDI.GetObject("StatusText");
-		HarvGDI.SetVisible(false);
+		HarvGDI.SetVisible(bGDIHasHarv);
 		HarvNod = Scoreboard.GetObject("NodHarv");
 		HarvStatusNod = HarvNod.GetObject("StatusText");
-		HarvNod.SetVisible(false);
+		HarvNod.SetVisible(bNodHasHarv);
 	}
 //	{		
 //		SetBuildingGfxObjects(EndGameScoreBoard);
@@ -219,6 +233,7 @@ function LoadBuildings()
 	local Rx_Building B;
 	local Array<Rx_Building> BList;
 	local Buildings TempBuilding;
+	local Array<Buildings> LastGDIBuilding, LastNodBuilding;
 
 	local int buildingIndex;
 	local ASDisplayInfo DI;
@@ -226,7 +241,12 @@ function LoadBuildings()
 	local Vector BLocs;
 
 	//empty these out
+	if(GDIBuilding.Length > 0)
+		LastGDIBuilding = GDIBuilding;	
 	GDIBuilding.Length = 0;
+
+	if(NodBuilding.Length > 0)
+		LastNodBuilding = NodBuilding;	
 	NodBuilding.Length = 0;
 
 	foreach PC.AllActors(class'Rx_Building', B)
@@ -252,7 +272,10 @@ function LoadBuildings()
 				continue;
 
 
-			TempBuilding.containerMC = StatsGDI.AttachMovie("StatsBuilding","Building"$(GDIBuilding.Length + 1));
+			if(LastGDIBuilding.Length > GDIBuilding.Length && LastGDIBuilding[GDIBuilding.Length].containerMC != None && bMovieInit)
+				TempBuilding.containerMC = LastGDIBuilding[GDIBuilding.Length].containerMC;
+			else
+				TempBuilding.containerMC = StatsGDI.AttachMovie("StatsBuilding","Building"$(GDIBuilding.Length + 1));
 
 			if(!RxGRI.bMatchIsOver)
 			{
@@ -275,15 +298,20 @@ function LoadBuildings()
 			if(StatsNod == None) // if there's no movie here, drop
 				continue;			
 
-			TempBuilding.containerMC = StatsNod.AttachMovie("StatsBuilding","Building"$(NodBuilding.Length + 1));
+			if(LastNodBuilding.Length > NodBuilding.Length && LastNodBuilding[NodBuilding.Length].containerMC != None && bMovieInit)
+				TempBuilding.containerMC = LastNodBuilding[NodBuilding.Length].containerMC;
+			else			
+				TempBuilding.containerMC = StatsNod.AttachMovie("StatsBuilding","Building"$(NodBuilding.Length + 1));
 
-			if(GDIBuilding.Length > 0)
-				NodYPos += 96; 
-			else
-				NodYPos = 64;
+			
 			
 			if(!RxGRI.bMatchIsOver)
 			{
+				if(NodBuilding.Length > 0)
+					NodYPos += 96; 
+				else
+					NodYPos = 64;
+
 				TempBuilding.containerMC.SetPosition(64.f,NodYPos);
 			}
 			else
@@ -352,11 +380,11 @@ function UpdateBuildings(bool force)
 	if(NodBuilding.Length > 0);
 		UpdateBuildingGFx(NodBuilding,force);
 
-	if(GDITeam.CurrentHarvester != None)
-		UpdateHarv(GDITeam);
+//	if(GDITeam.CurrentHarvester != None)
+	UpdateHarv(GDITeam);
 
-	if(NodTeam.CurrentHarvester != None)
-		UpdateHarv(NodTeam);
+//	if(NodTeam.CurrentHarvester != None)
+	UpdateHarv(NodTeam);
 }
 
 function UpdateBuildingGFx(Array<Buildings> BList, bool force)
@@ -381,6 +409,10 @@ function UpdateBuildingGFx(Array<Buildings> BList, bool force)
 		if(TempBuilding.building.GetMaxArmor() != 0)
 			armor = float(TempBuilding.building.GetArmor())/float(TempBuilding.building.GetMaxArmor())*100.0; 
 
+		health = Max(1,health);
+		armor = Max(1,armor);
+
+
 		`logd("Rx_GFxUIScoreBoard::UpdateBuildings"@`ShowVar(health)@`ShowVar(TempBuilding.hp)@`ShowVar(armor),true,'DevGFxUI');
 
 		if(TempBuilding.building.IsDestroyed() && (TempBuilding.hp != 0 || force)) // Building is destroyed, if TempBuilding.hp is already 0, we have already updated flash.
@@ -397,13 +429,13 @@ function UpdateBuildingGFx(Array<Buildings> BList, bool force)
 			 //check our cached health to see if it has changed.
 			if(force || health != TempBuilding.hp)
 			{
-				TempBuilding.hpMC.GotoAndStopI(health);
-				TempBuilding.hp = Max(1,health); // we get here only because we're alive. if the hp is 0, that means we're dead
+				TempBuilding.hp = Health; // we get here only because we're alive. if the hp is 0, that means we're dead
+				TempBuilding.hpMC.GotoAndStopI(TempBuilding.hp);
 			}
 			if(force || armor != TempBuilding.armor)
 			{
-				TempBuilding.armorMC.GotoAndStopI(armor);
 				TempBuilding.armor = armor;
+				TempBuilding.armorMC.GotoAndStopI(TempBuilding.armor);
 			}
 		}
 	}	
@@ -558,8 +590,17 @@ function UpdatePlayers()
 				break;
 			}
 		}
+		else if(RPRI.bIsAFK) 
+		{
+			tmpObj.SetString("Color", "0x8A9CA6");
+		}
+		else if(RPRI.bBot)
+		{
+			tmpObj.SetString("Color", "0xE1C197");
+		}
 
-		if (PRIArray[i] == PC.PlayerReplicationInfo) tmpObj.SetString("Color", "0x00FF00");
+		if (PRIArray[i] == PC.PlayerReplicationInfo) 
+			tmpObj.SetString("Color", "0x00FF00");
 
 		if (PRIArray[i].GetTeamNum() == TEAM_GDI && GDIp < 32)
 		{
@@ -615,14 +656,9 @@ function Draw()
 		TickEndGameScoreboard();	
 		UpdateBuildings(true);
 	} 
-	else if(bHasInitialized)
-	{
-		UpdateBuildings(false);
-	}
 	else
 	{
-		UpdateBuildings(true);
-		bHasInitialized = true;
+		UpdateBuildings(false);
 	}
 
 	UpdatePlayers();
@@ -656,6 +692,7 @@ function TickEndGameScoreboard()
 	local float TimeLeft;
 	local int i;
 	local bool bVoteNeedUpdate;
+	local string CurrentNextMap;
 //	local GFxObject TempObj, DataProvider;
 
 //	DataProvider = CreateObject("scaleform.clik.data.DataProvider");
@@ -690,15 +727,28 @@ function TickEndGameScoreboard()
 			NextRound.SetText(int(TimeLeft));
 	}
 
-	if (RxGRI.NextMap != "") {
+	if (RxGRI.NextMap != "") 
+	{
 		// Set Map Rotation mode
-		if (NextMap != none)
+		if (NextMap != none && LastNextMap != RxGRI.NextMap)
+		{
+			LastNextMap = RxGRI.NextMap;
 			NextMap.SetText(GetMapFriendlyName(RxGRI.NextMap));
-	} else {
+		}
+	} 
+	else 
+	{
 		// End of Map Vote mode
-		if (RxGRI.GetMapVote() >= 0) {
-			if (NextMap != none) 
-				NextMap.SetText(GetMapFriendlyName(RxGRI.MapVoteList[RxGRI.GetMapVote()]));	
+		if (RxGRI.GetMapVote() >= 0) 
+		{
+
+			CurrentNextMap = RxGRI.MapVoteList[RxGRI.GetMapVote()];
+
+			if (NextMap != none && CurrentNextMap != LastNextMap) 
+			{
+				LastNextMap = CurrentNextMap;
+				NextMap.SetText(GetMapFriendlyName(LastNextMap));	
+			}
 		}
 	}
 
@@ -735,6 +785,14 @@ function TickEndGameScoreboard()
     	MapVoteList.SetBool("NeedUpdate",bVoteNeedUpdate);
 }
 
+function UpdateServerName() // failsafe function
+{
+	if(PC.WorldInfo.NetMode == NM_Standalone)
+		ServerName.SetText("Skirmish Session");
+	else
+		ServerName.SetText(RxGRI.ServerName);
+}
+
 function InitEndGameScoreboard()
 {
 	local float x0, y0, x1, y1; // Mouse co-ords
@@ -761,7 +819,7 @@ function InitEndGameScoreboard()
 	LoadBuildings();
 
 	if(duration != none)
-		duration.SetText(FormatTime(RxGRI.RenEndTime));
+		duration.SetText(FormatTime(RxGRI.ElapsedTime));
 
 	if(ServerName != None)
 	{
@@ -1140,6 +1198,9 @@ function SetUpDataProvider(GFxObject Widget)
 			return;
 		case (EndGameScoreBoard):
 			ServerName = EndGameScoreBoard.GetObject("ServerName");
+			if(ServerName != None)
+				UpdateServerName();
+
 			NextMap =  EndGameScoreBoard.GetObject("Nextmap");
 			NextLoadingMap = EndGameScoreboard.GetObject("NextLoadingMap");
 			duration = EndGameScoreBoard.GetObject("duration");

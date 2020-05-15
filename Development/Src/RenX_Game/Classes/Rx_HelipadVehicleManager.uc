@@ -9,6 +9,7 @@ var float HelipadSpawnZOffset, WaitTimeForAirVehicleAI;
 function Initialize(GameInfo Game, UTTeamInfo GdiTeamInfo, UTTeamInfo NodTeamInfo)
 {
    	local Rx_Building build;
+   	local Rx_Tib_NavigationPoint N;
 	
    	RGame = Rx_Game(Game);
    	if (RGame == none)
@@ -23,14 +24,28 @@ function Initialize(GameInfo Game, UTTeamInfo GdiTeamInfo, UTTeamInfo NodTeamInf
   	Teams[TEAM_GDI] = GdiTeamInfo;
   	Teams[TEAM_NOD] = NodTeamInfo;
   	
+  	foreach WorldInfo.AllNavigationPoints(class'Rx_Tib_NavigationPoint',N) 
+  	{
+  		if(N.GetTeamNum() == TEAM_GDI)
+  		{
+  			GDITibPoint = N;
+  		}
+  		else if(N.GetTeamNum() == TEAM_NOD)
+  		{
+  			NodTibPoint = N;
+  		}
+
+  		if(GDITibPoint != None && NodTibPoint != None)
+  			break;
+  	}
 
  	if(WeaponsFactory.length <= 0 && AirStrip.length <= 0 && GDIHelipad.length <= 0 && NodHelipad.length <= 0) 
 	{
 		ForEach AllActors(class'Rx_Building',build)
 		{
-			if (Rx_Building_Nod_VehicleFactory(build) != None)
+			if (Rx_Building_Nod_VehicleFactory(build) != None && Rx_Building_Helipad_Nod(build) == None)
 				AirStrip.AddItem(Rx_Building_Nod_VehicleFactory(build));
-			else if (Rx_Building_GDI_VehicleFactory(build) != None)
+			else if (Rx_Building_GDI_VehicleFactory(build) != None && Rx_Building_Helipad_GDI(build) == none)
 				WeaponsFactory.AddItem(Rx_Building_GDI_VehicleFactory(build));
 			else if (Rx_Building_Helipad_GDI(build) != None)
 				GDIHelipad.AddItem(Rx_Building_Helipad_GDI(build));
@@ -57,6 +72,7 @@ function Rx_Building_VehicleFactory GetAirNearestProduction(Rx_PRI Buyer, out Ve
 
 	if(Buyer.GetTeamNum() == TEAM_GDI)
 	{			
+		`log(GDIHelipad.Length);
 		for(i=0; i<GDIHelipad.length;i++)
 		{
 			if(BestFactory == None)
@@ -78,6 +94,7 @@ function Rx_Building_VehicleFactory GetAirNearestProduction(Rx_PRI Buyer, out Ve
 					bActiveBuildingAvailable = true;
 			}
 		}
+		`log(BestFactory);
 		BestFactory.BuildingInternals.BuildingSkeleton.GetSocketWorldLocationAndRotation('Veh_Spawn', loc, rot);
 	}
 	else if(Buyer.GetTeamNum() == TEAM_NOD)

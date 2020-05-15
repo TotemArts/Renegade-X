@@ -4,7 +4,7 @@ class Rx_Building_PowerPlant_Nod extends Rx_Building_Nod_PowerFactory
 
 simulated function String GetHumanReadableName()
 {
-	return "Nod Power Plant";
+	return "Power Plant";
 }
 
 DefaultProperties

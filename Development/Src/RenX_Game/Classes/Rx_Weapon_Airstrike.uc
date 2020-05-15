@@ -24,7 +24,7 @@ var float DecalWidth;
 var float DecalThickness;
 
 // private vars
-var private vector AirstrikeLocation;
+var vector AirstrikeLocation;
 var private vector2D AS2DRotPlane;
 var private DecalComponent ASDecal;
 var private MaterialInstanceConstant mat;
@@ -383,9 +383,11 @@ simulated state Deployment
 
 		// if this is MP game, we need to make sure to execute following function
 		// on server side only
+//		Rx_Pawn(Instigator).StopWalking();
+//		Rx_Pawn(Instigator).ServerStopWalking();
+
+		EndZoom(UTPlayerController(Instigator.Controller));
 		ServerDeploy(rot);
-		Rx_Pawn(Instigator).StopWalking();
-		Rx_Pawn(Instigator).ServerStopWalking();
 	}
 
 	simulated event EndState(name PreviousStateName)

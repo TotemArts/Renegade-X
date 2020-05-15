@@ -3,7 +3,7 @@ class Rx_Building_RepairFacility_GDI extends Rx_Building_GDI_RepairFactory
 
 simulated function String GetHumanReadableName()
 {
-	return "GDI Repair Facility";
+	return "Repair Facility";
 }
 
 defaultproperties

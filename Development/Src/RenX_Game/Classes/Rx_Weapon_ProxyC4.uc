@@ -1,5 +1,8 @@
 class Rx_Weapon_ProxyC4 extends Rx_Weapon_Beacon ;//Rx_Weapon_Deployable;
 
+var StaticMeshComponent VisualizationMesh;
+var bool ShowVisualization;
+
 /**
 simulated function WeaponEmpty()
 {
@@ -20,6 +23,39 @@ simulated function WeaponEmpty()
  * Draw the Crosshairs
  * halo2pac - implemented code that changes crosshair color based on what's targeted. Edit for Proxy mines, tack on the mine limit.
  **/
+
+simulated event PostBeginPlay()
+{
+	super.PostBeginPlay();
+
+	if (Pawn(Owner) != None)
+		Pawn(Owner).Mesh.AttachComponent(VisualizationMesh, 'b_R_Toe');
+}
+
+simulated event Tick(float DeltaTime)
+{
+	super.Tick(DeltaTime);
+
+	if (Owner == None || Pawn(Owner) == None || Pawn(Owner).Mesh == None)
+	{
+		VisualizationMesh.SetHidden(true);
+		VisualizationMesh.DetachFromAny();
+		return;
+	}
+
+	if (VisualizationMesh != None && Pawn(Owner).Health > 0)
+		VisualizationMesh.SetHidden(!ShowVisualization);
+
+	if (!VisualizationMesh.bAttached)
+		Pawn(Owner).Mesh.AttachComponent(VisualizationMesh, 'b_R_Toe');
+}
+
+simulated event Destroyed()
+{
+	if (VisualizationMesh != None)
+		VisualizationMesh.DetachFromAny();
+}
+
 simulated function DrawCrosshair( Hud HUD )
 {
 	local float x,y;
@@ -71,7 +107,6 @@ simulated function DrawCrosshair( Hud HUD )
 	H = UTHUDBase(HUD);
 	if ( H == None )
 		return;
-	
 	
 	MineNum=Rx_HUD(H).GIHudMovie.CurrentNumMines;
 	MaxMineNum=Rx_HUD(H).GIHudMovie.CurrentMaxMines;
@@ -183,15 +218,33 @@ simulated function DrawCrosshair( Hud HUD )
 		X+(default.CrosshairWidth/2)-(MineTextL*MineEmphasisScale)/2,
 		Y+default.CrosshairHeight/5);
 		
-		
-		
 		H.Canvas.DrawText("Mines: " $ MineNum $ "/" $ MaxMineNum ,true,MineEmphasisScale,MineEmphasisScale);
 		H.Canvas.DrawColor=TempColor;
-		
+
+		UpdateMineVisualization();
 	}
+
 	DrawHitIndicator(H,x,y);
 }
 
+simulated function PlayWeaponEquip()
+{
+	super.PlayWeaponEquip();
+
+	ShowVisualization = true;
+}
+
+simulated function PlayWeaponPutDown()
+{
+	super.PlayWeaponPutDown();
+
+	ShowVisualization = false;
+}
+
+simulated function UpdateMineVisualization()
+{
+	`log("update mine");
+}
 
 simulated function bool IsValidPosition() 
 {
@@ -360,6 +413,20 @@ DefaultProperties
 		Scale=2.0
 		FOV=50.0
 	End Object
+
+	Begin Object Class=StaticMeshComponent Name=TMesh
+		StaticMesh=StaticMesh'RenX_AssetBase.Mesh.SM_Sphere_Rad100'
+		Scale=1.45
+		Materials[0]=MaterialInstanceConstant'RenX_AssetBase.Materials.MI_Proximity_Radius'
+		CollideActors=False
+		BlockActors=False
+		BlockZeroExtent=False
+		BlockNonZeroExtent=False
+		BlockRigidBody=False
+	End Object
+	VisualizationMesh=TMesh
+
+	ShowVisualization = false
 	
 	ArmsAnimSet = AnimSet'rx_wp_proxyc4.Anims.AS_WP_ProxyC4_Arms'
 

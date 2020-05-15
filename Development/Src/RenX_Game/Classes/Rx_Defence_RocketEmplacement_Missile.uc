@@ -69,8 +69,8 @@ DefaultProperties
    MomentumTransfer=100000.000000
    
    LockWarningInterval=1.5
-   BaseTrackingStrength=8.0
-   HomingTrackingStrength=8.0
+   BaseTrackingStrength= 12.0 //8.0
+   HomingTrackingStrength=12.0 //8.0
    
    MyDamageType=Class'Rx_DmgType_RocketEmpl_Missile'
 

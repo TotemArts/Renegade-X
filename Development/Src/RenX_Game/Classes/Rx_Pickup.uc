@@ -7,7 +7,7 @@ var int TimeToStartDisappearing;
 var MaterialInstanceConstant MIC;
 var float Res;
 
-auto state Pickup
+auto simulated state Pickup
 {
     function float DetourWeight(Pawn Other,float PathWeight)
     {
@@ -19,7 +19,7 @@ auto state Pickup
        return (Rx_Pawn(Other) != None && Other.Controller != None && Rx_Bot_Scripted(Other.Controller) == None && Other.Health > 0);
     }
   
-	function Tick(float DeltaTime)
+	simulated function Tick(float DeltaTime)
 	{
 		super.Tick(DeltaTime);
 

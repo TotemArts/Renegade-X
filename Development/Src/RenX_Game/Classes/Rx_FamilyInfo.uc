@@ -248,6 +248,19 @@ function static  bool VerifyVPPrice(byte Iterator,int Cost)
 	
 }
 
+static function bool HasPassiveAbilities()
+{
+	local int i; 
+	
+	for(i=0;i<2;i++)
+	{
+		if(default.PassiveAbilities[i] != none)
+			return true; 
+	}
+	
+	return false; 
+}
+
 DefaultProperties
 {
 	CameraHeightModifier = 0

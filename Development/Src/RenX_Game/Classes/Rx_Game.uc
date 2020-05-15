@@ -23,18 +23,25 @@ var config bool bFixedMapRotation;
 var Rx_LANBroadcast LANBroadcast;
 var OnlineGameSettings GameSettings;
 
-var string PingIpList;
-
 var globalconfig array<string> MapHistory; // In order of most recent (0 = Most Recent)
 var int MapHistoryMax; // Max number of recently played maps to hold in memory
+
+struct MapPlayerNumLimits
+{
+	var string MapName;
+	var int MapMinPlayers;
+	var int MapMaxPlayers;
+};
+var globalconfig array<MapPlayerNumLimits> MapsWithPlayerNumLimits;
 
 var config int RecentMapsToExclude;
 var config int MaxMapVoteSize;
 var config int CnCModeTimeLimit;
 var config int DMModeTimeLimit;
+var config float TeamMmrAnnouncementInterval;
 var int VPMilestones[3]; //Config
 var int MaxInitialVeterancy; //Maximum veterancy you can be given at the beginning of a game
-var float CurrentBuildingVPModifier; //Modifier based on number buildings currently destroyed. 1st building kill awards the least, and gradually rises with each kill
+var float CurrentBuildingVPModifier[2]; //Modifier based on number buildings currently destroyed. 1st building kill awards the least, and gradually rises with each kill
 var int CreditTickRate; // Frequency in seconds that credit ticks occur
 var private float CreditTickTimer;
 
@@ -101,6 +108,8 @@ var Rx_PurchaseSystem                   PurchaseSystem;
 var class<Rx_VehicleManager>			VehicleManagerClass, HelipadVehicleManagerClass;
 var Rx_VehicleManager                   VehicleManager;
 var class<Rx_TeamInfo>					TeamInfoClass;
+var Rx_PlayerMonitor					PlayerMonitor;
+var class<Rx_PlayerMonitor>				PlayerMonitorClass;
 var bool							    bCanPlayEvaBuildingUnderAttackGDI;
 var bool							    bCanPlayEvaBuildingUnderAttackNOD;
 var byte						        WinnerTeamNum;
@@ -150,6 +159,7 @@ var config bool bPrivateMessageTeamOnly;
 
 // Determines how teams are organized between matches. 0 = static, 1 = swap, 2 = random swap, 3 = shuffle, 4 = traditional (assign as players connect), 5 = traditional + free swap, 6 = ladder rank
 var config int TeamMode;
+var array<string> JoinedPlayerIDs;
 
 var int buildingArmorPercentage; //Always 50 if enabled 
 
@@ -193,12 +203,8 @@ var config string GameVersion;
 /**@Shahman: Game Version Number*/
 var config int GameVersionNumber;
 /**@MPalko: Retrieves latest version from the website*/
-var Rx_VersionCheck VersionCheck;
 
 var int GameType; // < 0 = Invalid, 0 = Rx_Game_MainMenu, 1 = Rx_Game, 2 = TS_Game, 3 = SP_Game, [3, 1000) = RenX Unused/Reserved, [1000, 2^31 - 1] Unassigned / Mod space
-
-
-var int curIndPinged;
 
 var config bool bLogRcon;
 
@@ -287,6 +293,7 @@ var Rx_GameObjective	FirstObjective, PrevO;	//I know it doesn't make sense to pu
 
 var bool bPedestalDetonated;
 var byte PedestalDetonator;
+var bool bAllowDeployedDefenceKills;
 
 delegate NotifyServerListUpdate();
 
@@ -350,6 +357,8 @@ function PreBeginPlay()
 		VehicleManager = spawn(VehicleManagerClass, self,'VehicleManager',Location,Rotation);
 		
 		PurchaseSystem.SetVehicleManager(VehicleManager);
+
+		PlayerMonitor = spawn(PlayerMonitorClass, self,'PlayerMonitor',Location,Rotation);
 	}
 
 	if(Rx_MapInfo(WorldInfo.GetMapInfo()).MapBotType == navmesh)
@@ -385,8 +394,6 @@ function PreBeginPlay()
 	{
 		ServiceBrowser = new(self)class'Rx_ServerListQueryHandler';
 	}
-		// Create our version check class.
-	VersionCheck = Spawn(class'Rx_VersionCheck');
 
 	/* Spawn our Rx_VersionQueryHandler, so we can access it from external classes and use it's functions. */
 	if (VQueryHandler == None && WorldInfo.NetMode == NM_StandAlone)
@@ -404,7 +411,7 @@ function PreBeginPlay()
 	//Create our systemsettingshandler here
 	//SystemSettingsHandler = Spawn(class'Rx_SystemSettingsHandler');
 
-	MaxMapVoteSize = Clamp(MaxMapVoteSize, 1, 9);
+	MaxMapVoteSize = Clamp(MaxMapVoteSize, 1, 14);
 	RecentMapsToExclude = Clamp(RecentMapsToExclude, 0, 14);
 	
 
@@ -563,10 +570,15 @@ function PostBeginPlay()
 	else
 	{
 		if (bIsClanWars)
-			bIsClanWars=false;
+			bIsClanWars=false; 
 	}
 
 	SetTimer(1.f, true, 'VoteTimer');
+
+	if(WorldInfo.NetMode == NM_DedicatedServer)
+	{
+	    SetTimer(TeamMmrAnnouncementInterval, true, 'DoEvaMessageWithTeamMMRs');
+	}
 
 	/* Strip Day/Night from Field/Canyon/Mesa or whatever other map*/
 	
@@ -579,11 +591,6 @@ function PostBeginPlay()
 	//RecordToMapHistory(string(WorldInfo.GetPackageName()));
 
 	RecordToMapHistory(CappedName); 
-	
-	if (bFixedMapRotation)
-		Rx_GRI(GameReplicationInfo).SetFixedNextMap(GetNextMapInRotationName());
-	else
-		Rx_GRI(GameReplicationInfo).SetupEndMapVote(BuildMapVoteList(), true);
 
 	/** Initialize score events */
 	foreach ScoreEvents(Event)
@@ -936,7 +943,7 @@ function TeamDonate(Rx_Controller Donor, float Credits)
 
 	foreach WorldInfo.AllControllers(class'Controller', c)
 	{
-		if (c.GetTeamNum() == teamNum && Rx_PRI(c.PlayerReplicationInfo) != None && c != Donor )
+		if (c.GetTeamNum() == teamNum && Rx_PRI(c.PlayerReplicationInfo) != None && c != Donor && !c.PlayerReplicationInfo.bBot)
 		{
 			Rx_PRI(c.PlayerReplicationInfo).AddCredits(share);
 			if (PlayerController(c) != None)
@@ -944,6 +951,31 @@ function TeamDonate(Rx_Controller Donor, float Credits)
 		}
 	}
 	Rx_PRI(Donor.PlayerReplicationInfo).RemoveCredits(Credits);
+}
+
+function DeletedPRITeamDonate(Rx_PRI Donor, float Credits)
+{
+	local float share;
+	local Controller c;
+	local byte teamNum;
+	
+	teamNum = Donor.OldTeamID;
+
+	if (Teams[teamNum].Size < 2)    // Need to have at least 1 teammate.
+		return;
+
+	share = Credits / (Teams[teamNum].Size - 1);
+
+	foreach WorldInfo.AllControllers(class'Controller', c)
+	{
+		if (c.GetTeamNum() == teamNum && Rx_PRI(c.PlayerReplicationInfo) != None && c.PlayerReplicationInfo != Donor )
+		{
+			Rx_PRI(c.PlayerReplicationInfo).AddCredits(share);
+			if (PlayerController(c) != None)
+				PlayerController(c).ClientMessage(Donor.PlayerName $ " has left. You received" $ share $" credits.");
+		}
+	}
+	Donor.RemoveCredits(Credits);	
 }
 
 function Array<string> BuildClientList(string seperator)
@@ -1184,12 +1216,28 @@ event PostLogin( PlayerController NewPlayer )
 	local int num; 
 	local Rx_Mutator Rx_Mut;
 	local Rx_PRI NewPRI; 
+
+	local string NewPlayerUUID;
+	local int PlayerListIndex, i;
+	local bool bRejoined;
 	
 	//if(NewPlayer.bIsPlayer)
 		//`RecordLoginChange(LOGIN, NewPlayer, NewPlayer.PlayerReplicationInfo.PlayerName, NewPlayer.PlayerReplicationInfo.UniqueId, false);
 
+	Rx_Controller(NewPlayer).RequestDeviceUUID();
+	NewPlayerUUID = Rx_Controller(NewPlayer).PlayerUUID;
 	//Remove the need to cast 50 times in this function
 	NewPRI = Rx_Pri(NewPlayer.PlayerReplicationInfo);
+
+	i = JoinedPlayerIDs.Find(NewPlayerUUID);
+	if(i >= 0)
+	{
+		bRejoined = true;
+	}
+	else
+	{
+		JoinedPlayerIDs.AddItem(NewPlayerUUID);
+	}
 	
 	if (TeamMode != 4)
 	{
@@ -1214,6 +1262,32 @@ event PostLogin( PlayerController NewPlayer )
 				
 	NewPRI.ReplicatedNetworkAddress = NewPlayer.PlayerReplicationInfo.SavedNetworkAddress;
 	Rx_Controller(NewPlayer).RequestDeviceUUID();
+
+	if(NewPlayerUUID == "")
+	{
+		NewPlayerUUID = NewPRI.PlayerName;
+	}
+	PlayerListIndex = PlayerMonitor.MyPlayersInfo.Find('UUID',NewPlayerUUID);
+	if(PlayerListIndex >= 0)
+	{
+		if(!bRejoined)
+		{
+			PlayerMonitor.MyPlayersInfo[PlayerListIndex].JoinedGame += 1;	
+		}	
+		else
+		{
+			PlayerMonitor.MyPlayersInfo[PlayerListIndex].SavedScore -= 	PlayerMonitor.MyPlayersInfo[PlayerListIndex].LastGameScore;
+		}
+		PlayerMonitor.MyPlayersInfo[PlayerListIndex].LastGameScore = 0;
+
+		NewPRI.OldRenScore = PlayerMonitor.MyPlayersInfo[PlayerListIndex].SavedScore / PlayerMonitor.MyPlayersInfo[PlayerListIndex].JoinedGame;	
+		PlayerMonitor.MyPlayersInfo[PlayerListIndex].PlayerName = NewPRI.PlayerName;
+		PlayerMonitor.SaveConfig();
+	}
+	else
+	{
+		PlayerMonitor.AddNewInfo(NewPlayerUUID,0,NewPRI.PlayerName);
+	}
 	
 	if(bDelayedStart) // we want bDelayedStart, but still want players to spawn immediatly upon connect
 		RestartPlayer(newPlayer);		
@@ -1322,6 +1396,7 @@ function Logout( Controller Exiting )
 	if (Rx_Controller(Exiting) != None)
 	{
 		Rx_Controller(Exiting).BindVehicle(None);
+		PlayerMonitor.UpdateInfo(Rx_Controller(Exiting));
 	}
 	if (Rx_PRI(Exiting.PlayerReplicationInfo) != None && Rx_Bot_Scripted(Exiting) == None)
 	{
@@ -1351,8 +1426,9 @@ function Logout( Controller Exiting )
 	if( ExitingPC != None )
 	{
 		RemovePlayerFromMuteLists( ExitingPC );
+//		if(Rx_PRI(PRI) != None && Rx_PRI(PRI).GetCredits() > InitialCredits)
+//			TeamDonate(Rx_Controller(ExitingPC), Rx_PRI(PRI).GetCredits() -  InitialCredits);	
 	}
-
 
 	Super(UDKGame).Logout(Exiting);
 	if(Rx_Bot_Scripted(Exiting) == None)
@@ -1633,12 +1709,14 @@ event InitGame( string Options, out string ErrorMessage )
 	// Initialize the maplist manager
 	InitializeMapListManager();
 
-	//adding fort mutator (nBab)
+	//adding fort mutator (nBab) - HANDEPSILON // No longer needed
+	/*
 	if (WorldInfo.GetmapName() == "Fort")
 	{
 		AddMutator("RenX_nBabMutators.Fort");
 		BaseMutator.InitMutator(Options, ErrorMessage);
 	}
+	*/
 }
 
 
@@ -1913,7 +1991,7 @@ function Killed( Controller Killer, Controller KilledPlayer, Pawn KilledPawn, cl
 	local bool bPlayerDeath;
 	local Rx_Bot_Scripted B;
 
-	if(Rx_Defence_Controller(Killer) != None && Rx_Defence(Killer.Pawn).Deployer != None)
+	if(bAllowDeployedDefenceKills && Rx_Defence_Controller(Killer) != None && Rx_Defence(Killer.Pawn).Deployer != None)
 	{
 		Killed(Controller(Rx_Defence(Killer.Pawn).Deployer.Owner), KilledPlayer, KilledPawn, damageType);
 		return;
@@ -2440,8 +2518,7 @@ function CheckBuildingsDestroyed(Actor destroyedBuilding, Rx_Controller StarPC)
 		if(!Rx_Building(destroyedBuilding).bSignificant)
 		{
 			if(StarPC != None && PC.GetTeamNum() == StarPC.GetTeamNum())
-				PC.DisseminateVPString("[Team Building Kill Bonus]&" $ class'Rx_VeterancyModifiers'.default.Ev_BuildingDestroyed*Rx_Game(WorldInfo.Game).CurrentBuildingVPModifier $ "&");
-			
+				PC.DisseminateVPString("[Team Building Kill Bonus]&" $ class'Rx_VeterancyModifiers'.default.Ev_BuildingDestroyed*Rx_Game(WorldInfo.Game).CurrentBuildingVPModifier[StarPC.GetTeamNum()] $ "&");
 			continue;
 		}
 
@@ -2452,7 +2529,7 @@ function CheckBuildingsDestroyed(Actor destroyedBuilding, Rx_Controller StarPC)
 			if(!bPedestalDetonated)
 				PC.CTextMessage(Caps("The"@destroyedBuilding.GetHumanReadableName()@ "was destroyed!"),'Green',180);
 			
-			PC.DisseminateVPString("[Team Building Kill Bonus]&" $ class'Rx_VeterancyModifiers'.default.Ev_BuildingDestroyed*Rx_Game(WorldInfo.Game).CurrentBuildingVPModifier $ "&");
+			PC.DisseminateVPString("[Team Building Kill Bonus]&" $ class'Rx_VeterancyModifiers'.default.Ev_BuildingDestroyed*Rx_Game(WorldInfo.Game).CurrentBuildingVPModifier[StarPC.GetTeamNum()] $ "&");
 		}
 		else if (!bPedestalDetonated)
 		{
@@ -2463,7 +2540,7 @@ function CheckBuildingsDestroyed(Actor destroyedBuilding, Rx_Controller StarPC)
 
 	if (Role == ROLE_Authority)
 	{
-		CurrentBuildingVPModifier +=0.5;
+		CurrentBuildingVPModifier[destroyedBuilding.GetTeamNum()] +=1.0;
 		if(!bPedestalDetonated && Rx_Building(destroyedBuilding).bSignificant)	// don't check victory for insignificant buildings
 		{
 			Check = CheckBuildings();
@@ -2644,8 +2721,8 @@ function FindRefineries()
 
 	foreach AllActors(class'Rx_Building_Refinery', ref)
 	{
-		if(!ref.ShouldSpawnHarvester())
-			continue;
+//		if(!ref.ShouldSpawnHarvester())
+//			continue;
 
 		if (ref.GetTeamNum() == TEAM_GDI ) // GDI
 		{
@@ -2677,14 +2754,18 @@ function StartMatch()
 	{
 		AdjustTeamBalance();
 		AdjustTeamSize();
-	} else {
+	} 
+	else
+	{
 		`RxEngineObject.ClearTeams();
 	}
 	
-	if (TeamCredits[TEAM_GDI].PlayerRI.Length > 0) {
+	if (TeamCredits[TEAM_GDI].PlayerRI.Length > 0) 
+	{
 		TeamCredits[TEAM_GDI].PlayerRI.Remove(0, TeamCredits[TEAM_GDI].PlayerRI.Length-1);
 	}
-	if (TeamCredits[TEAM_NOD].PlayerRI.Length > 0) {
+	if (TeamCredits[TEAM_NOD].PlayerRI.Length > 0) 
+	{
 		TeamCredits[TEAM_NOD].PlayerRI.Remove(0, TeamCredits[TEAM_NOD].PlayerRI.Length-1);
 	}
 	
@@ -2727,7 +2808,8 @@ function AdjustTeamBalance()
 			return;
 	}	
 
-    `RxEngineObject.ClearTeams();	
+	if(TeamMode != 3) // if our server doesn't do shuffle, don't
+		return;
 
 	foreach WorldInfo.GRI.PRIArray(pri)
 		if(Rx_Pri(pri) != None)
@@ -2924,7 +3006,6 @@ function EndGame(PlayerReplicationInfo Winner, string Reason )
 
 function EndRxGame(string Reason, byte WinningTeamNum )
 {
-	local PlayerReplicationInfo PRI;
 	local Rx_Controller c;
 	local int GDICount, NodCount;
 
@@ -2941,6 +3022,11 @@ function EndRxGame(string Reason, byte WinningTeamNum )
 		bGameEnded = true;
 		//EndTime = WorldInfo.RealTimeSeconds + EndTimeDelay;
 		EndTime = 0;//WorldInfo.RealTimeSeconds + EndTimeDelay;
+
+		if (bFixedMapRotation)
+			Rx_GRI(GameReplicationInfo).SetFixedNextMap(GetNextMapInRotationName());
+		else
+			Rx_GRI(GameReplicationInfo).SetupEndMapVote(BuildMapVoteList(), true);
 
 		// Allow replication to happen before reporting scores, stats, etc.
 		// @Shahman: Ensure that the timer is longer than camera end game delay, otherwise the transition would not be as smooth.
@@ -2991,21 +3077,16 @@ function EndRxGame(string Reason, byte WinningTeamNum )
 		if (StatAPI != None)
 		{
 			ForEach class'WorldInfo'.static.GetWorldInfo().AllControllers(class'Rx_Controller', c)
-			if (c.GetTeamNum() == 0)
-				GDICount++;
-			else if (c.GetTeamNum() == 1)
-				NodCount++;
+			{
+				if (c.GetTeamNum() == 0)
+					GDICount++;
+				else if (c.GetTeamNum() == 1)
+					NodCount++;
+			}
 
 			StatAPI.GameEnd(string(Rx_TeamInfo(Teams[TEAM_GDI]).GetDisplayRenScore()), string(Rx_TeamInfo(Teams[TEAM_NOD]).GetDisplayRenScore()), string(GDICount), string(NodCount), int(WinningTeamNum), Reason);
 			ClearTimer('GameUpdate');
 		}
-		
-		// Store score
-		foreach WorldInfo.GRI.PRIArray(pri)
-			if (Rx_PRI(pri) != None)
-			{
-				Rx_PRI(pri).OldRenScore = CalcPlayerScoreThisMatch(Rx_PRI(pri));
-			}
 
 		//M.Palko endgame crash track log.
 		`log("------------------------------Triggering game ended kismet events");
@@ -3526,16 +3607,10 @@ function bool ProcessNewServerInfo(JsonObject ServerData, bool isServerLan)
 
 function AddServerPing(string ServerIp, int Index)
 {
-	local string PingIpItem;
-
 	`Entry(`ShowVar(ServerIp)@`ShowVar(Index),'DevNet');
 
-	PingIpItem = ServerIp $ "-" $ Index;
-
-	if(PingIpList != "")
-		PingIpList $= "," $ PingIpItem;
-	else
-		PingIpList $= PingIpItem;
+	// TODO: Make this only ping servers that are actually being displayed; minimal pings should result in most accurate pings, and reduce unnecessary requests
+	`RxEngineObject.DllCore.start_ping_request(ServerIp);
 }
 
 function HandleServerData(JsonObject MasterServerData)
@@ -3564,11 +3639,8 @@ function StartPings()
 
 	if(ListServers.Length > 0)
 	{
-		VersionCheck.StartPingAll(PingIpList);
-
-		CurIndPinged = 0;
-		if(!IsTimerActive('PingServers'))
-			SetTimer(0.5f, true, 'PingServers');
+		if(!IsTimerActive('PollServerPings'))
+			SetTimer(0.5f, true, 'PollServerPings');
 	}
 }
 
@@ -3579,57 +3651,34 @@ function HandleVersionData(JsonObject VersionData)
 	VQueryHandler.QueryedVersionName = VersionData.GetObject("game").GetStringValue("version_name");
 }
 
-function PingServers()
-{
-	local string currentPingedIds;
-	local array<string> finishedIds;
-	local int i, leng, PingedCount;
-	local int PingedId;
+function PollServerPings() {
+	local int index;
+	local int pending_requests;
 
-	`Entry("", 'DevNet');
+	// TODO: Make this only update the servers actively being displayed, and just trigger a Poll() during a scroll
+	// Update any server pings
+	for (index = 0; index != ListServers.Length; ++index) {
+		if (ListServers[index].Ping == -1) {
+			// response was previously pending; try updating
+			ListServers[index].Ping = `RxEngineObject.DllCore.get_ping(ListServers[index].ServerIP);
 
-	
-	currentPingedIds = VersionCheck.GetPingedIDs();
-	ParseStringIntoArray(currentPingedIds, finishedIds, ",", true);
-	leng = finishedIds.Length;
-
-	if(ListServers.Length != 0) //This is a workaround. When swapping between internet and local browser modes, the listserver gets cleared. The ping/version check dll lists gets cleared aswell(with an empty start ping call), but any ongoing pings still get reported back, and end up here.
-	{
-		for(i = 0; i < leng; i++)
-		{
-			PingedId = Int(finishedIds[i]);
-			ListServers[PingedId].Ping = VersionCheck.GetPingFor(ListServers[PingedId].ServerIP);
-		
-			`logd(`Location@`ShowVar(PingedId)@`ShowVar(ListServers[PingedId].Ping)@`ShowVar(ListServers[PingedId].ServerIP),,'DevNetTraffic');
+			if (ListServers[index].Ping == -1) {
+				// request is still pending; increment counter
+				++pending_requests;
+			}
 		}
 	}
-	
-	PingedCount = VersionCheck.GetPingStatus();
 
-	/*
-
-	for(i = 0; i < ListServers.Length; i++)
-	{
-		if (ListServers[i].Ping <= 0)
-		{
-			ListServers[i].Ping = VersionCheck.GetPingFor(ListServers[i].ServerIP);
-			`Logd(`Location@`ShowVar(ListServers[i].Ping),,'DevNet');
-		}
-	}*/
-
-	`Logd(`Location@`ShowVar(PingedCount)@`ShowVar(ListServers.Length),,'DevNetTraffic');
-
-	if(PingedCount >= ListServers.Length)
-	{
-		ClearTimer(nameof(PingServers));
-		//curIndPinged = 0;
-		`Logd(`Location@"Ping Timer Cleared",,'DevNet');
+	// If there aren't any pending requests remaining, clear out the timer
+	if (pending_requests == 0) {
+		ClearTimer(nameof(PollServerPings));
 	}
 
-	NotifyPingFinished(PingedId);
+	// This doesn't feel right... This method originally took in an index, but was later changed to not use it? Whatever
+	NotifyPingFinished();
 }
 
-delegate NotifyPingFinished(int SrvIndex);
+delegate NotifyPingFinished();
 
 function bool FindInactivePRI(PlayerController PC)
 {
@@ -3637,11 +3686,24 @@ function bool FindInactivePRI(PlayerController PC)
 	local int oldId;
 	oldId = PC.PlayerReplicationInfo.PlayerID;
 	ret = super.FindInactivePRI(PC);
-	if(ret) {
+	if(ret) 
+	{
 		TeamCredits[PC.GetTeamNum()].PlayerRI.AddItem(Rx_PRI(PC.PlayerReplicationInfo));
 		if (oldId != PC.PlayerReplicationInfo.PlayerID)
 			`LogRx("PLAYER" `s "ChangeID;" `s "to" `s PC.PlayerReplicationInfo.PlayerID `s "from" `s oldId);
-		//Rx_PRI(PC.PlayerReplicationInfo).SetCredits( Rx_Game(WorldInfo.Game).InitialCredits ); - Removed as Inactive PRIs now save credits.
+		
+		if((PC.GetTeamNum() == TEAM_GDI && (Rx_Game(Worldinfo.Game).Teams[TEAM_NOD].Size - Rx_Game(Worldinfo.Game).Teams[TEAM_GDI].Size < 2))
+			|| (PC.GetTeamNum() == TEAM_NOD && (Rx_Game(Worldinfo.Game).Teams[TEAM_GDI].Size - Rx_Game(Worldinfo.Game).Teams[TEAM_NOD].Size < 2)))
+		{
+			if(Rx_PRI(PC.PlayerReplicationInfo).GetCredits() > InitialCredits)
+				TeamDonate(Rx_Controller(PC),Rx_PRI(PC.PlayerReplicationInfo).GetCredits() - InitialCredits);
+
+			Rx_PRI(PC.PlayerReplicationInfo).SetCredits(InitialCredits ); 	
+		}
+		Rx_PRI(PC.PlayerReplicationInfo).bDonateOnDelete = false;
+
+
+			
 	}
 	return ret;
 }
@@ -3837,7 +3899,14 @@ function array<string> BuildMapVoteList()
 
 	MapPool = class'UTGame'.default.GameSpecificMapCycles[class'UTGame'.default.GameSpecificMapCycles.Find('GameClassName', class'Rx_Game'.Name)].Maps;
 	for (i=0; i<RecentMapsToExclude && i<MapHistory.Length; ++i)
-		MapPool.RemoveItem(MapHistory[i]);
+		MapPool.RemoveItem(MapHistory[i]);	
+
+
+	for (i=0; i < MapsWithPlayerNumLimits.Length; ++i)
+	{
+		if(MapPool.Find(MapsWithPlayerNumLimits[i].MapName) != -1 && (MapsWithPlayerNumLimits[i].MapMinPlayers > NumPlayers || MapsWithPlayerNumLimits[i].MapMaxPlayers < NumPlayers))
+			MapPool.RemoveItem(MapsWithPlayerNumLimits[i].MapName);  
+	}
 
 	while (MapPool.Length > MaxMapVoteSize)
 		MapPool.Remove(Rand(MapPool.Length), 1);
@@ -4060,7 +4129,7 @@ simulated function GiveTeamCredits(float Credits, byte TeamNum)
 	}
 }
 
-function bool AreTeamRefineriesDestroyed(byte teamNum)
+function bool AreTeamRefineriesDestroyed(byte teamNum) // a check for harvy spawn
 {
 	local int i;
 
@@ -4069,11 +4138,33 @@ function bool AreTeamRefineriesDestroyed(byte teamNum)
 
 	for(i=0; i<TeamCredits[teamNum].Refinery.length; i++)
 	{
-		if(!TeamCredits[teamNum].Refinery[i].IsDestroyed())
+		if(!TeamCredits[teamNum].Refinery[i].IsDestroyed() && TeamCredits[teamNum].Refinery[i].ShouldSpawnHarvester())
 			return false;
 	}
 
 	return true;
+}
+
+function ReassignHarvester(Rx_Vehicle_Harvester Harv)
+{
+	local Rx_Vehicle_HarvesterController HC;
+	local int teamnum, i;
+
+	HC = Rx_Vehicle_HarvesterController(Harv.Controller);
+
+	if(HC == None)
+		return;
+
+	teamnum = Harv.GetTeamNum();
+
+	// technically AreTeamRefineriesDestroyed should return true when this is called, so skip checking
+	for(i=0; i<TeamCredits[teamnum].Refinery.length; i++)
+	{
+		if(!TeamCredits[teamNum].Refinery[i].IsDestroyed() && TeamCredits[teamNum].Refinery[i].ShouldSpawnHarvester())
+		{
+			HC.ReassignRefinery(TeamCredits[teamNum].Refinery[i]);
+		}
+	}	
 }
 
 function float GetTeamRefineryCreditsSum(byte teamNum)
@@ -4883,7 +4974,7 @@ local int PRIPosition;
 
 function bool CanSpectate( PlayerController Viewer, PlayerReplicationInfo ViewTarget )
 {
-	if(Rx_PRI(ViewTarget) == None)
+	if(!Controller(ViewTarget.Owner).bIsPlayer || Rx_PRI(ViewTarget) == None)
 	{
 		return false;
 	}
@@ -4899,6 +4990,7 @@ function AddInactivePRI(PlayerReplicationInfo PRI, PlayerController PC)
 	local int i;
 	local PlayerReplicationInfo NewPRI, CurrentPRI;
 	local bool bIsConsole;
+//	local int TeamID;
 
 	// don't store if it's an old PRI from the previous level or if it's a spectator
 	if (!PRI.bFromPreviousLevel && !PRI.bOnlySpectator)
@@ -4911,7 +5003,11 @@ function AddInactivePRI(PlayerReplicationInfo PRI, PlayerController PC)
 
 		// delete after 5 minutes (EDIT: This is fu**ing Renegade... Give them an hour)
 		NewPRI.LifeSpan = 3600; //300;
-
+		if(Rx_PRI(PRI) != None)
+		{
+			Rx_PRI(NewPRI).OldTeamID = PRI.GetTeamNum(); // save team ID for when the credits get donated or not....
+			Rx_PRI(NewPRI).bDonateOnDelete = true;
+		}
 		// On console, we have to check the unique net id as network address isn't valid
 		bIsConsole = WorldInfo.IsConsoleBuild();
 
@@ -4932,6 +5028,7 @@ function AddInactivePRI(PlayerReplicationInfo PRI, PlayerController PC)
 		// cap at 16 saved PRIs [What is this plebian nonsense?] we'll make it 64.. and probably crash servers
 		if ( InactivePRIArray.Length > 64 )
 		{
+			InactivePRIArray[0].LifeSpan = 10; // schedule for immediate removal
 			InactivePRIArray.Remove(0, InactivePRIArray.Length - 64);
 		}
 	}
@@ -5002,6 +5099,44 @@ static event class<GameInfo> SetGameType(string MapName, string Options, string 
     return Default.class;
 }
 
+function DoEvaMessageWithTeamMMRs() 
+{
+
+	local PlayerReplicationInfo pri;
+	local float score;
+	local float gdiMMR;
+	local float nodMMR;
+	local string PlayerUUID;
+	local int PlayerListIndex;
+
+	foreach WorldInfo.GRI.PRIArray(pri)
+	{
+		if(Rx_Pri(pri) != None && Rx_Controller(pri.Owner) != None && pri.Team != None)
+		{
+			Rx_Controller(pri.Owner).RequestDeviceUUID();
+			PlayerUUID = Rx_Controller(pri.Owner).PlayerUUID;
+			if(PlayerUUID == "") 
+			{
+				PlayerUUID = pri.PlayerName;
+			}
+			PlayerListIndex = PlayerMonitor.MyPlayersInfo.Find('UUID',PlayerUUID);
+			if(PlayerListIndex >= 0)
+			{
+				score = PlayerMonitor.MyPlayersInfo[PlayerListIndex].SavedScore / PlayerMonitor.MyPlayersInfo[PlayerListIndex].JoinedGame;	
+			}
+			else 
+			{
+				score = PlayerMonitor.CalcPlayerScore(Rx_Pri(pri));
+			}
+			if(pri.Team.TeamIndex == TEAM_GDI)
+				gdiMMR += score;
+			else
+				nodMMR += score;	
+		}	
+	}
+	WorldInfo.Game.Broadcast(None, "Current Team-MMR: GDI="@gdiMMR@",Nod="@nodMMR);
+}
+
 DefaultProperties
 {	
 
@@ -5011,6 +5146,7 @@ DefaultProperties
 	EndgameSoundDelay = 1.0f
 
 	UsePurchaseSystem = true;
+	bAllowDeployedDefenceKills = true
 
 	buildingArmorPercentage = 50 
 	
@@ -5052,6 +5188,8 @@ DefaultProperties
 	VehicleManagerClass        = class'Rx_VehicleManager'
 	HelipadVehicleManagerClass = class'Rx_HelipadVehicleManager'
 	CommanderControllerClass   = class'Rx_CommanderController'
+
+	PlayerMonitorClass		   = class'Rx_PlayerMonitor'
 	
 	BoinkSound				   = SoundCue'RX_SoundEffects.SFX.SC_Boink'
 	

@@ -1,3 +1,21 @@
+/*********************************************************
+*
+* File: Rx_Building.uc
+* Author: RenegadeX-Team
+* Pojekt: Renegade-X UDK <www.renegade-x.com>
+*
+* Desc:
+* The Base class of all the Buildings. 
+* This is the placeable part that defines the visual looks. Referred as BuildingVisuals by the Internals class
+* 
+* See Also :
+* - Rx_Building_Internals - The base of all the building inner-working
+* - Rx_Building_Team_Internals - Extension of the base Internals class that contains the rest of the basic inner-working required for both Team Buildings and Capturable tech buildings
+*
+*********************************************************
+*  
+*********************************************************/
+
 class Rx_Building extends Actor
 	abstract
 	ClassGroup(Buildings)
@@ -53,9 +71,14 @@ var() Array<NavigationPoint> ViableAttackPoints;
 
 var(RenX_Buildings) Texture IconTexture;
 
+var string NodColor, GDIColor, HostColor, ArmourColor, NeutralColor;
+
+
 replication
 {
-	//if( bNetInitial && Role == ROLE_Authority )
+	if( bNetInitial && Role == ROLE_Authority )
+		IconTexture;
+
 	if( bNetDirty && Role == ROLE_Authority )
 		BuildingInternals;
 }
@@ -101,7 +124,7 @@ simulated function Rx_BuildingAttachment GetMCT()
 	
 }	
 
-function byte GetBuildingType()
+simulated function byte GetBuildingType()
 {
 	return myBuildingType;
 }
@@ -258,6 +281,14 @@ simulated function int GetMaxArmor()
 		return 0;	
 }
 
+simulated function int GetArmorPct()
+{
+	if(GetMaxArmor() == 0)
+		return 0;
+
+	return FFloor(100 * Float(GetArmor()) / Float(GetMaxArmor()));
+}
+
 
 simulated function string GetBuildingName()
 {	
@@ -277,7 +308,22 @@ simulated function bool IsDestroyed()
 
 simulated function String GetSpotName()
 {
-	return GetHumanReadableName();
+	local String TeamColor;
+
+	if(GetTeamNum() == 0)
+	{
+		TeamColor = GDIColor;
+	}
+	else if(GetTeamNum() == 1)
+	{
+		TeamColor = NodColor;
+	}
+	else
+	{
+		TeamColor = NeutralColor;
+	}
+
+	return "<font color='"$TeamColor$"'>"$GetHumanReadableName()$"</font>";
 }
 
 /*
@@ -920,5 +966,11 @@ defaultproperties
 	SupportedEvents.Add(class'Rx_SeqEvent_BuildingEvent')
 
 	IconTexture=Texture2D'RenxHud.T_BuildingIcon_RepairPad_Normal'
+
+	NeutralColor		= "#00FF00"
+	NodColor            = "#FF0000"
+	GDIColor            = "#FFC600"
+	HostColor           = "#22BBFF"
+	ArmourColor         = "#05DAFD"
 
 }

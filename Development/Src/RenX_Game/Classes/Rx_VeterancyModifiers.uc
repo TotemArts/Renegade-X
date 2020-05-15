@@ -91,8 +91,8 @@ DefaultProperties
 	Ev_VehiclesDamaged = +1
 
 	//Team-Wide Bonuses
-	Ev_BuildingDestroyed = +20 //+35 //+50 Modified in Rx_Game based on number of buildings destroyed
-	Ev_BuildingArmorBreak = +15 //+20 
+	Ev_BuildingDestroyed = +15 //+35 //+50 Modified in Rx_Game based on number of buildings destroyed
+	Ev_BuildingArmorBreak = +10 //+15 //+20 
 	Ev_HarvesterDestroyed = +8
 
 } 

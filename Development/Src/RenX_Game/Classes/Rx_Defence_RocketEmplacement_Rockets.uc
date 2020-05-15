@@ -67,8 +67,8 @@ DefaultProperties
 	MomentumTransfer=100000.000000
    
 	LockWarningInterval			= 1.5
-	BaseTrackingStrength		= 2.0 		// 0.7
-	HomingTrackingStrength		= 2.0 		// 0.7
+	BaseTrackingStrength		= 12.0 //2.0 		// 0.7
+	HomingTrackingStrength		= 12.0 //2.0 		// 0.7
 
 	MyDamageType=Class'Rx_DmgType_RocketEmpl_Swarm'
 

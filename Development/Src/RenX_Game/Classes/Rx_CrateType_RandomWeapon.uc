@@ -100,6 +100,11 @@ defaultproperties
     WeaponList(6)=class'Rx_Weapon_MarksmanRifle_GDI'
     WeaponList(7)=class'Rx_Weapon_HeavyPistol'
     WeaponList(8)=class'Rx_Weapon_SmokeGrenade'
+	WeaponList(9)=class'Rx_Weapon_RepairGunAdvanced'
+	WeaponList(10)=class'Rx_Weapon_MissileLauncher'
+	WeaponList(11)=class'Rx_Weapon_ATMine'
+	WeaponList(12)=class'Rx_Weapon_LaserRifle_Crate'
+	WeaponList(13)=class'Rx_Weapon_FlakCannon'
     BroadcastMessageIndex=21
 	BroadcastMessageAltIndex=22
     PickupSound=SoundCue'Rx_Pickups.Sounds.SC_Pickup_Ammo'

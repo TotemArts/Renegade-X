@@ -2,6 +2,9 @@ class Rx_TeamManager extends Object;
 
 static function SetTeams() {
 	// Set the teams for the next round
+
+	`RxEngineObject.ClearTeams(); // clear up teams before restructuring
+
 	switch (`RxGameObject.TeamMode)
 	{
 	case 0: // Static

@@ -189,18 +189,22 @@ auto state Searching
 	if ( Enemy != None && IsTargetRelevant( Enemy ) )
 		GotoState('Engaged');
 	Sleep(0.5 + 1.0*FRand());
-	foreach WorldInfo.AllPawns(class'Pawn', DetectedPawn,Pawn.location,pawn.SightRadius)
-	{ 
-		if(IsTargetRelevant(DetectedPawn))
-		{
-			if(Enemy == None)
+	
+	if(Pawn != None)
+	{
+		foreach WorldInfo.AllPawns(class'Pawn', DetectedPawn,Pawn.location,pawn.SightRadius)
+		{ 
+			if(IsTargetRelevant(DetectedPawn))
 			{
-				Enemy = DetectedPawn;
-				Focus = DetectedPawn;
-			}
+				if(Enemy == None)
+				{
+					Enemy = DetectedPawn;
+					Focus = DetectedPawn;
+				}
 
-			GotoState('Engaged');	
-			break;
+				GotoState('Engaged');	
+				break;
+			}
 		}
 	}
 	

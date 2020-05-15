@@ -62,6 +62,8 @@ DefaultProperties
 	bNetTemporary=False
 	bWaitForEffects=True
 	bRotationFollowsVelocity=true
+
+	bEnableExplosionShake=True
    
 	Physics = PHYS_Projectile
 	

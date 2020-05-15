@@ -2,11 +2,17 @@ class Rx_Building_Techbuilding extends Rx_Building;
 
 simulated function byte ScriptGetTeamNum() 
 {
+	if(Rx_Building_TechBuilding_Internals(BuildingInternals) == None)
+		return 255;
+
 	return Rx_Building_TechBuilding_Internals(BuildingInternals).ReplicatedTeamID; 
 }
 
 simulated function byte GetTeamNum() 
 {
+	if(Rx_Building_TechBuilding_Internals(BuildingInternals) == None)
+		return 255;
+	
 	return Rx_Building_TechBuilding_Internals(BuildingInternals).ReplicatedTeamID;
 }
 

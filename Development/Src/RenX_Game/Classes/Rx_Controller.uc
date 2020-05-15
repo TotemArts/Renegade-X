@@ -245,7 +245,7 @@ var Rx_VeterancyMenu Vet_Menu;  //DEPRECATED FUNCTION; Remove soon
 var float Acc_Hits, Acc_Shots, Acc_HS; //Accuracy
 var bool bCanTaunt; 
 
-var string NodColor, GDIColor, HostColor, ArmourColor;
+var string NodColor, GDIColor, HostColor, ArmourColor, NeutralColor;
 
 var Rx_CommanderMenuHandler Com_Menu;
 
@@ -296,6 +296,10 @@ var bool bUseDoubleClickDodge; //Use legacy double-tap dodge (False by default )
 var UTParticleSystemComponent WorldWeatherParticleSystem;
 var SkeletalMeshComponent ComponentWeatherLastAttachedTo;
 
+var Actor ActorToSell;
+
+var repnotify Rx_CapturePoint CapturePoint;
+
 replication
 {
 	// Things the server should send to the client.
@@ -304,12 +308,13 @@ replication
 
 	if (bNetDirty)
 		VoteTopString, VotesYes, VotesNo, VoteTimeLeft, VotersTotal, bSuspect, YesVotesNeeded, bIsDev, bCanThrowSF_Flag, RefillCooldownTime, RadarVisibility,
-		Misc_SpeedModifier, Misc_RateOfFireMod, Misc_ReloadSpeedMod, RespawnTimeModifier; //The ones the Client actually needs to know 
+		Misc_SpeedModifier, Misc_RateOfFireMod, Misc_ReloadSpeedMod, RespawnTimeModifier, CapturePoint; //The ones the Client actually needs to know 
 }
 
 event ClearOnlineDelegates()
 {
 	`RxGameObject.ServiceBrowser.ClearDelegates();
+	`RxGameObject.VQueryHandler.ClearDelegates();
 	super.ClearOnlineDelegates();
 }
 
@@ -364,6 +369,15 @@ simulated event ReplicatedEvent(name VarName)
 		else if(Rx_Vehicle(Pawn) != none && Rx_Vehicle_Weapon(Pawn.Weapon) != none)
 			Rx_Vehicle_Weapon(Pawn.Weapon).SetROFChanged(true);	
 	}
+	else if(VarName == 'CapturePoint')
+	{
+		if(CapturePoint != None)
+			Rx_HUD(myHUD).DisplayCapturePoint(CapturePoint);
+		else
+			Rx_HUD(myHUD).ClearCapturePoint();
+
+//		`log("Replicated CapturePoint to client. Currently referring to"@CapturePoint);
+	}
 	else
 	{
 		Super.ReplicatedEvent(VarName);
@@ -385,12 +399,9 @@ reliable client function bool UseDevFlag()
 	return Rx_PlayerInput(PlayerInput).UseDevFlag;
 }
 
-function PlayHitMarkerSound(optional bool bIsHeadshot = false)
+function PlayHitMarkerSound(bool bIsHeadshot, float Damage)
 {
-	if (bIsHeadshot)
-		ClientPlaySound(SoundCue'RX_SoundEffects.HitMarker.SC_HitMarker_Headshot');
-	else
-		ClientPlaySound(SoundCue'RX_SoundEffects.HitMarker.SC_HitMarker_Body');
+	return;
 }
 
 reliable client function RequestDeviceUUID()
@@ -484,18 +495,20 @@ simulated function PostBeginPlay()
 {
 	super.PostBeginPlay();
 
-	if(WorldInfo.NetMode != NM_DedicatedServer) 
+	if (WorldInfo.NetMode != NM_DedicatedServer) 
 	{
-		SetTimer(CPCheckTime,true,'CheckTouchingCapturePoints');
-
 		if (WorldWeatherParticleSystem == None && Rx_MapInfo(WorldInfo.GetMapInfo()).PrecipitationParticleSystemTemplate != None)
 		{
 			WorldWeatherParticleSystem = new(Outer) class'UTParticleSystemComponent';
 			WorldWeatherParticleSystem.SetTemplate(Rx_MapInfo(WorldInfo.GetMapInfo()).PrecipitationParticleSystemTemplate);
 			WorldWeatherParticleSystem.SetIgnoreOwnerHidden(true);
-		} 
+			SetTimer(0.5, true, nameof(CheckPrecipitationVolume));
+		}
 	}
 
+	if(WorldInfo.NetMode != NM_Client)
+		SetTimer(CPCheckTime,true,'CheckTouchingCapturePoints');
+	
 	SetTimer(15.0f,true,'resetRadioCommandCountTimer');
 
 	if(ROLE == ROLE_Authority)
@@ -566,24 +579,53 @@ function Reset()
 {
 	super.Reset();
 	LastKiller = None;
+	if(Rx_HUD(myHUD) != None)
+	{
+		Rx_HUD(myHUD).ResetVignette();
+	}
 }	
 
 simulated function CheckTouchingCapturePoints()
 {
 	local Rx_CapturePoint CP;
+	local Rx_Volume_CaptureArea VCA;
+	local Pawn P;
 
-	if(Rx_HUD(myHUD) == None)
-		return;
+//	if(Rx_HUD(myHUD) == None)
+//		return;
+
+	if(Rx_VehicleSeatPawn(Pawn) != None)
+		P = Rx_VehicleSeatPawn(Pawn).MyVehicle;
+
+	else
+		P = Pawn;
 	
-	if (Pawn != None)
+	if (P != None)
 	{
-		foreach Pawn.TouchingActors(class'Rx_CapturePoint', CP)
+		foreach P.TouchingActors(class'Rx_CapturePoint', CP)
 		{
 			if (CP.TryDisplayHUD(Pawn))
+			{
+				CapturePoint = CP;
 				return;
+			}
+		}
+
+		foreach P.TouchingActors(class'Rx_Volume_CaptureArea', VCA)
+		{
+			CP = VCA.CapturePoint;
+			
+			if(CP != None && CP.TryDisplayHUD(Pawn))
+			{
+				CapturePoint = CP;
+				return;
+			}
 		}
 	}
-	Rx_HUD(myHUD).ClearCapturePoint();
+
+	CapturePoint = None;
+	if(Rx_HUD(myHUD) != None)
+		Rx_HUD(myHUD).ClearCapturePoint();
 }
 
 event KickWarning()
@@ -2569,6 +2611,10 @@ Begin:
 		Sleep(1.0);
 		if (myHUD != None)
 		{
+			if(Rx_HUD(myHUD) != None)
+			{
+				Rx_HUD(myHUD).ResetVignette();
+			}
 			//@FIXME: disabled temporarily for E3 due to scoreboard stealing input
 			//myHUD.SetShowScores(true);
 		}
@@ -3032,17 +3078,6 @@ reliable server function ServerAdminRecord()
 		Rx_Game(WorldInfo.Game).AdminDemoRec(self);
 }
 
-simulated function bool SellThisDefence()
-{
-	if(IsTargetSellable())
-	{
-		Rx_PRI(PlayerReplicationInfo).AttemptToSell(Rx_Defence(Rx_HUD(myHUD).TargetingBox.TargetedActor));
-		return true;
-	}
-
-	return false;
-}
-
 exec function ReportSpotted()
 {
 	local Rx_Building Building;
@@ -3105,12 +3140,12 @@ exec function ReportSpotted()
 		
 		if(Rx_CratePickup(PrimarySpot) != none && numberOfRadioCommandsLastXSeconds++ < 5)
 		{
-			BroadCastSpotMessage(11, "CRATE SPOTTED:" @ GetSpottargetLocationInfo(PrimarySpot));	
+			BroadCastSpotMessage(11, 30, GetSpottargetLocationInfo(PrimarySpot));	
 		}
 		else 
 		if(Rx_BasicPawn(PrimarySpot) != none && Rx_BasicPawn(PrimarySpot).GetTeamNum() != GetTeamNum() && numberOfRadioCommandsLastXSeconds++ < 5)
 		{
-			BroadCastSpotMessage(11, Rx_BasicPawn(PrimarySpot).GetHumanReadableName() @ "SPOTTED:" @ GetSpottargetLocationInfo(PrimarySpot));
+			BroadCastSpotMessage(11, 31, Rx_BasicPawn(PrimarySpot).GetHumanReadableName() $ "{TEXT}" $ GetSpottargetLocationInfo(PrimarySpot));
 		}
 		else
 		if(Rx_Building(Rx_Hud(MyHUD).SpotTargets[0]) != None) {
@@ -3135,10 +3170,10 @@ exec function ReportSpotted()
 		} else if(Rx_Weapon_DeployedBeacon(PrimarySpot) != None) {
 			if (numberOfRadioCommandsLastXSeconds++ < 5) {
 				if(PrimarySpot.GetTeamNum() == GetTeamNum())
-					BroadCastSpotMessage(15, "Defend BEACON"@GetSpottargetLocationInfo(Rx_Weapon_DeployedBeacon(PrimarySpot))@"!!!");
+					BroadCastSpotMessage(15, 32, GetSpottargetLocationInfo(Rx_Weapon_DeployedBeacon(PrimarySpot))@"!!!");
 				else
 				{
-					BroadCastSpotMessage(-1, "Spotted ENEMY BEACON"@GetSpottargetLocationInfo(Rx_Weapon_DeployedBeacon(PrimarySpot))@"!!!");	
+					BroadCastSpotMessage(-1, 33, GetSpottargetLocationInfo(Rx_Weapon_DeployedBeacon(PrimarySpot))@"!!!");	
 					TellBotsToDisarmDeployable(Rx_Weapon_DeployedBeacon(PrimarySpot));
 				}
 			}
@@ -3150,10 +3185,10 @@ exec function ReportSpotted()
 					if(BuildingName == "MCT")
 						BuildingName = "MCT"@GetSpottargetLocationInfo(Rx_Weapon_DeployedC4(PrimarySpot));			
 					if(PrimarySpot.GetTeamNum() == GetTeamNum())
-						BroadCastSpotMessage(15, "Defend &gt;&gt;C4&lt;&lt; at "@BuildingName@"!!!");
+						BroadCastSpotMessage(15, 34, BuildingName@"!!!");
 					else
 					{
-						BroadCastSpotMessage(-1, "Spotted ENEMY &gt;&gt;C4&lt;&lt; at "@BuildingName@"!!!");
+						BroadCastSpotMessage(-1, 35, BuildingName@"!!!");
 						TellBotsToDisarmDeployable(Rx_Weapon_DeployedBeacon(PrimarySpot));
 					}
 				}	
@@ -3189,14 +3224,14 @@ exec function ReportSpotted()
 			if(bot != None) {
 				if(bot.Squad != None && Rx_SquadAI(bot.squad).SquadLeader == Self && bot.GetOrders() == 'Follow') {
 					UTTeamInfo(bot.Squad.Team).AI.SetBotOrders(bot);
-					BroadCastSpotMessage(17, "Stop following me"@Pawn(PrimarySpot).Controller.GetHumanReadableName());
+					BroadCastSpotMessage(17, 36, Pawn(PrimarySpot).Controller.GetHumanReadableName());
 					RespondingBot = bot;
 					SetTimer(0.5 + FRand(), false, 'BotSayAffirmativeToplayer');
 				} 
 				else
 				{
 					bot.SetBotOrders('Follow', self, true);
-					BroadCastSpotMessage(13, "Follow me"@Pawn(PrimarySpot).Controller.GetHumanReadableName());
+					BroadCastSpotMessage(13, 13, Pawn(PrimarySpot).Controller.GetHumanReadableName());
 					RespondingBot = bot;
 					SetTimer(0.5 + FRand(), false, 'BotSayAffirmativeToplayer');
 				}
@@ -3371,9 +3406,10 @@ function BotSayAffirmativeToplayer() {
 
 function BroadcastBaseDefenseSpotMessages(Rx_Defence DefenceStructure) 
 {
-	local String msg,TeamColor;
-	local int nr;
-		
+	local String AdditionalText,TeamColor;
+	local int SoundIndex, TextIndex;
+
+	// Determine appropriate color for target
 	if(DefenceStructure.GetTeamNum() == TEAM_GDI)
 		TeamColor = GDIColor;
 	else if(DefenceStructure.GetTeamNum() == TEAM_NOD)
@@ -3381,65 +3417,88 @@ function BroadcastBaseDefenseSpotMessages(Rx_Defence DefenceStructure)
 	else
 		TeamColor = ArmourColor;
 
-	if(DefenceStructure.GetTeamNum() == GetTeamNum()) 
-	{
-		
-		
+	// Build AdditionalText
+	AdditionalText = "<font color='" $ TeamColor $ "'>" $ DefenceStructure.GetHumanReadableName() $ "</font>";
+
+	// Determine sound & text indexes
+	if(DefenceStructure.GetTeamNum() == GetTeamNum()) {
 		if(DefenceStructure.GetHealth(0) == DefenceStructure.HealthMax) { 
-			msg = "Defend the<font color='"$TeamColor$"'>"@DefenceStructure.GetHumanReadableName()$"</font>!";
-			nr = 27;
+			SoundIndex = 27;
+			TextIndex = 37;
 		}
 		else if(DefenceStructure.GetHealth(0) > DefenceStructure.HealthMax/3) {
-			msg = "The<font color='"$TeamColor$"'>"@DefenceStructure.GetHumanReadableName()$"</font> needs repair!";
-			nr = 0;
+			SoundIndex = 0;
+			TextIndex = 38;
 		} else {
-			msg = "The<font color='"$TeamColor$"'>"@DefenceStructure.GetHumanReadableName()$"</font> needs repair immediately!";	
-			nr = 0;
+			SoundIndex = 0;
+			TextIndex = 39;
 		}	
 	} else {
-		msg = "Attack the<font color='"$TeamColor$"'>"@DefenceStructure.GetHumanReadableName()$"</font>!"; 
-		nr = 20;
+		SoundIndex = 20;
+		TextIndex = 40;
 	}
-	BroadCastSpotMessage(nr, msg);	
+
+	// Broadcast the spot message
+	BroadCastSpotMessage(SoundIndex, TextIndex, AdditionalText);	
 }
+
+function string GetBuildingString(Rx_Building Building)
+{
+	local String TeamColor;
+
+	if(Building.GetTeamNum() == 0)
+	{
+		TeamColor = GDIColor;
+	}
+	else if(Building.GetTeamNum() == 1)
+	{
+		TeamColor = NodColor;
+	}
+	else
+	{
+		TeamColor = NeutralColor;
+	}
+
+	return "<font color='"$TeamColor$"'>"$Building.GetHumanReadableName()$"</font>";
+}
+
 function BroadcastBuildingSpotMessages(Rx_Building Building) 
 {
-	local String msg;
-	local int nr;
+	local String ContextString;
+	local int SoundIndex, TextIndex;
+
+	ContextString = GetBuildingString(Building);
+
 	if(Building.GetTeamNum() == GetTeamNum()) 
 	{
 		
 		if(Building.GetMaxArmor() <= 0) 
 		{ /*We're not using armour*/
 		
-			if(Building.GetHealth() == Building.GetMaxHealth() || Rx_Building_Techbuilding(Building) != none) { 
-			
-				msg = "Defend the "$Building.GetHumanReadableName()$"!";
+			if(Building.GetHealth() == Building.GetMaxHealth() || Rx_Building_Techbuilding(Building) != none) {
+				TextIndex = 37;
 			
 				if(Rx_Building_Refinery(Building) != None)
-					nr = 28;
+					SoundIndex = 28;
 				else if(Rx_Building_PowerPlant(Building) != None)
-					nr = 29;
+					SoundIndex = 29;
 				else
-					nr = 27;
+					SoundIndex = 27;
 
 				TellBotsToDefend(Building);
 			}
 			else 
 			{
-				if((Building.GetHealth() + Building.GetArmor()) > Building.GetMaxHealth()/3) 
-				{
-					msg = "The"@Building.GetHumanReadableName()@ "<font color='"$ArmourColor$"'>"$Building.GetArmor()/24$"%</font>"@"needs repair!";
-					nr = 0;
+				ContextString = ContextString @ "<font color='" $ ArmourColor $ "'>" $ FFloor(100 * Float(Building.GetHealth()) / Float(Building.GetMaxHealth())) $ "%</font>";
+				SoundIndex = 0;
+				if((Building.GetHealth() + Building.GetArmor()) > Building.GetMaxHealth()/3) {
+					TextIndex = 38; // needs repair!
 				} 
-				else 
-				{
-					msg = "The"@Building.GetHumanReadableName()@ "<font color='"$ArmourColor$"'>"$Building.GetArmor()/24$"%</font>"@"needs repair immediately!";	
-					nr = 0;
+				else {
+					TextIndex = 39; // needs repair immediately!
 				}
-				TellBotsToRepair(Building);
-				
 
+				TellBotsToRepair(Building);
 			}
 		
 		}
@@ -3451,31 +3510,30 @@ function BroadcastBuildingSpotMessages(Rx_Building Building)
 			
 				if(Rx_Building_Techbuilding(Building) != none) 
 				{
-					msg = "Defend the "$Building.GetHumanReadableName()$"!";
-					BroadCastSpotMessage(0, msg);
+					BroadCastSpotMessage(0, 37, ContextString);
 					return;
 				}
 
-				msg = "Defend the"@Building.GetHumanReadableName()@"<font color='"$ArmourColor$"'>"$Building.GetArmor()/24$"%</font>"$"!";
+				ContextString = ContextString @ "<font color='" $ ArmourColor $ "'>" $ Building.GetArmorPct() $ "%</font>";
+				TextIndex = 37; // Defend the {CONTEXT}!
 			
 				if(Rx_Building_Refinery(Building) != None)
-					nr = 28;
+					SoundIndex = 28;
 				else if(Rx_Building_PowerPlant(Building) != None)
-					nr = 29;
+					SoundIndex = 29;
 				else
-					nr = 27;
+					SoundIndex = 27;
 			}
 			else
-			{ 
+			{
+				ContextString = ContextString @ "<font color='" $ ArmourColor $ "'>" $ Building.GetArmorPct() $ "%</font>";
+				SoundIndex = 0;
 				if((Building.GetArmor()) > Building.GetMaxArmor()/4) 
 				{
-					msg = "The"@Building.GetHumanReadableName()@"<font color='"$ArmourColor$"'>"$Building.GetArmor()/24$"%</font>"@"needs repair!";
-					nr = 0;
+					TextIndex = 38; // needs repair!
 				} 
-				else 
-				{
-				msg = "The"@Building.GetHumanReadableName()@"<font color='"$ArmourColor$"'>"$Building.GetArmor()/24$"%</font>"@"needs repair immediately!";	
-				nr = 0;
+				else {
+					TextIndex = 39; // needs repair immediately!
 				}
 
 				TellBotsToRepair(Building);
@@ -3486,18 +3544,21 @@ function BroadcastBuildingSpotMessages(Rx_Building Building)
 	{ 
 		if(Rx_Building_Techbuilding(Building) != none)
 		{
-			msg="Capture the"@Building.GetHumanReadableName()$"!";
-			nr=11;
+			TextIndex = 41; // Capture the {CONTEXT}!
+			SoundIndex = 11;
 		}
-		msg = "Attack the"@Building.GetHumanReadableName()$"!";
+		else {
+			TextIndex = 40; // Attack the {CONTEXT}!
+		}
+
 		if(Rx_Building_Refinery(Building) != None)
-			nr = 23;
+			SoundIndex = 23;
 		else if(Rx_Building_PowerPlant(Building) != None)
-			nr = 24;
+			SoundIndex = 24;
 		else
-			nr = 22;		
+			SoundIndex = 22;		
 	}
-	BroadCastSpotMessage(nr, msg);
+	BroadCastSpotMessage(SoundIndex, TextIndex, ContextString);
 }
 
 function TellBotsToRepair(Rx_Building Building)
@@ -3843,7 +3904,7 @@ function BroadcastEnemySpotMessages()
 	//FirstSpotTarget = Rx_Hud(MyHUD).SpotTargets[0];
 	
 	if(BuildingActorIsIn(FirstSpotTarget) != None)
-		LocationInfo = "INSIDE"@Rx_Building(FirstSpotTarget).GetHumanReadableName();
+		LocationInfo = "INSIDE"@GetBuildingString(Rx_Building(FirstSpotTarget));
 	else
 		LocationInfo = GetSpottargetLocationInfo(FirstSpotTarget);
 	
@@ -4059,7 +4120,7 @@ function BroadcastEnemySpotMessages()
 		SpottingMsg = SpottingMsg @ " and more"; 
 	if(Rx_Vehicle(FirstSpotTarget) != none && bFocusSpotting && SpottedList.Length == 1) 
 	{
-		BroadCastSpotMessage(3, "FOCUS FIRE:"@SpottingMsg@LocationInfo);
+		BroadCastSpotMessage(3, 42, SpottingMsg @ LocationInfo);
 		if(Rx_PRI(Rx_Vehicle(FirstSpotTarget).PlayerReplicationInfo) != none) 
 		{
 			SetPlayerFocused(Rx_PRI(Rx_Vehicle(FirstSpotTarget).PlayerReplicationInfo).PlayerID);
@@ -4074,7 +4135,7 @@ function BroadcastEnemySpotMessages()
 	}
 	else if(Rx_Pawn(FirstSpotTarget) != none && bFocusSpotting && SpottedList.Length == 1)
 	{
-		BroadCastSpotMessage(19, "FOCUS FIRE:"@SpottingMsg@LocationInfo);
+		BroadCastSpotMessage(19, 42, SpottingMsg @ LocationInfo);
 		if(Rx_PRI(Rx_Pawn(FirstSpotTarget).PlayerReplicationInfo) != none) 
 		{
 			SetPlayerFocused(Rx_PRI(Rx_Pawn(FirstSpotTarget).PlayerReplicationInfo).PlayerID);
@@ -4087,7 +4148,7 @@ function BroadcastEnemySpotMessages()
 		TellNearbyBotsToFocusFire(Pawn(FirstSpotTarget));
 	}	
 	else
-		BroadCastSpotMessage(9, "Spotted"@SpottingMsg@LocationInfo);	
+		BroadCastSpotMessage(9, 43, SpottingMsg @ LocationInfo);	
 }
 
 function bool IsSpotNameMatching(Actor SpottedActor, String StringCheck, bool bSpottedIsSpy)
@@ -4172,7 +4233,7 @@ function string GetSpottargetLocationInfo(Actor FirstSpotTarget)
 	}
 	
 	if(BuildingActorIsIn(FirstSpotTarget) != None)
-		LocationInfo = "INSIDE"@Rx_Building(FirstSpotTarget).GetHumanReadableName();
+		LocationInfo = "INSIDE"@GetBuildingString(Rx_Building(FirstSpotTarget));
 	else
 		LocationInfo = "near"@NearestSpotMarker.GetSpotName();		
 	return LocationInfo;
@@ -4995,7 +5056,7 @@ function bool AttemptOpenPT()
 	local Rx_BuildingAttachment_PT PT;
 	
 	// do not access PT if pawn is in vehicle
-	if(Vehicle(Pawn) != None)
+	if(Pawn == None || Vehicle(Pawn) != None)
 		return false;
 
 	//Kill Context menus when trying to open a PT 
@@ -5064,10 +5125,7 @@ function OpenPT(Rx_BuildingAttachment_PT PT)
 /** Server check to verify that the PT the client says they used is valid. */
 function bool ValidPTUse(Rx_BuildingAttachment_PT PT)
 {
-	if (IsInBuilding() == PT.OwnerBuilding.BuildingVisuals && PT.GetTeamNum() == GetTeamNum())
-		return true;
-	else
-		return false;
+	return PT.GetTeamNum() == GetTeamNum();
 }
 
 exec function Use()
@@ -5091,14 +5149,6 @@ exec function Use()
 		return; 
 	}
 	
-	if(IsTargetSellable())
-	{	
-		if(!IsTimerActive('SellDefTimer'))
-			SetTimer(0.5,false,'SellDefTimer');
-	}
-	else if(IsTimerActive('SellDefTimer'))
-		ClearTimer('SellDefTimer');
-	
 	if (AttemptOpenPT())
 		return;
 	else
@@ -5110,14 +5160,6 @@ exec function Use()
 		
 }
 
-function bool IsTargetSellable()
-{
-	return (Rx_Defence(Rx_HUD(myHUD).TargetingBox.TargetedActor) != None 
-		&& VSizeSq(Pawn.Location - Rx_HUD(myHUD).TargetingBox.TargetedActor.Location) <= 16000000
-		&& Rx_Defence(Rx_HUD(myHUD).TargetingBox.TargetedActor).Deployer != None 
-		&& Rx_Defence(Rx_HUD(myHUD).TargetingBox.TargetedActor).Deployer == PlayerReplicationInfo);	
-}
-
 function SellDefTimer()
 {
 	SellThisDefence();
@@ -5125,9 +5167,70 @@ function SellDefTimer()
 
 exec function UnUse()
 {
+	ServerUnUse();
+}
+
+reliable server function ServerUnUse()
+{
 	if(IsTimerActive('SellDefTimer'))
 		ClearTimer('SellDefTimer');
 }
+
+function bool IsTargetSellable(Actor SoldActor)
+{
+	local Rx_Defence TargettedDefense;
+
+	TargettedDefense = Rx_Defence(SoldActor);
+
+	return (TargettedDefense != None 
+		&& TargettedDefense.Deployer == Rx_PRI(PlayerReplicationInfo)
+		&& VSizeSq(Pawn.Location - TargettedDefense.Location) <= 16000000
+		&& TargettedDefense.GetTeamNum() == GetTeamNum());
+}
+
+function bool SellThisDefence() // Sell the building, not just defense. This is a derivation from Rx_Controller
+{
+	if(ActorToSell == None || !IsTargetSellable(ActorToSell))
+		return false;
+
+	Rx_PRI(PlayerReplicationInfo).AttemptToSell(Rx_Defence(Rx_HUD(myHUD).TargetingBox.TargetedActor));
+	return true;
+}
+
+exec function SellBuilding()
+{
+	ServerSellBuilding(Rx_HUD(myHUD).TargetingBox.TargetedActor);
+}
+
+unreliable server function ServerSellBuilding(Actor SoldActor)
+{
+	if(IsTargetSellable(SoldActor))
+	{	
+		ActorToSell = SoldActor;
+		if(!IsTimerActive('SellDefTimer'))
+			SetTimer(0.5,false,'SellDefTimer');
+	}
+	else if(IsTimerActive('SellDefTimer'))
+	{
+		ActorToSell = None;
+		ClearTimer('SellDefTimer');	
+	}
+}
+
+exec function CancelSell()
+{
+	ServerCancelSell();
+}
+
+reliable server function ServerCancelSell()
+{
+	if(IsTimerActive('SellDefTimer'))
+	{
+		ActorToSell = None;
+		ClearTimer('SellDefTimer');
+	}
+}
+
 
 function PTUnblockTimer()
 {
@@ -5222,43 +5325,59 @@ reliable server function VoteForMap(int i) {
 //--------------Radio commands
 exec function RadioCommand(int nr) {
 	local String AdditionalText;
-	if(WorldInfo.GRI != None && WorldInfo.GRI.bMatchIsOver) {
-		//TODO: cleaup
-		//VoteForMap(nr);
-	} else {			
-		if(nr == 0 && Rx_Hud(MyHUD).GetActorAtScreenCentre() != None && Rx_Building(Rx_Hud(MyHUD).GetActorAtScreenCentre()) != None)
+
+	if(nr >= RadioCommandsText.Length) // Deny commands that are not included in the index
+		return;
+
+	if(WorldInfo.GRI == None || !WorldInfo.GRI.bMatchIsOver) {
+		// Populate AdditionalText based on context
+		if(nr == 0 && Rx_Hud(MyHUD).GetActorAtScreenCentre() != None && Rx_Building(Rx_Hud(MyHUD).GetActorAtScreenCentre()) != None) {
+			// We're looking at a building and "Building needs repair!"; append building name
 			AdditionalText = Rx_Building(Rx_Hud(MyHUD).GetActorAtScreenCentre()).GetHumanReadableName();		
-		else if(nr == 1 && Rx_Hud(MyHUD).GetActorAtScreenCentre() != None && UTVehicle(Rx_Hud(MyHUD).GetActorAtScreenCentre()) != None)
+		}
+		else if(nr == 1 && Rx_Hud(MyHUD).GetActorAtScreenCentre() != None && UTVehicle(Rx_Hud(MyHUD).GetActorAtScreenCentre()) != None) {
+			// We're looking at a vehicle and "Get in the vehicle!"; append vehicle name
 			AdditionalText = UTVehicle(Rx_Hud(MyHUD).GetActorAtScreenCentre()).GetHumanReadableName();		
-		else if(nr == 2 && Rx_Hud(MyHUD).GetActorAtScreenCentre() != None && UTVehicle(Rx_Hud(MyHUD).GetActorAtScreenCentre()) != None)
+		}
+		else if(nr == 2 && Rx_Hud(MyHUD).GetActorAtScreenCentre() != None && UTVehicle(Rx_Hud(MyHUD).GetActorAtScreenCentre()) != None) {
+			// We're looking at a vehicle and "Get out of the vehicle!"; append vehicle name
 			AdditionalText = UTVehicle(Rx_Hud(MyHUD).GetActorAtScreenCentre()).GetHumanReadableName();		
+		}
 		else if(nr == 3 && Rx_Hud(MyHUD).GetActorAtScreenCentre() != None && UTVehicle(Rx_Hud(MyHUD).GetActorAtScreenCentre()) != None)
 		{
+			// We're looking at a vehicle and "Destroy that vehicle!"; append vehicle name
 			AdditionalText = UTVehicle(Rx_Hud(MyHUD).GetActorAtScreenCentre()).GetHumanReadableName();		
 			TellNearbyBotsToFocusFire(UTVehicle(Rx_Hud(MyHUD).GetActorAtScreenCentre()));
 		}
-		else if(nr == 9 && Rx_Hud(MyHUD).GetActorAtScreenCentre() != None 
+		else if(nr == 9 && Rx_Hud(MyHUD).GetActorAtScreenCentre() != None
 						&& Rx_Hud(MyHUD).TargetingBox.TargetedActor != none
-						&& (Rx_Hud(MyHUD).GetActorAtScreenCentre().GetTeamNum() != GetTeamNum()))
-		{
+						&& (Rx_Hud(MyHUD).GetActorAtScreenCentre().GetTeamNum() != GetTeamNum())) {
+			// We're looking at an actor and "Enemy spotted!"; append pawn name
 			AdditionalText = Rx_Hud(MyHUD).GetActorAtScreenCentre().GetHumanReadableName();
 			if(Pawn(Rx_Hud(MyHUD).GetActorAtScreenCentre()) != None)
 				TellNearbyBotsToFocusFire(Pawn(Rx_Hud(MyHUD).GetActorAtScreenCentre()));	
 		}
 		else if(nr == 19 && Rx_Hud(MyHUD).GetActorAtScreenCentre() != None 
 						 && Rx_Building(Rx_Hud(MyHUD).GetActorAtScreenCentre()) != None
-						 && (Rx_Hud(MyHUD).GetActorAtScreenCentre().GetTeamNum() != GetTeamNum()))
+						 && (Rx_Hud(MyHUD).GetActorAtScreenCentre().GetTeamNum() != GetTeamNum())) {
+			// We're looking at a building and "Destroy it now!"; append building name
 			AdditionalText = Rx_Hud(MyHUD).GetActorAtScreenCentre().GetHumanReadableName();		
+		}
 		else if(nr == 22 && Rx_Hud(MyHUD).GetActorAtScreenCentre() != None 
 						 && Rx_Building(Rx_Hud(MyHUD).GetActorAtScreenCentre()) != None
-						 && (Rx_Hud(MyHUD).GetActorAtScreenCentre().GetTeamNum() != GetTeamNum()))
+						 && (Rx_Hud(MyHUD).GetActorAtScreenCentre().GetTeamNum() != GetTeamNum())) {
+			// We're looking at a building and "Attack that structure!"; append building name
 			AdditionalText = Rx_Hud(MyHUD).GetActorAtScreenCentre().GetHumanReadableName();		
+		}
 		else if(nr == 27 && Rx_Hud(MyHUD).GetActorAtScreenCentre() != None 
 						 && Rx_Building(Rx_Hud(MyHUD).GetActorAtScreenCentre()) != None
-						 && (Rx_Hud(MyHUD).GetActorAtScreenCentre().GetTeamNum() == GetTeamNum()))
+						 && (Rx_Hud(MyHUD).GetActorAtScreenCentre().GetTeamNum() == GetTeamNum())) {
+			// We're looking at a building and "Defend that structure!"; append building name
 			AdditionalText = Rx_Hud(MyHUD).GetActorAtScreenCentre().GetHumanReadableName();		
+		}
 		
-		BroadCastRadioCommand(nr,AdditionalText);
+		// Broadcast the radio command
+		BroadCastRadioCommand(nr, AdditionalText);
 	}
 }
 
@@ -5275,102 +5394,132 @@ unreliable server function BroadCastRadioCommand(int nr, String AdditionalText)
 	local PlayerController PC;
 	local String FinalText;
 
+	// Sanity check radio command index
 	if(nr > RadioCommandsText.Length)
 		return;
 
-	FinalText = RadioCommandsText[nr]@AdditionalText;
+	// Build string to broadcast (command text will be processed client-side)
+	FinalText = nr $ "|" $ AdditionalText;
 
 	if (AllowTextMessage(FinalText) && numberOfRadioCommandsLastXSeconds++ < 5 )
 	{
-		if(nr == 10) //Repair symbol 
-		{
+		// Set UI symbol based on context
+		if(nr == 10) {
+			// "I need repairs!"; set Repair symbol
 			if (Rx_Pawn(Pawn) != None)
 				Rx_Pawn(Pawn).setUISymbol(1);
 			else if (Rx_Vehicle(Pawn) != None)
 				Rx_Vehicle(Pawn).setUISymbol(1);			
 		}
-		else	//Interact symbol
-		if(nr == 1 || nr == 4 || nr == 5 || nr == 6 || nr == 7 || nr == 8 || nr == 9 || nr == 18 || nr == 19 || nr == 20 || nr == 21 
-				|| nr == 22 || nr == 23 || nr == 24 || nr == 25 || nr == 26 || nr == 27 || nr == 28 || nr == 29)
-			{	
-				if (Rx_Pawn(Pawn) != None)
-					Rx_Pawn(Pawn).setUISymbol(2);
-				else if (Rx_Vehicle(Pawn) != None)
-					Rx_Vehicle(Pawn).setUISymbol(2);		
-			}
-			else //Cross-gun symbol 
-			if(nr == 11 || nr == 12 || nr == 13 || nr == 14 || nr == 15 || nr == 16 || nr == 17)
-			{
+		else if(nr == 1 || nr == 4 || nr == 5 || nr == 6 || nr == 7 || nr == 8 || nr == 9 || nr == 18 || nr == 19 || nr == 20 || nr == 21 
+			|| nr == 22 || nr == 23 || nr == 24 || nr == 25 || nr == 26 || nr == 27 || nr == 28 || nr == 29) {
+			// Set interaction symbol
 			if (Rx_Pawn(Pawn) != None)
-					Rx_Pawn(Pawn).setUISymbol(3);
-				else if (Rx_Vehicle(Pawn) != None)
-					Rx_Vehicle(Pawn).setUISymbol(3);	
-			}
-
-			
-			
-			
+				Rx_Pawn(Pawn).setUISymbol(2);
+			else if (Rx_Vehicle(Pawn) != None)
+				Rx_Vehicle(Pawn).setUISymbol(2);		
+		}
+		else if(nr == 11 || nr == 12 || nr == 13 || nr == 14 || nr == 15 || nr == 16 || nr == 17) {
+			//Set cross-gun symbol
+			if (Rx_Pawn(Pawn) != None)
+				Rx_Pawn(Pawn).setUISymbol(3);
+			else if (Rx_Vehicle(Pawn) != None)
+				Rx_Vehicle(Pawn).setUISymbol(3);	
+		}
+		
+		// Log radio command to RCON	
 		`LogRx("CHAT" `s "Radio;" `s `PlayerLog(PlayerReplicationInfo) `s "said:" `s FinalText);
+
+		// Broadcast radio command to each player
 		foreach WorldInfo.AllControllers(class'PlayerController', PC) {
 			if (PC.PlayerReplicationInfo.Team ==  PlayerReplicationInfo.Team) {
+				// Play radio command sound on target player
 				PC.ClientPlaySound(RadioCommands[nr]);
+
+				// Broadcast radio text to player
 				WorldInfo.Game.BroadcastHandler.BroadcastText(PlayerReplicationInfo, PC, FinalText, 'Radio');
 			}
 		}
 	}
 }
 
-unreliable server function BroadCastSpotMessage(int nr, String Text)
+// TODO: Log to RCON?
+// TODO: Filter muted players? Technically Context could be any arbitrary string provided by the client.
+unreliable server function BroadCastSpotMessage(int SoundIndex, int TextIndex, String Context)
 {
 	local PlayerController PC;
-	local bool	bBroadcastSound; 
+	local bool bBroadcastSound;
+	local string FinalText;
+
+	// Build text to broadcast
+	FinalText = TextIndex $ "|" $ Context;
+
 	// see if allowed (limit to prevent spamming)
-	if ( !WorldInfo.Game.BroadcastHandler.AllowsBroadcast(Self, Len(Text)) )
+	if (!WorldInfo.Game.BroadcastHandler.AllowsBroadcast(Self, Len(FinalText))) {
 		return;
-		
-		bBroadcastSound = true; 
-		
-		if(nr == 11) 
-			Rx_Pawn(Pawn).setUISymbol(2); //Take the point e.g for Tech Building.
-		
-		if(nr==9)
-			bBroadcastSound = bCanPlayEnemySpotted; 
-		
+	}
+				
+	if(SoundIndex == 11) {
+		//Take the point e.g for Tech Building.
+		Rx_Pawn(Pawn).setUISymbol(2);
+	}
+
+	// Determine whether or not to broadcast a sound
+	bBroadcastSound = SoundIndex >= 0 && SoundIndex < RadioCommands.Length;
+	if(bBroadcastSound && SoundIndex == 9) {
+		// Suppress "Enemy spotted!" if not yet allowed
+		bBroadcastSound = bCanPlayEnemySpotted; 
+	}
+
+	// Broadcast radio command to all teammates
 	foreach WorldInfo.AllControllers(class'PlayerController', PC) {
 		if (PC.PlayerReplicationInfo.Team ==  PlayerReplicationInfo.Team) {
-			if(nr > -1 && bBroadcastSound)  
-				PC.ClientPlaySound(RadioCommands[nr]);
+			if(bBroadcastSound) {
+				PC.ClientPlaySound(RadioCommands[SoundIndex]);
+			}
 			
-			WorldInfo.Game.BroadcastHandler.BroadcastText(PlayerReplicationInfo, PC,Text, 'Radio');
+			WorldInfo.Game.BroadcastHandler.BroadcastText(PlayerReplicationInfo, PC, FinalText, 'Radio');
 		}
 	}
 	
-	//Sound Spam filters 
-	
-	if(nr == 9 && bCanPlayEnemySpotted)
-		{
-			bCanPlayEnemySpotted = false;
-			SetTimer(EnemySpotSndCooldown, false, 'ResetEnemySpottedCooldown');
-		}
+	// Disallow "Enemy spotted!" spam if we just played it
+	if(SoundIndex == 9 && bBroadcastSound) {
+		bBroadcastSound = false;
+		SetTimer(EnemySpotSndCooldown, false, 'ResetEnemySpottedCooldown');
+	}
 }
 
-unreliable server function WhisperSpotMessage(int PID, int nr, String Text, byte UIS)
+unreliable server function WhisperSpotMessage(int PID, int SoundIndex, String Text, byte UIS)
 {
 	local Rx_PRI P; 
-	if(!CanCommunicate()) return;
-		
+
+	// Suppress muted players
+	if(!CanCommunicate()) {
+		return;
+	}
+
+	// Set appropriate UI symbol
+	if (Rx_Pawn(Pawn) != none && UIS != 0) {
+		Rx_Pawn(Pawn).setUISymbol(UIS);
+	}
+	else if(Rx_Vehicle(Pawn) != none && UIS != 0) {
+		Rx_Vehicle(Pawn).SetUISymbol(UIS);
+	}
 	
-					if(Rx_Pawn(Pawn) != none && UIS != 0) Rx_Pawn(Pawn).setUISymbol(UIS);
-					else
-					if(Rx_Vehicle(Pawn) != none && UIS != 0) Rx_Vehicle(Pawn).SetUISymbol(UIS);
-	
+	// Find player by ID
 	foreach DynamicActors(class'Rx_PRI', P)
 	{
 		if(P.PlayerID == PID) 
 		{
+			// We've found the target; send message
 			Rx_Controller(P.Owner).CTextMessage(Text,'Green',30);
-			if(nr > -1) Rx_Controller(P.Owner).ClientPlaySound(RadioCommands[nr]);
-		return; 
+
+			// Play sound if one was sent
+			if(SoundIndex >= 0 && SoundIndex < RadioCommands.Length) {
+				Rx_Controller(P.Owner).ClientPlaySound(RadioCommands[SoundIndex]);
+			}
+
+			return; 
 		}
 	}
 }
@@ -5416,10 +5565,7 @@ function FadeInScoreboard()
 	//					besides, we need a fadeout anyways because Epic feels like Camera Actor
 	//					is the only one deserving ability to fade to black -.-
 
-
-	if (Rx_HUD(myHUD).Scoreboard == none) {
-		Rx_HUD(myHUD).SetShowScores(true);
-	}
+	Rx_HUD(myHUD).SetShowScores(true);
 
 
 
@@ -5686,25 +5832,42 @@ reliable server function ServerRTC()
 
 }
 
-reliable server function ServerChangeTeam(int N)
+reliable server function ServerChangeTeam(int NewTeam)
 {
 	local float CurrentCreds;
-	local Rx_Building_VehicleFactory building;	
+	local float DonatedCreds;
+	local Rx_Building_VehicleFactory building;
+	local Rx_Game MyGame;	
+	local int oldTeam;
+	oldTeam = GetTeamNum();
 
 	if(!IsTeamChangeEnabled()) return;
-	
+
+	MyGame = Rx_Game(WorldInfo.Game);
+
+	if (MyGame.bIsClanWars)
+		return;			
+
 	CurrentSidearmWeapon = none;
 	CurrentExplosiveWeapon = none;
+	CurrentCreds = 0.0f;
 
-	CurrentCreds = Rx_PRI(PlayerReplicationInfo).GetCredits();
+	RemoveAllPurchaseInformation();	
 
-	RemoveAllPurchaseInformation();
-
-	if (Rx_Game(WorldInfo.Game).bIsClanWars)
-		return;		
-		
-	super.ServerChangeTeam(N);
+	super.ServerChangeTeam(NewTeam);
 	
+
+	if(MyGame.InitialCredits < Rx_PRI(PlayerReplicationInfo).GetCredits() && oldTeam != GetTeamNum()) {
+		DonatedCreds = Rx_PRI(PlayerReplicationInfo).GetCredits() - MyGame.InitialCredits;
+
+		if(Worldinfo.GRI.ElapsedTime < Rx_Game(Worldinfo.Game).DonationsDisabledTime) MyGame.TeamDonate(self, DonatedCreds);
+
+		CurrentCreds = MyGame.InitialCredits;
+	} else {
+		CurrentCreds = Rx_PRI(PlayerReplicationInfo).GetCredits();
+	}
+
+
 	Rx_PRI(PlayerReplicationInfo).SetCredits(CurrentCreds);
 	Rx_PRI(PlayerReplicationInfo).LastAirdropTime = 0;
 	Rx_PRI(PlayerReplicationInfo).AirdropCounter=0;
@@ -5951,6 +6114,22 @@ event PlayerTick(float DeltaTime)
 	}
 }
 
+function CheckPrecipitationVolume()
+{
+	local Rx_Volume_DisableWeatherParticles V;
+
+	if (WorldWeatherParticleSystem == None) return;
+
+	ForEach Pawn.TouchingActors(class'Rx_Volume_DisableWeatherParticles', V)
+	{
+		WorldWeatherParticleSystem.SetActive(false);
+
+		return;
+	}
+
+	WorldWeatherParticleSystem.SetActive(true);
+}
+
 function vector GetHUDAim()
 {
 	if(MyHUD != none) return  Rx_HUD(MyHUD).AimLoc;
@@ -5973,6 +6152,24 @@ function IncReplicatedHitIndicator()
 	} else {
 		ReplicatedHitIndicator++;
 	}
+}
+
+reliable client function ClientAddDamageVignette(int DamageVig, int Bleed)
+{
+	if(Rx_HUD(MyHUD) != None)
+	{
+		Rx_HUD(MyHUD).DamageIntensityDelay = FMin(4.0, float(DamageVig)/5.0);
+		Rx_HUD(MyHUD).DamageIntensity += DamageVig;
+		Rx_HUD(MyHUD).PendingBleed = Bleed;
+	}
+}
+
+reliable client function ClientResetVignette()
+{
+	if(Rx_HUD(myHUD) != None)
+	{
+		Rx_HUD(myHUD).ResetVignette();
+	}	
 }
 
 function PawnDied(Pawn P)
@@ -8331,7 +8528,7 @@ DefaultProperties
 	AchievementHandler = None	
 	bIsDev = false
 	RadarVisibility = 1 
-	bDebugging = true 
+	bDebugging = false 
 	
 	PTShortDelay = 0.3f
 	PTLongDelay = 1.5f
@@ -8416,6 +8613,7 @@ DefaultProperties
 	bCanTaunt=true;
 	bCanThrowSF_Flag=true
 	
+	NeutralColor		= "#00FF00"
 	NodColor            = "#FF0000"
 	GDIColor            = "#FFC600"
 	HostColor           = "#22BBFF"

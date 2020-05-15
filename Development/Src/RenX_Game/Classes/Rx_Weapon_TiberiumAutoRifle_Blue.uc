@@ -86,14 +86,14 @@ defaultproperties
     EquipTime=1.0
 //	PutDownTime=0.7
 
-    Spread(0)=0.017 //0.01
+    Spread(0)=0.017 //0.25 //0.01
     Spread(1)=0.001
     
     WeaponRange=3000.0
 
-    InstantHitDamage(0)=28 //22 //20
+    InstantHitDamage(0)=26 //28 //24 //22 //20
 	
-	HeadShotDamageMult=1.60 //2.0
+	HeadShotDamageMult= 1.3
 	
     InstantHitMomentum(0)=10000.0
 
@@ -179,29 +179,29 @@ defaultproperties
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_TiberiumAutoRifle_Blue'
 	
 	/*******************/
-	/*Veterancy*/
-	/******************/
-	
-	Vet_DamageModifier(0)=1  //Applied to instant-hits only
-	Vet_DamageModifier(1)=1.10 
-	Vet_DamageModifier(2)=1.25 
-	Vet_DamageModifier(3)=1.50 
-	
-	Vet_ROFModifier(0) = 1
-	Vet_ROFModifier(1) = 0.95 
-	Vet_ROFModifier(2) = 0.90  
-	Vet_ROFModifier(3) = 0.85  
-	
-	Vet_ClipSizeModifier(0)=0 //Normal (should be 1)	
-	Vet_ClipSizeModifier(1)=0 //Veteran 
-	Vet_ClipSizeModifier(2)=0 //Elite
-	Vet_ClipSizeModifier(3)=0 //Heroic
+    /*Veterancy*/
+    /******************/
+    
+    Vet_DamageModifier(0)=1  //Applied to instant-hits only
+    Vet_DamageModifier(1)=1.05
+    Vet_DamageModifier(2)=1.175 
+    Vet_DamageModifier(3)=1.25 
+    
+    Vet_ROFModifier(0) = 1
+    Vet_ROFModifier(1) = 0.9667 
+    Vet_ROFModifier(2) = 0.9334  
+    Vet_ROFModifier(3) = 0.9  
+    
+    Vet_ClipSizeModifier(0)=0 //Normal (should be 1)    
+    Vet_ClipSizeModifier(1)=0 //Veteran 
+    Vet_ClipSizeModifier(2)=0 //Elite
+    Vet_ClipSizeModifier(3)=0 //Heroic
 
-	Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
-	Vet_ReloadSpeedModifier(1)=0.95 //Veteran 
-	Vet_ReloadSpeedModifier(2)=0.90 //Elite
-	Vet_ReloadSpeedModifier(3)=0.85 //Heroic
-	/**********************/
+    Vet_ReloadSpeedModifier(0)=1 //Normal (should be 1)
+    Vet_ReloadSpeedModifier(1)=0.9667 //Veteran 
+    Vet_ReloadSpeedModifier(2)=0.9334 //Elite
+    Vet_ReloadSpeedModifier(3)=0.9 //Heroic
+    /**********************/
 	
 	bLocSync = true; 
 	LocSyncIncrement = 15; 

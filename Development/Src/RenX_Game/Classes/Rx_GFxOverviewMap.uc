@@ -86,6 +86,8 @@ var      int                     beaconStar;//nBab
 /**Use this only for debugging blips*/
 var     Texture                 DebugBlipTexture;
 
+var     int MyTeam;
+
 function bool Start(optional bool StartPaused = false)
 {
 	super.Start();
@@ -105,12 +107,20 @@ function bool Start(optional bool StartPaused = false)
 
 function RunOnce()
 {
-	if (!HasRunOnce) {
+	local Rx_Building_Techbuilding B;
+
+	if (!HasRunOnce) 
+	{
+		foreach class'WorldInfo'.static.GetWorldInfo().AllActors(class'Rx_Building_TechBuilding',B)
+		{
+			Rx_HUD(RxPC.myHUD).TechBuildings.AddItem(B);
+		}
+
+		MyTeam = RxPC.PlayerReplicationInfo.GetTeamNum();
 		HasRunOnce = true;
 		RootMC = GetVariableObject("_root");
 		SetBuildingGfxObjects();
-		SetInfrantryGfxObjects();
-		SetVehicleGfxObjects();
+		SetUnitsGfxObjects();
 		SetOverviewMapGfxObjects();
 		SetTechBuildingMapGfxObjects();
 		map_name = GetVariableObject("_root.map_name.title"); //Grab our map name text object on the overview map.
@@ -118,6 +128,23 @@ function RunOnce()
 		MapScaling=RxMapInfo.OverviewScale; 
 
 	}
+}
+
+function SetUnitsGfxObjects()
+{
+	SetInfrantryGfxObjects();
+	SetVehicleGfxObjects();	
+}
+
+function SetUnitsTeamFrame()
+{
+	local int i;
+
+	i = MyTeam + 1;
+	infrantry_class_info.GotoAndStopI(i);
+	vehicle_class_info.GotoAndStopI(i);
+	SetInfantryNames(MyTeam);
+	SetVehicleNames(MyTeam);
 }
 
 function Update() 
@@ -129,6 +156,12 @@ function Update()
 
 	if (!bMovieIsOpen) {
 		return;
+	}
+
+	if(RxPC != None && RxPC.PlayerReplicationInfo.GetTeamNum() != MyTeam)
+	{
+		MyTeam = RxPC.PlayerReplicationInfo.GetTeamNum();
+		SetUnitsTeamFrame();
 	}
 
 	for (i = 0; i < 10 ; i++) {
@@ -763,7 +796,7 @@ function UpdateIcons(out array<Actor> Actors, out array<GFxObject> ActorIcons, T
 		displayInfo.Rotation = (CurrentMarker.GetRadarActorRotation().Yaw * UnrRotToDeg) + /*f*/0 + IconRotationOffset ;
 		
 		//Condition for other blips that is not the same team as the player owner
-		if (rxGRI != none && (Pawn(GetPC().viewtarget).GetTeamNum() != Actors[i].GetTeamNum()) ) {
+		if (rxGRI != none && (MyTeam != Actors[i].GetTeamNum()) ) {
 			if ( (Actors[i].GetTeamNum() == TEAM_GDI || Actors[i].GetTeamNum() == TEAM_NOD)) {
 				
 				if (Actors[i].IsInState('Stealthed'))
@@ -1024,7 +1057,13 @@ function SetInfrantryGfxObjects()
 
 	
 	infrantry_class_info.GotoAndStopI(GetPC().PlayerReplicationInfo.GetTeamNum() + 1);
-	if (GetPC().PlayerReplicationInfo.GetTeamNum() == TEAM_GDI) {
+	SetInfantryNames(MyTeam);
+}
+
+function SetInfantryNames(int Team)
+{
+	if (Team == TEAM_GDI) 
+	{
 		SetInfoLabelName(gdi_soldier, "Soldier");
 		SetInfoLabelName(gdi_shotgunner, "Shotgunner");
 		SetInfoLabelName(gdi_grenadier, "Grenadier");
@@ -1041,7 +1080,9 @@ function SetInfrantryGfxObjects()
 		SetInfoLabelName(gdi_mobius, "Mobius");
 		SetInfoLabelName(gdi_hotwire, "Hotwire");
 		SetInfoLabelName(gdi_spies, "Spies");
-	} else {
+	} 
+	else 
+	{
 		SetInfoLabelName(nod_soldier, "Soldier");
 		SetInfoLabelName(nod_shotgunner, "Shotgunner");
 		SetInfoLabelName(nod_flame_trooper, "Flame Trooper");
@@ -1058,9 +1099,8 @@ function SetInfrantryGfxObjects()
 		SetInfoLabelName(nod_mendoza, "Mendoza");
 		SetInfoLabelName(nod_technician, "Technician");
 		SetInfoLabelName(nod_spies, "Spies");
-	}
+	}	
 }
-
 
 function SetVehicleGfxObjects() 
 {
@@ -1089,7 +1129,14 @@ function SetVehicleGfxObjects()
 
 	
 	vehicle_class_info.GotoAndStopI(GetPC().PlayerReplicationInfo.GetTeamNum() + 1);
-	if (GetPC().PlayerReplicationInfo.GetTeamNum() == TEAM_GDI) {
+	
+	SetVehicleNames(MyTeam);
+}
+
+function SetVehicleNames(int Team)
+{
+	if (Team == TEAM_GDI) 
+	{
 		SetInfoLabelName(humvee, "Humvee");
 		SetInfoLabelName(gdi_apc, "APC");
 		SetInfoLabelName(mrls, "MRLS");
@@ -1098,7 +1145,9 @@ function SetVehicleGfxObjects()
 		SetInfoLabelName(gdi_chinook, "Transport Helicopter");
 		SetInfoLabelName(orca, "Orca");
 		SetInfoLabelName(gdi_other, "Other");
-	} else {
+	} 
+	else 
+	{
 		 SetInfoLabelName(buggy, "Buggy");
 		 SetInfoLabelName(nod_apc, "APC");
 		 SetInfoLabelName(artillery, "Artillery");
@@ -1108,7 +1157,7 @@ function SetVehicleGfxObjects()
 		 SetInfoLabelName(nod_chinook, "Transport Helicopter");
 		 SetInfoLabelName(apache, "Apache");
 		 SetInfoLabelName(nod_other, "Other");
-	}
+	}	
 }
 
 function SetOverviewMapGfxObjects()

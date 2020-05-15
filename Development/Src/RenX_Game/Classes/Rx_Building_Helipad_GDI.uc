@@ -3,7 +3,7 @@ class Rx_Building_Helipad_GDI extends Rx_Building_GDI_VehicleFactory
 
 simulated function String GetHumanReadableName()
 {
-	return "GDI Helipad";
+	return "Helipad";
 }
 
 simulated function PostBeginPlay()

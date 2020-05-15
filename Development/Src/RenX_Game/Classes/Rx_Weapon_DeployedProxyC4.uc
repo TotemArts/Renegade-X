@@ -15,6 +15,9 @@ var float DirectLineOfSightDamage;
 var float DetonateDelay;
 var PlayerReplicationInfo OwnerPRI;
 
+var StaticMeshComponent TriggerMesh;
+var float MaxViewDistance;
+
 var int EMPDisarmTime;	// time it takes for the EMP to disarm a full health mine. Note integer and not floating point.
 var int EMPTicks, TestHeight;
 var Controller EMPInstigator;
@@ -37,6 +40,10 @@ simulated function PostBeginPlay()
 	}
 	ClearTimer('Explosion'); 
 	ClearTimer('CountDown'); 
+
+	if (WorldInfo.NetMode == NM_DedicatedServer) return;
+
+	SetTimer(1.0, true, nameof(CheckVis));
 }
 
 simulated function PerformDeploy()
@@ -293,6 +300,27 @@ simulated function string GetTargetedDescription(PlayerController PlayerPerspect
 	return "";
 }
 
+simulated function CheckVis()
+{
+	local PlayerController C;
+
+	C = GetALocalPlayerController();
+
+	if (C == None || Rx_Pawn(C.Pawn) == None || C.Pawn.Weapon == None || C.GetTeamNum() != GetTeamNum()) return;
+
+	if (Rx_Weapon_ProxyC4(C.Pawn.Weapon) == None || !IsInRange(C))
+		TriggerMesh.SetHidden(true);
+	else
+		TriggerMesh.SetHidden(false);
+}
+
+simulated function bool IsInRange(PlayerController C)
+{
+	if (C == None) return false;
+
+	return VSizeSq(Location - C.Pawn.Location) < Square(MaxViewDistance);
+}
+
 defaultproperties
 {
    
@@ -307,6 +335,22 @@ defaultproperties
 	DetonateDelay = 0.0f
 	bUsesMineLimit=true
 	bIsRemoteC4=false
+
+	MaxViewDistance = 300
+
+	Begin Object Class=StaticMeshComponent Name=TMesh
+		StaticMesh=StaticMesh'RenX_AssetBase.Mesh.SM_Sphere_Rad100'
+		HiddenGame=true
+		Scale=1.45
+		Materials[0]=MaterialInstanceConstant'RenX_AssetBase.Materials.MI_Proximity_Radius'
+		CollideActors=False
+		BlockActors=False
+		BlockZeroExtent=False
+		BlockNonZeroExtent=False
+		BlockRigidBody=False
+	End Object
+	TriggerMesh=TMesh
+	Components.Add(TMesh)
 
 	TestHeight=13  //This keeps mines able to see over most things, even when they're placed in the vent of the powerplant. 
 	
@@ -328,7 +372,5 @@ defaultproperties
 		SkeletalMesh=SkeletalMesh'rx_wp_proxyc4.Mesh.SK_WP_Proxy_Deployed'
 		PhysicsAsset=PhysicsAsset'rx_wp_proxyc4.Mesh.SK_WP_Proxy_3P_Physics'
 		Scale=1.0
-	End Object
-	
-	
+	End Object	
 }

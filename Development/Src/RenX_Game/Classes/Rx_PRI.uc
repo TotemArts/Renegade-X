@@ -107,6 +107,8 @@ var bool bCanRequestCheatBots;
 var int BotSkill;
 var bool bisAFK;			// HANDEPSILON - This indicates whether or not the player is AFK at the moment
 var bool bIsScripted;
+var int OldTeamID;
+var bool bDonateOnDelete;
 
 replication
 {
@@ -267,7 +269,7 @@ function SetChar(class<Rx_FamilyInfo> newFamily, Pawn pawn, optional bool isFree
 		Rx_Pawn(pawn).SetCharacterClassFromInfo(newFamily);
 	}
 
-	if(WorldInfo.GetGameClass() == Class'Rx_Game')
+	if(ClassIsChildOf(WorldInfo.GetGameClass(),Class'Rx_Game'))
 	{
 		if( Rx_Game(WorldInfo.Game).GetPurchaseSystem().IsStealthBlackHand(self) )
 		{
@@ -304,7 +306,6 @@ function equipStartWeapons(optional bool FreeClass)
    	local Rx_Pawn rxPawn;
     local class<Rx_FamilyInfo> rxCharInfo;   
 	local float ArmourPCT; 
-	local int	i; 
 
 	rxCharInfo = class<Rx_FamilyInfo>(CharClassInfo);
 	rxPawn = Rx_Pawn(Controller(Owner).Pawn);
@@ -339,13 +340,6 @@ function equipStartWeapons(optional bool FreeClass)
 		rxPawn.ClientSetStamina(rxPawn.MaxStamina);
 		rxPawn.PromoteUnit(VRank);
 		
-		
-		//Clear and Set passive abilities
-		rxPawn.ClearPassiveAbilities() ;
-		
-		for(i=0;i<3;i++){
-			rxPawn.GivePassiveAbility(i, rxCharInfo.default.PassiveAbilities[i]) ;
-		}
 	
 		//Reapply buffs/nerfs
 		if(Rx_Controller(Owner) != none)
@@ -375,13 +369,6 @@ function equipStartWeapons(optional bool FreeClass)
 	rxPawn.Stamina = rxPawn.MaxStamina;
 	rxPawn.ClientSetStamina(rxPawn.MaxStamina);
 	rxPawn.PromoteUnit(VRank);
-	
-	//Clear and Set passive abilities
-	rxPawn.ClearPassiveAbilities() ;
-	
-	for(i=0;i<3;i++){
-		rxPawn.GivePassiveAbility(i, rxCharInfo.default.PassiveAbilities[i]) ;
-	}
 	
 	//Reapply buffs/nerfs
 	if(Rx_Controller(Owner) != none)
@@ -512,17 +499,6 @@ simulated function String GetHumanReadableName()
 	}
 	else if(bIsSpectator)
 		ret = "[Spec]"$ret;
-	else
-	{
-		if (left(ret,3) == "[B-")
-			ret = Split(ret,"[B-",true);
-
-		if (left(ret,5) == "[AFK]")
-			ret = Split(ret,"[AFK]",true);
-
-		if (bIsAFK)
-			ret = "[AFK]"$ret;
-	}
 
 	return ret;
 }
@@ -742,21 +718,28 @@ function bool GetMineStatus()
 function AddVP(float Amount)
 {
 	local Rx_Game G; 
+	local int OriginalRank;
 	
 	G = Rx_Game(WorldInfo.Game);
 	
 	if(bVeterancyDisabled) 
 		return; 
-	
+
+	OriginalRank = VRank;	
 	Veterancy_Points += Amount; 
 	
-	if(VRank < ArrayCount(G.default.VPMilestones) && Veterancy_Points >= G.default.VPMilestones[VRank] ) 
+	if(VRank < ArrayCount(G.default.VPMilestones))
 	{
-		VRank++; //Must promote 
-		if(Rx_Controller(Owner) != none)
-			Rx_Controller(Owner).PromoteMe(VRank);
-		else if(Rx_Bot(Owner) != none)
-			Rx_Bot(Owner).PromoteMe(VRank);
+		While(Veterancy_Points >= G.default.VPMilestones[VRank] && VRank < ArrayCount(G.default.VPMilestones))
+			VRank++; //Must promote 
+
+		if(OriginalRank != VRank)
+		{
+			if(Rx_Controller(Owner) != none)
+				Rx_Controller(Owner).PromoteMe(VRank);
+			else if(Rx_Bot(Owner) != none)
+				Rx_Bot(Owner).PromoteMe(VRank);
+		}
 	} 
 }
 
@@ -1091,7 +1074,7 @@ function UpdateDefensiveScore()
 
 function UpdateSupportScore()
 {
-	 Score_Support=((Vehicle_Repairs/75.0) + (Infantry_Repairs/50.0) + (Beacon_Damage/10.0) + (Tech_Captures*15.0) + (Mines_Disarmed) + (Vehicle_EMPs*3.0)) ;
+	 Score_Support=((Vehicle_Repairs/25.0) + (Infantry_Repairs/25.0) + (Beacon_Damage/10.0) + (Tech_Captures*15.0) + (Mines_Disarmed) + (Vehicle_EMPs*3.0)) ;
 }
 
 function UpdateAllScores(optional out float Difference)
@@ -1392,6 +1375,21 @@ reliable server function AttemptToSell(Rx_Defence D)
 
 	DeployedDefenseNumber -= 1;
 	DeployedDefenses.RemoveItem(D);		
+}
+
+simulated event Destroyed()
+{
+	if(Worldinfo.Game != None && bDonateOnDelete)
+	{
+		if(Rx_Game(Worldinfo.Game) != None && GetCredits() > Rx_Game(Worldinfo.Game).InitialCredits)
+			ServerLeaveDonate();
+	}
+	super.Destroyed();
+}
+
+reliable server function ServerLeaveDonate()
+{
+	Rx_Game(Worldinfo.Game).DeletedPRITeamDonate(self,GetCredits() - Rx_Game(Worldinfo.Game).InitialCredits);
 }
 
 DefaultProperties

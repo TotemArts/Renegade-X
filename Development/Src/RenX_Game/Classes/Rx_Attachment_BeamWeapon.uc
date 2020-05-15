@@ -43,10 +43,17 @@ simulated function HideEmitter(int Index, bool bHide)
 
 simulated function UpdateBeam(byte FireModeNum)
 {
+	local vector Endpoint; 
+	
 	// Make sure the Emitter is visible
+	if(UTPawn(Owner).Weapon != None && !WorldInfo.IsPlayingDemo() )
+		Endpoint = Rx_BeamWeapon(UTPawn(Owner).Weapon).CurrHitLocation;
+	else
+		Endpoint = PawnOwner.FlashLocation;
+	
 	if (BeamEmitter[FireModeNum] != None)
 	{
-		BeamEmitter[FireModeNum].SetVectorParameter(EndPointParamName , PawnOwner.FlashLocation);
+		BeamEmitter[FireModeNum].SetVectorParameter(EndPointParamName , Endpoint);
 	}
 
 	HideEmitter(FireModeNum, false);
@@ -76,7 +83,6 @@ state CurrentlyAttached
 			HideEmitter(1,true);
 			return;
 		}
-
 		UpdateBeam(PawnOwner.FiringMode);
 	}
 }

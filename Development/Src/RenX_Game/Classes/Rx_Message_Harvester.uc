@@ -50,7 +50,7 @@ DefaultProperties
 {
 	HarvesterAttackAnnouncment[0]   = SoundNodeWave'RX_EVA_VoiceClips.gdi_eva.S_EVA_GDI_GDIHarvester_UnderAttack'
 	HarvesterAttackAnnouncment[1]   = SoundNodeWave'RX_EVA_VoiceClips.gdi_eva.S_EVA_GDI_NodHarvester_UnderAttack'
-	HarvesterAttackAnnouncment[2]  = SoundNodeWave'RX_EVA_VoiceClips.Nod_EVA.S_EVA_Nod_GDIHarvester_UnderAttack'
+	HarvesterAttackAnnouncment[2]   = SoundNodeWave'RX_EVA_VoiceClips.Nod_EVA.S_EVA_Nod_GDIHarvester_UnderAttack'
 	HarvesterAttackAnnouncment[3]   = SoundNodeWave'RX_EVA_VoiceClips.Nod_EVA.S_EVA_Nod_NodHarvester_UnderAttack'
 
 	HarvesterAttackAnnouncment[4]   = SoundNodeWave'RX_EVA_VoiceClips.gdi_eva.S_EVA_GDI_GDIHarvester_Destroyed'

@@ -112,7 +112,7 @@ function SetUpDataProvider(GFxClikWidget Widget)
 	{
 		case (DonateScrollingList):
 			foreach GetPC().WorldInfo.GRI.PRIArray(PRI) {
-				if (Rx_PRI(PRI) == none || GetPC().Pawn.PlayerReplicationInfo == PRI || !GetPC().WorldInfo.GRI.OnSameTeam(GetPC().Pawn.PlayerReplicationInfo, PRI)) {
+				if (Rx_PRI(PRI) == none || GetPC().Pawn.PlayerReplicationInfo == PRI || !GetPC().WorldInfo.GRI.OnSameTeam(GetPC().Pawn.PlayerReplicationInfo, PRI)  || PRI.bBot) {
 					continue;
 				}
 				PRIArray.AddItem(PRI);

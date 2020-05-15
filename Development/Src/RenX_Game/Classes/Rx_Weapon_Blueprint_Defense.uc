@@ -12,8 +12,8 @@ reliable server function DeployBlueprint(vector DeployLoc, rotator DeployRot)
 
 	SpawnedDefense.Deployer = Rx_PRI(Instigator.PlayerReplicationInfo);
 	SpawnedDefense.bOwnedDefence = true;
-	Rx_PRI(Instigator.PlayerReplicationInfo).DeployedDefenses.AddItem(SpawnedDefense);
-	Rx_PRI(Instigator.PlayerReplicationInfo).DeployedDefenseNumber += 1;
+//	Rx_PRI(Instigator.PlayerReplicationInfo).DeployedDefenses.AddItem(SpawnedDefense);
+//	Rx_PRI(Instigator.PlayerReplicationInfo).DeployedDefenseNumber += 1;
 	Super.DeployBlueprint(DeployLoc, DeployRot);
 }
 
@@ -24,17 +24,12 @@ simulated function bool PlacementAllowed()
 		Rx_Controller(Instigator.Controller).CTextMessage("Cannot deploy here",'Red',120);
 		return false;
 	}
-	if(TooManyDefenses())
-	{
-		Rx_Controller(Instigator.Controller).CTextMessage("Maximum defenses quota reached",'Red',120);
-		return false;
-	}
 	else
 		return true;
 		
 }
 
-
+/*
 simulated function string GetWeaponTips()
 {
 	local int CurDef, MaxDef;
@@ -116,7 +111,7 @@ simulated function bool TooManyDefenses()
 
 	return false;
 }
-
+*/
 simulated function Vector GetBlueprintModelLocation()
 {
 	return BuildLoc;

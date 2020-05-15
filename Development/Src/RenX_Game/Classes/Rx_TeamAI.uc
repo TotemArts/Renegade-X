@@ -346,6 +346,7 @@ function float RateDefendedObjective(UTGameObjective O, Controller InController,
 	local float DistSq;
 	local float Rate;
 	local Rx_BuildingObjective BO;
+	local Rx_Building B;
 
 	BO = Rx_BuildingObjective(O);
 
@@ -381,7 +382,9 @@ function float RateDefendedObjective(UTGameObjective O, Controller InController,
 				}
 				else
 				{
-					Rate = (1 / DistSq) * 1000.f / BO.myBuilding.GetArmor(); // reverse the calculation so instead we try to find the closest damaged one
+					Rate = 1000.f / BO.myBuilding.GetArmor();
+					if(Rx_Bot(InController).IsInBuilding(B) && B == BO.myBuilding)
+						Rate *= 100.f;
 				}
 			}
 			else
