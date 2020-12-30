@@ -60,7 +60,16 @@ simulated event Tick( float DeltaTime )
 	local float right, left, PitchSet, VelocitySalt, TorqueCal, TorqueSideCal;
 
 	super.Tick(DeltaTime);
-	if (WorldInfo.NetMode != NM_DedicatedServer && bDriving)
+
+	// The following logic is client-side only.
+	if (WorldInfo.NetMode == NM_DedicatedServer)
+		return;
+
+	// Don't bother with updating treads if the vehicle is invisible.
+	if (`TimeSince(LastRenderTime) >= 0.5)
+		return;
+
+	if (bDriving)
 	{
 		VelocitySalt = (VSize(Velocity) / MaxSpeed) * VelocityBeginMultiplier;
 		if(SimTank.MaxEngineTorque != 0)
