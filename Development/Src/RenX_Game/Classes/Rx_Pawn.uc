@@ -2205,11 +2205,12 @@ simulated function Tick(float DeltaTime)
 {	
 	local vector TempVect;
 	
+	// Bot tick.
 	if(Rx_Controller(Controller) == none)
 	{
 		TickParachute(DeltaTime);
 		//Do handy stuff
-		if((WorldInfo.NetMode != NM_DedicatedServer && (bTickHandIK || WorldInfo.IsPlayingDemo()))) 
+		if(`TimeSince(LastRenderTime) < 0.5 && (WorldInfo.NetMode != NM_DedicatedServer && (bTickHandIK || WorldInfo.IsPlayingDemo()))) 
 		{
 			TickHandIK(DeltaTime); //Calculate all of the hand IK repositioning crap.
 			bTickHandIK = false; //Reset, as we don't need to do this constantly
@@ -2218,41 +2219,50 @@ simulated function Tick(float DeltaTime)
 		super.Tick(DeltaTime); 
 		return; //Ignore all of this if we're not the pawn we need to be concerned with. 
 	}
-	
-	if((WorldInfo.NetMode != NM_DedicatedServer)) //For ourselves, just always tick Hand IK
+
+	// Shared logic
+
+	// N.B: If this is not a server role, don't bother ticking unless the object is visible (or controlled by the local player).
+	if (Role != ROLE_Authority && (`TimeSince(LastRenderTime) >= 0.5) && !PlayerController(Controller).IsLocalPlayerController())
+		return;
+
+	if (bSprinting && DrivenVehicle == None)
 	{
-		TickHandIK(DeltaTime); //Calculate all of the hand IK repositioning crap.
+		// FIXME: ??? Why is this not ran on a dedicated server?
+		if (Worldinfo.Netmode != NM_DedicatedServer)
+		{
+			if (PlayerController(Controller) != none)
+			{
+				// HACK: Stop firing weapons.
+				/*
+				Weapon.StopFire(0);
+				Weapon.StopFire(1);
+				Weapon.StopFire(2);
+				*/
+
+				// If moving backwards, immediately stop sprinting.
+				if (Rx_PlayerInput(PlayerController(Controller).PlayerInput).aBaseYTemp <= 0)
+					StopSprinting();
+			}
+
+			DeductStamina(SprintStaminaCost * DeltaTime);
+		}
 	}
-	
-	if (Stamina < MaxStamina && !bExhausted) //Tick Stamina appropriately
+	else
+	{
+		if (Stamina < MaxStamina && !bExhausted) // Tick Stamina appropriately
 		{
 			Stamina += (StaminaRegenRate * DeltaTime);
+
+			// Enforce maximum stamina.
 			if (Stamina > MaxStamina) 
-				{
-					Stamina = MaxStamina;
-				}
-		}	
-	
-	if (bSprinting && Worldinfo.Netmode != NM_DedicatedServer && DrivenVehicle == None)
-	{
-		if(PlayerController(Controller) != None) 
-		{
-			/**Weapon.StopFire(0);
-			Weapon.StopFire(1);
-			Weapon.StopFire(2);*/
-			
-			if (Rx_PlayerInput(PlayerController(Controller).PlayerInput).aBaseYTemp <= 0)
-				StopSprinting();
+				Stamina = MaxStamina;
 		}
-		DeductStamina(SprintStaminaCost * DeltaTime);
 	}
-	else if (Stamina < MaxStamina && !bExhausted)
+	
+	if(`TimeSince(LastRenderTime) < 0.5 && (WorldInfo.NetMode != NM_DedicatedServer)) //For ourselves, just always tick Hand IK
 	{
-		Stamina += (StaminaRegenRate * DeltaTime);
-		if (Stamina > MaxStamina) 
-		{
-			Stamina = MaxStamina;
-		}
+		TickHandIK(DeltaTime); //Calculate all of the hand IK repositioning crap.
 	}
 	
 	/** Regen hop stamina
@@ -2262,8 +2272,7 @@ simulated function Tick(float DeltaTime)
 		if (CurrentHopStamina == 1 && WorldInfo.NetMode != NM_DedicatedServer)
 			SetGroundSpeed();
 	}
-*/
-	
+	*/
 	
 	if(WorldInfo.IsPlayingDemo())
 	{
@@ -2272,8 +2281,8 @@ simulated function Tick(float DeltaTime)
 		TempVect.z -= 20;
 		if(Physics == Phys_Walking)
 			setlocation(TempVect);
-
 	}
+
 	TickParachute(DeltaTime);
 	super.Tick(DeltaTime);
 }
