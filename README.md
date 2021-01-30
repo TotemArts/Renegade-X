@@ -11,3 +11,5 @@ To setup, first download the SDK from https://renegade-x.com/files/file/7-softwa
   - Example Assets  <- Git Ignored (From SDK)
   - UDKGame         <- Git Ignored (From SDK)
   - UDKGame\Config\ <- Versioned   (From Git)
+
+EA has not endorsed and does not support this product.
