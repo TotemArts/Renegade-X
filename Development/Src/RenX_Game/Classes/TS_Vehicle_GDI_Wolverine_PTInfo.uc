@@ -5,7 +5,7 @@ class TS_Vehicle_GDI_Wolverine_PTInfo extends Rx_Vehicle_PTInfo
 
 DefaultProperties
 {
-		PTIconTexture	=	Texture2D'TSPurchaseMenu.T_Icon_Veh_GDI_Wolverine'
+		PTIconTexture	=	Texture2D'RenXPurchaseMenu.T_Icon_Veh_GDI_Wolverine'
 		title	    	=	"WOLVERINE"
 		cost	    	=	"500"
 		iconID			=	9
@@ -13,6 +13,6 @@ DefaultProperties
 		desc			= 	"<font size='10'>-2x Gatling Gun\n-Light Armour\n-Fast Attack Scout\n-Driver</font>"
 		VehicleClass	= 	class'TS_Vehicle_Wolverine'
 		
-		GDIVehicleAnnouncment = SoundNodeWave'RX_EVA_VoiceClips_Extra.gdi_eva.S_EVA_GDI_TankReady'
+		GDIVehicleAnnouncment = SoundNodeWave'RX_EVA_VoiceClips_Extra.gdi_eva.S_TS_EVA_UnitReady_Wolverine'
 		NodVehicleAnnouncment = SoundNodeWave'RX_EVA_VoiceClips_Extra.Nod_EVA.S_EVA_Nod_TankReady'
 }

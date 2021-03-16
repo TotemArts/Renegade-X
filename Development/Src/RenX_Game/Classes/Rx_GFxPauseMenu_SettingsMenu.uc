@@ -98,6 +98,7 @@ var GFxClikWidget MinimapCheckBox;
 var GFxClikWidget GameInfoCheckBox;
 var GFxClikWidget TeamInfoCheckBox;
 var GFxClikWidget PersonalInfoCheckBox;
+var GFxClikWidget NoPTSceneCheckBox;
 var GFxClikWidget ScorePanelCheckBox;
 var GFxClikWidget RadioCommandDropDown;
 
@@ -134,6 +135,7 @@ struct SettingsVideoOption
 	var bool bCompositeDynamicLights;
 	var bool bDirectionalLightmaps;
 	var bool bBloomDoF;
+	var bool ProjectileLights;
 	var float BloomValue;
 	var bool bAmbientOcclusion;
 	var bool bLensFlares;
@@ -192,6 +194,7 @@ struct SettingsInterfaceOption
 	var bool bPersonalInfo;
 	var bool bScorePanel;
 	var int RadioCommand;
+	var bool bDisablePTScene;
 
 	var int CustomRadioCurrentPosition;
 	var Array<int> RadioCommandsCtrl, RadioCommandsAlt, RadioCommandsCtrlAlt;
@@ -521,6 +524,8 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			GetLastSelection(FOVSlider);
 			FOVSlider.AddEventListener('CLIK_change', OnFOVSliderChange);
+			FOVSlider.SetInt("minimum",60);
+			FOVSlider.SetInt("maximum",120);
 			break;
 		case 'FOVLabel':
 			if (FOVLabel == none || FOVLabel != Widget) {
@@ -1023,6 +1028,13 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			GetLastSelection(PersonalInfoCheckBox);
 			PersonalInfoCheckBox.AddEventListener('CLIK_select', OnPersonalInfoCheckBoxSelect);
 			break;
+		case 'NoPTSceneCheckBox':
+			if (NoPTSceneCheckBox == none || NoPTSceneCheckBox != Widget) {
+				NoPTSceneCheckBox = GFxClikWidget(Widget);
+			}
+			GetLastSelection(NoPTSceneCheckBox);
+			NoPTSceneCheckBox.AddEventListener('CLIK_select', OnNoPTSceneCheckBoxSelect);
+			break;
 		case 'ScorePanelCheckBox':
 			if (ScorePanelCheckBox == none || ScorePanelCheckBox != Widget) {
 				ScorePanelCheckBox = GFxClikWidget(Widget);
@@ -1215,7 +1227,8 @@ function SetUpDataProvider(GFxClikWidget Widget)
 			DataProvider.SetElementString(8, "FOR KANE");
 			DataProvider.SetElementString(9, "DIE INFIDEL");
 			DataProvider.SetElementString(10, "GOAT");
-			DataProvider.SetElementString(11, "NONE");
+			DataProvider.SetElementString(11, "CUSTOM");
+			DataProvider.SetElementString(12, "NONE");
 			break;
 
 		/************************************* [Settings - Input] *****************************************/
@@ -1423,7 +1436,7 @@ function GetLastSelection(GFxClikWidget Widget)
 				Widget.SetBool("selected", SettingsCurrentVideo.bDirectionalLightmaps);
 				break;
 			case (BloomDoFCheckBox):
-				Widget.SetBool("selected", SettingsCurrentVideo.bBloomDoF);
+				Widget.SetBool("selected", SettingsCurrentVideo.ProjectileLights);
 				break;
 			case (BloomSlider):
 				Widget.SetInt("value", SettingsCurrentVideo.BloomValue * 100);
@@ -1619,7 +1632,11 @@ function GetLastSelection(GFxClikWidget Widget)
 				break;
 			case (ScorePanelCheckBox) :			
 				Widget.SetBool("selected", SettingsCurrentInterface.bScorePanel);
-				break;				
+				break;		
+			case (NoPTSceneCheckBox) :
+				Widget.SetBool("selected", SettingsCurrentInterface.bDisablePTScene);
+				break;					
+
 			default:
 				return;
 		}
@@ -1687,7 +1704,8 @@ function ResetSettingsVideoOption()
 	SettingsCurrentVideo.bLightEnvironmentShadows = Rx_HUD(GetPC().myHUD).SystemSettingsHandler.LightEnvironmentShadows;
 	SettingsCurrentVideo.bCompositeDynamicLights = Rx_HUD(GetPC().myHUD).SystemSettingsHandler.CompositeDynamicLights;
 	SettingsCurrentVideo.bDirectionalLightmaps = Rx_HUD(GetPC().myHUD).SystemSettingsHandler.DirectionalLightmaps;
-	SettingsCurrentVideo.bBloomDoF = (Rx_HUD(GetPC().myHUD).SystemSettingsHandler.Bloom || Rx_HUD(GetPC().myHUD).SystemSettingsHandler.DepthOfField);
+	SettingsCurrentVideo.bBloomDoF = Rx_HUD(GetPC().myHUD).SystemSettingsHandler.Bloom;
+//	SettingsCurrentVideo.bBloomDoF = (Rx_HUD(GetPC().myHUD).SystemSettingsHandler.ProjectileLights || Rx_HUD(GetPC().myHUD).SystemSettingsHandler.ProjectileLights);
 	SettingsCurrentVideo.bAmbientOcclusion = Rx_HUD(GetPC().myHUD).SystemSettingsHandler.AmbientOcclusion;                                                     //TODO: NOT WORKING ATM
 	SettingsCurrentVideo.bLensFlares = Rx_HUD(GetPC().myHUD).SystemSettingsHandler.LensFlares;
 	SettingsCurrentVideo.BloomValue = Rx_HUD(GetPC().myHUD).SystemSettingsHandler.BloomThresholdLevel;
@@ -1762,7 +1780,7 @@ function ResetSettingsInterfaceOption()
 	SettingsCurrentInterface.bPersonalInfo = myHUD.SystemSettingsHandler.bPersonalInfo;
 	SettingsCurrentInterface.bScorePanel = myHUD.SystemSettingsHandler.bScorePanel;
 	SettingsCurrentInterface.RadioCommand = Rx_HUD(GetPC().myHUD).SystemSettingsHandler.GetRadioCommand();
-
+	SettingsCurrentInterface.bDisablePTScene = myHUD.SystemSettingsHandler.bDisablePTScene;
 
 	SettingsCurrentInput.bNicknamesUseTeamColors = Rx_HUD(GetPC().myHUD).SystemSettingsHandler.GetNicknamesUseTeamColors();
 	//nBab
@@ -2063,8 +2081,8 @@ function ApplyCustomSettings()
 	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.SetLightEnvironmentShadows(SettingsCurrentVideo.bLightEnvironmentShadows);
 	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.SetCompositeDynamicLights(SettingsCurrentVideo.bCompositeDynamicLights);
 	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.SetDirectionalLightmaps(SettingsCurrentVideo.bDirectionalLightmaps);
-	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.SetBloom(SettingsCurrentVideo.bBloomDoF);                                                        //TODO: enable both bloom and dof
-	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.SetDepthOfField(SettingsCurrentVideo.bBloomDoF);                                                 //TODO: enable both bloom and dof ! FIX this!
+	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.SetBloom(SettingsCurrentVideo.ProjectileLights);                                                        //TODO: enable both bloom and dof
+	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.SetDepthOfField(SettingsCurrentVideo.ProjectileLights);                                                 //TODO: enable both bloom and dof ! FIX this!
 	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.SetAmbientOcclusion(SettingsCurrentVideo.bAmbientOcclusion);
 	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.SetLensFlares(SettingsCurrentVideo.bLensFlares);
 	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.SetBloomThreshold(SettingsCurrentVideo.BloomValue);
@@ -2134,6 +2152,8 @@ function ApplyInterfaceSettings()
 	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.bTeamInfo = SettingsCurrentInterface.bTeamInfo;
 	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.bPersonalInfo = SettingsCurrentInterface.bPersonalInfo;
 	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.bScorePanel = SettingsCurrentInterface.bScorePanel;
+	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.bDisablePTScene = SettingsCurrentInterface.bDisablePTScene;
+
 
 	Rx_HUD(GetPC().myHUD).SystemSettingsHandler.SetRadioCommand(SettingsCurrentInterface.RadioCommand);
 
@@ -2451,42 +2471,51 @@ function OnMusicCheckBoxlistItemClick(GFxClikWidget.EventData ev)
 //nBab
 function OnKillSoundPlayButtonChange (GFxClikWidget.EventData ev)
 {
+	local SoundCue CustomSound;
+	local Rx_Controller C;
+
+	C = Rx_Controller(GetPC());
+
+	CustomSound = SoundCue(DynamicLoadObject(C.CustomKillsound, class'SoundCue'));
+
 	switch(KillSoundDropDown.GetInt("selectedIndex"))
 	{
 		case 0:		
-			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.SFX.SC_Boink');
+			C.ClientPlaySound(SoundCue'RX_SoundEffects.SFX.SC_Boink');
 			break;
 		case 1:
-			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.SC_Boink_Modern');
+			C.ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.SC_Boink_Modern');
 			break;
 		case 2:
-			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Kill_Alert_Cue');
+			C.ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Kill_Alert_Cue');
 			break;
 		case 3:
-			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.SC_Commando');
+			C.ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.SC_Commando');
 			break;
-
 		case 4:
-			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.SC_Havoc');
+			C.ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.SC_Havoc');
 			break;
 		case 5:
-			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.SC_McFarland');
+			C.ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.SC_McFarland');
 			break;
 		case 6:
-			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Gotchya_Cue');
+			C.ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Gotchya_Cue');
 			break;
 		case 7:
-			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Aww_Too_Easy_Cue');
+			C.ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Aww_Too_Easy_Cue');
 			break;
 		case 8:
-			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_For_Kane_Cue');
+			C.ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_For_Kane_Cue');
 			break;
 		case 9:
-			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Die_Infidel_Cue');
+			C.ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Die_Infidel_Cue');
 			break;
 		case 10:
-			GetPC().ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Goat_Cue');
-			break;	
+			C.ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Goat_Cue');
+			break;
+		case 11:
+			C.ClientPlaySound(CustomSound);
+
 		default:
 			break;
 	}
@@ -3116,7 +3145,10 @@ function OnScorePanelCheckBoxSelect(GFxClikWidget.EventData ev)
 {
 	SettingsCurrentInterface.bScorePanel = ev._this.GetObject("target").GetBool("selected");
 }
-
+function OnNoPTSceneCheckBoxSelect(GFxClikWidget.EventData ev)
+{
+	SettingsCurrentInterface.bDisablePTScene = ev._this.GetObject("target").GetBool("selected");
+}
 
 DefaultProperties
 {
@@ -3212,6 +3244,8 @@ DefaultProperties
 	SubWidgetBindings.Add((WidgetName="TeamInfoCheckBox",WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="PersonalInfoCheckBox",WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="ScorePanelCheckBox",WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="NoPTSceneCheckBox",WidgetClass=class'GFxClikWidget'))
+
 	SubWidgetBindings.Add((WidgetName="SettingsInterfaceActionBar",WidgetClass=class'GFxClikWidget'))
 
 	SubWidgetBindings.Add((WidgetName="CustomRadioNextButton",WidgetClass=class'GFxClikWidget'))

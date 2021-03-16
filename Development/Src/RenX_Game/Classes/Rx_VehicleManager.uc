@@ -4,11 +4,12 @@ class Rx_VehicleManager extends Actor;
 struct VQueueElement
 {
    var Rx_PRI Buyer;
+   var RxIfc_Refinery RefineryBuyer;
    var class<Rx_Vehicle> VehClass;
    var int VehicleID;
    var Vector L;
    var Rotator R;
-   var Rx_Building_VehicleFactory Factory;
+   var RxIfc_FactoryVehicle Factory;
 };
 
 struct ProductionPlace
@@ -29,10 +30,10 @@ var array<VQueueElement>    GDI_Queue, NOD_Queue;
 var UTVehicle               lastSpawnedVehicle;
 var() bool							UseDefaultParkingSpots;
 var int                             GDIVehicleCOunt, NodVehicleCount;  
-var array<Rx_Building_Nod_VehicleFactory>	AirStrip;  
-var array<Rx_Building_GDI_VehicleFactory>	WeaponsFactory;
-var array<Rx_Building_Refinery>		Nod_Ref;
-var array<Rx_Building_Refinery>		GDI_Ref;  
+var array<RxIfc_FactoryVehicle>		AirStrip;  
+var array<RxIfc_FactoryVehicle>		WeaponsFactory;
+var array<RxIfc_Refinery>			Nod_Ref;
+var array<RxIfc_Refinery>			GDI_Ref;  
 var bool							bGDIRefDestroyed; 
 var bool							bNodRefDestroyed; 
 var bool 							bJustSpawnedNodHarv;
@@ -52,13 +53,13 @@ function CheckVehicleSpawn()
 
 	if (AirStrip.length <= 0 && Nod_Ref.length > 0) 
 	{
-		Nod_Ref[0].BuildingInternals.BuildingSkeleton.GetSocketWorldLocationAndRotation('RefNodeSocket', Nod_Ref_Loc, Nod_Ref_Rot);
+		Rx_Building(Nod_Ref[0]).BuildingInternals.BuildingSkeleton.GetSocketWorldLocationAndRotation('RefNodeSocket', Nod_Ref_Loc, Nod_Ref_Rot);
 		Set_NOD_ProductionPlace(Nod_Ref_Loc, Nod_Ref_Rot);
 		bNodIsUsingAirdrops = true;
 	}
 	if (WeaponsFactory.length <= 0 && GDI_Ref.length > 0) 
 	{
-		GDI_Ref[0].BuildingInternals.BuildingSkeleton.GetSocketWorldLocationAndRotation('RefNodeSocket', GDI_Ref_Loc, GDI_Ref_Rot);
+		Rx_Building(GDI_Ref[0]).BuildingInternals.BuildingSkeleton.GetSocketWorldLocationAndRotation('RefNodeSocket', GDI_Ref_Loc, GDI_Ref_Rot);
 		Set_GDI_ProductionPlace(GDI_Ref_Loc, GDI_Ref_Rot);
 		bGDIIsUsingAirdrops = true;
 	}
@@ -99,12 +100,12 @@ function Initialize(GameInfo Game, UTTeamInfo GdiTeamInfo, UTTeamInfo NodTeamInf
 
 	if(WeaponsFactory.length <= 0 && AirStrip.length <= 0) 
 	{
-		ForEach AllActors(class'Rx_Building',build)
+		ForEach AllActors(class'Rx_Building',build,class'RxIfc_FactoryVehicle')
 		{
-			if (Rx_Building_Nod_VehicleFactory(build) != None)
-				AirStrip.AddItem(Rx_Building_Nod_VehicleFactory(build));
-			else if (Rx_Building_GDI_VehicleFactory(build) != None)
-				WeaponsFactory.AddItem(Rx_Building_GDI_VehicleFactory(build));
+			if (build.GetTeamNum() == 1)
+				AirStrip.AddItem(RxIfc_FactoryVehicle(build));
+			else if (build.GetTeamNum() == 0)
+				WeaponsFactory.AddItem(RxIfc_FactoryVehicle(build));
 		}
 	}
 	GDI_Ref = RGame.TeamCredits[TEAM_GDI].Refinery;
@@ -117,11 +118,18 @@ function Initialize(GameInfo Game, UTTeamInfo GdiTeamInfo, UTTeamInfo NodTeamInf
 
 }
 
+
 function SpawnInitialHarvesters()
 {
-  	QueueHarvester(TEAM_GDI,false);
-  	QueueHarvester(TEAM_NOD,false);
+	local Rx_Building B;
+
+  	foreach AllActors(class'Rx_Building', B, class'RxIfc_Refinery')
+  	{
+  		if(RxIfc_Refinery(B).ShouldSpawnHarvester())
+  		QueueHarvester(RxIfc_Refinery(B),false);
+  	}
 }
+
 
 function Set_NOD_ProductionPlace(vector loc, rotator rot)
 {
@@ -145,52 +153,27 @@ function SetNodRefDestroyed(bool destroyed)
 	bNodRefDestroyed = Rx_Game(WorldInfo.Game).AreTeamRefineriesDestroyed(TEAM_NOD);
 }
 
-function HarvDestroyed(byte team, bool bWithIncreasedDelay)
-{
-    if(team == TEAM_NOD && bNodRefDestroyed) 
-    	return;
-    else if(team == TEAM_GDI && bGDIRefDestroyed) 	
-    	return;
-    	
-    if(team == TEAM_NOD && bNodIsUsingAirdrops) 
-    	SetTimer(360.0, false, 'NodHarvAirdrop');
-    else if(team == TEAM_GDI && bGDIIsUsingAirdrops) 	
-    	SetTimer(360.0, false, 'GDIHarvAirdrop');
-    else
-    	QueueHarvester(team, bWithIncreasedDelay);	  	
-}
-
-
-function NodHarvAirdrop()
-{
-	QueueHarvester(TEAM_NOD, false);	
-}
-
-function GDIHarvAirdrop()
-{
-	QueueHarvester(TEAM_GDI, false);	
-}
-
-function QueueHarvester(byte team, bool bWithIncreasedDelay)
+function QueueHarvester(RxIfc_Refinery MyRefinery, bool bWithIncreasedDelay)
 {
 	local VQueueElement NewQueueElement;
 	
 	NewQueueElement.Buyer = None;
+	NewQueueElement.RefineryBuyer = MyRefinery;
 
-    if(team == TEAM_NOD) 
+    if(Rx_Building(MyRefinery).GetTeamNum() == TEAM_NOD) 
     {
-    	if(bNodRefDestroyed)
+    	if(Rx_Building(MyRefinery).IsDestroyed())
     		return;
 
-    	if(Airstrip.Length > 0)
-    		NewQueueElement.Factory = GetNearestProduction(None,NewQueueElement.L,NewQueueElement.R,team);
+    	NewQueueElement.VehClass  = NodHarvesterClass;
+		NewQueueElement.VehicleID = 255;
+		if(Airstrip.Length > 0)
+    		NewQueueElement.Factory = GetNearestProduction(Rx_Building(MyRefinery),NewQueueElement.L,NewQueueElement.R,Rx_Building(MyRefinery).GetTeamNum(),NewQueueElement.VehClass);
    		else
     	{
 			NewQueueElement.L = NOD_ProductionPlace.L;
 			NewQueueElement.R = NOD_ProductionPlace.R;    		
     	}
-    	NewQueueElement.VehClass  = NodHarvesterClass;
-		NewQueueElement.VehicleID = 255;//8;
 	    NOD_Queue.AddItem(NewQueueElement);
 	    if (!IsTimerActive('queueWork_NOD'))
 	    {
@@ -208,21 +191,23 @@ function QueueHarvester(byte team, bool bWithIncreasedDelay)
 	       }
 	    }
 	} 
-	else if(team == TEAM_GDI) 
+	else if(Rx_Building(MyRefinery).GetTeamNum() == TEAM_GDI) 
 	{
-    	if(bGDIRefDestroyed)
+    	if(Rx_Building(MyRefinery).IsDestroyed())
     		return;
- 
+
+     	NewQueueElement.VehClass  = GDIHarvesterClass;
+		NewQueueElement.VehicleID = 254 ;
+
     	if(WeaponsFactory.Length > 0)
-    		NewQueueElement.Factory = GetNearestProduction(None,NewQueueElement.L,NewQueueElement.R,team);    	
+    		NewQueueElement.Factory = GetNearestProduction(Rx_Building(MyRefinery),NewQueueElement.L,NewQueueElement.R,Rx_Building(MyRefinery).GetTeamNum(),NewQueueElement.VehClass);    	
     	else
     	{
 			NewQueueElement.L = GDI_ProductionPlace.L;
 			NewQueueElement.R = GDI_ProductionPlace.R;    		
     	}	    
 
-    	NewQueueElement.VehClass  = GDIHarvesterClass;
-		NewQueueElement.VehicleID = 254 ;//7;
+
 	    GDI_Queue.AddItem(NewQueueElement);
 	    if (!IsTimerActive('queueWork_GDI'))
 	    {	       
@@ -243,7 +228,7 @@ function SpawnC130()
 	local vector loc;
 	local rotator C130Rot;
 
-	if(bNodIsUsingAirdrops || !NOD_Queue[0].Factory.SpawnsC130)
+	if(bNodIsUsingAirdrops || !NOD_Queue[0].Factory.SpawnsC130())
 		return;
 	if(AirStrip.Length > 0) 
 	{
@@ -284,118 +269,65 @@ simulated function bool AreTeamFactoriesDestroyed(byte teamID)
 		return true;	
 }
 
-function Rx_Building_VehicleFactory GetNearestProduction(Rx_PRI Buyer, out Vector loc, out Rotator rot, optional byte TeamNum)
+function RxIfc_FactoryVehicle GetNearestProduction(Actor Buyer, out Vector loc, out Rotator rot, optional byte TeamNum, optional class<Rx_Vehicle> VehClass)
 {
 	local int i;
 	local float BestDist,CurDist;
-	local Rx_Building_VehicleFactory BestFactory;
+	local RxIfc_FactoryVehicle BestFactory;
 	local bool bActiveBuildingAvailable;
+	local Array<RxIfc_FactoryVehicle> FactoryList;
+	local vector RequesterLocation;
 
-	if(Buyer == None) // Probably Harvy
+	if(Buyer != None)
 	{
-		if(TeamNum == TEAM_GDI)
-		{
-			for(i=0; i<WeaponsFactory.length;i++)
-			{
-				if(BestFactory == None)
-				{
-					BestDist = VSizeSq(GDITibPoint.Location - WeaponsFactory[i].location);
-					BestFactory = WeaponsFactory[i];
-					if(!WeaponsFactory[i].IsDestroyed())
-						bActiveBuildingAvailable = true;
-				}
-				else if ((bActiveBuildingAvailable && !WeaponsFactory[i].IsDestroyed()) || (!bActiveBuildingAvailable))
-				{
-					CurDist = VSizeSq(GDITibPoint.Location - WeaponsFactory[i].location);
-					if(BestDist > CurDist)
-					{
-						BestDist = CurDist;
-						BestFactory = WeaponsFactory[i];
-					}
-					if(!bActiveBuildingAvailable &&!WeaponsFactory[i].IsDestroyed())
-						bActiveBuildingAvailable = true;
-				}
-			}
-			BestFactory.BuildingInternals.BuildingSkeleton.GetSocketWorldLocationAndRotation('Veh_Spawn', loc, rot);
-		}	
-		else if(TeamNum == TEAM_NOD)
-		{
-			for(i=0; i<Airstrip.length;i++)
-			{
-				if(BestFactory == None)
-				{
-					BestDist = VSizeSq(NodTibPoint.Location - Airstrip[i].location);
-					BestFactory = Airstrip[i];
-					if(!AirStrip[i].IsDestroyed())
-						bActiveBuildingAvailable = true;			
-				}
-				else if ((bActiveBuildingAvailable && !AirStrip[i].IsDestroyed()) || (!bActiveBuildingAvailable))
-				{
-					CurDist = VSizeSq(NodTibPoint.Location - Airstrip[i].location);
-					if(BestDist > CurDist)
-					{
-						BestDist = CurDist;
-						BestFactory = Airstrip[i];
-						if(!bActiveBuildingAvailable && !AirStrip[i].IsDestroyed())
-							bActiveBuildingAvailable = true;
-					}
-				}
-			}
-			BestFactory.BuildingInternals.BuildingSkeleton.GetSocketWorldLocationAndRotation('Veh_DropOff', loc, rot);
-		}		
-	}
+		if(Buyer.GetTeamNum() == 0)
+			FactoryList = WeaponsFactory;
 
-	else if(Buyer.GetTeamNum() == TEAM_GDI)
-	{			
-		for(i=0; i<WeaponsFactory.length;i++)
-		{
-			if(BestFactory == None)
-			{
-				BestDist = VSizeSq(Controller(Buyer.Owner).Pawn.Location - WeaponsFactory[i].location);
-				BestFactory = WeaponsFactory[i];
-				if(!WeaponsFactory[i].IsDestroyed())
-					bActiveBuildingAvailable = true;
-			}
-			else if ((bActiveBuildingAvailable && !WeaponsFactory[i].IsDestroyed()) || (!bActiveBuildingAvailable))
-			{
-				CurDist = VSizeSq(Controller(Buyer.Owner).Pawn.Location - WeaponsFactory[i].location);
-				if(BestDist > CurDist)
-				{
-					BestDist = CurDist;
-					BestFactory = WeaponsFactory[i];
-				}
-				if(!bActiveBuildingAvailable &&!WeaponsFactory[i].IsDestroyed())
-					bActiveBuildingAvailable = true;
-			}
-		}
-		BestFactory.BuildingInternals.BuildingSkeleton.GetSocketWorldLocationAndRotation('Veh_Spawn', loc, rot);
+		else
+			FactoryList = AirStrip;
 	}
-	else if(Buyer.GetTeamNum() == TEAM_NOD)
+	else
 	{
-		for(i=0; i<Airstrip.length;i++)
-		{
-			if(BestFactory == None)
-			{
-				BestDist = VSizeSq(Controller(Buyer.Owner).Pawn.Location - Airstrip[i].location);
-				BestFactory = Airstrip[i];
-				if(!AirStrip[i].IsDestroyed())
-					bActiveBuildingAvailable = true;			
-			}
-			else if ((bActiveBuildingAvailable && !AirStrip[i].IsDestroyed()) || (!bActiveBuildingAvailable))
-			{
-				CurDist = VSizeSq(Controller(Buyer.Owner).Pawn.Location - Airstrip[i].location);
-				if(BestDist > CurDist) 
-				{
-					BestDist = CurDist;
-					BestFactory = Airstrip[i];
-					if(!bActiveBuildingAvailable && !AirStrip[i].IsDestroyed())
-						bActiveBuildingAvailable = true;
-				}
-			}
-		}
-		BestFactory.BuildingInternals.BuildingSkeleton.GetSocketWorldLocationAndRotation('Veh_DropOff', loc, rot);
+		if(TeamNum == 0)
+			FactoryList = WeaponsFactory;
 
+		else
+			FactoryList = AirStrip;
 	}
+
+	if(Rx_PRI(Buyer) != None)
+		RequesterLocation = Controller(Rx_PRI(Buyer).Owner).Pawn.Location;
+
+	else
+		RequesterLocation = Buyer.Location;
+
+	for(i = 0; i < FactoryList.Length; i++)
+	{
+		if(VehClass != None && !FactoryList[i].CanProduceThisVehicle(VehClass))
+			continue;	
+
+		if(BestFactory == None)
+		{
+			BestDist = VSizeSq(RequesterLocation - Actor(FactoryList[i]).location);
+			BestFactory = FactoryList[i];
+			if(!FactoryList[i].IsDestroyed())
+				bActiveBuildingAvailable = true;
+		}
+		else if ((bActiveBuildingAvailable && !FactoryList[i].IsDestroyed()) || (!bActiveBuildingAvailable))
+		{
+			CurDist = VSizeSq(RequesterLocation - Actor(FactoryList[i]).location);
+			if(BestDist > CurDist)
+			{
+				BestDist = CurDist;
+				BestFactory = FactoryList[i];
+			}
+			if(!bActiveBuildingAvailable && !FactoryList[i].IsDestroyed())
+				bActiveBuildingAvailable = true;
+		}
+
+		BestFactory.GetVehicleSpawnPoint(loc, rot);	
+	}
+
 	if(BestFactory != None)
 		return BestFactory;
 
@@ -411,11 +343,13 @@ function bool QueueVehicle(class<Rx_Vehicle> inVehicleClass, Rx_PRI Buyer, int V
 	{
 		return false;
 	}
+	if(inVehicleClass == None)	// bots or humans may end up buying some nonexistent stuff, deny if it happens
+		return false;
 	
 	NewQueueElement.Buyer = Buyer;
 	NewQueueElement.VehClass = inVehicleClass;
 	NewQueueElement.VehicleID = VehicleID;
-	NewQueueElement.Factory = GetNearestProduction(Buyer, NewQueueElement.L, NewQueueElement.R);
+	NewQueueElement.Factory = GetNearestProduction(Buyer, NewQueueElement.L, NewQueueElement.R, ,NewQueueElement.VehClass);
 	
 	if(Buyer.GetTeamNum() == TEAM_NOD) 
 	{
@@ -458,7 +392,7 @@ function bool QueueVehicle(class<Rx_Vehicle> inVehicleClass, Rx_PRI Buyer, int V
 	}
 
 	if(NewQueueElement.Factory != None)
-		NewQueueElement.Factory.TriggerEventClass(Class'Rx_SeqEvent_FactoryEvent',NewQueueElement.Buyer.Owner,0);
+		Rx_Building(NewQueueElement.Factory).TriggerEventClass(Class'Rx_SeqEvent_FactoryEvent',NewQueueElement.Buyer.Owner,0);
 	
 	
 	return true;
@@ -493,8 +427,15 @@ function Actor SpawnVehicle(VQueueElement VehToSpawn, optional byte TeamNum = -1
    
 	if (TeamNum < 0)
 		TeamNum = VehToSpawn.Buyer.GetTeamNum();
-	  
-	  
+
+	if (VehToSpawn.VehClass.default.bIsAircraft && Rx_MapInfo(WorldInfo.GetMapInfo()).bAircraftDisabled)
+  	{
+  		if (VehToSpawn.Buyer != None)
+  			VehToSpawn.Buyer.AddCredits(VehToSpawn.VehClass.static.Cost(VehToSpawn.Buyer));
+
+  		return None;
+  	}
+
 	switch(TeamNum)
 	{
 		case TEAM_NOD: // buy for NOD
@@ -505,13 +446,14 @@ function Actor SpawnVehicle(VQueueElement VehToSpawn, optional byte TeamNum = -1
 					TempLoc.Z -= 500;
 					
 				AirdropingChinook = Spawn(class'Rx_Chinook_Airdrop', , , TempLoc, VehToSpawn.R, , false);
-				AirdropingChinook.initialize(VehToSpawn.Buyer,VehToSpawn.VehicleID, TeamNum);			
+				AirdropingChinook.initialize(VehToSpawn.Buyer,VehToSpawn.RefineryBuyer,VehToSpawn.VehicleID, TeamNum);			
 			}
 			else
 			{
 				SpawnLocation = VehToSpawn.L;
 				if (Rx_MapInfo(WorldInfo.GetMapInfo()).NodAirstripDropoffHeightOffset > 0 )
 					SpawnLocation.Z += Rx_MapInfo(WorldInfo.GetMapInfo()).NodAirstripDropoffHeightOffset ; 
+					SpawnLocation += VehToSpawn.VehClass.Static.GetSpawnOffset();
 					Veh = Spawn(VehToSpawn.VehClass,,, SpawnLocation,VehToSpawn.R,,true);
 							
 			}
@@ -527,7 +469,7 @@ function Actor SpawnVehicle(VQueueElement VehToSpawn, optional byte TeamNum = -1
 				}
 				else
 					AirdropingChinook = Spawn(class'Rx_Chinook_Airdrop_GDI', , , VehToSpawn.L, VehToSpawn.R, , false);
-				AirdropingChinook.initialize(VehToSpawn.Buyer,VehToSpawn.VehicleID, TeamNum);			
+				AirdropingChinook.initialize(VehToSpawn.Buyer,VehToSpawn.RefineryBuyer,VehToSpawn.VehicleID, TeamNum);			
 			}
 			else
 			{
@@ -568,9 +510,9 @@ function Actor SpawnVehicle(VQueueElement VehToSpawn, optional byte TeamNum = -1
 		InitVehicle(Veh,TeamNum,VehToSpawn.Buyer,VehToSpawn.VehicleID,SpawnLocation);
 
 		if(VehToSpawn.Buyer != None)
-			VehToSpawn.Factory.TriggerEventClass(Class'Rx_SeqEvent_FactoryEvent',VehToSpawn.Buyer.Owner,1);
+			Rx_Building(VehToSpawn.Factory).TriggerEventClass(Class'Rx_SeqEvent_FactoryEvent',VehToSpawn.Buyer.Owner,1);
 		else
-			VehToSpawn.Factory.TriggerEventClass(Class'Rx_SeqEvent_FactoryEvent',Veh,1);
+			Rx_Building(VehToSpawn.Factory).TriggerEventClass(Class'Rx_SeqEvent_FactoryEvent',Veh,1);
 		
 			return Veh;
 	}
@@ -681,6 +623,11 @@ function queueWork_GDI()
 		Veh = SpawnVehicle(GDI_Queue[0], TEAM_GDI);
 		if(Veh != None) 
 		{
+			if(Rx_Vehicle_Harvester(Veh) != None && GDI_Queue[0].RefineryBuyer != None)
+			{
+				Rx_Vehicle_Harvester(Veh).SetRefinery(GDI_Queue[0].RefineryBuyer);
+				GDI_Queue[0].RefineryBuyer.NotifyHarvesterCreated();
+			}
 			GDI_Queue.Remove(0, 1);
 			ClearTimer('queueWork_GDI');
 			if (GDI_Queue.Length > 0)
@@ -706,6 +653,15 @@ function queueWork_NOD()
 		Veh = SpawnVehicle(NOD_Queue[0], TEAM_NOD);
 		if(Veh != None) 
 		{
+			if(Rx_Vehicle_Harvester(Veh) != None && NOD_Queue[0].RefineryBuyer != None)
+			{
+				Rx_Vehicle_Harvester(Veh).SetRefinery(NOD_Queue[0].RefineryBuyer);
+				NOD_Queue[0].RefineryBuyer.NotifyHarvesterCreated();
+				bJustSpawnedNodHarv = true;
+
+				if (!IsTimerActive('ClearNodHarvSpawn'))
+					SetTimer(5,false,'ClearNodHarvSpawn');
+			}
 			NOD_Queue.Remove(0, 1);
 			ClearTimer('queueWork_NOD');
 			if (NOD_Queue.Length > 0)
@@ -714,12 +670,21 @@ function queueWork_NOD()
 					SetTimer(ProductionDelay+9.0f+NodAdditionalAirdropProductionDelay, false, 'queueWork_NOD');	
 				else
 					SetTimer(ProductionDelay+4.5f+NodAdditionalAirdropProductionDelay, false, 'queueWork_NOD');	
-				SetTimer(4.5f,false,'DelayedNodConstructionWarn');
+
+				if (!bJustSpawnedNodHarv)
+					SetTimer(4.5f,false,'DelayedNodConstructionWarn');
+				else
+					SetTimer(9.f,false,'DelayedNodConstructionWarn');
 			}
 		}
 	}
 	else
 		ClearTimer('queueWork_NOD');
+}
+
+function ClearNodHarvSpawn()
+{
+	bJustSpawnedNodHarv=false;
 }
 
 function DelayedNodConstructionWarn() {

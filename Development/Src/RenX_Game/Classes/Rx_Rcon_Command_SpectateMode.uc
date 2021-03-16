@@ -4,6 +4,7 @@ function string trigger(string parameters)
 {
 	local Rx_PRI PRI;
 	local string error;
+	local Pawn P;
 
 	if (parameters == "")
 		return "Error: Too few parameters." @ getSyntax();
@@ -17,7 +18,7 @@ function string trigger(string parameters)
 		return "Error: Player has no controller!";
 
 	if (Controller(PRI.Owner).Pawn != None)
-		Controller(PRI.Owner).Pawn.KilledBy(None);
+		P = Controller(PRI.Owner).Pawn;
 	
 	Controller(PRI.Owner).GoToState('Spectating');
 	if (PRI.Team != None)
@@ -29,6 +30,9 @@ function string trigger(string parameters)
 	}
 	PRI.DestroyATMines();
 	PRI.DestroyRemoteC4();
+
+	if (P != None)
+		P.KilledBy(None);
 
 	return "";
 }

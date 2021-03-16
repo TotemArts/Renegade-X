@@ -22,7 +22,7 @@ simulated function CustomFire()
 }
 
 /** Modified version of Rx_Weapon::TryHeadshot(...) that allows Shotgun headshots to work. */
-simulated function bool TryHeadshot(byte FiringMode, ImpactInfo Impact) 
+simulated function bool TryHeadshot(byte FiringMode, ImpactInfo Impact, optional float DmgReduction = 1.0) 
 {
 	local float Scaling;
 	local int HeadDamage;

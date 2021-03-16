@@ -24,10 +24,10 @@ defaultproperties
 	Inf_LazarusDamageScaling = 1.0  // Lazarus SBH armour, standard rule is +40% to Electrical damage but likely no other damage modifiers.
 	
     bPiercesArmor=false
-	bCausesBleed=false
+	bCausesBleed=true
 	
-	BleedDamageFactor=0
-	BleedCount=0
+	BleedDamageFactor=0.05
+	BleedCount=5
 
 	IconTextureName="T_WeaponIcon_TiberiumAutoRifle"
 	IconTexture=Texture2D'RX_WP_TiberiumAutoRifle.UI.T_WeaponIcon_TiberiumAutoRifle'

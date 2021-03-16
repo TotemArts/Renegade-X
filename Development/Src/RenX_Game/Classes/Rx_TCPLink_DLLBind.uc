@@ -17,7 +17,7 @@ dllimport final function int c_set_blocking(Socket in_socket, int in_value); // 
 dllimport final function int c_check_status(Socket in_socket); // -1: remove the socket; 0: still processing connect; 1: connected
 dllimport final function int c_get_last_error();
 dllimport final function bool UpdateGame();
-dllimport final function UpdateDiscordRPC(string in_server_name, string in_level_name, int in_player_count, int in_max_players, int in_team_num, int in_time_elapsed, int in_time_remaining);
+dllimport final function UpdateDiscordRPC(string in_server_name, string in_level_name, int in_player_count, int in_max_players, int in_team_num, int in_time_elapsed, int in_time_remaining, int isFirestorm, string in_image_name);
 dllimport final function take_ss(pointer viewport, out ByteArrayWrapper data);
 dllimport final function write_ss(out ByteArrayWrapper in_data);
 dllimport final function int copy_array_to_buffer(out ByteBufferWrapper destination, out ByteArrayWrapper source, int offset); // returns bytes copied

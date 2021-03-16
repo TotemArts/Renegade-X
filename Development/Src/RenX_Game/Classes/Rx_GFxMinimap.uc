@@ -264,9 +264,12 @@ function UpdateActorBlips()
 	
 	foreach ThisWorld.DynamicActors(class'Actor', P, class'RxIfc_RadarMarker')
 	{	
-		//if(!P.isA('Pawn') && !P.isA('Rx_BasicPawn')) continue; 
+		//if(!P.isA('Pawn') && !P.isA('Rx_BasicPawn')) continue;
 		
 		Marker = RxIfc_RadarMarker(P);
+
+		// Dont draw harvester waypoint for non-commanders if harv isnt stopped
+		if (Rx_CommanderWaypoint(P) != None && InStr(Rx_CommanderWaypoint(P).GetName(), "Harvester") != INDEX_NONE && !Rx_TeamInfo(rxGRI.Teams[RxPC.GetTeamNum()]).bHarvesterStopped && !Rx_PRI(RxPC.PlayerReplicationInfo).bIsCommander) continue;
 		
 		//`log(Marker.GetRadarVisibility())
 		
@@ -340,6 +343,10 @@ function UpdateActorBlips()
 					Neutral.AddItem(P);
 				}
 				else if (IconType == ICON_VEHICLE)
+				{
+					NeutralVehicle.AddItem(P);
+				}
+				else if (IconType == ICON_MISC)
 				{
 					NeutralVehicle.AddItem(P);
 				}
@@ -426,20 +433,33 @@ function UpdateActorBlips()
 	}
 }
 
-function array<GFxObject> GenGDIIcons(int IconCount)
+function array<GFxObject> GenGDIIcons(int IconCount, optional bool bSquad)
 {
    	local array<GFxObject> Icons;
    	local GFxObject IconMC;
     local int i;
+	local ASColorTransform ColorTransform;
 	for (i = 0; i < IconCount; i++)
     {
         IconMC = icons_Friendly.AttachMovie("FriendlyBlips", "GDI_Player"$IconsFriendlyCount++);
+		//@roxez: Debugging blips
+        //IconMC = icons_Friendly.AttachMovie("DebugBlips", "GDI_Player"$IconsFriendlyCount++);
+		if(bSquad)
+		{
+			ColorTransform.multiply.R = 0.25;
+			ColorTransform.multiply.G = 0.25;
+			ColorTransform.multiply.B = 0.25;
+			ColorTransform.add.R = 0.0;
+			ColorTransform.add.G = 0.75;
+			ColorTransform.add.B = 0.75;
+			IconMC.SetColorTransform(ColorTransform);
+		}
         Icons[i] = IconMC;
     }
     return Icons;
 }
 
-function array<GFxObject> GenGDIVehicleIcons(int IconCount)
+function array<GFxObject> GenGDIVehicleIcons(int IconCount, optional bool bSquad)
 {
 	local ASColorTransform ColorTransform;
    	local array<GFxObject> Icons;
@@ -448,32 +468,61 @@ function array<GFxObject> GenGDIVehicleIcons(int IconCount)
 	for (i = 0; i < IconCount; i++)
     {
         IconMC = icons_Friendly.AttachMovie("VehicleMarker", "GDI_Vehicle"$IconsVehicleFriendlyCount++);
-		ColorTransform.multiply.R = 0.25;
-		ColorTransform.multiply.G = 0.25;
-		ColorTransform.multiply.B = 0.25;
-		ColorTransform.add.R = 0.75;
-		ColorTransform.add.G = 0.58;
-		ColorTransform.add.B = 0;
+		
+		if(bSquad)
+		{
+			ColorTransform.multiply.R = 0.25;
+			ColorTransform.multiply.G = 0.25;
+			ColorTransform.multiply.B = 0.25;
+			ColorTransform.add.R = 0.0;
+			ColorTransform.add.G = 0.75;
+			ColorTransform.add.B = 0.75;
+			IconMC.SetColorTransform(ColorTransform);
+		}
+		else
+		{
+			ColorTransform.multiply.R = 0.25;
+			ColorTransform.multiply.G = 0.25;
+			ColorTransform.multiply.B = 0.25;
+			ColorTransform.add.R = 0.75;
+			ColorTransform.add.G = 0.58;
+			ColorTransform.add.B = 0;
 		IconMC.SetColorTransform(ColorTransform);
+		}
+		
         Icons[i] = IconMC;
     }
     return Icons;
 }
 
-function array<GFxObject> GenNodIcons(int IconCount)
+function array<GFxObject> GenNodIcons(int IconCount, optional bool bSquad)
 {
 	local array<GFxObject> Icons;
 	local GFxObject IconMC;
     local int i;
+	local ASColorTransform ColorTransform;
+	
 	for (i = 0; i < IconCount; i++)
     {
         IconMC = icons_Enemy.AttachMovie("EnemyBlips", "Nod_Player" $IconsEnemyCount++);
+		//@roxez: Debugging blips
+        //IconMC = icons_Enemy.AttachMovie("DebugBlips", "Nod_Player" $IconsEnemyCount++);
+		if(bSquad)
+		{
+			ColorTransform.multiply.R = 0.25;
+			ColorTransform.multiply.G = 0.25;
+			ColorTransform.multiply.B = 0.25;
+			ColorTransform.add.R = 0.0;
+			ColorTransform.add.G = 0.75;
+			ColorTransform.add.B = 0.75;
+			IconMC.SetColorTransform(ColorTransform);
+		}
         Icons[i] = IconMC;
     }
     return Icons;
 }
 
-function array<GFxObject> GenNodVehicleIcons(int IconCount)
+function array<GFxObject> GenNodVehicleIcons(int IconCount, optional bool bSquad)
 {
 	local ASColorTransform ColorTransform;
 	local array<GFxObject> Icons;
@@ -481,14 +530,28 @@ function array<GFxObject> GenNodVehicleIcons(int IconCount)
     local int i;
 	for (i = 0; i < IconCount; i++)
     {
-        IconMC = icons_Friendly.AttachMovie("VehicleMarker", "Nod_Vehicle"$IconsVehicleEnemyCount++);
-		ColorTransform.multiply.R = 0.25;
-		ColorTransform.multiply.G = 0.25;
-		ColorTransform.multiply.B = 0.25;
-		ColorTransform.add.R = 0.75;
-		ColorTransform.add.G = 0;
-		ColorTransform.add.B = 0;
-		IconMC.SetColorTransform(ColorTransform);
+		IconMC = icons_Friendly.AttachMovie("VehicleMarker", "Nod_Vehicle"$IconsVehicleEnemyCount++);
+		if(bSquad)
+		{
+			ColorTransform.multiply.R = 0.25;
+			ColorTransform.multiply.G = 0.25;
+			ColorTransform.multiply.B = 0.25;
+			ColorTransform.add.R = 0.0;
+			ColorTransform.add.G = 0.75;
+			ColorTransform.add.B = 0.75;
+			IconMC.SetColorTransform(ColorTransform);
+		}
+		else
+		{
+			ColorTransform.multiply.R = 0.25;
+			ColorTransform.multiply.G = 0.25;
+			ColorTransform.multiply.B = 0.25;
+			ColorTransform.add.R = 0.75;
+			ColorTransform.add.G = 0;
+			ColorTransform.add.B = 0;
+			IconMC.SetColorTransform(ColorTransform);
+		}
+        
         Icons[i] = IconMC;
     }
     return Icons;
@@ -520,7 +583,7 @@ function array<GFxObject> GenNeutralVehicleIcons(int IconCount)
     return Icons;
 }
 
-function UpdateIcons(out array<Actor> Actors, out array<GFxObject> ActorIcons, TEAM TeamInfo, bool bVehicle)
+function UpdateIcons(out array<Actor> Actors, out array<GFxObject> ActorIcons, TEAM TeamInfo, bool bVehicle, optional bool bSquad = false)
 {
 	// HARDCODED: Radius = 124
 
@@ -549,10 +612,10 @@ function UpdateIcons(out array<Actor> Actors, out array<GFxObject> ActorIcons, T
 		switch (TeamInfo) 
 		{
 			case TEAM_GDI:
-				Icons = bVehicle ? GenGDIVehicleIcons(Actors.Length - ActorIcons.Length) : GenGDIIcons(Actors.Length - ActorIcons.Length);
+				Icons = bVehicle ? GenGDIVehicleIcons(Actors.Length - ActorIcons.Length, bSquad) : GenGDIIcons(Actors.Length - ActorIcons.Length, bSquad);
 				break;
 			case TEAM_NOD:
-				Icons = bVehicle ? GenNodVehicleIcons(Actors.Length - ActorIcons.Length) : GenNodIcons(Actors.Length - ActorIcons.Length);
+				Icons = bVehicle ? GenNodVehicleIcons(Actors.Length - ActorIcons.Length, bSquad) : GenNodIcons(Actors.Length - ActorIcons.Length, bSquad);
 				break;
 			default:
 				Icons = bVehicle ? GenNeutralVehicleIcons(Actors.Length - ActorIcons.Length) : GenNeutralIcons(Actors.Length - ActorIcons.Length);
@@ -567,6 +630,14 @@ function UpdateIcons(out array<Actor> Actors, out array<GFxObject> ActorIcons, T
 		for (i = Actors.Length; i < ActorIcons.Length; i++) {
 			ActorIcons[i].SetDisplayInfo(displayInfo);
 		}
+	}
+
+	if(bSquad)
+	{
+		displayInfo.HasXScale = true;
+		displayInfo.HasYScale = true;
+		displayInfo.XScale = 110.f;
+		displayInfo.YScale = 110.f;
 	}
 
 
@@ -586,7 +657,11 @@ function UpdateIcons(out array<Actor> Actors, out array<GFxObject> ActorIcons, T
 		displayInfo.Y = V.Y;
 
 		//@shahman: icon rotation = actor's rotation + compass's rotation + rotation offset
-		displayInfo.Rotation = (CurrentMarker.GetRadarActorRotation().Yaw * UnrRotToDeg) +  CompassDir + IconRotationOffset ;
+		if(Rx_Weapon_DeployedActor(Actors[i]) != None)
+			displayInfo.Rotation = (CurrentMarker.GetRadarActorRotation().Yaw + IconRotationOffset);
+
+		else
+			displayInfo.Rotation = (CurrentMarker.GetRadarActorRotation().Yaw * UnrRotToDeg) +  CompassDir + IconRotationOffset ;
 		
 		//Condition for other blips that is not the same team as the player owner
 		if (rxGRI != none && (Pawn(GetPC().viewtarget).GetTeamNum() != Actors[i].GetTeamNum()) ) {
@@ -608,7 +683,8 @@ function UpdateIcons(out array<Actor> Actors, out array<GFxObject> ActorIcons, T
 						displayInfo.Visible = true;		
 				}
 				
-				if (RxHUD.RenxHud.TargetingBox.TargetedActor == Actors[i]) 
+				if (RxHUD.RenxHud.TargetingBox.TargetedActor != none &&
+					RxHUD.RenxHud.TargetingBox.TargetedActor.GetActualTarget() == Actors[i]) 
 						{
 							displayInfo.Visible = true;
 						}
@@ -641,36 +717,6 @@ function UpdateIcons(out array<Actor> Actors, out array<GFxObject> ActorIcons, T
 	}
 
 }
-
-/**
-function string GetVehicleIconName(Actor marker)
-{
-	local Rx_Vehicle RxV;
-
-	RxV = Rx_Vehicle(marker);
-	if (RxV == none) return "default";
-
-	if(Rx_Vehicle_A10(RxV) != none) return "A-10";
-	else if(Rx_Vehicle_Apache(RxV) != none) return "Apache";
-	else if(Rx_Vehicle_APC_GDI(RxV) != none) return "APC GDI";
-	else if(Rx_Vehicle_APC_Nod(RxV) != none) return "APC Nod";
-	else if(Rx_Vehicle_Artillery(RxV) != none) return "Artillery";
-	else if(Rx_Vehicle_Buggy(RxV) != none) return "Buggy";
-	else if(Rx_Vehicle_C130(RxV) != none) return "C-130";
-	else if(Rx_Vehicle_Chinook_GDI(RxV) != none) return "Chinook";
-	else if(Rx_Vehicle_Chinook_Nod(RxV) != none) return "Chinook";
-	else if(Rx_Vehicle_FlameTank(RxV) != none) return "Flame Tank";
-	else if(Rx_Defence(RxV) != none) return "Gun Emplacement"; 
-	else if(Rx_Vehicle_Harvester(RxV) != none) return "Harvester";
-	else if(Rx_Vehicle_Humvee(RxV) != none) return "Humvee";
-	else if(Rx_Vehicle_LightTank(RxV) != none) return "Light Tank";
-	else if(Rx_Vehicle_MammothTank(RxV) != none) return "Mammoth Tank";
-	else if(Rx_Vehicle_MediumTank(RxV) != none) return "Medium Tank";
-	else if(Rx_Vehicle_MRLS(RxV) != none) return "MLRS";
-	else if(Rx_Vehicle_Orca(RxV) != none) return "Orca";
-	else if(Rx_Vehicle_StealthTank(RxV) != none) return "Stealth Tank";
-	else return "default";
-}*/
 
 function bool WithinMinimapBox(Vector V)
 {

@@ -161,4 +161,5 @@ DefaultProperties
 	Mesh = BeamMesh
 	bTickIsDisabled = false
 	TickGroup = TG_PostAsyncWork
+	LifeSpan = 15
 }

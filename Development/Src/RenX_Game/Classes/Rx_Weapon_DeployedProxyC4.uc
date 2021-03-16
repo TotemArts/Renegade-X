@@ -3,8 +3,8 @@
  */
 
 class Rx_Weapon_DeployedProxyC4 extends Rx_Weapon_DeployedRemoteC4
-	implements (RxIfc_EMPable)
-	implements (RxIfc_TargetedDescription);
+	implements(RxIfc_EMPable)
+	implements(RxIfc_TargetedDescription);
 
 `include(RenX_Game\RenXStats.uci);
 
@@ -24,20 +24,27 @@ var Controller EMPInstigator;
 var Actor EMPActor, DebugActor, hitActor;
 var bool bDebugWeapon;
 
+var ParticleSystem EMPPSTemplate;
+var UTParticleSystemComponent EMPParticleSystem;
+
+var bool IsTeamProxyC4;
+
 replication
 {
 	if (bNetInitial)
-		OwnerPRI;
+		OwnerPRI, IsTeamProxyC4;
 }
 
 simulated function PostBeginPlay()
 {
-	Super(Rx_Weapon_DeployedActor).PostBeginPlay();
-	if(InstigatorController != none)
+	super(Rx_Weapon_DeployedActor).PostBeginPlay();
+
+	if (InstigatorController != none)
 	{
 		OwnerPRI = InstigatorController.PlayerReplicationInfo;
 		Planter = InstigatorController;
 	}
+
 	ClearTimer('Explosion'); 
 	ClearTimer('CountDown'); 
 
@@ -46,22 +53,44 @@ simulated function PostBeginPlay()
 	SetTimer(1.0, true, nameof(CheckVis));
 }
 
+function KillCheck()
+{
+	if (Role == ROLE_Authority && !IsTeamProxyC4)
+	{
+		// Destroy when player dies
+		if (Instigator == None || Instigator.Health <= 0)
+			Destroy();
+	}
+}
+
+simulated function Destroyed() 
+{
+	if (!bDestroyed) 
+	{
+		if (Role == ROLE_Authority && bUsesMineLimit && IsTeamProxyC4)
+		{
+			Rx_TeamInfo(Rx_Game(WorldInfo.Game).Teams[GetTeamNum()]).mineCount--;
+			if (Rx_Building(Base) != None) Rx_Building(Base).RemoveMine(self);
+		}
+
+		super(Rx_Weapon_DeployedC4).Destroyed();
+
+		bDestroyed = true;
+	}
+}
+
 simulated function PerformDeploy()
 {
 	super.PerformDeploy();
-    settimer(0.4, true, 'CheckProxy');
-    /**
-    if (WorldInfo.Game.NumBots > 0)
-    {
-       Spawn(class'UTAvoidMarker'); // for AI
-    }
-    */	
+
+    SetTimer(0.4, true, 'CheckProxy');
 	`RecordGamePositionStat(WEAPON_MINE_DEPLOYED , location, 1);
 }
+
 //Dont stick to walls. 
-event HitWall( vector HitNormal, actor Wall, PrimitiveComponent WallComp)
+event HitWall(vector HitNormal, actor Wall, PrimitiveComponent WallComp)
 {
-   	Super(Actor).HitWall (HitNormal, Wall, WallComp);
+   	Super(Actor).HitWall(HitNormal, Wall, WallComp);
 }
 
 function Landed(vector HitNormal, Actor FloorActor)
@@ -70,30 +99,31 @@ function Landed(vector HitNormal, Actor FloorActor)
 	local Rx_Buildings_DoorSensor ClosestDoorSensor;
 		
 	super(Rx_Weapon_DeployedC4).Landed(HitNormal, FloorActor);
+	SetTimer(1.0, true, 'KillCheck');
 	
-	if(Rx_Building_WeaponsFactory(FloorActor) != None || Rx_Building_Barracks(FloorActor) != None || Rx_Building_AirTower(FloorActor) != None
+	if (Rx_Building_WeaponsFactory(FloorActor) != None || Rx_Building_Barracks(FloorActor) != None || Rx_Building_AirTower(FloorActor) != None
 			|| Rx_Building_AdvancedGuardTower(FloorActor) != None || Rx_Building_Obelisk(FloorActor) != None)
 		return;	
 	
-	if(Rx_Building_HandOfNod(IsInBuilding()) != None)
+	if (Rx_Building_HandOfNod(IsInBuilding()) != None)
 	{
-		if(Rx_Building_HandOfNod(FloorActor) == None)
+		if (Rx_Building_HandOfNod(FloorActor) == None)
 			Move(HitNormal * 5); // prevents the mines from sinking into the bottom of the two gates near the HON MCT
 		return;	
 	}	
 	
-	if(IsInBuilding() == None)
+	if (IsInBuilding() == None)
 		return;
 	
-	foreach AllActors( class'Rx_Buildings_DoorSensor', V )
+	foreach AllActors(class'Rx_Buildings_DoorSensor', V)
 	{
-		if(closestDoorSensor == None)
+		if (closestDoorSensor == None)
 			ClosestDoorSensor = V;
-		else if(VSizeSq(location-V.Location) < VSizeSq(location-ClosestDoorSensor.Location))
+		else if (VSizeSq(location-V.Location) < VSizeSq(location-ClosestDoorSensor.Location))
 			ClosestDoorSensor = V;		
 	}	
 	
-	if(VSizeSq(location-ClosestDoorSensor.Location) <= 13225)
+	if (VSizeSq(location-ClosestDoorSensor.Location) <= 13225)
 	{
 		Move(HitNormal * 4.5); // if close to a door move up a bit to prevent sinking into the no collision geom that Ref and PP have at their doors		
 		return;					
@@ -101,25 +131,9 @@ function Landed(vector HitNormal, Actor FloorActor)
 	
 }
 
-
 function Rx_Building IsInBuilding() 
 {
-	local Vector TraceStart;
-	local Vector TraceEnd;
-	local Vector TraceExtent;
-	local Vector OutHitLocation, OutHitNormal;
-	local TraceHitInfo HitInfo;
-	local Actor TraceActor;	
-	
-	TraceStart = Instigator.Location;
-	TraceEnd = Instigator.Location;
-	TraceEnd.Z += 400.0f;
-	// trace up and see if we are hitting a building ceiling  
-	TraceActor = Instigator.Trace(OutHitLocation, OutHitNormal, TraceEnd, TraceStart, TRUE, TraceExtent, HitInfo, TRACEFLAG_Bullet);
-	if(Rx_Building(TraceActor) != None) {
-		return Rx_Building(TraceActor);
-	}
-	return None;
+	return Rx_Building(Base);
 }
 
 function CheckProxy()
@@ -130,30 +144,34 @@ function CheckProxy()
 	local vector ScanLoc;
 	
 	//Store our location, but scan from about 13 units above our location. 
-	ScanLoc=location; 
+	ScanLoc = location; 
 	   
-	ScanLoc.z+=TestHeight;
+	ScanLoc.z += TestHeight;
 	   
 	ForEach VisibleCollidingActors(class'Rx_Pawn', P, TriggerRadius,ScanLoc, true)
 	{
-      if ((GetTeamNum() != P.GetTeamNum()) && (P.Health > 0) && bDeployed) {
-      	Activator = P;
-		Detonate();
-		ClearTimer('CheckProxy');
-		break;
-      }
+		if (P.GetTeamNum() == 0 || P.GetTeamNum() == 1)
+		{
+			if ((GetTeamNum() != P.GetTeamNum()) && (P.Health > 0) && bDeployed)
+     		{
+     			Activator = P;
+				Detonate();
+				ClearTimer('CheckProxy');
+				break;
+     		}
+		}
    }
+
    if(bDebugWeapon) 
    {
-	    
 	   hitActor=Trace(endL, normthing, DebugActor.location,ScanLoc, true) ;
 		`log(hitActor); 
    }
    
-   
 	ForEach OverlappingActors(class'Rx_Vehicle', V, VehicleTriggerRadius,, true)
 	{
-      if ((GetTeamNum() != V.GetTeamNum()) && (V.Health > 0) && bDeployed && !(V.GetTeamNum() == 255)) {
+      if ((GetTeamNum() != V.GetTeamNum()) && (V.Health > 0) && bDeployed && !(V.GetTeamNum() == 255)) 
+      {
       	Detonate();
 		ClearTimer('CheckProxy');
 		break;
@@ -182,7 +200,7 @@ function Explosion()
 	if (WorldInfo.NetMode != NM_DedicatedServer)
 		PlayExplosionEffect();
 
-	if ( Role == ROLE_Authority )
+	if (Role == ROLE_Authority)
 	{
 	//	if(Activator != None && FastTrace(Activator.location,location))
 		if(Activator != None && FastTrace(Activator.location,ZOffsetLocation))
@@ -213,18 +231,16 @@ function bool EMPHit(Controller InstigatedByController, Actor EMPCausingActor, o
 {
 	//local Rx_Projectile VetActor;
 	
-	if(Rx_Projectile_EMPGrenade(EMPCausingActor) != EMPActor && InstigatedByController.GetTeamNum() != GetTeamNum())
-		{
+	if (Rx_Projectile_EMPGrenade(EMPCausingActor) != EMPActor && InstigatedByController.GetTeamNum() != GetTeamNum())
+	{
 			//VetActor=Rx_Projectile(EMPCausingActor);
 		TakeDamage(Rx_Projectile_EMPGrenade(EMPCausingActor).Init_MineDamage, InstigatedByController, Location, Vect(0,0,0), class'Rx_DmgType_EMP',,EMPCausingActor); //Check 1st if we've already taken this hit. Keeps the grenade from hitting mine it collides with twice. 
-		if(EMPTicks > 0) EMPActor=EMPCausingActor; /*Prevent EMP Mine damage from doubling up when the mine is already suffering from EMP effect. */
-		
-		}
-	
-	
+		if(EMPTicks > 0) EMPActor=EMPCausingActor; /*Prevent EMP Mine damage from doubling up when the mine is already suffering from EMP effect. */	
+	}
 	
 	if (InstigatedByController.GetTeamNum() == GetTeamNum() || EMPTicks > 0)
 		return false;
+
 	EMPTicks = EMPDisarmTime+TimeModifier; //EMP mines are finicky... and they have a tendency to screw up decimal places apparently, so it was just easier to tell it to tick two extra times instead of possibly stopping at 2%
 	EMPInstigator = InstigatedByController;
 	EMPActor = EMPCausingActor;
@@ -245,9 +261,9 @@ function EMPDisarmTick()
 		ClearTimer('EMPDisarmTick');
 	}
 	
-		}
+}
 
-		/**Take damage needs to account for the fact the EMP grenades EXPLODE.. and are destroyed. Sometimes mines won't update and will still have a reference to the grenade all the way through disarming.. other times EMPActor gets set to 'none' and 'none' can not disarm the mine.*/
+/**Take damage needs to account for the fact the EMP grenades EXPLODE.. and are destroyed. Sometimes mines won't update and will still have a reference to the grenade all the way through disarming.. other times EMPActor gets set to 'none' and 'none' can not disarm the mine.*/
 function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)
 {
 	if (!CanDisarmMe(DamageCauser) && DamageType != class'Rx_DmgType_EMP') //If it's EMP damage just roll with the punches.
@@ -269,35 +285,62 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 		if (WorldInfo.NetMode == NM_DedicatedServer || WorldInfo.NetMode == NM_ListenServer) // trigger client replication
 			bDisarmed = true;
 		if (WorldInfo.NetMode != NM_DedicatedServer)
-			PlayDisarmedEffect();      
+		{
+			if ((EventInstigator.PlayerReplicationInfo != none && EventInstigator.PlayerReplicationInfo.GetTeamNum() != TeamNum) || EventInstigator.PlayerReplicationInfo == None)
+				PlayDisarmedEffect();
+			else
+				PlayDisarmedEffectNoSound();
+		}
 			ClearTimer('Explosion');
 
 		
 		if (EventInstigator.PlayerReplicationInfo != none && EventInstigator.PlayerReplicationInfo.GetTeamNum() != TeamNum)
 		{
 			Rx_Controller(EventInstigator).DisseminateVPString( "[Mine Disarmed]&" $ class'Rx_VeterancyModifiers'.default.Ev_C4Disarmed $ "&");
-			Rx_Pri(EventInstigator.PlayerReplicationInfo).AddMineDisarm();
-			Rx_Pri(EventInstigator.PlayerReplicationInfo).AddScoreToPlayerAndTeam(DisarmScoreReward,true);
+			Rx_PRI(EventInstigator.PlayerReplicationInfo).AddMineDisarm();
+			Rx_PRI(EventInstigator.PlayerReplicationInfo).AddScoreToPlayerAndTeam(DisarmScoreReward,true);
 		}
 		
 		SetTimer(0.1, false, 'DestroyMe'); // delay it a bit so disappearing blends a littlebit better with the disarmed effects
 	}
 }
-		
-		
-function EnteredEMPField(Rx_EMPField EMPField); // Figured this would be where I'd start for burst damage.. but guess not. 
-function LeftEMPField(Rx_EMPField EMPField);
 
-simulated function string GetTargetedDescription(PlayerController PlayerPerspective)
+simulated function PlayDisarmedEffectNoSound()
 {
-	if (OwnerPRI != None && PlayerPerspective.GetTeamNum() == GetTeamNum())
+   local vector SpawnLocation;
+   local rotator SpawnRotation;
+
+	if (WorldInfo.NetMode != NM_DedicatedServer)
 	{
-		if (PlayerPerspective.PlayerReplicationInfo == OwnerPRI)
-			return "Your Mine";
-		else 
-			return "Placed by "$OwnerPRI.PlayerName;
+		SpawnLocation = Location;
+		SpawnRotation = Rotation;
+		SpawnDisarmedEmitter(SpawnLocation, SpawnRotation);
 	}
-	return "";
+}
+
+function EnteredEMPField(Rx_EMPField EMPField) // Figured this would be where I'd start for burst damage.. but guess not. 
+{
+	if (EMPParticleSystem == None)
+	{
+		EMPParticleSystem = new(Outer) class'UTParticleSystemComponent';
+		EMPParticleSystem.bAutoActivate = false;
+		EMPParticleSystem.SetTemplate(EMPPSTemplate);
+		EMPParticleSystem.SetScale(0.1);
+		SkeletalMeshComponent(Mesh).AttachComponentToSocket(EMPParticleSystem, 'EMPEffect');
+	}
+
+	if (EMPParticleSystem != None)
+	{
+		EMPParticleSystem.ActivateSystem();
+	}
+}
+
+function LeftEMPField(Rx_EMPField EMPField)
+{
+	if (EMPParticleSystem != None)
+	{
+		EMPParticleSystem.DeactivateSystem();
+	}
 }
 
 simulated function CheckVis()
@@ -321,22 +364,38 @@ simulated function bool IsInRange(PlayerController C)
 	return VSizeSq(Location - C.Pawn.Location) < Square(MaxViewDistance);
 }
 
-defaultproperties
+
+//RxIfc_Targetable
+simulated function string GetTargetedDescription(PlayerController PlayerPerspective)
 {
-   
+	if (OwnerPRI != None && PlayerPerspective.GetTeamNum() == GetTeamNum())
+	{
+		if (PlayerPerspective.PlayerReplicationInfo == OwnerPRI)
+			return "Your Mine";
+		else 
+			return "Placed by "$OwnerPRI.PlayerName;
+	}
+
+	return "";
+}
+
+DefaultProperties
+{
     DeployableName="Proximity Mine"
-    HP = 200
+    HP=200
     Damage=80//50
     DirectLineOfSightDamage=60//30
 	DmgRadius=360
 	DamageMomentum=8000.0
 	TriggerRadius=130//130	 
 	VehicleTriggerRadius=5
-	DetonateDelay = 0.0f
+	DetonateDelay=0.0f
 	bUsesMineLimit=true
 	bIsRemoteC4=false
+	WeaponClass=class'Rx_Weapon_ProxyC4'
 
-	MaxViewDistance = 300
+	EMPPSTemplate=ParticleSystem'rx_wp_proxyc4.Particles.P_EMPEffect'
+	MaxViewDistance=300
 
 	Begin Object Class=StaticMeshComponent Name=TMesh
 		StaticMesh=StaticMesh'RenX_AssetBase.Mesh.SM_Sphere_Rad100'
@@ -364,7 +423,7 @@ defaultproperties
 	InnerExplosionShakeRadius=50.0
 	OuterExplosionShakeRadius=400.0	
 
-	DisarmScoreReward = 20
+	DisarmScoreReward=20
 	EMPDisarmTime=13.33 //Counteracts 25% burst damage from initial mine explosion. Keeps disarm time roughly the same
 
 	Begin Object Name=DeployableMesh

@@ -15,7 +15,8 @@ event PostBeginPlay()
 {
 	super.PostBeginPlay();
 
-	SetTimer(3.0, false, 'ChooseTactics');
+// Disabling tactics for now because it kinda mess things up. Will revisit later
+//	SetTimer(3.0, false, 'ChooseTactics');
 
 }
 

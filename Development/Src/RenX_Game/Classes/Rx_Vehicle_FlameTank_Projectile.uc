@@ -12,8 +12,9 @@
 *********************************************************
 *
 *********************************************************/
-class Rx_Vehicle_FlameTank_Projectile extends Rx_Vehicle_Projectile;
+class Rx_Vehicle_FlameTank_Projectile extends Rx_Vehicle_Projectile_Spray;
 
+/**
 simulated function PostBeginPlay()
 {
 	super.PostBeginPlay(); 
@@ -22,7 +23,18 @@ simulated function PostBeginPlay()
 	{
 		CylinderComponent.SetCylinderSize(1,1);
 	}
-}
+}*/
+
+simulated function InitializeSpray()
+{
+	//Set our initial Spray Radii 
+	SprayRadii = MinSprayRadii;
+	
+	//`log("Radii InitL (" $ MaxSprayRadii.X @ "-" @ MinSprayRadii.X @ ")" @ "/" @ LifeSpan $ "/0.1"); 
+	SprayRadiiIncrement.X = 3.65; //(MaxSprayRadii.X - MinSprayRadii.X)/(LifeSpan/0.15);
+	SprayRadiiIncrement.Y = 3.65; //(MaxSprayRadii.Y - MinSprayRadii.Y)/(LifeSpan/0.15);
+	SprayRadiiIncrement.Z = 3.65; //(MaxSprayRadii.Z - MinSprayRadii.Z)/(LifeSpan/0.15);
+} 
 	
 DefaultProperties
 {
@@ -63,20 +75,22 @@ DefaultProperties
 //	bRotationFollowsVelocity=true
 //	TossZ=50
     
-    Speed=3000			// 1500
+    Speed=3000			// 1500Int
     MaxSpeed=3000 		// 1500
     LifeSpan=0.7		// 1.0
     Damage=7 			// 13
-    DamageRadius=200
+    DamageRadius=0//200
 	HeadShotDamageMult=1
     MomentumTransfer=1
 	
-	//SprayRadii = (X=30.0,Y=30.0,Z=30.0)
+	MaxSprayRadii = (X=25.0,Y=25.0,Z=25.0) //You're THIS big in the end 
+	MinSprayRadii =  (X=8.0,Y=8.0,Z=8.0) //You're this big to start with 
 	
-	Begin Object Name=CollisionCylinder
+	
+	/**Begin Object Name=CollisionCylinder
 		CollisionRadius=30
 		CollisionHeight=30
-	End Object
+	End Object*/
 	
 	
 

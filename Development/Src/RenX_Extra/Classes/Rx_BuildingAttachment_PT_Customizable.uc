@@ -5,10 +5,10 @@ class Rx_BuildingAttachment_PT_Customizable extends Rx_BuildingAttachment implem
 
 var CylinderComponent CollisionCylinder;
 var StaticMeshComponent PTMesh;
-var repnotify TEAM TeamNum;
-var repnotify bool bAccessable;
-var repnotify string tooltip;
-var repnotify string PTname;
+var() repnotify TEAM TeamNum;
+var() repnotify bool bAccessable;
+var() repnotify string tooltip;
+var() repnotify string PTname;
 
 replication
 {
@@ -98,6 +98,16 @@ simulated function StopInsufCreditsTimeout()
       ClearTimer();
    }   
 }
+
+//RxIFc_Targetable
+simulated function bool GetUseBuildingArmour(){return false;} //Stupid legacy function to determine if we use building armour when drawing. 
+simulated function Actor GetActualTarget() {return self;} //Should return 'self' most of the time, save for things that should return something else (like building internals should return the actual building)
+simulated function bool GetShouldShowHealth(){return false;} //If we need to draw health on this 
+simulated function bool HasDestroyedState() {return false;}
+simulated function bool GetIsInteractable(PlayerController PC) {return PC.GetTeamNum() == GetTeamNum();} //Are we ever interactable?
+simulated function bool GetCurrentlyInteractable(PlayerController RxPC) {return (Rx_Controller(RxPC).bCanAccessPT && RxPC.GetTeamNum() == GetTeamNum());} //Are we interactable right now? 
+simulated function string GetInteractText(Controller C, string BindKey) {return tooltip;} //Get the text for our interaction 
+
 
 defaultproperties
 {

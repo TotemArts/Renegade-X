@@ -24,7 +24,10 @@ static function SetTeams() {
 		break;
 	case 5: // Traditional + free swaps (do nothing)
 		break;
-	case 6: // TODO: Implement leaderboard-based shuffle
+	case 6: // Random Shuffle
+		RandomShuffleTeamsNextMatch();
+		break;
+	case 7: // TODO: Implement leaderboard-based shuffle
 		break;
 	default: // Invalid value; do nothing
 		break;
@@ -113,6 +116,82 @@ private static function ShuffleTeamsNextMatch()
 			++NodCount;
 	}
 	if (GDICount >= NodCount)
+	{
+		// Team 1 go GDI, Team 2 go Nod
+		foreach Team1(PC)
+			`RxEngineObject.AddGDIPlayer(PC.PlayerReplicationInfo);
+		foreach Team2(PC)
+			`RxEngineObject.AddNodPlayer(PC.PlayerReplicationInfo);
+	}
+	else
+	{
+		// Team 1 go Nod, Team 2 go GDI
+		foreach Team1(PC)
+			`RxEngineObject.AddNodPlayer(PC.PlayerReplicationInfo);
+		foreach Team2(PC)
+			`RxEngineObject.AddGDIPlayer(PC.PlayerReplicationInfo);
+	}
+
+	if (Rx_Mut != None)
+	{
+		Rx_Mut.OnAfterTeamShuffling();
+	}	
+
+	// Terribly unoptimized, but done.
+
+}
+
+private static function RandomShuffleTeamsNextMatch()
+{
+	local Array<Rx_Controller> Team1, Team2, All;
+	local int RandomTeam;
+	local int i;
+	local Rx_Controller PC;
+	local Rx_Mutator Rx_Mut;
+
+	LogInternal("autobal: random shuffle" );
+
+	Rx_Mut = `RxGameObject.GetBaseRXMutator();
+	if (Rx_Mut != None)
+	{
+		Rx_Mut.OnBeforeTeamShuffling();
+	}		
+
+	if (Rx_Mut != None)
+	{
+		if(Rx_Mut.ShuffleTeamsNextMatch())
+			return;
+	}		
+
+	// Gather all Human Players
+	foreach `WorldInfoObject.AllControllers(class'Rx_Controller', PC)
+	{
+		if ( (PC.PlayerReplicationInfo != None) && (PC.PlayerReplicationInfo.Team != None) )
+			All.AddItem(PC);
+	}
+
+	// Sort them all into 2 teams.
+	while (All.Length > 0)
+	{
+         i = Rand(All.Length);
+         if(RandomTeam == 0)
+         {
+            Team1.AddItem(All[i]);
+            RandomTeam = 1;
+           // LogInternal("Added"@All[i].PlayerReplicationInfo.PlayerName@"to Team1");
+         } 
+         else            
+         {
+            Team2.AddItem(All[i]);
+            RandomTeam = 0;
+           // LogInternal("Added"@All[i].PlayerReplicationInfo.PlayerName@"to Team2");
+         } 
+         All.RemoveItem(All[i]);
+		
+	}
+
+	// Figure out which team will be which faction. It's random.
+	if (Rand(2) != 1)
 	{
 		// Team 1 go GDI, Team 2 go Nod
 		foreach Team1(PC)

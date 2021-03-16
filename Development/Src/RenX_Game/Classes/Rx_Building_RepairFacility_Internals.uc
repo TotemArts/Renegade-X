@@ -10,6 +10,7 @@ var private bool bStopping, bStarting; // Vars to fix single player animations
 var private SoundCue RepairStart, RepairOn, RepairStop;
 var private bool IgnoreHiddenCollidingActors;
 var private Rx_Building_RepairFacility MyRepB;
+var private int VehCount;
 
 replication
 {
@@ -53,7 +54,6 @@ function RepairPadTick()
 	// Is this repairpad dead?
 	if (IsDestroyed())
 	{
-		ClearTimer(nameof(RepairPadTick)); // Stop the timer
 		return;
 	}
 
@@ -61,6 +61,11 @@ function RepairPadTick()
 		MyRepB = Rx_Building_RepairFacility(BuildingVisuals);
 	if (MyRepB == None)
 		return;
+
+	if (VehCount == 0)
+		VehCount = 1;
+	if (VehCount > 1)
+		VehCount--;
 	
 	thisLocation = BuildingVisuals.Location;
 	thisLocation.Z += 50.0f;
@@ -71,7 +76,7 @@ function RepairPadTick()
 
 		if (thisVehicle.Health < thisVehicle.HealthMax)
 		{
-			thisVehicle.HealDamage(MyRepB.RepairRate, thisVehicle.Controller, class'Rx_DmgType_RepairFacility');
+			thisVehicle.HealDamage(MyRepB.RepairRate / VehCount, thisVehicle.Controller, class'Rx_DmgType_RepairFacility');
 
 			if(`WorldInfoObject.NetMode == NM_DedicatedServer)
 				StartRepairPadVisualsServer();
@@ -96,6 +101,8 @@ function RepairPadTick()
 			bStarting = false;
 		}
 	}
+
+	VehCount = count;
 }
 
 function bool IsValidVehicle(UTVehicle thisVehicle)
@@ -327,6 +334,8 @@ DefaultProperties
     RepairStart = none
 	RepairOn = SoundCue'RX_BU_RepairPad.Sounds.SC_RepairPad_Idle'
 	RepairStop = none
+
+	VehCount = 1
     
     ActiveAnimName     = "Active"
     EmitterBoneName    = "b_Emitters"

@@ -250,7 +250,7 @@ function ToggleCam()
 		OldPositions.Length=0;
 		//Mesh.SetHidden(false);
 		//Driver.Mesh.SetHidden(false);
-		UTPlayercontroller(Controller).setFOV(85);
+		UpdateFOV();
 	}
 	else
 	{
@@ -258,7 +258,7 @@ function ToggleCam()
 		Seats[0].CameraTag = GunCameraTag;
 		//Mesh.SetHidden(true);
 		//Driver.Mesh.SetHidden(true);
-		UTPlayercontroller(Controller).setFOV(50);
+		UpdateFOV();
 	}
 }
 
@@ -683,14 +683,9 @@ defaultproperties
 	LookForwardDist=290.0
 	bLimitCameraZLookingUp=true
 
-	AirSpeed=700.0
+	AirSpeed=775.0
 	MaxSpeed=1000.0
 	GroundSpeed=1100.0
-
-	MinSprintSpeedMultiplier=1.0
-	MaxSprintSpeedMultiplier=1.14
-	SprintTimeInterval=1.0
-	SprintSpeedIncrement=1.0
 
 	/************************/
 	/*Veterancy Multipliers*/
@@ -723,7 +718,7 @@ defaultproperties
 	bStayUpright=true
 	StayUprightRollResistAngle=5.0
 	StayUprightPitchResistAngle=5.0
-	StayUprightStiffness=200
+	StayUprightStiffness=1000 //200
 	StayUprightDamping=20
 
 	SpawnRadius=180.0

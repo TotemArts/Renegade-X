@@ -8,6 +8,7 @@ simulated function String GetHumanReadableName()
 
 defaultproperties
 {
+	MineLimit=6
 	BuildingInternalsClass  = Rx_Building_AirTower_Internals_Ramps
 
     Begin Object Class=StaticMeshComponent Name=Static_Ramps

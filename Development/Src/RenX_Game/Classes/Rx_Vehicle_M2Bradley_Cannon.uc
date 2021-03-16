@@ -58,11 +58,11 @@ DefaultProperties
 
 	ExplosionLightClass=Class'Rx_Light_Tank_MuzzleFlash'
 	MaxExplosionLightDistance=7000.000000
-	Speed=13500
-	MaxSpeed=13500
+	Speed=12500
+	MaxSpeed=12500
 	LifeSpan=0.66
-	Damage=30
-	DamageRadius=400
+	Damage=35
+	DamageRadius=300
 	HeadShotDamageMult=3.0
 	MomentumTransfer=1000.000000
 

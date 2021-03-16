@@ -645,6 +645,7 @@ simulated function SetWeaponOverlayFlags(UTPawn OwnerPawn)
 			}
 
 			OverlayMesh.SetHidden(false);
+			
 			if (!OverlayMesh.bAttached)
 			{
 				OwnerPawn.Mesh.AttachComponentToSocket(OverlayMesh, OwnerPawn.WeaponSocket);

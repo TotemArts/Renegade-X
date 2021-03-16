@@ -1,7 +1,8 @@
-class Rx_PassiveAbility extends Actor; //Abilities that attach themselves invisibly to various pawns. 
+class Rx_PassiveAbility extends Actor
+abstract; //Abilities that attach themselves invisibly to various pawns. 
 
 //Interaction variables
-var Pawn UsingPawn; 
+var repnotify Pawn UsingPawn; 
 
 var float MaxCharges; //Actual charges left to expend before needing to recharg
 var float CurrentCharges; //Actual charges left to expend before needing to recharge
@@ -42,22 +43,35 @@ var repnotify byte  AssignedSlot; //ID replicated to owner so they can find this
 var class<Rx_PassiveAbilityAttachment> AttachmentClass; 
 var Rx_PassiveAbilityAttachment	Attachment; 
 
+var repnotify bool bDestroyed; //Replicates when destroyed on server 
+
+var bool bDeactivateOnRelease; //Released the 'activate' key calls DeactivateAbility (Useful for abilities that perform their action on deactivation )
+
+var bool bInitialized;
+
 replication {
 	if(bNetDirty && bNetOwner)
-		AssignedSlot;
+		bDestroyed, UsingPawn, AssignedSlot, bInitialized;
 }
 
 simulated event ReplicatedEvent(name VarName)
 {
 	if(VarName == 'AssignedSlot')
 	{
-		//`log("Replicate Assigned Slot"); 
-		if(RxIfc_PassiveAbility(Owner) != none){
-			RxIfc_PassiveAbility(Owner).ReplicatePassiveAbility(AssignedSlot, self); 
-			UsingPawn = Pawn(Owner); 
-			Init(UsingPawn, AssignedSlot); 
+		if(AssignedSlot != 255 && RxIfc_PassiveAbility(Owner) != none){
+			RxIfc_PassiveAbility(Owner).ReplicatePassiveAbility(AssignedSlot, self);
+			
+		}	
+	}
+	else
+	if(VarName == 'bDestroyed')
+	{
+		if(bDestroyed)
+		{
+			RxIfc_PassiveAbility(Owner).RemovePassive(AssignedSlot, self);
+			RemoveUser();
 		}
-				
+		
 	}
 	else
 		super.ReplicatedEvent(VarName); 
@@ -92,6 +106,9 @@ simulated function SetRechargeTimer()
 
 simulated function RechargeTimer()
 {
+	if(UsingPawn == none)
+		return; 
+	
 	if(CurrentCharges < MaxCharges) 
 		AddCharge(1);
 	
@@ -99,7 +116,8 @@ simulated function RechargeTimer()
 	{
 		ClearTimer('RechargeTimer');	
 		bCurrentlyRecharging = false; 
-		if(WorldInfo.NetMode != NM_DedicatedServer) Rx_Controller(Instigator.Controller).ClientPlaySound(SoundCue'RenXPurchaseMenu.Sounds.RenXPTSoundPurchase') ; //SoundCue'Rx_Pickups.Sounds.SC_Pickup_Keycard' ; 
+		if(WorldInfo.NetMode != NM_DedicatedServer) 
+			Rx_Controller(UsingPawn.Controller).ClientPlaySound(SoundCue'RenXPurchaseMenu.Sounds.RenXPTSoundPurchase') ; //SoundCue'Rx_Pickups.Sounds.SC_Pickup_Keycard' ; 
 	}
 }
 
@@ -144,28 +162,46 @@ simulated function int GetFlashIconInt()
 //Initialize and return an ID to replicate
 simulated function Init(Pawn InitiatingPawn, byte SlotNum)
 {
-	if(ROLE == ROLE_Authority)
+	if(ROLE == ROLE_Authority && !bInitialized)
 	{
-		UsingPawn = InitiatingPawn; 
-		/**`log("Initialize Passive Ability" @ self @ "with Pawn " @ UsingPawn);
-		`log("AbilityNum:" @ SlotNum);*/
+		SetUsingPawn(InitiatingPawn);
+		//`log("Initialize Passive Ability" @ self @ "with Pawn " @ UsingPawn);
 		AssignedSlot = SlotNum; 
 		
 		//Create replication attachment for all non-owning clients
 		Attachment = Spawn(AttachmentClass, InitiatingPawn);
 		Attachment.InitAttachment(InitiatingPawn);
+		Instigator = InitiatingPawn;
+		bInitialized = true; 
 	}
 } 
 
+//If we're waiting on replication still, use this timer
+simulated function TryInitTimer()
+{
+	if(AssignedSlot != 255 && UsingPawn != none)
+	{
+		Init(UsingPawn, AssignedSlot);
+	}
+	else
+		SetTimer(0.2, false, 'TryInitTimer');
+}
+
 simulated function RemoveUser()
 {
-	//`log("User Removed"); 
-	UsingPawn = none; 
+	//`log("User Removed" @ self); 
+	//ScriptTrace();
+	if(ROLE == ROLE_Authority)
+		bDestroyed = true; 
+	
+	SetUsingPawn(none);
 	
 	//Get rid of our Attachment. Our old Pawn will dispose of it on its own. 
 	Attachment = none; 
+
+	ClearTimer('RechargeTimer'); 
 	
-	SetTimer(0.5,false,'ToDestroy');
+	SetTimer(0.25,false,'ToDestroy');
 	
 }
 
@@ -181,20 +217,20 @@ simulated function ToDestroy()
 
 simulated function ActivateAbility()
 {
-	`log("Activate"); 
+	//`log("Activate"); 
 } 
 
 reliable server function ServerActivateAbility(){
-	`log("Server Activate"); 
+	//`log("Server Activate"); 
 }
 
 simulated function DeactivateAbility(bool bForce)
 {
-	`log("Deactivate"); 
+	//`log("Deactivate"); 
 }
 
 reliable server function ServerDeactivateAbility(bool bForce){
-	`log("Server DeactivateAbility"); 
+	//`log("Server DeactivateAbility"); 
 }
 
 simulated function NotifyLanded(); //Called when our pawn lands 
@@ -207,9 +243,9 @@ simulated function bool NotifyDodged(int DodgeDir){
 //Called when crouch is pressed/released
 simulated function NotifyCrouched(bool Toggle); 
 
-simulated function NotifySprint(bool Toggle); //Called when our pawn starts/stops sprinting
+simulated function NotifySprint(bool Toggle); //Called when our pawn starts/stops sprinting 
 
-simulated function DrawHUD(Canvas HUDCanvas); 
+simulated function RenderOverlay(HUD H);
 
 simulated function float GetConsumptionRate(){
 	return 1; 
@@ -219,13 +255,59 @@ simulated function bool GetRespondingToCrouch(); //Returns if this ability is cu
 
 simulated function NotifyMeshChanged(); //Called after our Pawn mesh is changed (Useful if this ability needs socket locations specific to meshes)
 
+simulated function NotifyOverlayChanged(MaterialInterface NewMIC); 
+
+simulated function NotifyMaterialsChanged();
+
+simulated function NotifyTookDamage();
+
+simulated function NotifyBumpedActor(Actor Other, Vector Vel, Vector HitNormal);
+
+/*Infantry specific notifications*/
+simulated function NotifyWeaponAttachmentsChanged();
+
+simulated function NotifyBackWeaponAttachmentsChanged();
+
+simulated function NotifyDriveVehicle(bool bDriving);
+
+simulated function NotifyOwnerDied(){
+	RemoveUser();
+}
+
+function NotifyServerMove(float DeltaTime);
+
+simulated function NotifyPlayerMoving(name ControllerState, Controller C, vector NewAccelVector, float DeltaTime);
+
+simulated function NotifyWeaponFired(byte FireModeNum); 
+
+simulated function NotifyPhysicsVolumeChange(PhysicsVolume NewVolume);
+
+/*----------------*/
+simulated function ToggleAbility()
+{
+	if(bCurrentlyActive)
+		DeactivateAbility(false);
+	else
+		ActivateAbility();
+}
+
+/*Timer that's called about a second and a half after the ability is spawned to basically check that EVERYTHING was setup correctly*/
+simulated function UltimateFallBackTimer();
+
+simulated function SetUsingPawn(Pawn OurPawn)
+{
+	//`log(self @ "Set Pawn to:" @ OurPawn);
+	UsingPawn = OurPawn;
+}
 
 DefaultProperties
 {
 	RemoteRole=ROLE_SimulatedProxy
 	bSingleCharge = true
 	ConsumptionRate = 0.5
+	bOnlyRelevantToOwner=TRUE
 	
+	AssignedSlot=255 //255 by default, so even switching to 0 is replicated without the need for math (Do not change)	
 	
 	Vet_RechargeSpeedMult(0) = 1.0 
 	Vet_RechargeSpeedMult(1) = 1.0

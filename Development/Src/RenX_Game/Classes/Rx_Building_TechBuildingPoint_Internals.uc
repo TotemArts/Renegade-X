@@ -11,12 +11,14 @@ function SetupCapturePoint()
    local Rx_Building_TechbuildingPoint Point;
    local float CapRadius;
    local float CapHeight;
+   local byte StartTeam;
+
 
    if(Rx_Building_TechBuildingPoint(BuildingVisuals) != None)
    {
    		Point = Rx_Building_TechbuildingPoint(BuildingVisuals);
    		CP = Spawn(Point.CapturePointClass,self,,BuildingVisuals.Location,BuildingVisuals.Rotation);
-
+         Point.CP = CP;
    		if(Point.CaptureVolume == None)
    		{
 	   		CapRadius = Point.CaptureRadius;
@@ -31,10 +33,19 @@ function SetupCapturePoint()
    		}
 
          CP.Pointname = GetBuildingName();
+
+         StartTeam = Rx_Building_Techbuilding(BuildingVisuals).StartingTeam;
+   
+         if(StartTeam <= 1)
+         {
+            CP.bCaptured = true;
+            CP.CapturingTeam=StartTeam;
+            CP.CaptureProgress=1;
+            CP.GotoState('CapturedIdle');
+         }
    } 
 
 }
-
 //disable old method...
 function bool HealDamage(int Amount, Controller Healer, class<DamageType> DamageType);
 

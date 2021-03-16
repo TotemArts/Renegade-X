@@ -81,12 +81,80 @@ simulated event PostBeginPlay()
 			bCaptured=true;
 			GotoState('CapturedIdle');
 		}
+		SetTimer(1.f, true, 'ForceCorrect');
 
 		SetTimer(ReplicateProgressTime, true, 'RepProgress');
 
 		if (RxIfc_Capturable(Owner) != None)
 			AssociatedActor = RxIfc_Capturable(Owner);
 	}
+}
+
+function ForceCorrect()
+{
+	local Rx_Building_TechBuildingPoint_Internals MyBuildingInt;
+	local Rx_Volume_CaptureArea MyVol;
+	local Actor CollisionActor;
+	local Pawn CollidedPawn;
+	local array<Rx_Pawn> TouchingGDIPawnsLocal;
+	local array<Rx_Pawn> TouchingNodPawnsLocal;
+	local array<Rx_Vehicle> TouchingGDIVehiclesLocal;
+	local array<Rx_Vehicle> TouchingNodVehiclesLocal;
+
+	MyBuildingInt = Rx_Building_TechbuildingPoint_Internals(AssociatedActor);
+	if(MyBuildingInt != None)
+	{
+		MyVol = Rx_Building_TechbuildingPoint(MyBuildingInt.BuildingVisuals).CaptureVolume;
+	}
+
+
+	if(MyVol != None)
+	{
+		CollisionActor = MyVol;
+	}
+	else
+		CollisionActor = self;
+
+	foreach CollisionActor.TouchingActors(class'Pawn',CollidedPawn)
+	{
+		if(Rx_PRI(CollidedPawn.PlayerReplicationInfo) != None)
+		{
+			if(Rx_Pawn(CollidedPawn) != None && bInfantryCanCap)
+			{
+				if(CollidedPawn.GetTeamNum() == 0)
+				{
+					TouchingGDIPawnsLocal.AddItem(Rx_Pawn(CollidedPawn));
+				}
+				else if(CollidedPawn.GetTeamNum() == 1)
+				{
+					TouchingNodPawnsLocal.AddItem(Rx_Pawn(CollidedPawn));
+				}
+//				`log(self@": Proceessed"@CollidedPawn@"as Team"@CollidedPawn.GetTeamNum());
+			}
+			else if(Rx_Vehicle(CollidedPawn) != None && bVehiclesCanCap)
+			{
+				if(CollidedPawn.GetTeamNum() == 0)
+				{
+					TouchingGDIVehiclesLocal.AddItem(Rx_Vehicle(CollidedPawn));
+				}
+				else if(CollidedPawn.GetTeamNum() == 1)
+				{
+					TouchingNodVehiclesLocal.AddItem(Rx_Vehicle(CollidedPawn));
+				}
+//				`log(self@": Proceessed"@CollidedPawn@"as Team"@CollidedPawn.GetTeamNum());
+			}
+		}
+	}
+
+	TouchingGDIPawns = TouchingGDIPawnsLocal;
+	TouchingNodPawns = TouchingNodPawnsLocal;
+	TouchingGDIVehicles = TouchingGDIVehiclesLocal;
+	TouchingNodVehicles = TouchingNodVehiclesLocal;
+
+	GDICount = `CalcGDICount;
+	NodCount = `CalcNodCount;
+
+	Wake();
 }
 
 function AddTouchingPawn(Rx_Pawn P, byte TeamIndex)
@@ -155,7 +223,7 @@ simulated event Touch( Actor Other, PrimitiveComponent OtherComp, vector HitLoca
 	{
 		if (bInfantryCanCap && Rx_Pawn(Other) != None)
 			AddTouchingPawn(Rx_Pawn(Other), Other.GetTeamNum());
-		else if (bVehiclesCanCap && Rx_Vehicle(Other) != None && Rx_Defence(Other) == None && Rx_Defence_Emplacement(Other) == None )
+		else if (bVehiclesCanCap && Rx_Vehicle(Other) != None && Rx_Defence(Other) == None && Rx_Defence_Emplacement(Other) == None && Rx_Vehicle(Other).bCanCapture)
 			AddTouchingVehicle(Rx_Vehicle(Other), Other.GetTeamNum());
 		Wake();
 	}
@@ -298,7 +366,7 @@ auto state NeutralIdle
 state NeutralActive
 {
 	event Tick( float DeltaTime )
-	{		
+	{
 		if (GDICount > NodCount && AssociatedActor.IsCapturableBy(Team_GDI))
 		{
 			if (CapturingTeam == TEAM_GDI)

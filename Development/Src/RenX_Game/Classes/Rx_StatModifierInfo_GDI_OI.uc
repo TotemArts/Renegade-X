@@ -14,7 +14,7 @@ DefaultProperties
 
 	//Survivablity
 	DamageResistanceMod = 0.10 //0.10 //*X //GDI units in general are already pretty tough 
-	RegenerationMod 	= 2.0  //+X
+	RegenerationMod 	= 0.0  //+X
 
 	//Modifier stats
 	Mod_Length = 15.0 //20.0
@@ -23,8 +23,10 @@ DefaultProperties
 	EffectColor		= (R=5.0,G=5.0,B=0.0,A=6.0)
 	EffectOpacity	= 0.5
 	EffectInflation	= 1.0
-	EffectPriority	= 0
+	EffectPriority	= 1
 
+	bUseVignette = true 
+	
 	PawnMIC = MaterialInstanceConstant'RenX_AssetBase.Stealth.MI_PowerUp_GDI2'
 
 }

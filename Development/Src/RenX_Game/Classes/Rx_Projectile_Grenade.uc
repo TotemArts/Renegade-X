@@ -144,7 +144,7 @@ simulated function bool HurtRadius
 	foreach OverlappingActors( class'Pawn', Victim, DamageRadius, HurtOrigin, true) //foreach OverlappingActors( class'Pawn', Victim, DamageRadius, HurtOrigin, true)
 	{
 		
-		if(Victim == ImpactedActor || GetTeamNum() == Victim.GetTeamNum() ) {
+		if(Victim == ImpactedActor || (GetTeamNum() == Victim.GetTeamNum() && Victim.Controller != InstigatedByController) ) {
 			continue;
 		}
 		if ( (Victim != IgnoredActor) && (Victim.bCanBeDamaged || Victim.bProjTarget) )

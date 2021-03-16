@@ -37,7 +37,7 @@ var float Vet_DamageIncrease[4];
 var float Vet_LifespanModifier[4] ; //*X  Used to keep projectile ranges from getting totally out of hand. 
 
 var byte FMTag; //Identify what firemode you belong to for when ServerALHit is called 
-var Weapon MyWeaponInstigator; 
+var Actor MyWeaponInstigator; 
 
 //Pawn piercing 
 var bool bPierceInfantry;
@@ -61,6 +61,7 @@ var bool bEnableExplosionShake;		//Enables camera shake via camera anim
 simulated function PostBeginPlay()
 {
 	super.PostBeginPlay();
+
 	//We don't get our VRank immediately 
 	//RxInitLifeSpan();
 }
@@ -98,12 +99,12 @@ simulated function RxInitLifeSpan()
 	}
 }
 
-simulated function SetWeaponInstigator (Weapon SetTo)
+simulated function SetWeaponInstigator (Actor SetTo)
 {
 	MyWeaponInstigator = SetTo; 
 }
 
-simulated function Weapon GetWeaponInstigator()
+simulated function Actor GetWeaponInstigator()
 {
 	return MyWeaponInstigator; 
 }
@@ -115,13 +116,21 @@ function Init(vector Direction)
 {
 	local Rx_Weapon Rx_Inst; 
 	local Rx_Vehicle_Weapon Rx_VInst;
+	local Rx_PassiveAbility_Weapon Rx_PInst; 
 	
 	Rx_Inst=Rx_Weapon(MyWeaponInstigator);
 	Rx_VInst=Rx_Vehicle_Weapon(MyWeaponInstigator) ;
+	Rx_PInst=Rx_PassiveAbility_Weapon(MyWeaponInstigator) ;
 	
-	if(Rx_Inst != none) VRank=Rx_Inst.VRank; 
-	else
-	if(Rx_VInst != none) VRank=Rx_VInst.VRank; 
+	if(Rx_Inst != none) 
+		VRank=Rx_Inst.VRank; 
+	else if(Rx_VInst != none) 
+		VRank=Rx_VInst.VRank;
+	else if(Rx_PInst != none) 
+		VRank=Rx_PInst.VRank; 
+	
+	
+//	`log("Init" @ Rx_PInst);
 	SetRotation(rotator(Direction));
 
 	RxInitLifeSpan();
@@ -237,7 +246,7 @@ simulated function ShutDownBeforeEndOfLife()
 	//do appropriate damage
 	if ( !bShuttingDown && DamageRadius > 0)
 		{
-		HurtRadius(Damage, DamageRadius, MyDamageType, MomentumTransfer, location,,,false); 
+			HurtRadius(Damage, DamageRadius, MyDamageType, MomentumTransfer, location,,,false); 
 		}
 		
 	Shutdown();
@@ -245,7 +254,7 @@ simulated function ShutDownBeforeEndOfLife()
 
 simulated event CreateProjectileLight()
 {
-	if ( WorldInfo.bDropDetail )
+	if (!Rx_HUD(Rx_Controller(InstigatorController).myHUD).SystemSettingsHandler.DepthOfField)
 		return;
 
 	if(ProjectileLightClass != None) {
@@ -284,37 +293,37 @@ simulated function ProcessTouch(Actor Other, Vector HitLocation, Vector HitNorma
 		CurrentPiercingPower = 0; 
 		
 		
-	
-    if(TryHeadshot(Other, HitLocation, HitNormal, VAdjustedDamage) && CurrentPiercingPower == 0 && DamageRadius == 0.0 ) {
-        SpawnExplosionEffects(HitLocation, HitNormal);
-        return;
-    } else {
-		if (DamageRadius > 0.0)
-		{
-			if(DObj !=none && !DObj.bTakeRadiusDamage) //|| (Rx_BasicPawn(Other) !=none && !Rx_BasicPawn(Other).bTakeRadiusDamage))  
-				Other.TakeDamage(VAdjustedDamage,InstigatorController,HitLocation,MomentumTransfer * Normal(Velocity), MyDamageType,, self);	
-			Explode( HitLocation, HitNormal );
-		}
-		else
-		{
+	if (CurrentPiercingPower == 0 && DamageRadius > 0.0)
+	{
+		if(DObj !=none && !DObj.bTakeRadiusDamage) //|| (Rx_BasicPawn(Other) !=none && !Rx_BasicPawn(Other).bTakeRadiusDamage))  
+			Other.TakeDamage(VAdjustedDamage,InstigatorController,HitLocation,MomentumTransfer * Normal(Velocity), MyDamageType,, self);	
+		Explode( HitLocation, HitNormal );
+	}
+	else if(TryHeadshot(Other, HitLocation, HitNormal, VAdjustedDamage) && CurrentPiercingPower == 0 && DamageRadius == 0.0 ) {
 			SpawnExplosionEffects(HitLocation, HitNormal);
-			if(WorldInfo.NetMode != NM_DedicatedServer
-						&& (Rx_Weapon(MyWeaponInstigator) != None || Rx_Vehicle_Weapon(MyWeaponInstigator) != None)
-						&& !isAirstrikeProjectile()) {
-				if(Pawn(Other) != None && Pawn(Other).Health > 0 && UTPlayerController(Instigator.Controller) != None && Pawn(Other).GetTeamNum() != Instigator.GetTeamNum()) {
+			return;
+	}
+	else
+	{
+		SpawnExplosionEffects(HitLocation, HitNormal);
+		if(WorldInfo.NetMode != NM_DedicatedServer
+					&& (Rx_Weapon(MyWeaponInstigator) != None || Rx_Vehicle_Weapon(MyWeaponInstigator) != None || Rx_PassiveAbility_Weapon(MyWeaponInstigator) != None)
+					&& !isAirstrikeProjectile()) {
+			if(Pawn(Other) != None && Pawn(Other).Health > 0 && UTPlayerController(Instigator.Controller) != None && Pawn(Other).GetTeamNum() != Instigator.GetTeamNum()) {
+				if (Rx_BasicPawn(Other) == None || (Rx_BasicPawn(Other) != None && Rx_BasicPawn(Other).bCanTakeDamage))
 					Rx_Hud(UTPlayerController(Instigator.Controller).myHud).ShowHitMarker();
-					if(Rx_Pawn(Other) != None) Rx_Controller(Instigator.Controller).AddHit() ;
-				}
-				if(FracturedStaticMeshActor(Other) != None || DObj != None)
-					Other.TakeDamage(VAdjustedDamage,InstigatorController,HitLocation,MomentumTransfer * Normal(Velocity), MyDamageType,, self);	
-				CallServerALHit(Other,HitLocation,HitInfo,false);
-			} else if(ROLE == ROLE_Authority && (AIController(InstigatorController) != None || isAirstrikeProjectile())) {
-				Other.TakeDamage(VAdjustedDamage,InstigatorController,HitLocation,MomentumTransfer * Normal(Velocity), MyDamageType,, self);
+				if(Rx_Pawn(Other) != None) Rx_Controller(Instigator.Controller).AddHit() ;
 			}
-			if(CurrentPiercingPower <= 0) Shutdown();
-		}        
-    }
+			if(FracturedStaticMeshActor(Other) != None || DObj != None)
+				Other.TakeDamage(VAdjustedDamage,InstigatorController,HitLocation,MomentumTransfer * Normal(Velocity), MyDamageType,, self);	
+			CallServerALHit(Other,HitLocation,HitInfo,false);
+		} else if(ROLE == ROLE_Authority && (AIController(InstigatorController) != None || isAirstrikeProjectile())) {
+			Other.TakeDamage(VAdjustedDamage,InstigatorController,HitLocation,MomentumTransfer * Normal(Velocity), MyDamageType,, self);
+		}
+		if(CurrentPiercingPower <= 0) Shutdown();
+	}        
 }
+
 
 /** Jacked Projectile::ProjectileHurtRadius to allow for custom HurtOrigin offset (for airstrikes).
  *  CLOSE COPY OF THIS FUNCTION IS USED IN RX_WEAPON AND RX_VEHICLE_WEAPON AS InstantFireHurtRadius - UPDATED ACCORDINGLY. */
@@ -356,7 +365,7 @@ simulated function bool ProjectileHurtRadius( vector HurtOrigin, vector HitNorma
 	return HurtRadius(VAdjustedDamage, DamageRadius, MyDamageType, MomentumTransfer, AltOrigin);
 }
 
-simulated function bool TryHeadshot(Actor Other, Vector HitLocation, Vector HitNormal, float DamageAmount)
+simulated function bool TryHeadshot(Actor Other, Vector HitLocation, Vector HitNormal, float DamageAmount, optional float DmgReduction = 1.0)
 {
     local float Scaling;
     local ImpactInfo Impact;
@@ -383,9 +392,9 @@ simulated function bool TryHeadshot(Actor Other, Vector HitLocation, Vector HitN
         CheckHitInfo(Impact.HitInfo, UTPawn(Other).Mesh, Impact.RayDir, Impact.HitLocation);
         
         if(HeadShotDamageType != None) {
-        	return Rx_Pawn(Other).TakeHeadShot(Impact, HeadShotDamageType, DamageAmount, Scaling, InstigatorController, false, GetWeaponInstigator());
+        	return Rx_Pawn(Other).TakeHeadShot(Impact, HeadShotDamageType, DamageAmount, Scaling, InstigatorController, false, GetWeaponInstigator(), DmgReduction,,FMTag);
         } else {
-        	return Rx_Pawn(Other).TakeHeadShot(Impact, MyDamageType, DamageAmount, Scaling, InstigatorController, false, GetWeaponInstigator());
+        	return Rx_Pawn(Other).TakeHeadShot(Impact, MyDamageType, DamageAmount, Scaling, InstigatorController, false, GetWeaponInstigator(), DmgReduction,,FMTag);
         }
     }
     
@@ -450,7 +459,7 @@ simulated singular event HitWall(vector HitNormal, actor Wall, PrimitiveComponen
 	if ( ( !Wall.bStatic && (DamageRadius == 0) ) || ClassIsChildOf(Wall.Class,class'Rx_Building') )
 	{
 		if(WorldInfo.NetMode != NM_DedicatedServer 
-			&& ( Instigator != none && (Rx_Weapon(MyWeaponInstigator) != None || Rx_Vehicle_Weapon(MyWeaponInstigator) != None))
+			&& ( Instigator != none && (Rx_Weapon(MyWeaponInstigator) != None || Rx_Vehicle_Weapon(MyWeaponInstigator) != None || Rx_PassiveAbility_Weapon(MyWeaponInstigator) != None))
 			&& !isAirstrikeProjectile()) 
 		{
 			if(WallPawn != None && WallPawn.Health > 0 && UTPlayerController(Instigator.Controller) != None && WallPawn.GetTeamNum() != Instigator.GetTeamNum()) 
@@ -481,17 +490,23 @@ simulated singular event HitWall(vector HitNormal, actor Wall, PrimitiveComponen
 	}		
 }
 
-simulated function CallServerALHit(Actor Target, vector HitLocation, TraceHitInfo ProjHitInfo, bool mctDamage)
+//Dmg Reduction can be used for effective range. Can't be over 1.0 
+simulated function CallServerALHit(Actor Target, vector HitLocation, TraceHitInfo ProjHitInfo, bool mctDamage, optional float DmgReduction = 1.0)
 {
 	
 	if(Rx_Weapon(MyWeaponInstigator) != None) 
 	{
 		Rx_Weapon(MyWeaponInstigator).ServerALHit(Target,HitLocation,ProjHitInfo,mctDamage, FMTag);
 	} 
-	else 
+	else if(Rx_Vehicle_Weapon(MyWeaponInstigator) != None)
 	{
 		//`log("ServerALHit:" @ MyWeaponInstigator);
 		Rx_Vehicle_Weapon(MyWeaponInstigator).ServerALHit(Target,HitLocation,ProjHitInfo,mctDamage, FMTag);
+	}
+	else if(Rx_PassiveAbility_Weapon(MyWeaponInstigator) != None)
+	{
+		//`log("ServerALHit:" @ MyWeaponInstigator);
+		Rx_PassiveAbility_Weapon(MyWeaponInstigator).ServerALHit(Target,HitLocation,ProjHitInfo,mctDamage, FMTag);
 	}
 }
 
@@ -718,6 +733,11 @@ simulated function PlayCamerashakeAnim()
          }
       }
    }
+}
+
+simulated function float GetEffectiveDamageReduction()
+{
+	return 1.0; 
 }
 
 DefaultProperties

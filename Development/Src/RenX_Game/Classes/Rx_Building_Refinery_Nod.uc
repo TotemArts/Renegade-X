@@ -8,6 +8,7 @@ simulated function String GetHumanReadableName()
 
 DefaultProperties
 {
+	MineLimit=6
     TeamID = TEAM_NOD
     BuildingInternalsClass  = Rx_Building_Refinery_Nod_Internals
 
@@ -56,15 +57,4 @@ DefaultProperties
 	Components.Add(SpotLightComponent5)
 	SpotLightComponents.Add(SpotLightComponent5)
 
-
-    /*Begin Object Name=DockingStation
-        SkeletalMesh=SkeletalMesh'RX_BU_Refinery.Mesh.SK_BU_Ref_DockStation'
-        AnimSets(0)=AnimSet'RX_BU_Refinery.Anims.AS_Ref_DockingStation'
-    End Object
-
-    Begin Object Name=GarageMesh
-        SkeletalMesh=SkeletalMesh'RX_BU_Refinery.Mesh.SK_BU_Ref_GarageDoor'
-        AnimSets(0)=AnimSet'RX_BU_Refinery.Anims.AS_Ref_GarageDoor' 
-        //AnimTreeTemplate=AnimTree'BU_RenX_AirStrip.Anim.AT_BU_AirTrower'
-    End Object*/
 }

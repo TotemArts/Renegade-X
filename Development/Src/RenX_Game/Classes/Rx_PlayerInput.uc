@@ -181,8 +181,6 @@ function bool InputKey(int ControllerId, name Key, EInputEvent Event, float Amou
 			return true; 
 		}
 
-
-
 		switch( key ) {
 			case 'one':
 				TriggerRadioCommand(0);
@@ -369,6 +367,29 @@ function ToggleTargettingBox()
 	bDrawTargettingBox = !bDrawTargettingBox;
 	SaveConfig();
 }
+
+simulated exec function Duck()
+{
+	super.Duck();
+
+	if(bDuck == 1 && RxIfc_PassiveAbility(Pawn) != none)
+	{
+		RxIfc_PassiveAbility(Pawn).NotifyPassivesCrouched(true);
+	}
+	
+	
+}
+
+simulated exec function UnDuck()
+{
+	super.UnDuck();
+	
+	if(bDuck == 0 && RxIfc_PassiveAbility(Pawn) != none)
+	{
+		RxIfc_PassiveAbility(Pawn).NotifyPassivesCrouched(false);
+	}
+}
+
 
 defaultproperties
 {

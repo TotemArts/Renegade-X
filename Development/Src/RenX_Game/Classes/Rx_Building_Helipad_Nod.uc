@@ -13,54 +13,28 @@ simulated function PostBeginPlay()
 
 defaultproperties
 {
-	TeamID                 = TEAM_NOD
+	MineLimit=3
 	BuildingInternalsClass  = Rx_Building_Helipad_Nod_Internals
 	myBuildingType=BT_Air
 
+	IconTexture=Texture2D'RenxHUD.T_BuildingIcon_Helipad_Normal'
+
     Begin Object Name=Static_Exterior
-        StaticMesh = StaticMesh'RX_BU_Helipad.Mesh.SM_Helipad_Base'
-		Materials[0] = MaterialInstanceConstant'RX_BU_Helipad.Materials.MI_Helipad_Base_Nod'
-		Materials[1] = MaterialInstanceConstant'RX_BU_Helipad.Materials.MI_Helipad_Generator_Nod'
-		Materials[4] = MaterialInstanceConstant'RX_BU_Helipad.Materials.MI_Lights_Nod'
+        StaticMesh = StaticMesh'RX_BU_Helipad.Mesh.SM_Helipad_Base_Nod'
     End Object
 
     Begin Object Name=Static_Interior
         StaticMesh = StaticMesh'RX_BU_Helipad.Mesh.SM_Helipad_Catwalk'
     End Object
 
+    Begin Object Name=Static_Interior_Complex
+        StaticMesh = StaticMesh'RX_BU_Helipad.Mesh.SM_Helipad_Deco'
+    End Object
+
     Begin Object Name=PT_Screens
-        StaticMesh = StaticMesh'RX_BU_Helipad.Mesh.SM_Screens'
-        Materials[1] = Material'rx_deco_terminal.Materials.M_PT_Screen_Nod'
-		Materials[2] = MaterialInstanceConstant'RX_BU_Helipad.Materials.MI_BuildingIcon_Nod'
-		Materials[3] = Material'rx_deco_terminal.Materials.M_Screen_ScanLine_Nod'
-		Materials[4] = Material'rx_deco_terminal.Materials.M_Screen_Logo_Nod'
-		Materials[5] = Material'rx_deco_terminal.Materials.M_Screen_ScrollingText_Nod'
+        StaticMesh = StaticMesh'RX_BU_Helipad.Mesh.SM_Screens_Nod'
     End Object
     
-    Begin Object Class=StaticMeshComponent Name=Static_Decorative
-        StaticMesh = StaticMesh'RX_BU_Helipad.Mesh.SM_Helipad_Deco'
-		CastShadow                      = True
-		AlwaysLoadOnClient              = True
-		AlwaysLoadOnServer              = True
-		CollideActors                   = True
-		BlockActors                     = True
-		BlockRigidBody                  = True
-		BlockZeroExtent                 = True
-		BlockNonZeroExtent              = True
-		bCastDynamicShadow              = True
-		bAcceptsLights                  = True
-		bAcceptsDecalsDuringGameplay    = True
-		bAcceptsDecals                  = True
-		bAllowApproximateOcclusion      = True
-		bUsePrecomputedShadows          = True
-		bForceDirectLightMap            = True
-		bAcceptsDynamicLights           = True
-		LightingChannels                = (bInitialized=True,Static=True)
-		Translation						= (Z=-150)
-    End Object
-	StaticMeshPieces.Add( Static_Decorative )
-	Components.Add( Static_Decorative )
-
 	/***************************************************/
 	/*             Point Light Components              */
 	/***************************************************/

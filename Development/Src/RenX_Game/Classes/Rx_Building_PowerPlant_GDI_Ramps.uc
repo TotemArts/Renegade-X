@@ -3,6 +3,7 @@ class Rx_Building_PowerPlant_GDI_Ramps extends Rx_Building_PowerPlant_GDI
 
 DefaultProperties
 {
+	MineLimit=8
 	Begin Object Class=StaticMeshComponent Name=Static_Ramps
 		StaticMesh = StaticMesh'RX_BU_PowerPlant.Mesh.SM_PP_Ramp_GDI'
 		CastShadow                      = True

@@ -185,6 +185,7 @@ DefaultProperties
 	ClipSize = 350//250//350//400
 	FireInterval(0)=+0.3
 	FireInterval(1)=+0.3
+	bCanGetAmmo=false
 	
 
 	HealAmount = 18 //15

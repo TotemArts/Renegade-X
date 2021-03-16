@@ -53,7 +53,27 @@ simulated function Init(Rx_Building Visuals, bool isDebug )
 	Armor=0;
 	
 	if(ROLE == ROLE_Authority)
+	{
 		AddToGRIArray();
+		CheckStartingTeam();
+	}
+
+}
+
+function CheckStartingTeam()
+{
+	local byte StartTeam;
+
+	StartTeam = Rx_Building_Techbuilding(BuildingVisuals).StartingTeam;
+	if(StartTeam <= 1)
+	{
+		if(StartTeam == 0)
+			ChangeTeamReplicate(TEAM_GDI,true);
+
+		else
+			ChangeTeamReplicate(TEAM_NOD,true);
+
+	}
 }
 
 simulated function AddToGRIArray()
@@ -144,7 +164,7 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
 					if(LastCaptureTime == 0 || (WorldInfo.TimeSeconds - LastCaptureTime) >= 30) 
 					{
 						LastCaptureTime = WorldInfo.TimeSeconds;
-						Rx_Controller(Healer).DisseminateVPString("[Tech-Building Captured]&" $ class'Rx_VeterancyModifiers'.default.Ev_CaptureTechBuilding $ "&");
+						Rx_Controller(Healer).DisseminateVPString("["$ GetHumanReadableName() $" Captured]&" $ class'Rx_VeterancyModifiers'.default.Ev_CaptureTechBuilding $ "&");
 						Rx_PRI(Healer.PlayerReplicationInfo).AddTechBuildingCapture(); 
 					}
 					ChangeTeamReplicate(TEAM_NOD,true);
@@ -156,7 +176,7 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
 					if(LastCaptureTime == 0 || (WorldInfo.TimeSeconds - LastCaptureTime) >= 30) 
 					{
 						LastCaptureTime = WorldInfo.TimeSeconds;
-						Rx_Controller(Healer).DisseminateVPString("[Tech-Building Captured]&" $ class'Rx_VeterancyModifiers'.default.Ev_CaptureTechBuilding $ "&");
+						Rx_Controller(Healer).DisseminateVPString("["$ GetHumanReadableName() $" Captured]&" $ class'Rx_VeterancyModifiers'.default.Ev_CaptureTechBuilding $ "&");
 						Rx_PRI(Healer.PlayerReplicationInfo).AddTechBuildingCapture(); 
 					}
 					ChangeTeamReplicate(TEAM_GDI,true);
@@ -237,6 +257,8 @@ function NotifyBeginNeutralizeBy(byte TeamIndex)
 {
 	
 }
+
+function NotifyContested(bool bContested);
 
 function NotifyUnderAttack(byte TeamIndex)
 {
@@ -354,6 +376,14 @@ simulated function bool IsCapturableBy(byte TeamIndex)
 simulated event byte ScriptGetTeamNum()
 {
 	return ReplicatedTeamID;
+}
+
+//RxIfc_Targetable
+simulated function bool GetUseBuildingArmour(){return false;} //Stupid legacy function to determine if we use building armour when drawing. 
+
+simulated function int GetMaxArmor()
+{
+	return 0;
 }
 
 DefaultProperties

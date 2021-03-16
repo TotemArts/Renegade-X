@@ -101,20 +101,14 @@ simulated function StopInsufCreditsTimeout()
 	}	
 }
 
-
-// simulated function MenuClose()
-// {
-// 	StopCreditTick();
-// 	StopInsufCreditsTimeout();
-// 	if( PTMenu != none )
-// 	{
-// 		`log("" $self.Class $"================================================");
-// 		ScriptTrace();
-// 		PTMenu.Close(true);
-// 		PTMenu = none;
-// 		`log("Rx_BuildingAttachment_PT::Rx_GFxPurchaseMenu pass");
-// 	}
-// }
+//RxIFc_Targetable
+simulated function bool GetUseBuildingArmour(){return false;} //Stupid legacy function to determine if we use building armour when drawing. 
+simulated function Actor GetActualTarget() {return self;} //Should return 'self' most of the time, save for things that should return something else (like building internals should return the actual building)
+simulated function bool GetShouldShowHealth(){return false;} //If we need to draw health on this 
+simulated function bool HasDestroyedState() {return false;}
+simulated function bool GetIsInteractable(PlayerController PC) {return PC.GetTeamNum() == GetTeamNum();} //Are we ever interactable?
+simulated function bool GetCurrentlyInteractable(PlayerController RxPC) {return (Rx_Controller(RxPC).bCanAccessPT && RxPC.GetTeamNum() == GetTeamNum());} //Are we interactable right now? 
+simulated function string GetInteractText(Controller C, string BindKey) {return "Press [ " $ bindKey $ " ] to enter Purchase Terminal";} //Get the text for our interaction 
 
 defaultproperties
 {
@@ -161,12 +155,4 @@ defaultproperties
 	CollisionComponent = CollisionCmp
 	CollisionCylinder  = CollisionCmp
 	Components.Add(CollisionCmp)
-
-	//RemoteRole          = ROLE_SimulatedProxy
-	//bCollideActors      = True
-	//bBlockActors        = True
-	//BlockRigidBody      = True
-	//bCollideComplex     = true
-	//bWorldGeometry = true
-	
 }

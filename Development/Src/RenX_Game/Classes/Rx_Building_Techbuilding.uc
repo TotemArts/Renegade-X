@@ -1,5 +1,7 @@
 class Rx_Building_Techbuilding extends Rx_Building;
 
+var(TechBuilding) byte StartingTeam;
+
 simulated function byte ScriptGetTeamNum() 
 {
 	if(Rx_Building_TechBuilding_Internals(BuildingInternals) == None)
@@ -29,10 +31,16 @@ simulated function BuildingInternalsReplicated()
 		Rx_Building_TechBuilding_Internals(BuildingInternals).AddToGRIArray();  
 }
 
+//RxIfc_Targetable
+simulated function bool GetUseBuildingArmour(){return false;} //Stupid legacy function to determine if we use building armour when drawing.
+simulated function bool GetShouldShowHealth(){return false;}
+
 defaultproperties
 {
 	myBuildingType=BT_Neutral
 	HealthMax				= 400
+
+	StartingTeam = 255;
 
 	SupportedEvents.Empty
 	SupportedEvents.Add(class'Rx_SeqEvent_TechCapture')

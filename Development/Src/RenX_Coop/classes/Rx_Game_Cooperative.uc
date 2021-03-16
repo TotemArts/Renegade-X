@@ -31,6 +31,7 @@ function PreBeginPlay()
 	{
 		CoopObjectives.AddItem(O);
 	}
+	Rx_PurchaseSystem_Coop(PurchaseSystem).GetVehicleSpawners();
 }
 
 function int GetPlayerTeam()
@@ -47,7 +48,7 @@ function int GetPlayerTeam()
 
 event PostLogin( PlayerController NewPlayer )
 {
-	local string SteamID, ID;
+	local string ID;
 	local int AvgVeterancy; 
 	local PlayerReplicationInfo PRI;
 	local int num, index; 
@@ -102,11 +103,7 @@ event PostLogin( PlayerController NewPlayer )
 	if(bUseStaticCommanders && `RxEngineObject.IsPlayerCommander(NewPlayer.PlayerReplicationInfo) ) 
 		ChangeCommander(NewPlayer.GetTeamNum(), Rx_PRI(NewPlayer.PlayerReplicationInfo), true); 
 
-	SteamID = OnlineSub.UniqueNetIdToString(NewPlayer.PlayerReplicationInfo.UniqueId);
-	if (SteamID == `BlankSteamID || SteamID == "")
-		RxLog("PLAYER" `s "Enter;" `s `PlayerLog(NewPlayer.PlayerReplicationInfo) `s "from" `s NewPlayer.GetPlayerNetworkAddress() `s "hwid" `s Rx_Controller(NewPlayer).PlayerUUID `s "nosteam");
-	else
-		RxLog("PLAYER" `s "Enter;" `s `PlayerLog(NewPlayer.PlayerReplicationInfo) `s "from" `s NewPlayer.GetPlayerNetworkAddress() `s "hwid" `s Rx_Controller(NewPlayer).PlayerUUID `s "steamid"`s SteamID);
+	PostLoginCommon(NewPlayer);
 	
 	AnnounceTeamJoin(NewPlayer.PlayerReplicationInfo, NewPlayer.PlayerReplicationInfo.Team, None, false);
 
@@ -207,7 +204,7 @@ event PostLogin( PlayerController NewPlayer )
 	Rx_Mut = GetBaseRXMutator();
 	if (Rx_Mut != None)
 	{
-		Rx_Mut.OnPlayerConnect(NewPlayer, SteamID);
+		Rx_Mut.OnPlayerConnect(NewPlayer, OnlineSub.UniqueNetIdToString(NewPlayer.PlayerReplicationInfo.UniqueId));
 	}
 
 	UpdateDiscordPresence();
@@ -280,7 +277,7 @@ function AnnounceObjectiveCompletion(Controller InstigatingPlayer, Rx_CoopObject
 	if(O.bAnnounceCompletingPlayer)
 	{
 		if(InstigatingPlayer != None)
-			ActualMessage = InstigatingPlayer.GetHumanReadableName()@O.CompletionMessage;
+			ActualMessage = class'Rx_HUD'.static.CleanHTMLMessage(InstigatingPlayer.GetHumanReadableName())@O.CompletionMessage;
 		else
 			ActualMessage = "A mysterious force"@O.CompletionMessage;
 	}

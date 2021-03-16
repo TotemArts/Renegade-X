@@ -14,7 +14,7 @@ DefaultProperties
 
 	//Survivablity
 	DamageResistanceMod = 0.375 //0.30 //25 //0.10 //*X Add a little toughness, cuz we Geeds
-	RegenerationMod 	= 2.0  //+X
+	RegenerationMod 	= 0.0  //+X
 
 	//Modifier stats
 	Mod_Length = 15.0 //20.0
@@ -23,8 +23,10 @@ DefaultProperties
 	EffectColor		= (R=0.0.0,G=2.0,B=1.0,A=1.0)
 	EffectOpacity	= 0.25
 	EffectInflation	= 0.33
-	EffectPriority	= 3
+	EffectPriority	= 4
 
+	bUseVignette = true
+	
 	PawnMIC = MaterialInstanceConstant'RenX_AssetBase.Stealth.MI_PowerUp_GDI1'
 
 }

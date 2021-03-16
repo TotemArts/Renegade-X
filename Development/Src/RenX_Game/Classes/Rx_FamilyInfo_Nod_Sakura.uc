@@ -33,6 +33,7 @@ DefaultProperties
 	/*------------*/
 	BasePurchaseCost	= 1000
 	bHighTier			= true
+	bIsSniper			= true
 	PT_Damage			= 6
 	PT_Range			= 6
 	PT_RateOfFire		= 1

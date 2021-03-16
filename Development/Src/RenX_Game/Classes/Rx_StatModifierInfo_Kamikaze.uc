@@ -28,7 +28,9 @@ DefaultProperties
 	EffectColor		= (R=1.0,G=0.0,B=5.0,A=1.0)
 	EffectOpacity	= 0.8
 	EffectInflation	= 0.7
-	EffectPriority	= 1 //Looks similar enough to PTP
+	EffectPriority	= 0 //Important
+	
+	bUseVignette = true
 
 	PawnMIC = MaterialInstanceConstant'RenX_AssetBase.Stealth.MI_PowerUp_Nod2'
 }

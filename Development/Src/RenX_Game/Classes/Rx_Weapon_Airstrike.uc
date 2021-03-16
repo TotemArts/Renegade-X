@@ -656,4 +656,6 @@ DefaultProperties
 		SkeletalMesh=SkeletalMesh'RX_WP_Binoculars.Mesh.SK_Binoculars_Back'
 		Scale=1.0
 	End Object
+
+	bInstantZoom = true
 }

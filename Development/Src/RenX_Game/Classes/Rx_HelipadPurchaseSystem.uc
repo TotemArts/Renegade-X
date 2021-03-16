@@ -23,29 +23,29 @@ simulated event PostBeginPlay()
 			else if (Building.GetTeamNum() == 1)
 				NodPowerPlants.AddItem(Rx_Building_PowerPlant(building));
 		}
-		else if (Rx_Building_GDI_VehicleFactory(building) != None && Rx_Building_Helipad_GDI(Building) == None)
+		else if (RxIfc_FactoryVehicle(building) != None)
 		{
-			WeaponsFactory.AddItem(Rx_Building_GDI_VehicleFactory(building));
+			if(building.GetTeamNum() == 0)
+			{
+				if(Rx_Building_Helipad_GDI(building) != None)
+					GDIHelipad.AddItem(Rx_Building_Helipad_GDI(building));
+				else
+					WeaponsFactory.AddItem(RxIfc_FactoryVehicle(building));
+			}
+			else if(building.GetTeamNum() == 1)
+			{
+				if(Rx_Building_Helipad_Nod(building) != None)
+					NodHelipad.AddItem(Rx_Building_Helipad_Nod(building));
+				else
+					AirStrip.AddItem(RxIfc_FactoryVehicle(building));
+			}
 		}
-		else if (Rx_Building_Nod_VehicleFactory(building) != None && Rx_Building_Helipad_Nod(Building) == None)
+		else if (RxIfc_FactoryInfantry(building) != None)
 		{
-			AirStrip.AddItem(Rx_Building_Nod_VehicleFactory(building));
-		}
-		else if (Rx_Building_GDI_InfantryFactory(building) != None)
-		{
-			Barracks.AddItem(Rx_Building_GDI_InfantryFactory(building));
-		}
-		else if (Rx_Building_Nod_InfantryFactory(building) != None)
-		{
-			HandOfNod.AddItem(Rx_Building_Nod_InfantryFactory(building));
-		}	
-		else if (Rx_Building_Helipad_GDI(building) != None)
-		{
-			GDIHelipad.AddItem(Rx_Building_Helipad_GDI(building));
-		}
-		else if (Rx_Building_Helipad_Nod(building) != None)
-		{
-			NodHelipad.AddItem(Rx_Building_Helipad_Nod(building));
+			if(building.GetTeamNum() == 0)
+				Barracks.AddItem(RxIfc_FactoryInfantry(building));
+			else if(building.GetTeamNum() == 1)
+				HandOfNod.AddItem(RxIfc_FactoryInfantry(building));
 		}
 		else if (building.isA('Rx_Building_Silo'))
 		{
@@ -66,10 +66,11 @@ simulated function string GetFactoryDescription(byte teamID, string menuName, Rx
 	
 	if (menuName == "VEHICLES") {
 		if (teamID == TEAM_GDI) {
-			factoryName = WeaponsFactory.Length > 0 ? Caps(WeaponsFactory[0].GetHumanReadableName()) : "WEAPONS FACTORY";
+			factoryName = WeaponsFactory.Length > 0 ? Caps(Actor(WeaponsFactory[0]).GetHumanReadableName()) : "WEAPONS FACTORY";
 			factoryName2 = "HELIPAD";
 		} else if (teamID == TEAM_NOD) {
-			factoryName = AirStrip.Length > 0 ? Caps(AirStrip[0].GetHumanReadableName()) : "AIRSTRIP";
+			factoryName = AirStrip.Length > 0 ? Caps(Actor(AirStrip[0]).GetHumanReadableName()) : "AIRSTRIP";
+			factoryName2 = "HELIPAD";
 		}
 		if (AreVehiclesDisabled(teamID, rxPC)) {
 			if (Rx_TeamInfo(WorldInfo.GRI.Teams[teamID]).IsAtVehicleLimit())
@@ -102,9 +103,9 @@ simulated function string GetFactoryDescription(byte teamID, string menuName, Rx
 		
 	} else if (menuName == "CHARACTERS") {
 		if (teamID == TEAM_GDI) {
-			factoryName = Barracks.Length > 0 ? Caps(Barracks[0].GetHumanReadableName()) : "BARRACKS";
+			factoryName = Barracks.Length > 0 ? Caps(Actor(Barracks[0]).GetHumanReadableName()) : "BARRACKS";
 		} else if (teamID == TEAM_NOD) {
-			factoryName = HandOfNod.Length > 0 ? Caps(HandOfNod[0].GetHumanReadableName()) : "HAND OF NOD";
+			factoryName = HandOfNod.Length > 0 ? Caps(Actor(HandOfNod[0]).GetHumanReadableName()) : "HAND OF NOD";
 		}
 		
 		factoryStatus = "STATUS: " $ AreHighTierPayClassesDisabled(teamID) ? "LIMITED" : "ACTIVE";

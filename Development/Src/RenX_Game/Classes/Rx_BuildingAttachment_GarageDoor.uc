@@ -1,4 +1,4 @@
-class Rx_BuildingAttachment_GarageDoor extends Rx_BuildingAttachment_Door;
+class Rx_BuildingAttachment_GarageDoor extends Rx_BuildingAttachment_LockableDoor;
 
 var repnotify bool  bInital;
 var array<StaticMeshComponent>  DoorPieces;
@@ -85,7 +85,7 @@ DefaultProperties
 		bAcceptsLights               = True
 		bAcceptsDecalsDuringGameplay = True
 		bAcceptsDecals               = True
-		LightingChannels             = (Static=true,BSP=true,Dynamic=True,bInitialized=True)
+		LightingChannels             = (Static = true, BSP = true, Dynamic = True, bInitialized = True)
 	End Object
 	DoorPieces.Add(TopMeshPiece)
 	
@@ -105,7 +105,7 @@ DefaultProperties
 		bAcceptsLights               = True
 		bAcceptsDecalsDuringGameplay = True
 		bAcceptsDecals               = True
-		LightingChannels             = (Static=true,BSP=true,Dynamic=True,bInitialized=True)
+		LightingChannels             = (Static = true, BSP = true, Dynamic = True, bInitialized = True)
 	End Object
 	DoorPieces.Add(BottomMeshPiece)
 	

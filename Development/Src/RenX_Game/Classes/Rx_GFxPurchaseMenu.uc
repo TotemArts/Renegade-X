@@ -36,6 +36,8 @@ class Rx_GFxPurchaseMenu extends GFxMoviePlayer
 	dependson(Rx_InventoryManager);
 
 
+var bool bDebug;
+
 var Rx_BuildingAttachment_PT                    rxBuildingOwner;
 var Rx_PurchaseSystem                           rxPurchaseSystem;
 var Rx_Controller                               rxPC;
@@ -187,7 +189,7 @@ var GFxClikWidget 								MainMenuButton[10];//MainMenuButton[10]; Removed Weapo
 //ClassDrawer widgets
 var GFxClikWidget 								ClassMenuButton[10];
 //vehicleDrawer widgets
-var GFxClikWidget 								VehicleMenuButton[10];//VehicleMenuButton[8];
+var GFxClikWidget 								VehicleMenuButton[14];//VehicleMenuButton[8];
 //sidearms and explosive Drawer widgets 
 //TODO:Not implemented yet
 var GFxClikWidget 								WeaponMenuButton[10];
@@ -215,8 +217,8 @@ var float                                       LastCursorXPosition;
 var bool										bMainDrawerOpen, bClassDrawerOpen, bItemDrawerOpen, bEquipmentDrawerOpen, bVehicleDrawerOpen; //, bWeaponDrawerOpen
 var bool                                        bIsInTransition;
 
-var private class<Rx_Weapon>                    OwnedSidearm, OwnedExplosive, OwnedItem;
-var private class<Rx_FamilyInfo>                OwnedFamilyInfo;
+var protected class<Rx_Weapon>                    OwnedSidearm, OwnedExplosive, OwnedItem;
+var protected class<Rx_FamilyInfo>                OwnedFamilyInfo;
 var SoundCue 									PurchaseSound;
 
 // function UpdateReferences();
@@ -234,7 +236,7 @@ function Initialize(LocalPlayer player, Rx_BuildingAttachment_PT PTOwner)
 	local array<PTEquipmentBlock> sidearmData;
 	local Rx_InventoryManager rxInv;
 
-	`log("<PT Log> ------------------ [ Setting up ] ------------------ ");
+	`log("<PT Log> ------------------ [ Setting up ] ------------------ ",bDebug);
 	Init(player);
 	Start();
 	Advance(0.0f);
@@ -327,33 +329,21 @@ function Initialize(LocalPlayer player, Rx_BuildingAttachment_PT PTOwner)
 
 
 
-	`log("<PT Log> rxPC.bJustBaughtEngineer= "$ rxPC.bJustBaughtEngineer);
-	`log("<PT Log> rxPC.bJustBaughtHavocSakura= "$ rxPC.bJustBaughtHavocSakura);
-	`log("<PT Log> OwnedFamilyInfo= " $ OwnedFamilyInfo);
+	`log("<PT Log> rxPC.bJustBaughtEngineer= "$ rxPC.bJustBaughtEngineer,bDebug);
+	`log("<PT Log> rxPC.bJustBaughtHavocSakura= "$ rxPC.bJustBaughtHavocSakura,bDebug);
+	`log("<PT Log> OwnedFamilyInfo= " $ OwnedFamilyInfo,bDebug);
 	`log("");
-	`log("<PT Log> OwnedSidearm= " $ OwnedSidearm);
-	`log("<PT Log> OwnedExplosive= " $ OwnedExplosive);
-	`log("<PT Log> OwnedItem= " $ OwnedItem);
-	`log("");
+	`log("<PT Log> OwnedSidearm= " $ OwnedSidearm,bDebug);
+	`log("<PT Log> OwnedExplosive= " $ OwnedExplosive,bDebug);
+	`log("<PT Log> OwnedItem= " $ OwnedItem,bDebug);
+	`log("",bDebug);
 
-
-// 	if (rxPC.CurrentSidearmWeapon == none) {
-// 		//then use rxinventory defaults
-// 		rxPC.CurrentSidearmWeapon = rxInv.SidearmWeapons[rxInv.SidearmWeapons.Length - 1];
-// 	}
-	`log("<PT Log> rxPC.CurrentSidearmWeapon= " $ rxPC.CurrentSidearmWeapon);
+	`log("<PT Log> rxPC.CurrentSidearmWeapon= " $ rxPC.CurrentSidearmWeapon,bDebug);
 
 	if (rxPC.CurrentExplosiveWeapon == none) {
-		//then set defaults based on class
-// 		if (rxPC.bJustBaughtEngineer 
-// 		|| Rx_Pawn(rxPC.Pawn).GetRxFamilyInfo() == class'Rx_FamilyInfo_GDI_Hotwire' 
-// 		|| Rx_Pawn(rxPC.Pawn).GetRxFamilyInfo() == class'Rx_FamilyInfo_Nod_Technician'){
-// 			//rxPC.CurrentExplosiveWeapon = rxInv.PrimaryWeapons[rxInv.PrimaryWeapons.Find(class'Rx_Weapon_ProxyC4')];
-// 		} else {
-// 			//rxPC.CurrentExplosiveWeapon = rxInv.ExplosiveWeapons[rxInv.ExplosiveWeapons.Length - 1];
-// 		}
+
 	}
-	`log("<PT Log> rxPC.CurrentExplosiveWeapon= " $ rxPC.CurrentExplosiveWeapon);
+	`log("<PT Log> rxPC.CurrentExplosiveWeapon= " $ rxPC.CurrentExplosiveWeapon,bDebug);
 
 
 	// 	[ASSIGN EQUIPMENT]
@@ -363,15 +353,11 @@ function Initialize(LocalPlayer player, Rx_BuildingAttachment_PT PTOwner)
 
 	for (i = 0; i < 10; i++) 
 	{
-		
 		GetVariableObject("_root.mainDrawer.tween.btnMenu"$i).GotoAndStopI(TeamID == TEAM_GDI? 1 : 2);
 		GetVariableObject("_root.classDrawer.tween.btnMenu"$i).GotoAndStopI(TeamID == TEAM_GDI? 1 : 2);
 		GetVariableObject("_root.itemDrawer.tween.btnMenu"$i).GotoAndStopI(TeamID == TEAM_GDI? 1 : 2);
-		//GetVariableObject("_root.weaponDrawer.tween.btnMenu"$i).GotoAndStopI(TeamID == TEAM_GDI? 1 : 2);
-
-		
 			
-		MainMenuButton[i] 		= 	GFxClikWidget(GetVariableObject("_root.mainDrawer.tween.btnMenu"$i $"."$WidgetTeamPrefix $"Button", class'GFxClikWidget'));	
+		MainMenuButton[i] = GFxClikWidget(GetVariableObject("_root.mainDrawer.tween.btnMenu"$i $"."$WidgetTeamPrefix $"Button", class'GFxClikWidget'));	
 
 		if(TeamID == TEAM_GDI && GDIMainMenuData.Length > i)
 			AssignButtonData(MainMenuButton[i], GDIMainMenuData[i], i);
@@ -394,16 +380,7 @@ function Initialize(LocalPlayer player, Rx_BuildingAttachment_PT PTOwner)
 		
 		AssignButtonData(ClassMenuButton[i], TeamID == TEAM_GDI ? GDIClassMenuData[i] : NodClassMenuData[i], i);
 		ClassMenuButton[i].SetObject("group", ClassMenuGroup);
-		
-		/**Enable the first 7 items in weapon menu, disable the rest
-		if (i < 7) {
-			AssignButtonData(WeaponMenuButton[i], TeamID == TEAM_GDI ? GDIWeaponMenuData[i] : NodWeaponMenuData[i], i);
-			WeaponMenuButton[i].SetObject("group", WeaponMenuGroup);
-		} else {
-			WeaponMenuButton[i].SetBool("enable", false);
-			WeaponMenuButton[i].SetVisible(false);
-		}
-		*/
+
 		//Enable the first 8 items in item menu, disable the rest
 		if (i < 8) {
 			AssignItemData(ItemMenuButton[i], i);
@@ -455,30 +432,19 @@ function Initialize(LocalPlayer player, Rx_BuildingAttachment_PT PTOwner)
 
 			//supposely replace the 1st index, which is the timedc4
 
-
-// 			explosiveData.RemoveItem(explosiveData[explosiveData.Find('WeaponClass', class'Rx_Weapon_ProxyC4')]);
-// 			explosiveData[0] = explosiveData[explosiveData.Find('WeaponClass', class'Rx_Weapon_ProxyC4')];
-// 			explosiveData[0].bFree = true;
 			explosiveData.RemoveItem(explosiveData[explosiveData.Find('WeaponClass', class'Rx_Weapon_TimedC4')]);
 			explosiveData.RemoveItem(explosiveData[explosiveData.Find('WeaponClass', class'Rx_Weapon_RemoteC4')]);
 			explosiveData[explosiveData.Find('WeaponClass', class'Rx_Weapon_ProxyC4')].bFree = true;
-// 		explosiveData[0] = explosiveData[explosiveData.Length - 1];
-// 		explosiveData[0].bFree = true;
-// 		explosiveData.Remove(explosiveData.length - 1, 1);
 
-			//log
-				`log("<PT Log>              ====================== ");
+				`log("<PT Log>              ====================== ",bDebug);
 			for (i=0; i<explosiveData.Length; i++) {
-				`log("<PT Log> Engi explosiveData["$ i $"]= " $ explosiveData[i].title);
+				`log("<PT Log> Engi explosiveData["$ i $"]= " $ explosiveData[i].title,bDebug);
 			}
 
 	} else if (rxPC.bJustBaughtHavocSakura 
 		|| Rx_Pawn(rxPC.Pawn).GetRxFamilyInfo() == class'Rx_FamilyInfo_GDI_Havoc'
 		|| Rx_Pawn(rxPC.Pawn).GetRxFamilyInfo() == class'Rx_FamilyInfo_Nod_Sakura' ) {
 			
-// 			explosiveData.RemoveItem(explosiveData[explosiveData.Find('WeaponClass', class'Rx_Weapon_ProxyC4')]);
-// 			explosiveData[0] = explosiveData[explosiveData.Find('WeaponClass', class'Rx_Weapon_RemoteC4')];
-// 			explosiveData[0].bFree = true;
 			explosiveData.RemoveItem(explosiveData[explosiveData.Find('WeaponClass', class'Rx_Weapon_TimedC4')]);
 			explosiveData.RemoveItem(explosiveData[explosiveData.Find('WeaponClass', class'Rx_Weapon_ProxyC4')]);
 			explosiveData[explosiveData.Find('WeaponClass', class'Rx_Weapon_RemoteC4')].bFree = true;
@@ -490,9 +456,9 @@ function Initialize(LocalPlayer player, Rx_BuildingAttachment_PT PTOwner)
 			explosiveData.RemoveItem(explosiveData[explosiveData.Find('WeaponClass', class'Rx_Weapon_ProxyC4')]);
 
 			//log
-			`log("<PT Log>              ====================== ");
+			`log("<PT Log>              ====================== ",bDebug);
 			for (i=0; i<explosiveData.Length; i++) {
-				`log("<PT Log> Norm explosiveData["$ i $"]= " $ explosiveData[i].title);
+				`log("<PT Log> Norm explosiveData["$ i $"]= " $ explosiveData[i].title,bDebug);
 			}
 	}
 
@@ -502,8 +468,7 @@ function Initialize(LocalPlayer player, Rx_BuildingAttachment_PT PTOwner)
 		if (rxPC.bJustBaughtEngineer 
 		|| Rx_Pawn(rxPC.Pawn).GetRxFamilyInfo() == class'Rx_FamilyInfo_GDI_Hotwire' 
 		|| Rx_Pawn(rxPC.Pawn).GetRxFamilyInfo() == class'Rx_FamilyInfo_Nod_Technician'){
-			//AssignEquipmentData(EquipExplosivesButton, EquipExplosivesList, explosiveData , rxPC.PreviousExplosiveTransactionRecords, rxInv.PrimaryWeapons[rxInv.PrimaryWeapons.Find(class'Rx_Weapon_ProxyC4')]);
-			`log("<PT Log> engi rxPC.Pawn.InvManager= " $ rxPC.Pawn.InvManager);
+			`log("<PT Log> engi rxPC.Pawn.InvManager= " $ rxPC.Pawn.InvManager,bDebug);
 			if (TeamID == TEAM_GDI) {
 				AssignEquipmentData(EquipExplosivesButton, EquipExplosivesList, explosiveData , rxInv.AvailableExplosiveWeapons, class'Rx_InventoryManager_GDI_Hotwire'.default.ExplosiveWeapons[0]);
 			} else {
@@ -512,16 +477,14 @@ function Initialize(LocalPlayer player, Rx_BuildingAttachment_PT PTOwner)
 		} else if (rxPC.bJustBaughtHavocSakura 
 		|| Rx_Pawn(rxPC.Pawn).GetRxFamilyInfo() == class'Rx_FamilyInfo_GDI_Havoc'
 		|| Rx_Pawn(rxPC.Pawn).GetRxFamilyInfo() == class'Rx_FamilyInfo_Nod_Sakura' ) {
-			//AssignEquipmentData(EquipExplosivesButton, EquipExplosivesList, explosiveData , rxPC.PreviousExplosiveTransactionRecords, class'Rx_InventoryManager'.default.ExplosiveWeapons[0]);
-			`log("<PT Log> Hvc/Skr rxPC.Pawn.InvManager= " $ rxPC.Pawn.InvManager);
+			`log("<PT Log> Hvc/Skr rxPC.Pawn.InvManager= " $ rxPC.Pawn.InvManager,bDebug);
 			if (TeamID == TEAM_GDI) {
 				AssignEquipmentData(EquipExplosivesButton, EquipExplosivesList, explosiveData , rxInv.AvailableExplosiveWeapons, class'Rx_InventoryManager_GDI_Havoc'.default.ExplosiveWeapons[0]);
 			} else {
 				AssignEquipmentData(EquipExplosivesButton, EquipExplosivesList, explosiveData , rxInv.AvailableExplosiveWeapons, class'Rx_InventoryManager_Nod_Sakura'.default.ExplosiveWeapons[0]);
 			}
 		} else {
-			`log("<PT Log> norm rxPC.Pawn.InvManager= " $ rxPC.Pawn.InvManager);
-			//AssignEquipmentData(EquipExplosivesButton, EquipExplosivesList, explosiveData , rxPC.PreviousExplosiveTransactionRecords, Rx_InventoryManager(rxPC.Pawn.InvManager).default.ExplosiveWeapons[0]);
+			`log("<PT Log> norm rxPC.Pawn.InvManager= " $ rxPC.Pawn.InvManager,bDebug);
 			AssignEquipmentData(EquipExplosivesButton, EquipExplosivesList, explosiveData , rxInv.AvailableExplosiveWeapons, class'Rx_InventoryManager'.default.ExplosiveWeapons[0]);
 		}
 	}
@@ -533,7 +496,6 @@ function Initialize(LocalPlayer player, Rx_BuildingAttachment_PT PTOwner)
 	BottomWidgetFadeIn(CreditsTween);
 	BottomWidgetFadeIn(PurchaseTween);
 	MainDrawerFadeIn();
-	//EquipmentDrawerFadeIn();
 	bIsInTransition = false;;
 
 	
@@ -559,8 +521,6 @@ function RemoveWidgetEvents()
 		ClassMenuButton[i].RemoveAllEventListeners("buttonClick");
 		ItemMenuButton[i].RemoveAllEventListeners("CLIK_buttonClick");
 		ItemMenuButton[i].RemoveAllEventListeners("buttonClick");
-		//WeaponMenuButton[i].RemoveAllEventListeners("CLIK_buttonClick");
-		//WeaponMenuButton[i].RemoveAllEventListeners("buttonClick");
 	}
 	for (i = 0; i < 10; i ++)
 	{
@@ -601,9 +561,6 @@ function AddWidgetEvents()
 		if (ItemMenuButton[i].GetBool("enabled")){
 			ItemMenuButton[i].AddEventListener('CLIK_buttonClick', OnPTButtonClick);
 		}
-		/**if (WeaponMenuButton[i].GetBool("enabled")){
-			WeaponMenuButton[i].AddEventListener('CLIK_buttonClick', OnPTButtonClick);
-		*/
 	}
 	for (i = 0; i < 10; i ++)
 	{
@@ -626,7 +583,6 @@ function AssignButtonData(GFxClikWidget widget, PTMenuBlock menuData, byte i)
 {
 	local GFxObject Type;
 
-	//if (i == menuData.ID) {
 		widget.SetString("hotkeyLabel", menuData.hotkey);
 		widget.SetString("data", "" $ menuData.ID);
 		widget.SetString("label", menuData.title);
@@ -635,7 +591,7 @@ function AssignButtonData(GFxClikWidget widget, PTMenuBlock menuData, byte i)
 		if (menuData.title == "ENGINEER" || menuData.title == "HOTWIRE" || menuData.title == "TECHNICIAN") {
 			widget.SetBool("isDamageBar", false);
 		}
-		//widget.SetString("Group", menuData.Group);
+
 		switch (menuData.BlockType)
 		{
 			case EPBT_MENU:
@@ -670,7 +626,6 @@ function AssignButtonData(GFxClikWidget widget, PTMenuBlock menuData, byte i)
 		//[VEHICLE COUNT]
 		Type = widget.GetObject("type");
 		Type.GotoAndStopI(menuData.type);
-		//Type.GetObject("icon").GotoAndStopI(menuData.iconID);
 
 		//the following is the test
 		LoadTexture("img://" $ PathName(menuData.PTIconTexture), Type.GetObject("icon"));
@@ -772,36 +727,22 @@ function AssignEquipmentData( GFxClikWidget widgetButton, GFxClikWidget widgetLi
 		if (!equipmentData[i].bEnable) {
 			continue;
 		}
-		//if it is free, add to list ---- NYOOOOOOOOOOOO
 		
-		/**
-		Deprecated: Just because it's free doesn't make it alright to add it to the list. 
-		if (equipmentData[i].bFree) {
-			DataProvider.SetElementString(j, equipmentData[i].title);
-			j++;
-			} else */
-		
-			// @shahman: InventoryManager::FindInventoryType() is returning null for our weapons, which means the weapon is not totally removed. take note
-			// foreach the purchased weapons
-			foreach AvailableWeapons(weaponClass)
-			{
-				// if eqipmentlist has previous purchased weapons, add to list.
-				
-				//EDIT: Add available weapons to list always.
-				if (equipmentData[i].WeaponClass == weaponClass){
-					DataProvider.SetElementString(j, equipmentData[i].title);
-					j++;
-					//weaponClass = equipmentData[i].WeaponClass;
-					break;
-				} 
-			}
-		
+		// @shahman: InventoryManager::FindInventoryType() is returning null for our weapons, which means the weapon is not totally removed. take note
+		// foreach the purchased weapons
+		foreach AvailableWeapons(weaponClass)
+		{
+			// if eqipmentlist has previous purchased weapons, add to list.
+			
+			//EDIT: Add available weapons to list always.
+			if (equipmentData[i].WeaponClass == weaponClass){
+				DataProvider.SetElementString(j, equipmentData[i].title);
+				j++;
+				//weaponClass = equipmentData[i].WeaponClass;
+				break;
+			} 
+		}
 
-// 		// if the equipdata is the same as our current weapon, then get the index data
-// 		`log("<PT Log>");
-// 		`log("<PT Log> equipmentData[i].WeaponClass= " $ equipmentData[i].WeaponClass);
-// 		`log("<PT Log> CurrentWeapon= " $ CurrentWeapon);
-// 		`log("<PT Log>");
 		if (equipmentData[i].WeaponClass == CurrentWeapon) {
 			selectedIndex = j - 1;
 			selectedData = i;
@@ -811,9 +752,9 @@ function AssignEquipmentData( GFxClikWidget widgetButton, GFxClikWidget widgetLi
     widgetList.SetObject("dataProvider", InitScrollingListDataProvider(DataProvider));
 	widgetList.SetInt("rowCount", j);
 
-	if (selectedIndex < 0) {
+	if (selectedIndex < 0)
 		selectedIndex = 0;
-	}
+
 	widgetList.SetInt("selectedIndex", selectedIndex);
 	
 	//update the widget with our selected equipment data
@@ -908,14 +849,12 @@ function GetMapUnitData(){
 				GDIClassMenuData[i-5].bEnable = true;
 			}
 		}
-			//GDIClassMenuData[i].bEnable = true;
 	
 		if(i<=4)
 		{
 			GDIMainMenuData[i].PTIconTexture = FamInfo.static.Icon(); 
 			GDIMainMenuData[i].title	= FamInfo.static.Title();
 			GDIMainMenuData[i].cost	= FamInfo.static.StrCost();
-			//GDIMainMenuData[i].iconID	= FamInfo.static.iconID;
 			GDIMainMenuData[i].desc	= FamInfo.static.Description();
 			GDIMainMenuData[i].damage	= FamInfo.static.DamageOutOfSix();
 			GDIMainMenuData[i].range	= FamInfo.static.RangeOutOfSix();
@@ -924,12 +863,9 @@ function GetMapUnitData(){
 		}
 		else
 		{
-			//It's "i-5 to account for 5 free infantry on the main menu"
-			//`log("---------" @ i-5 @ "-------");
 			GDIClassMenuData[i-5].PTIconTexture = FamInfo.static.Icon(); 
 			GDIClassMenuData[i-5].title	= FamInfo.static.Title();
 			GDIClassMenuData[i-5].cost	= FamInfo.static.StrCost();
-			//GDIClassMenuData[i].iconID	= FamInfo.static.iconID;
 			GDIClassMenuData[i-5].desc	= FamInfo.static.Description();
 			GDIClassMenuData[i-5].damage	= FamInfo.static.DamageOutOfSix();
 			GDIClassMenuData[i-5].range	= FamInfo.static.RangeOutOfSix();
@@ -969,7 +905,6 @@ function GetMapUnitData(){
 			NodMainMenuData[i].PTIconTexture = FamInfo.static.Icon(); 
 			NodMainMenuData[i].title	= FamInfo.static.Title();
 			NodMainMenuData[i].cost	= FamInfo.static.StrCost();
-			//NodMainMenuData[i].iconID	= FamInfo.static.iconID;
 			NodMainMenuData[i].desc	= FamInfo.static.Description();
 			NodMainMenuData[i].damage	= FamInfo.static.DamageOutOfSix();
 			NodMainMenuData[i].range	= FamInfo.static.RangeOutOfSix();
@@ -981,7 +916,6 @@ function GetMapUnitData(){
 			NodClassMenuData[i-5].PTIconTexture = FamInfo.static.Icon(); 
 			NodClassMenuData[i-5].title	= FamInfo.static.Title();
 			NodClassMenuData[i-5].cost	= FamInfo.static.StrCost();
-			//NodClassMenuData[i].iconID	= FamInfo.static.iconID;
 			NodClassMenuData[i-5].desc	= FamInfo.static.Description();
 			NodClassMenuData[i-5].damage	= FamInfo.static.DamageOutOfSix();
 			NodClassMenuData[i-5].range	= FamInfo.static.RangeOutOfSix();
@@ -994,9 +928,7 @@ function GetMapUnitData(){
 function AssignVehicleData(GFxClikWidget widget, PTVehicleBlock menuData, byte i)
 {
 	
-	if (i == menuData.ID) {
-		
-		//`log(menuData.title @ menuData.ID); 
+	if (i == menuData.ID) { 
 		if(menuData.title == "" || !menuData.bEnable) {
 			widget.SetBool("enabled", false);
 			widget.SetBool("visible",  false);
@@ -1053,6 +985,11 @@ function TickHUD()
 		CreditsButton.SetString("label", "Credits: "$int(PlayerCredits));
 	}
 
+	if(DummyPawn != None)
+	{
+		UpdateDummyLookAt();
+	}
+
 	if (VehicleCount != rxTeamInfo.GetVehicleCount()){
 		VehicleCount = rxTeamInfo.GetVehicleCount();
 		
@@ -1091,7 +1028,7 @@ function TickHUD()
 		} else {
 			VehicleInfoButton.GetObject("vehicleCount").SetVisible(false);
 			if (VehicleCount > 10) {
-				`log("<PT Log> WARNING: vehicle exceeding the game vehicle limit");
+				`log("<PT Log> WARNING: vehicle exceeding the game vehicle limit",bDebug);
 			}
 		}
 
@@ -1101,30 +1038,6 @@ function TickHUD()
 		
 	}
 
-
-	/** Disable for now
-	if (!EquipSideArmButton.GetBool("selected")) {
-		if (EquipSideArmList.GetBool("visible")) {
-			if (TeamID == TEAM_GDI) {
-				GetVariableObject("_root.equipmentDrawer.tween.equipsidearm.GDIListArrow").SetVisible(false);
-			} else {
-				GetVariableObject("_root.equipmentDrawer.tween.equipsidearm.NodListArrow").SetVisible(false);
-			}
-			EquipSideArmList.SetVisible(false);
-		}
-	}
-
-	if (!EquipExplosivesButton.GetBool("selected")) {
-		if (EquipExplosivesList.GetBool("visible")) {
-			if (TeamID == TEAM_GDI) {
-				GetVariableObject("_root.equipmentDrawer.tween.equipexplosives.GDIListArrow").SetVisible(false);
-			} else {
-				GetVariableObject("_root.equipmentDrawer.tween.equipexplosives.NodListArrow").SetVisible(false);
-			}
-			EquipExplosivesList.SetVisible(false);
-		}
-	}
-*/
 	//Pay Class Condition
 
 	if (rxPurchaseSystem.AreHighTierPayClassesDisabled(TeamID)) {
@@ -1167,22 +1080,26 @@ function TickHUD()
  				VehicleMenuButton[i].SetBool("selected", false);
  				VehicleMenuButton[i].SetBool("enabled", false);
  			}
-			SelectBack();
 			MainMenuButton[7].SetString("sublabel", rxPurchaseSystem.GetFactoryDescription(TeamID, (TeamID == TEAM_GDI ? GDIMainMenuData[7].title : NodMainMenuData[7].title), rxPC ));
-			MainMenuButton[7].SetBool("selected", false);
-			MainMenuButton[7].SetBool("enabled", false);
 		} else if (bMainDrawerOpen) {
 			MainMenuButton[7].SetString("sublabel", rxPurchaseSystem.GetFactoryDescription(TeamID, (TeamID == TEAM_GDI ? GDIMainMenuData[7].title : NodMainMenuData[7].title), rxPC));
-			MainMenuButton[7].SetBool("selected", false);
-			MainMenuButton[7].SetBool("enabled", false);
 		}
 	} else {
 		if (bVehicleDrawerOpen) {
  			for(i=0; i < 10; i++) {
 				
 				
-				if(!VehicleMenuButton[i].GetBool("visible")) continue;  
+				if(!VehicleMenuButton[i].GetBool("visible")) continue;
+
+				bIsAircraft = false;  
 				data = int(VehicleMenuButton[i].GetString("data"));
+
+				if (rxPurchaseSystem.AreVehiclesDisabled(TeamID, rxPC))
+				{
+					VehicleMenuButton[i].SetBool("enabled", false);
+					VehicleMenuButton[i].SetBool("selected", false);
+					continue;
+				}
 
 				if (TeamID == TEAM_GDI) {
 					if (GDIVehicleMenuData[data].bAircraft) {
@@ -1224,42 +1141,6 @@ function TickHUD()
 			MainMenuButton[7].SetBool("enabled", true);
 		}
 	}
-
-	//silo condition
-	/**if (!rxPurchaseSystem.AreSilosCaptured(TeamID)) {
-		if (bWeaponDrawerOpen) {
-			for (i=0; i < 7; i++) {
-				data = int(WeaponMenuButton[i].GetString("data"));
-				if (TeamID == TEAM_GDI) {
-					if (GDIWeaponMenuData[data].bSilo){
-						WeaponMenuButton[i].SetBool("selected", false);
-						WeaponMenuButton[i].SetBool("enabled", false);
-					}
-				} else {
-					if (NodWeaponMenuData[data].bSilo){
-						WeaponMenuButton[i].SetBool("selected", false);
-						WeaponMenuButton[i].SetBool("enabled", false);
-					}
-				}
-			}
-		}
-	} else {
-		if (bWeaponDrawerOpen) {
-			for (i=0; i < 7; i++) {
-				data = int(WeaponMenuButton[i].GetString("data"));
-				if (TeamID == TEAM_GDI) {
-					if (GDIWeaponMenuData[data].bSilo){
-						WeaponMenuButton[i].SetBool("enabled", true);
-					}
-				} else {
-					if (NodWeaponMenuData[i].bSilo){
-						WeaponMenuButton[i].SetBool("enabled", true);
-					}
-				}
-			}
-		}
-	}
-	*/
 	
 	//payment conditions
 
@@ -1287,6 +1168,7 @@ function TickHUD()
 				for (i = 0; i < 10; i++) {
 
 				data = int(VehicleMenuButton[i].GetString("data"));
+				bIsAircraft = false;
 
 				if (TeamID == TEAM_GDI) {
 					if (GDIVehicleMenuData[data].bAircraft) {
@@ -1323,14 +1205,13 @@ function TickHUD()
 						}
 					}
 				
-				
 					if (TeamID == TEAM_GDI && NumGDIVehicles > i) {
 						VehicleMenuButton[i].SetString("costLabel", "$" $ rxPurchaseSystem.GetVehiclePrices(TeamID, GDIVehicleMenuData[i].ID, rxPurchaseSystem.AirdropAvailable(rxPRI)));
 					} else if (TeamID == TEAM_NOD && NumNodVehicles > i){
 						VehicleMenuButton[i].SetString("costLabel", "$" $ rxPurchaseSystem.GetVehiclePrices(TeamID, NodVehicleMenuData[i].ID, rxPurchaseSystem.AirdropAvailable(rxPRI)));
 					}				
 				
-					if (PlayerCredits >= rxPurchaseSystem.GetVehiclePrices(TeamID, data, rxPurchaseSystem.AirdropAvailable(rxPRI)) ){
+					if (PlayerCredits >= rxPurchaseSystem.GetVehiclePrices(TeamID, data, rxPurchaseSystem.AirdropAvailable(rxPRI)) && !rxPurchaseSystem.AreVehiclesDisabled(TeamID, rxPC)){
 						VehicleMenuButton[i].SetBool("enabled", true);
 					} else {
 						VehicleMenuButton[i].SetBool("enabled", false);
@@ -1338,7 +1219,6 @@ function TickHUD()
 				}
 		}	else if (bItemDrawerOpen) {
 			for (i = 0; i < 8; i++) {
-//				data = int(ItemMenuButton[i].GetString("data"));
 				data = i;
 				if (TeamID == TEAM_GDI) 
 				{
@@ -1373,25 +1253,16 @@ function TickHUD()
 
 function TickMainMenuButtons()
 {
-	//local int i;
-	
 	MainMenuButton[7].SetString("sublabel", rxPurchaseSystem.GetFactoryDescription(TeamID, (TeamID == TEAM_GDI ? GDIMainMenuData[6].title : NodMainMenuData[6].title), rxPC));
 	MainMenuButton[7].SetBool("enabled", true);
 	MainMenuButton[5].SetString("sublabel", rxPurchaseSystem.GetFactoryDescription(TeamID, "REFILL", rxPC));
-	//MainMenuButton[5].SetBool("enabled", true);
 	MainMenuButton[5].SetBool("enabled", rxPC.RefillCooldown() > 0 ? false : true);
-	/**
-	for (i = 0; i < 5; i++) {
- 		MainMenuButton[i].SetBool("enabled", rxPC.RefillCooldown() > 0 ? false : true);
-	}	*/
 }
 
 function SetPurchaseSystem(Rx_PurchaseSystem inPS )
 {
 	rxPurchaseSystem = inPS;
 }
-
-
 
 // **************************************************************** //
 //																	//
@@ -1456,12 +1327,6 @@ function SetupPTDummyActor()
 
 		DummyVehicle = rxPC.Spawn(class'Rx_PT_Vehicle', rxPC, , loc, rot, , true);
 		DummyVehicle.SetHidden(true); //it was true earlier
-
-		
-// 		DummyVehicle.SetHidden(false);
-// 			DummyVehicle.SetSkeletalMesh(TeamID == TEAM_GDI 
-// 				? class'RenX_Game.Rx_Vehicle_MediumTank'.default.SkeletalMeshForPT 
-// 				: class'RenX_Game.Rx_Vehicle_LightTank'.default.SkeletalMeshForPT );
 	}
 }
 /** one1: Modified. */
@@ -1583,157 +1448,78 @@ function BottomDrawerFadeOut()
 
 function MainDrawerFadeIn()
 {
-	//local int CurrentFrame;
 	if (MainDrawer == none) {
 		return;
 	}
-	//CurrentFrame = MainDrawer.GetInt("currentFrame");
-	//if (CurrentFrame == 1) {
-		MainDrawer.GotoAndPlay("Fade In");
-		bMainDrawerOpen = true;
-	//}
+
+	MainDrawer.GotoAndPlay("Fade In");
+	bMainDrawerOpen = true;
 }
 function MainDrawerFadeOut()
 {
-	//local int CurrentFrame;
 	if (MainDrawer == none) {
 		return;
 	}
-	//CurrentFrame = MainDrawer.GetInt("currentFrame");
-	//if (CurrentFrame == 20) {
-		MainDrawer.GotoAndPlay("Fade Out");
-		bMainDrawerOpen = false;
-	//}
+
+	MainDrawer.GotoAndPlay("Fade Out");
+	bMainDrawerOpen = false;
 }
 
 function ClassDrawerFadeIn()
 {
-	//local int CurrentFrame;
 	if (ClassDrawer == none) {
 		return;
 	}
-	//CurrentFrame = ClassDrawer.GetInt("currentFrame");
-	//if (CurrentFrame == 1) {
-		ClassDrawer.GotoAndPlay("Fade In");
-		bClassDrawerOpen = true;
-	//}
+
+	ClassDrawer.GotoAndPlay("Fade In");
+	bClassDrawerOpen = true;
 }
 function ClassDrawerFadeOut()
 {
-	//local int CurrentFrame;
 	if (ClassDrawer == none) {
 		return;
 	}
-	//CurrentFrame = ClassDrawer.GetInt("currentFrame");
-	//if (CurrentFrame == 20) {
-		ClassDrawer.GotoAndPlay("Fade Out");
-		bClassDrawerOpen = false;
-	//}
+
+	ClassDrawer.GotoAndPlay("Fade Out");
+	bClassDrawerOpen = false;
 }
 
 function ItemDrawerFadeIn()
 {
-	//local int CurrentFrame;
 	if (ItemDrawer == none) {
 		return;
 	}
-	//CurrentFrame = ItemDrawer.GetInt("currentFrame");
-	//if (CurrentFrame == 1) {
-		ItemDrawer.GotoAndPlay("Fade In");
-		bItemDrawerOpen = true;
-	//}
+
+	ItemDrawer.GotoAndPlay("Fade In");
+	bItemDrawerOpen = true;
 }
 function ItemDrawerFadeOut()
 {
-	//local int CurrentFrame;
 	if (ItemDrawer == none) {
 		return;
 	}
-	//CurrentFrame = ItemDrawer.GetInt("currentFrame");
-	//if (CurrentFrame == 20) {
-		ItemDrawer.GotoAndPlay("Fade Out");
-		bItemDrawerOpen = false;
-	//}
+
+	ItemDrawer.GotoAndPlay("Fade Out");
+	bItemDrawerOpen = false;
 }
 
-/**function WeaponDrawerFadeIn()
-{
-	/local int CurrentFrame;
-	if (WeaponDrawer == none) {
-		return;
-	}
-	/CurrentFrame = WeaponDrawer.GetInt("currentFrame");
-	/if (CurrentFrame == 1) {
-		WeaponDrawer.GotoAndPlay("Fade In");
-		bWeaponDrawerOpen = true;
-	/}
-}
-*/
-
-/**function WeaponDrawerFadeOut()
-{
-	/local int CurrentFrame;
-	if (WeaponDrawer == none) {
-		return;
-	}
-	/CurrentFrame = WeaponDrawer.GetInt("currentFrame");
-	/if (CurrentFrame == 20) {
-		WeaponDrawer.GotoAndPlay("Fade Out");
-		bWeaponDrawerOpen = false;
-	/}
-}
-*/
 function VehicleDrawerFadeIn()
 {
-	//local int CurrentFrame;
 	if (VehicleDrawer == none) {
 		return;
 	}
-	//CurrentFrame = VehicleDrawer.GetInt("currentFrame");
-	//if (CurrentFrame == 1) {
-		VehicleDrawer.GotoAndPlay("Fade In");
-		bVehicleDrawerOpen = true;
-	//}
+
+	VehicleDrawer.GotoAndPlay("Fade In");
+	bVehicleDrawerOpen = true;
 }
 function VehicleDrawerFadeOut()
 {
-	//local int CurrentFrame;
 	if (VehicleDrawer == none) {
 		return;
 	}
-	//CurrentFrame = VehicleDrawer.GetInt("currentFrame");
-	//if (CurrentFrame == 20) {
-		VehicleDrawer.GotoAndPlay("Fade Out");
-		bVehicleDrawerOpen = false;
-	//}
-}
 
-function EquipmentDrawerFadeIn()
-{
-	/**
-	/local int CurrentFrame;
-	if (EquipmentDrawer == none) {
-		return;
-	}
-	/CurrentFrame = EquipmentDrawer.GetInt("currentFrame");
-	/if (CurrentFrame == 1) {
-		EquipmentDrawer.GotoAndPlay("Fade In");
-		bEquipmentDrawerOpen = true;
-	/}
-	*/
-}
-function EquipmentDrawerFadeOut()
-{
-	/**local int CurrentFrame;
-	if (EquipmentDrawer == none) {
-		return;
-	}
-	/CurrentFrame = EquipmentDrawer.GetInt("currentFrame");
-	/if (CurrentFrame == 20) {
-		EquipmentDrawer.GotoAndPlay("Fade Out");
-		bEquipmentDrawerOpen = false;
-	/}
-	)*/
+	VehicleDrawer.GotoAndPlay("Fade Out");
+	bVehicleDrawerOpen = false;
 }
 
 function CancelCurrentAnimations()
@@ -1761,22 +1547,13 @@ function CancelCurrentAnimations()
 */
 function bool FilterButtonInput(int ControllerId, name ButtonName, EInputEvent InputEvent)
 {
+	local int SelectedIndex;
 
-
-
-// 	/** @shahman:temp hack to do a check whether the drawer is playing animation. slightly dirty. */
-// 	if ( (MainDrawer.GetInt("currentFrame") != 20 && bMainDrawerOpen) 
-// 		|| (VehicleDrawer.GetInt("currentFrame") != 20 && bVehicleDrawerOpen) 
-// 		|| (WeaponDrawer.GetInt("currentFrame") != 20 && bWeaponDrawerOpen) 
-// 		|| (ItemDrawer.GetInt("currentFrame") != 20 && bItemDrawerOpen) 
-// 		|| (EquipmentDrawer.GetInt("currentFrame") != 20 && bEquipmentDrawerOpen) 
-// 		|| (ClassDrawer.GetInt("currentFrame") != 20 && bClassDrawerOpen) ) {
-// 		return false;
-// 		}
+	SelectedIndex = 255;
 
 	if (InputEvent == EInputEvent.IE_Pressed) {
-		`log("<PT Log> ------------------ [ FilterButtonInput ] ------------------ ");
-		`log("<PT Log> Button Pressed? " $ ButtonName);
+		`log("<PT Log> ------------------ [ FilterButtonInput ] ------------------ ",bDebug);
+		`log("<PT Log> Button Pressed? " $ ButtonName,bDebug);
 	}
 	switch (ButtonName) 
 	{
@@ -1800,139 +1577,29 @@ function bool FilterButtonInput(int ControllerId, name ButtonName, EInputEvent I
 			}
 			break;
 		case 'One':
-			if (InputEvent == EInputEvent.IE_Pressed) {
-				if ((bVehicleDrawerOpen && VehicleMenuButton[0].GetBool("enabled")) ) {
-					PlaySoundFromTheme('buttonClick', 'default'); //TODO
-					SetSelectedButtonByIndex(0);
-					SelectPurchase();
-				} else if ((bMainDrawerOpen && MainMenuButton[0].GetBool("enabled") ) 
-					|| (bClassDrawerOpen && ClassMenuButton[0].GetBool("enabled")) 
-					//|| (bWeaponDrawerOpen && WeaponMenuButton[0].GetBool("enabled")) 
-					|| (bItemDrawerOpen && ItemMenuButton[0].GetBool("enabled"))) {
-					PlaySoundFromTheme('buttonClick', 'default'); //TODO
-					SetSelectedButtonByIndex(0);
-					//SelectMenu(1);
-					SelectPurchase();
-				}
-			}
+			SelectedIndex = 0;
 			break;
 		case 'Two':
-			if (InputEvent == EInputEvent.IE_Pressed) {
-				if ((bVehicleDrawerOpen && VehicleMenuButton[1].GetBool("enabled")) ) {
-					PlaySoundFromTheme('buttonClick', 'default'); //TODO
-					if (TeamID == TEAM_GDI) {
-						SetSelectedButtonByIndex(1);
-					} else {
-						SetSelectedButtonByIndex(1);
-					}
-					SelectPurchase();
-				} else if ((bMainDrawerOpen && MainMenuButton[1].GetBool("enabled") ) 
-					|| (bClassDrawerOpen && ClassMenuButton[1].GetBool("enabled")) 
-					//|| (bWeaponDrawerOpen && WeaponMenuButton[1].GetBool("enabled")) 
-					|| (bItemDrawerOpen && ItemMenuButton[1].GetBool("enabled"))) {
-					PlaySoundFromTheme('buttonClick', 'default'); //TODO
-					SetSelectedButtonByIndex(1);
-					//SelectMenu(2);
-					SelectPurchase();
-				}
-			}
+			SelectedIndex = 1;
 			break;
 		case 'Three':
-			if (InputEvent == EInputEvent.IE_Pressed) {
-				if ((bVehicleDrawerOpen && VehicleMenuButton[2].GetBool("enabled")) ) {
-					PlaySoundFromTheme('buttonClick', 'default'); //TODO
-					if (TeamID == TEAM_GDI) {
-						SetSelectedButtonByIndex(2);
-					} else {
-						SetSelectedButtonByIndex(2);
-					}
-					SelectPurchase();
-				} else if ((bMainDrawerOpen && MainMenuButton[2].GetBool("enabled") ) 
-					|| (bClassDrawerOpen && ClassMenuButton[2].GetBool("enabled")) 
-					|| (bVehicleDrawerOpen && VehicleMenuButton[2].GetBool("enabled")) 
-					//|| (bWeaponDrawerOpen && WeaponMenuButton[2].GetBool("enabled")) 
-					|| (bItemDrawerOpen && ItemMenuButton[2].GetBool("enabled"))) {
-					PlaySoundFromTheme('buttonClick', 'default'); //TODO
-					SetSelectedButtonByIndex(2);
-					//SelectMenu(3);
-					SelectPurchase();
-				}
-			}
+			SelectedIndex = 2;
 			break;
 		case 'Four':
-			if (InputEvent == EInputEvent.IE_Pressed) {
-				if ((bVehicleDrawerOpen && VehicleMenuButton[3].GetBool("enabled")) ) {
-					PlaySoundFromTheme('buttonClick', 'default'); //TODO
-					if (TeamID == TEAM_GDI) {
-						SetSelectedButtonByIndex(3);
-					} else {
-						SetSelectedButtonByIndex(3);
-					}
-					SelectPurchase();
-				} else if ((bMainDrawerOpen && MainMenuButton[3].GetBool("enabled") ) 
-					|| (bClassDrawerOpen && ClassMenuButton[3].GetBool("enabled")) 
-					//|| (bWeaponDrawerOpen && WeaponMenuButton[3].GetBool("enabled")) 
-					|| (bItemDrawerOpen && ItemMenuButton[3].GetBool("enabled"))) {
-					PlaySoundFromTheme('buttonClick', 'default'); //TODO
-					SetSelectedButtonByIndex(3);
-					//SelectMenu(4);
-					SelectPurchase();
-				}
-			}
+			SelectedIndex = 3;
 			break;
 		case 'Five':
-			if (InputEvent == EInputEvent.IE_Pressed) {
-				if ((bVehicleDrawerOpen && VehicleMenuButton[4].GetBool("enabled")) ) {
-					PlaySoundFromTheme('buttonClick', 'default'); //TODO
-					if (TeamID == TEAM_GDI) {
-						SetSelectedButtonByIndex(4);
-					} else {
-						SetSelectedButtonByIndex(4);
-					}
-					SelectPurchase();
-				} else if ((bClassDrawerOpen && ClassMenuButton[4].GetBool("enabled")) 
-					//|| (bWeaponDrawerOpen && WeaponMenuButton[4].GetBool("enabled")) 
-					|| (bItemDrawerOpen && ItemMenuButton[4].GetBool("enabled"))) {
-					SetSelectedButtonByIndex(4);
-					PlaySoundFromTheme('buttonClick', 'default'); //TODO
-					//SelectMenu(5);
-					SelectPurchase();
-				} else if(bMainDrawerOpen && MainMenuButton[4].GetBool("enabled") ) {
-					PlaySoundFromTheme('buttonClick', 'default'); //TODO
-					SetSelectedButtonByIndex(4);
-					SelectPurchase();
-				}
+			SelectedIndex = 4;
+			break;
+		case 'R': //refill
+		if (InputEvent == EInputEvent.IE_Pressed) {
+			if ((bMainDrawerOpen && MainMenuButton[5].GetBool("enabled") ) ) {
+				PlaySoundFromTheme('buttonClick', 'default'); //TODO
+				SelectMenu(6);
 			}
+		}
 			break;
-			
-		case 'E'://engi
-// 			if (InputEvent == EInputEvent.IE_Pressed) {
-// 				if(bMainDrawerOpen && MainMenuButton[4].GetBool("enabled") ) {
-// 					PlaySoundFromTheme('buttonClick', 'default'); //TODO
-// 					SetSelectedButtonByIndex(4);
-// 					SelectPurchase();
-// 				}
-// 			}
-			break;
-			//break;
-		case 'R'://refill
-			if (InputEvent == EInputEvent.IE_Pressed) {
-				if ((bMainDrawerOpen && MainMenuButton[5].GetBool("enabled") ) ) {
-					PlaySoundFromTheme('buttonClick', 'default'); //TODO
-					SelectMenu(6);
-				}
-			}
-			break;
-		/**case 'W'://weap
-			if (InputEvent == EInputEvent.IE_Pressed) {
-				if ((bMainDrawerOpen && MainMenuButton[6].GetBool("enabled") ) ) {
-					PlaySoundFromTheme('buttonClick', 'default'); //TODO
-					SelectMenu(7);
-				}
-			}
-			break;
-		*/
-		case 'Q'://item
+		case 'Q': //item
 			if (InputEvent == EInputEvent.IE_Pressed) {
 				 if ((bMainDrawerOpen && MainMenuButton[8].GetBool("enabled") ) ) {
 					PlaySoundFromTheme('buttonClick', 'default'); //TODO
@@ -1940,7 +1607,7 @@ function bool FilterButtonInput(int ControllerId, name ButtonName, EInputEvent I
 				}
 			}
 			break;
-		case 'C'://char
+		case 'C': //char
 			if (InputEvent == EInputEvent.IE_Pressed) {
 				 if ((bMainDrawerOpen && MainMenuButton[6].GetBool("enabled") ) ) {
 					PlaySoundFromTheme('buttonClick', 'default'); //TODO
@@ -1948,7 +1615,7 @@ function bool FilterButtonInput(int ControllerId, name ButtonName, EInputEvent I
 				}
 			}
 			break;
-		case 'V'://veh
+		case 'V': //veh
 			if (InputEvent == EInputEvent.IE_Pressed) {
 				 if ((bMainDrawerOpen && MainMenuButton[7].GetBool("enabled") ) ) {
 					PlaySoundFromTheme('buttonClick', 'default'); //TODO
@@ -1957,105 +1624,19 @@ function bool FilterButtonInput(int ControllerId, name ButtonName, EInputEvent I
 			}
 			break;
 		case 'Six':
-			if (InputEvent == EInputEvent.IE_Pressed) {
-
-				if ((bVehicleDrawerOpen && VehicleMenuButton[5].GetBool("enabled")) ) {
-					PlaySoundFromTheme('buttonClick', 'default'); //TODO
-					if (TeamID == TEAM_GDI) {
-						SetSelectedButtonByIndex(5);
-					} else {
-						SetSelectedButtonByIndex(5);
-					}
-					SelectPurchase();
-				} else if ( (bClassDrawerOpen && ClassMenuButton[5].GetBool("enabled")) 
-					//|| (bWeaponDrawerOpen && WeaponMenuButton[5].GetBool("enabled")) 
-					|| (bItemDrawerOpen && ItemMenuButton[5].GetBool("enabled"))) {
-					PlaySoundFromTheme('buttonClick', 'default'); //TODO
-					SetSelectedButtonByIndex(5);
-					SelectPurchase();
-				} 
-			}
+			SelectedIndex = 5;
 			break;
 		case 'Seven':
-			if (InputEvent == EInputEvent.IE_Pressed) {
-				if ((bVehicleDrawerOpen && VehicleMenuButton[6].GetBool("enabled")) ) {
-					
-						PlaySoundFromTheme('buttonClick', 'default'); //TODO
-						if (TeamID == TEAM_GDI) {
-							SetSelectedButtonByIndex(6);
-						} else {
-							SetSelectedButtonByIndex(6);
-						}
-						SelectPurchase();
-				} else if ((bClassDrawerOpen && ClassMenuButton[6].GetBool("enabled")) 
-					//|| (bWeaponDrawerOpen && WeaponMenuButton[6].GetBool("enabled")) 
-					|| (bItemDrawerOpen && ItemMenuButton[6].GetBool("enabled"))) {
-					PlaySoundFromTheme('buttonClick', 'default'); //TODO
-					SetSelectedButtonByIndex(6);
-					SelectPurchase();
-				} 
-			}
+			SelectedIndex = 6;
 			break;
 		case 'Eight':
-			if (InputEvent == EInputEvent.IE_Pressed) {
-				`log(VehicleMenuButton[7].GetBool("enabled"));
-				if ((bVehicleDrawerOpen && VehicleMenuButton[7].GetBool("enabled")) ) {
-						PlaySoundFromTheme('buttonClick', 'default'); //TODO
-						if (TeamID == TEAM_GDI) {
-							SetSelectedButtonByIndex(7);
-						} else {
-							SetSelectedButtonByIndex(7);
-						}
-						SelectPurchase();
-				} else if ((bClassDrawerOpen && ClassMenuButton[7].GetBool("enabled")) 
-					//|| (bWeaponDrawerOpen && WeaponMenuButton[7].GetBool("enabled")) 
-					|| (bItemDrawerOpen && ItemMenuButton[7].GetBool("enabled"))) {
-					PlaySoundFromTheme('buttonClick', 'default'); //TODO
-					SetSelectedButtonByIndex(7);
-					SelectPurchase();
-				}
-			}
+			SelectedIndex = 7;
 			break;
 		case 'Nine':
-			if (InputEvent == EInputEvent.IE_Pressed) {
-				`log(VehicleMenuButton[8].GetBool("enabled"));
-				if ((bVehicleDrawerOpen && VehicleMenuButton[8].GetBool("enabled")) ) {
-						PlaySoundFromTheme('buttonClick', 'default'); //TODO
-						if (TeamID == TEAM_GDI) {
-							SetSelectedButtonByIndex(8);
-						} else {
-							SetSelectedButtonByIndex(8);
-						}
-						SelectPurchase();
-				}
-				else if ((bClassDrawerOpen && ClassMenuButton[8].GetBool("enabled")) 
-					//|| (bWeaponDrawerOpen && WeaponMenuButton[8].GetBool("enabled")) 
-					|| (bItemDrawerOpen && ItemMenuButton[8].GetBool("enabled"))) {
-					PlaySoundFromTheme('buttonClick', 'default'); //TODO
-					SetSelectedButtonByIndex(8);
-					SelectPurchase();
-				}
-			}
+			SelectedIndex = 8;
 			break;
 		case 'Zero':
-			if (InputEvent == EInputEvent.IE_Pressed) {
-				if ((bVehicleDrawerOpen && VehicleMenuButton[9].GetBool("enabled")) ) {
-						PlaySoundFromTheme('buttonClick', 'default'); //TODO
-						if (TeamID == TEAM_GDI) {
-							SetSelectedButtonByIndex(9);//orca
-						} else {
-							SetSelectedButtonByIndex(9);
-						}
-						SelectPurchase();
-				}
-				else if ((bClassDrawerOpen && ClassMenuButton[9].GetBool("enabled")) 
-					//|| (bWeaponDrawerOpen && WeaponMenuButton[9].GetBool("enabled")) 
-					|| (bItemDrawerOpen && ItemMenuButton[9].GetBool("enabled"))) {
-					PlaySoundFromTheme('buttonClick', 'default'); //TODO
-					SetSelectedButtonByIndex(9);
-					SelectPurchase();
-				}
-			}
+			SelectedIndex = 9;
 			break;
 		case 'RightMouseButton': 
 			if (InputEvent == EInputEvent.IE_Pressed) {
@@ -2090,20 +1671,27 @@ function bool FilterButtonInput(int ControllerId, name ButtonName, EInputEvent I
 		case 'F1':
 			if (InputEvent == EInputEvent.IE_Pressed) {
 				rxPC.PlaySound(SoundCue'RenXPurchaseMenu.Sounds.RenXPTSoundTest2_Cue');
-				//CycleEquipmentButton(EquipSideArmButton, EquipSideArmList, TeamID == TEAM_GDI ? GDIEquipmentSideArmData : NodEquipmentSideArmData);
 			}
 			break;
 		case 'F2':
 			if (InputEvent == EInputEvent.IE_Pressed) {
 				rxPC.PlaySound(SoundCue'RenXPurchaseMenu.Sounds.RenXPTSoundTest2_Cue');
-				//CycleEquipmentButton(EquipExplosivesButton, EquipExplosivesList, TeamID == TEAM_GDI ? GDIEquipmentExplosiveData : NodEquipmentExplosiveData);
 			}
 			break;
+	}
 
-		default:
-			//`log("ControllerId: "$ControllerId $", ButtonName: "$ButtonName $", InputEvent: "$InputEvent);
-			//break;
-			return false;
+	if (InputEvent == EInputEvent.IE_Pressed && SelectedIndex != 255) {
+		if ((bVehicleDrawerOpen && VehicleMenuButton[SelectedIndex].GetBool("enabled")) ) {
+			PlaySoundFromTheme('buttonClick', 'default');
+			SetSelectedButtonByIndex(SelectedIndex);
+			SelectPurchase();
+		} else if ((bMainDrawerOpen && MainMenuButton[SelectedIndex].GetBool("enabled") ) 
+			|| (bClassDrawerOpen && ClassMenuButton[SelectedIndex].GetBool("enabled")) 
+			|| (bItemDrawerOpen && ItemMenuButton[SelectedIndex].GetBool("enabled"))) {
+			PlaySoundFromTheme('buttonClick', 'default');
+			SetSelectedButtonByIndex(SelectedIndex);
+			SelectPurchase();
+		}
 	}
 
 	return false;
@@ -2128,7 +1716,7 @@ function RotateDummyPawn (int NewYawRotation)
 
 function SetSelectedButtonByIndex (int index, optional bool selected = true)
 {
-	`log("<PT Log> Button Selected Index? " $ Index);
+	`log("<PT Log> Button Selected Index? " $ Index,bDebug);
 	if (bMainDrawerOpen) {
 		if (index < 5) {
 			MainMenuGroup.ActionScriptVoid("setSelectedButtonByIndex");
@@ -2139,14 +1727,7 @@ function SetSelectedButtonByIndex (int index, optional bool selected = true)
 		ClassMenuGroup.ActionScriptVoid("setSelectedButtonByIndex");
 		return;
 	}
-	/**
-	if (bWeaponDrawerOpen) {
-		if (index < 7) {
-			WeaponMenuGroup.ActionScriptVoid("setSelectedButtonByIndex");
-		}
-		return;
-	}
-	*/
+
 	if (bItemDrawerOpen) {
 		if (index < 8){
 			ItemMenuGroup.ActionScriptVoid("setSelectedButtonByIndex");
@@ -2162,7 +1743,7 @@ function SetSelectedButtonByIndex (int index, optional bool selected = true)
 }
 function SelectBack()
 {
-	`log("<PT Log> ------------------ [ Perform Select Back ] ------------------ ");
+	`log("<PT Log> ------------------ [ Perform Select Back ] ------------------ ",bDebug);
 
 	if (bMainDrawerOpen) {
 		return;
@@ -2185,7 +1766,6 @@ function SelectBack()
 		BottomWidgetFadeOut(VehicleInfoTween);
 		BottomWidgetFadeOut(BackTween);
 		MainDrawerFadeIn();
-		//EquipmentDrawerFadeIn();
 		bIsInTransition = false;
 	}
 
@@ -2204,22 +1784,6 @@ function SelectBack()
 		bIsInTransition = false;
 	}
 
-	/**if (bWeaponDrawerOpen) {
-		if (GFxClikWidget(WeaponMenuGroup.GetObject("selectedButton", class'GFxClikWidget')) != none) {
-			GFxClikWidget(WeaponMenuGroup.GetObject("selectedButton", class'GFxClikWidget')).SetBool("selected", false);
-		}
-		CancelCurrentAnimations();
-		if (BackTween.GetInt("currentFrame") != 20 && bWeaponDrawerOpen) {
-			BackTween.GotoAndPlay("Fade Out");
-		} 
-		bIsInTransition = true;
-		WeaponDrawerFadeOut();
-		BottomWidgetFadeOut(BackTween);
-		MainDrawerFadeIn();
-		EquipmentDrawerFadeIn();
-		bIsInTransition = false;
-	}
-	*/
 	if (bItemDrawerOpen) {
 		if (GFxClikWidget(ItemMenuGroup.GetObject("selectedButton", class'GFxClikWidget')) != none) {
 			GFxClikWidget(ItemMenuGroup.GetObject("selectedButton", class'GFxClikWidget')).SetBool("selected", false);
@@ -2232,7 +1796,6 @@ function SelectBack()
 		ItemDrawerFadeOut();
 		BottomWidgetFadeOut(BackTween);
 		MainDrawerFadeIn();
-		//EquipmentDrawerFadeIn();
 		bIsInTransition = false;
 	}
 }
@@ -2243,7 +1806,7 @@ function SelectMenu(int selectedIndex)
 	if (selectedIndex != Clamp(selectedIndex, 0, 9) || bIsInTransition) {
 		return;
 	}
-`log("---------------" @ selectedIndex @ "---------------");
+`log("---------------" @ selectedIndex @ "---------------",bDebug);
 
 	switch (selectedIndex)
 	{
@@ -2306,47 +1869,39 @@ function SelectMenu(int selectedIndex)
 				//set the current weapon to defaults so we can force perform our loadouts
 		
 				if (rxPC.CurrentSidearmWeapon == none) {
-					//rxPC.CurrentSidearmWeapon = class<Rx_InventoryManager>(rxPC.Pawn.InventoryManagerClass).default.SidearmWeapons[0];
 					rxPC.CurrentSidearmWeapon = class'Rx_InventoryManager'.default.SidearmWeapons[0];
 				}
 				
-				//`log("<PT Log> rxPC.CurrentExplosiveWeapon? " $ rxPC.CurrentExplosiveWeapon);
 				if (rxPC.CurrentExplosiveWeapon == none) {
 					if (rxPC.bJustBaughtEngineer 
 					|| Rx_Pawn(rxPC.Pawn).GetRxFamilyInfo() == class'Rx_FamilyInfo_GDI_Hotwire' 
 					|| Rx_Pawn(rxPC.Pawn).GetRxFamilyInfo() == class'Rx_FamilyInfo_Nod_Technician'){
 						rxPC.RemoveAllExplosives();
-						//class<Rx_InventoryManager>(rxPC.Pawn.InventoryManagerClass).default.ExplosiveWeapons[0]
 						if (TeamID == TEAM_GDI) {
 							rxPC.CurrentExplosiveWeapon = class'Rx_InventoryManager_GDI_Hotwire'.default.ExplosiveWeapons[0];
 						} else {
 							rxPC.CurrentExplosiveWeapon = class'Rx_InventoryManager_Nod_Technician'.default.ExplosiveWeapons[0];
 						}
-						//`log("<PT Log> new rxPC.CurrentExplosiveWeapon? " $ rxPC.CurrentExplosiveWeapon);
 						rxPC.SetAdvEngineerExplosives(rxPC.CurrentExplosiveWeapon);
 					} else if (rxPC.bJustBaughtHavocSakura 
 					|| Rx_Pawn(rxPC.Pawn).GetRxFamilyInfo() == class'Rx_FamilyInfo_GDI_Havoc'
 					|| Rx_Pawn(rxPC.Pawn).GetRxFamilyInfo() == class'Rx_FamilyInfo_Nod_Sakura' ) {
 						rxPC.RemoveAllExplosives();
-						//rxPC.CurrentExplosiveWeapon = class'Rx_InventoryManager'.default.ExplosiveWeapons[0];
 						if (TeamID == TEAM_GDI) {
 							rxPC.CurrentExplosiveWeapon = class'Rx_InventoryManager_GDI_Havoc'.default.ExplosiveWeapons[0];
 						} else {
 							rxPC.CurrentExplosiveWeapon = class'Rx_InventoryManager_Nod_Sakura'.default.ExplosiveWeapons[0];
 						}
-						//`log("<PT Log> new rxPC.CurrentExplosiveWeapon? " $ rxPC.CurrentExplosiveWeapon);
 						rxPC.AddExplosives(rxPC.CurrentExplosiveWeapon);
 					}  else {
 						rxPC.RemoveAllExplosives();
 						rxPC.CurrentExplosiveWeapon = class'Rx_InventoryManager'.default.ExplosiveWeapons[0];
-						//`log("<PT Log> new rxPC.CurrentExplosiveWeapon? " $ rxPC.CurrentExplosiveWeapon);
 						rxPC.AddExplosives(rxPC.CurrentExplosiveWeapon);
 					}
 				}
 
 				SetLoadout();
 				rxPC.PerformRefill(rxPC);
-				//rxPC.SwitchWeapon(0);
 				ClosePTMenu(false);
 			} else if (bClassDrawerOpen){
 				ChangeDummyPawnClass(TeamID == TEAM_GDI ? GDIClassMenuData[selectedIndex-1].ID : NodClassMenuData[selectedIndex - 1].ID);
@@ -2359,33 +1914,6 @@ function SelectMenu(int selectedIndex)
 				}
 			}
 			break;
-		/**case 7: 
-			if (bMainDrawerOpen) {
-				if (GFxClikWidget(MainMenuGroup.GetObject("selectedButton", class'GFxClikWidget')) != none) {
-					GFxClikWidget(MainMenuGroup.GetObject("selectedButton", class'GFxClikWidget')).SetBool("selected", false);
-				}
-
-				/check if there is something transitioning, fade out immidietly
-				CancelCurrentAnimations();
-				if (EquipmentDrawer.GetInt("currentFrame") != 20 && bEquipmentDrawerOpen) {
-					EquipmentDrawer.GotoAndPlay("Fade Out");
-				} 
-
-				bIsInTransition = true;								
-				MainDrawerFadeOut();
-				EquipmentDrawerFadeOut();
-				WeaponDrawerFadeIn();
-				BottomWidgetFadeIn(BackTween);
-				bIsInTransition = false;
-			} else if (bClassDrawerOpen){
-				ChangeDummyPawnClass(TeamID == TEAM_GDI ? GDIClassMenuData[selectedIndex-1].ID : NodClassMenuData[selectedIndex - 1].ID);
-			} else if (bVehicleDrawerOpen) {
-				if (!rxBuildingOwner.AreAircraftDisabled()) {
-					ChangeDummyVehicleClass(TeamID == TEAM_GDI ? GDIVehicleMenuData[selectedIndex-2].ID : NodVehicleMenuData[selectedIndex - 1].ID);
-				}
-			}
-			break;
-		*/
 		case 7: 
 			if (bMainDrawerOpen) {
 				if (GFxClikWidget(MainMenuGroup.GetObject("selectedButton", class'GFxClikWidget')) != none) {
@@ -2393,12 +1921,8 @@ function SelectMenu(int selectedIndex)
 				}
 				//check if there is something transitioning, fade out immidietly
 				CancelCurrentAnimations();
-				/**if (EquipmentDrawer.GetInt("currentFrame") != 20 && bEquipmentDrawerOpen) {
-					EquipmentDrawer.GotoAndPlay("Fade Out");
-				} */
 				bIsInTransition = true;
 				MainDrawerFadeOut();
-				//EquipmentDrawerFadeOut();
 				ItemDrawerFadeIn();
 				BottomWidgetFadeIn(BackTween);
 				bIsInTransition = false;
@@ -2433,47 +1957,36 @@ function SelectMenu(int selectedIndex)
 			}
 			break;
 		case 9: 
-			if (bMainDrawerOpen) {
-				if (!rxPurchaseSystem.AreVehiclesDisabled(TeamID, rxPC)) {
-					if (GFxClikWidget(MainMenuGroup.GetObject("selectedButton", class'GFxClikWidget')) != none) {
-						GFxClikWidget(MainMenuGroup.GetObject("selectedButton", class'GFxClikWidget')).SetBool("selected", false);
-					}
-					//check if there is something transitioning, fade out immidietly
-					CancelCurrentAnimations();
-				/**	if (EquipmentDrawer.GetInt("currentFrame") != 20 && bEquipmentDrawerOpen) {
-						EquipmentDrawer.GotoAndPlay("Fade Out");
-					} 
-				*/
-					bIsInTransition = true;
-					rxPC.bIsInPurchaseTerminalVehicleSection = true;
-					MainDrawerFadeOut();
-					//EquipmentDrawerFadeOut();
-					VehicleDrawerFadeIn();
-					BottomWidgetFadeIn(BackTween);
-					BottomWidgetFadeIn(VehicleInfoTween);
-					bIsInTransition = false;
+			if (bMainDrawerOpen)
+			{
+				if (GFxClikWidget(MainMenuGroup.GetObject("selectedButton", class'GFxClikWidget')) != none) {
+					GFxClikWidget(MainMenuGroup.GetObject("selectedButton", class'GFxClikWidget')).SetBool("selected", false);
 				}
-			} else if (bClassDrawerOpen){
+				//check if there is something transitioning, fade out immidietly
+				CancelCurrentAnimations();
+				
+				bIsInTransition = true;
+				rxPC.bIsInPurchaseTerminalVehicleSection = true;
+				MainDrawerFadeOut();
+				VehicleDrawerFadeIn();
+				BottomWidgetFadeIn(BackTween);
+				BottomWidgetFadeIn(VehicleInfoTween);
+				bIsInTransition = false;
+			}
+			else if (bClassDrawerOpen){
 				ChangeDummyPawnClass(TeamID == TEAM_GDI ? GDIClassMenuData[selectedIndex-1].ID : NodClassMenuData[selectedIndex - 1].ID); 
-				//ChangeDummyPawnClass(TeamID == TEAM_GDI ? GDIClassMenuData[9].ID : NodClassMenuData[9].ID);
 			}
 			else if (bVehicleDrawerOpen) {
-				//if (!rxBuildingOwner.AreAircraftDisabled()) {
-					ChangeDummyVehicleClass(TeamID == TEAM_GDI ? GDIVehicleMenuData[selectedIndex-1].ID : NodVehicleMenuData[selectedIndex - 1].ID);
-				//}
+				ChangeDummyVehicleClass(TeamID == TEAM_GDI ? GDIVehicleMenuData[selectedIndex-1].ID : NodVehicleMenuData[selectedIndex - 1].ID);
 			}
 			break;
 	}
-	
 }
 
 
 function SelectPurchase()
 {
-	//local array< class<Rx_Weapon> > SidearmClasses;
-	//local array< class<Rx_Weapon> > ExplosiveClasses;
-	//local byte i;
-	`log("<PT Log> ------------------ SelectPurchase() ------------------ ");
+	`log("<PT Log> ------------------ SelectPurchase() ------------------ ",bDebug);
 
 	
 	if (bMainDrawerOpen) {
@@ -2481,28 +1994,13 @@ function SelectPurchase()
 	} 
 	if (bClassDrawerOpen) {
 		SelectClassPurchase(ClassMenuGroup);
-// 		if ( (GetPC().WorldInfo.NetMode == NM_ListenServer && GetPC().RemoteRole == ROLE_SimulatedProxy) || GetPC().WorldInfo.NetMode == NM_Standalone ) {
-// 			if (Rx_Pawn(rxPC.Pawn).GetRxFamilyInfo() != class'Rx_FamilyInfo_GDI_Hotwire' && Rx_Pawn(rxPC.Pawn).GetRxFamilyInfo() != class'Rx_FamilyInfo_Nod_Technician') {
-// 				SetLoadout();
-// 			}
-// 		} else {
-// 			if (!rxPC.bJustBaughtEngineer) {
-// 				SetLoadout();
-// 			}
-// 		}
 	}
 	if (bVehicleDrawerOpen) {
 		SelectVehiclePurchase(VehicleMenuGroup);
 	}
-	/**if (bWeaponDrawerOpen) {
-		SelectWeaponPurchase(WeaponMenuGroup);
-	}*/
 	if (bItemDrawerOpen) {
 		SelectItemPurchase(ItemMenuGroup);
 	}
-
-	//TODO:Show Insufficient Credits
-	//by 'toasting' insufficient credits
 }
 
 function SelectClassPurchase(GFxClikWidget ButtonGroup) 
@@ -2518,13 +2016,7 @@ function SelectClassPurchase(GFxClikWidget ButtonGroup)
 	//if it is not selected or not existed, then exit?
 	if (selectedButton == none || !selectedButton.GetBool("selected")){
 		
-		`log("Exitting due to button not being selected"); 
-// 		if ( EquipSideArmList.GetInt("selectedIndex") >= 0 || EquipExplosivesList.GetInt("selectedIndex") >= 0 ){
-// 			rxPC.PlaySound(PurchaseSound);
-// 			SetLoadout();
-// 			rxPC.SwitchWeapon(0);
-// 			ClosePTMenu(false);
-// 		}
+		`log("Exitting due to button not being selected",bDebug); 
 		return;
 	}
 
@@ -2539,16 +2031,13 @@ function SelectClassPurchase(GFxClikWidget ButtonGroup)
 
 		//set the current weapon to defaults so we can force perform our loadouts
 		
-		`log("XXX: " @ rxPurchaseSystem.GetFamilyClass(TeamID, data).default.InvManagerClass);
+		`log("XXX: " @ rxPurchaseSystem.GetFamilyClass(TeamID, data).default.InvManagerClass,bDebug);
 		
-		`log("XXX2: " @ rxPurchaseSystem.GetFamilyClass(TeamID, data).default.InvManagerClass.default.SidearmWeapons[0]);
+		`log("XXX2: " @ rxPurchaseSystem.GetFamilyClass(TeamID, data).default.InvManagerClass.default.SidearmWeapons[0],bDebug);
 		
 		rxPC.CurrentSidearmWeapon = rxPurchaseSystem.GetFamilyClass(TeamID, data).default.InvManagerClass.default.SidearmWeapons[0];
 		rxPC.CurrentExplosiveWeapon = rxPurchaseSystem.GetFamilyClass(TeamID, data).default.InvManagerClass.default.ExplosiveWeapons[0];
 		
-		
-		
-
 		SetLoadout(true);
 			
 		rxPC.SwitchWeapon(0);
@@ -2564,17 +2053,17 @@ function SelectVehiclePurchase(GFxClikWidget ButtonGroup)
 	local int Price;
 
 	selectedButton = GFxClikWidget(VehicleMenuGroup.GetObject("selectedButton", class'GFxClikWidget'));
-	`log(selectedButton @ selectedButton.GetBool("selected"));
+	`log(selectedButton @ selectedButton.GetBool("selected"),bDebug);
 	if (selectedButton == none || !selectedButton.GetBool("selected")){
 		return;
 	}
 	data = int(selectedButton.GetString("data"));
 	
 	Price = rxPurchaseSystem == None ? 0 : rxPurchaseSystem.GetVehiclePrices(TeamID, data, rxPurchaseSystem.AirdropAvailable(rxPRI));
-		`log("<PT Log> Purchase Information ::");
-		`log("<PT Log> Character: " $ rxPurchaseSystem.GetVehicleClass(TeamID, data));
-		`log("<PT Log> Price: " $ Price);
-		`log("<PT Log> PlayerCredits: " $ PlayerCredits);
+		`log("<PT Log> Purchase Information ::",bDebug);
+		`log("<PT Log> Character: " $ rxPurchaseSystem.GetVehicleClass(TeamID, data),bDebug);
+		`log("<PT Log> Price: " $ Price,bDebug);
+		`log("<PT Log> PlayerCredits: " $ PlayerCredits,bDebug);
 	if (PlayerCredits >= Price) {
 		rxPC.PlaySound(PurchaseSound);
 		rxPC.PurchaseVehicle(TeamID, data);
@@ -2594,10 +2083,10 @@ function SelectWeaponPurchase(GFxClikWidget ButtonGroup)
 	}
 	data = int(selectedButton.GetString("data"));
 	Price = rxPurchaseSystem == None ? 0 : rxPurchaseSystem.GetWeaponPrices(TeamID, data);
-		`log("<PT Log> Purchase Information ::");
-		`log("<PT Log> Character: " $ rxPurchaseSystem.GetWeaponClass(TeamID, data));
-		`log("<PT Log> Price: " $ Price);
-		`log("<PT Log> PlayerCredits: " $ PlayerCredits);
+		`log("<PT Log> Purchase Information ::",bDebug);
+		`log("<PT Log> Character: " $ rxPurchaseSystem.GetWeaponClass(TeamID, data),bDebug);
+		`log("<PT Log> Price: " $ Price,bDebug);
+		`log("<PT Log> PlayerCredits: " $ PlayerCredits,bDebug);
 	if (PlayerCredits >= Price) {
 		rxPC.PlaySound(PurchaseSound);
 		rxPC.PurchaseWeapon(TeamID, data);
@@ -2617,10 +2106,10 @@ function SelectItemPurchase(GFxClikWidget ButtonGroup)
 	}
 	data = int(selectedButton.GetString("data"));
 	Price = rxPurchaseSystem == None ? 0 : rxPurchaseSystem.GetItemPrices(TeamID, data);
-		`log("<PT Log> Purchase Information ::");
-		`log("<PT Log> Character: " $ rxPurchaseSystem.GetItemClass(TeamID, data));
-		`log("<PT Log> Price: " $ Price);
-		`log("<PT Log> PlayerCredits: " $ PlayerCredits);
+		`log("<PT Log> Purchase Information ::",bDebug);
+		`log("<PT Log> Character: " $ rxPurchaseSystem.GetItemClass(TeamID, data),bDebug);
+		`log("<PT Log> Price: " $ Price,bDebug);
+		`log("<PT Log> PlayerCredits: " $ PlayerCredits,bDebug);
 	if (PlayerCredits >= Price) {
 		rxPC.PlaySound(PurchaseSound);
 		rxPC.PurchaseItem(TeamID, data);
@@ -2646,22 +2135,38 @@ function CycleEquipmentButton(GFxClikWidget WidgetButton, GFxClikWidget WidgetLi
 	SelectedIndex = equipmentData.Find('title', WidgetList.GetObject("dataProvider").GetElementString(i) );
 
 	if (SelectedIndex > -1) {
-		`log("<PT Log> Update Equipment to " $ equipmentData[SelectedIndex].WeaponClass);
+		`log("<PT Log> Update Equipment to " $ equipmentData[SelectedIndex].WeaponClass,bDebug);
 		UpdateEquipmentButton(WidgetButton, equipmentData[SelectedIndex]);
 	}
 }
 
-function SetLoadout(optional bool CharChange = false) {
-	
-	
+function UpdateDummyLookAt()
+{
+	local vector2D CursorLoc, ScreenSize;
+	local float OffsetX;
 
+	if(CursorMC == None)
+		return;
+
+	CursorMC.GetPosition(CursorLoc.X, CursorLoc.Y);
+	GetGameViewportClient().GetViewportSize(ScreenSize);
+
+	OffsetX = CursorLoc.X - (ScreenSize.X / 5) - (ScreenSize.X / 2);
+
+	DummyPawn.RelaxedAimNode.Aim.X = FMin(-1 * OffsetX / ScreenSize.X , 0.5);
+	DummyPawn.RelaxedAimNode.Aim.Y = (((-1 * CursorLoc.Y) / ScreenSize.Y) + 0.5) / 2;
+
+}
+
+function SetLoadout(optional bool CharChange = false) 
+{
 	/**
 	 * • Perform Loadouts on each category if there is a 'change' with the current equipped category
 	 * • Everything should transfer even items
 	 * 
 	 * */
 
-	`log("<PT Log> ------------------ [ SetLoadout() Called ] ------------------ ");
+	`log("<PT Log> ------------------ [ SetLoadout() Called ] ------------------ ",bDebug);
 	
 	if(CharChange) 
 	{
@@ -2673,8 +2178,6 @@ function SetLoadout(optional bool CharChange = false) {
 	SetSidearmLoadout();
 	SetExplosiveLoadout();
 	}
-	//SetItemLoadout();
-	//TODO:SetItemLoadout
 }
 
 function SetExplosiveLoadout (optional bool CharChange = false)
@@ -2693,12 +2196,12 @@ function SetExplosiveLoadout (optional bool CharChange = false)
 
 	
 	//Equip our explosive data
-	`log("<PT Log> GFx EquipExplosivesList["$ EquipExplosivesList.GetInt("selectedIndex") $"]? " $ EquipExplosivesList.GetObject("dataProvider").GetElementString(EquipExplosivesList.GetInt("selectedIndex")));
-	`log("<PT Log> GetRxFamilyInfo()? "$ Rx_Pawn(rxPC.Pawn).GetRxFamilyInfo());
-	`log("<PT Log> Rx_Pawn(rxPC.Pawn).CurrCharClassInfo? "$ Rx_Pawn(rxPC.Pawn).CurrCharClassInfo);
-	`log("<PT Log> rxPC.Pawn? "$ rxPC.Pawn);
-	`log("<PT Log> bJustBaughtEngineer? " $ rxPC.bJustBaughtEngineer);
-	`log("<PT Log> bJustBaughtHavocSakura? " $ rxPC.bJustBaughtHavocSakura);
+	`log("<PT Log> GFx EquipExplosivesList["$ EquipExplosivesList.GetInt("selectedIndex") $"]? " $ EquipExplosivesList.GetObject("dataProvider").GetElementString(EquipExplosivesList.GetInt("selectedIndex")),bDebug);
+	`log("<PT Log> GetRxFamilyInfo()? "$ Rx_Pawn(rxPC.Pawn).GetRxFamilyInfo(),bDebug);
+	`log("<PT Log> Rx_Pawn(rxPC.Pawn).CurrCharClassInfo? "$ Rx_Pawn(rxPC.Pawn).CurrCharClassInfo,bDebug);
+	`log("<PT Log> rxPC.Pawn? "$ rxPC.Pawn,bDebug);
+	`log("<PT Log> bJustBaughtEngineer? " $ rxPC.bJustBaughtEngineer,bDebug);
+	`log("<PT Log> bJustBaughtHavocSakura? " $ rxPC.bJustBaughtHavocSakura,bDebug);
 
 	i = EquipExplosivesList.GetInt("selectedIndex");
 	SelectedIndex = EquipmentExplosiveData.Find('title', EquipExplosivesList.GetObject("dataProvider").GetElementString(i));
@@ -2706,9 +2209,9 @@ function SetExplosiveLoadout (optional bool CharChange = false)
 	if (SelectedIndex >= 0) {
 		
 		if(!CharChange) explosiveClass = EquipmentExplosiveData[SelectedIndex].WeaponClass; /*only set the explosive class to something else if it isn't a Character Change*/
-			`log("<PT Log> rxPC.CurrentExplosiveWeapon? " $ rxPC.CurrentExplosiveWeapon);
-			`log("<PT Log> OwnedExplosive? " $ OwnedExplosive);
-			`log("<PT Log> selected explosive data? " $ explosiveClass);
+			`log("<PT Log> rxPC.CurrentExplosiveWeapon? " $ rxPC.CurrentExplosiveWeapon,bDebug);
+			`log("<PT Log> OwnedExplosive? " $ OwnedExplosive,bDebug);
+			`log("<PT Log> selected explosive data? " $ explosiveClass,bDebug);
 		
 		
 		if (rxPC.CurrentExplosiveWeapon != explosiveClass && explosiveClass !=none) {
@@ -2716,7 +2219,7 @@ function SetExplosiveLoadout (optional bool CharChange = false)
 			rxPC.AddExplosives(explosiveClass);
 		} else {
 			
-			`log ("<PT Log> explosive Loadout is the same as current loadout. loadout not performed!!!");
+			`log ("<PT Log> explosive Loadout is the same as current loadout. loadout not performed!!!",bDebug);
 		}
 		
 	}
@@ -2733,41 +2236,27 @@ function SetSidearmLoadout(optional bool CharChange = false) /*added boolean val
 	EquipmentSidearmData    = teamID == TEAM_GDI ? GDIEquipmentSidearmData      : NodEquipmentSidearmData;
 
 	//Equip our sidearm data
-	`log("<PT Log> GFx EquipmentSidearmData["$ EquipSideArmList.GetInt("selectedIndex") $"]? " $ EquipSideArmList.GetObject("dataProvider").GetElementString(EquipSideArmList.GetInt("selectedIndex")));
+	`log("<PT Log> GFx EquipmentSidearmData["$ EquipSideArmList.GetInt("selectedIndex") $"]? " $ EquipSideArmList.GetObject("dataProvider").GetElementString(EquipSideArmList.GetInt("selectedIndex")),bDebug);
 	
 	i = EquipSideArmList.GetInt("selectedIndex");
 	SelectedIndex = EquipmentSidearmData.Find('title', EquipSideArmList.GetObject("dataProvider").GetElementString(i));
 	if (SelectedIndex >= 0) {
 		
 		if(!CharChange) sidearmClass = EquipmentSidearmData[SelectedIndex].WeaponClass; /*only set the sidearm class to something else if it isn't a Character Change*/
-			`log("<PT Log> rxPC.CurrentSidearmWeapon? " $ rxPC.CurrentSidearmWeapon);
-			`log("<PT Log> OwnedSidearm? " $ OwnedSidearm);
-			`log("<PT Log> selected sidearm data? " $ sidearmClass);
+			`log("<PT Log> rxPC.CurrentSidearmWeapon? " $ rxPC.CurrentSidearmWeapon,bDebug);
+			`log("<PT Log> OwnedSidearm? " $ OwnedSidearm,bDebug);
+			`log("<PT Log> selected sidearm data? " $ sidearmClass,bDebug);
 		
 		
 		if (rxPC.CurrentSidearmWeapon != sidearmClass && sidearmClass !=none) {
 			rxPC.SetSidearmWeapon(EquipmentSidearmData[SelectedIndex].WeaponClass);
 		} else {
 			
-			`log ("<PT Log> Sidearm Loadout is the same as current loadout. loadout not performed!!!");
+			`log ("<PT Log> Sidearm Loadout is the same as current loadout. loadout not performed!!!",bDebug);
 		}
 		
 	}
 }
-
-// function SetItemLoadout()
-// {
-// 	`log("<PT Log> >> Performing our item loadouts!");
-// 	//if item has existed before
-// 	if (OwnedItem != none) {
-// 		//if the current inventory do not have it
-// 		if (Rx_InventoryManager(rxPC.Pawn.InvManager).Items.Find(OwnedItem) < 0) {
-// 			//re-add it
-// 			rxPC.SetItem(OwnedItem);
-// 		}
-// 	}
-// 	//Equip our sidearm data
-// }
 
 // **************************************************************** //
 //																	//
@@ -2783,11 +2272,9 @@ function OnEquipButtonClick(GFxClikWidget.EventData ev)
 	WidgetTeamPrefix = TeamID == TEAM_GDI ? "GDI" : "Nod";
 	button = GFxClikWidget(ev._this.GetObject("currentTarget", class'GFxClikWidget'));
 
-	//`log("button Parents" $ button.GetObject("parent"));
 	if (button.GetBool("selected")) {
 		button.GetObject("parent").GetObject("" $ WidgetTeamPrefix $ "ListArrow").SetVisible(true);
 		GFxClikWidget(button.GetObject("parent").GetObject("" $ WidgetTeamPrefix $ "EquipmentList", class'GFxClikWidget')).SetVisible(true);
-		//GDIListArrow
 	} else {
 		button.GetObject("parent").GetObject("" $ WidgetTeamPrefix $ "ListArrow").SetVisible(false);
 		GFxClikWidget(button.GetObject("parent").GetObject("" $ WidgetTeamPrefix $ "EquipmentList", class'GFxClikWidget')).SetVisible(false);
@@ -2869,7 +2356,6 @@ function OnPTButtonClick(GFxClikWidget.EventData ev)
 	local GFxClikWidget button;
 	local int hotkey;
 
-	//PlaySoundFromTheme('buttonClick');
 	button = GFxClikWidget(ev._this.GetObject("currentTarget", class'GFxClikWidget'));
 
 	switch (button.GetString("hotkeyLabel")) 
@@ -2909,7 +2395,6 @@ function OnPTButtonClick(GFxClikWidget.EventData ev)
 			hotkey = int(button.GetString("hotkeyLabel"));
 			break;
 	}
-
 
 	if (button.GetBool("toggle") && !button.GetBool("selected")) {
 		button.SetBool("selected", true);
@@ -2964,23 +2449,6 @@ function ExportPlaySound(string EventName, optional string SoundThemeName = "def
 // **************************************************************** //
 function ClosePTMenu(bool unload)
 {
-	/**
-	`log("<PT Log> ------------------ [ Close PT menu ] ------------------ ");
-
-
-	`log("<PT Log> Loadout Results:: ");
-	`log("<PT Log>");
-	`log("<PT Log> rxPC.bJustBaughtEngineer= "$ rxPC.bJustBaughtEngineer);
-	`log("<PT Log> rxPC.bJustBaughtHavocSakura= "$ rxPC.bJustBaughtHavocSakura);
-	`log("<PT Log> OwnedFamilyInfo= " $ OwnedFamilyInfo);
-	`log("<PT Log>");
-	`log("<PT Log> OwnedSidearm= " $ OwnedSidearm);
-	`log("<PT Log> OwnedExplosive= " $ OwnedExplosive);
-	`log("<PT Log> OwnedItem= " $ OwnedItem);
-	`log("<PT Log>");
-	`log("<PT Log> rxPC.CurrentExplosiveWeapon= "$ rxPC.CurrentExplosiveWeapon);
-	`log("<PT Log> rxPC.CurrentSidearmWeapon= "$ rxPC.CurrentSidearmWeapon);
-*/
 	//play sound
 	//pull ALL the drawer out of screen
 	BottomDrawerFadeOut();
@@ -3011,7 +2479,7 @@ function ClosePTMenu(bool unload)
 		rxBuildingOwner.StopInsufCreditsTimeout();
 	}
 	//close the movie once everything is removed to avoid mem leaks.
-	Close(unload); 
+	Close(true); 
 	
 	
 }
@@ -3030,6 +2498,7 @@ function class<Rx_FamilyInfo> IndexToClass(int index, byte TeamNum) {
 
 DefaultProperties
 {
+	bDebug = false
 	bAutoPlay                       =   false
 	bAllowInput                     =   true
 	//

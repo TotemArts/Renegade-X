@@ -239,7 +239,7 @@ defaultproperties
 	
 	// IronSight:
 	bIronSightCapable = false	
-	IronSightViewOffset=(X=-8,Y=-7.7925,Z=0.75)		// (X=-15.0,Y=-11.675,Z=0.27)
+	IronSightViewOffset=(X=1,Y=-7.7925,Z=0.75)		// (X=-15.0,Y=-11.675,Z=0.27)
 	IronSightFireOffset=(X=10,Y=0,Z=-2)
 	IronSightBobDamping=80
 	IronSightPostAnimDurationModifier=0.2
@@ -289,4 +289,8 @@ defaultproperties
 	bLocSync = true; 
 	LocSyncIncrement = 4; 
 	ROFTurnover = 4;
+
+    ZoomRecoilMaxIntensity = 0.05
+    ZoomRecoilRecoveryRate = 20
+    ZoomRecoilRate = 90
 }

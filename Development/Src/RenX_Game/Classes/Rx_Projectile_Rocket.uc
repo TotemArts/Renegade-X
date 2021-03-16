@@ -27,7 +27,7 @@ var float Vet_SpeedIncrease[4];
 var float Vet_DamageIncrease[4]; 
 
 //Weapon who fired me
-var Weapon MyWeaponInstigator;  
+var Actor MyWeaponInstigator;  
 
 var ParticleSystem				AirburstExplosionTemplate; 
 var vector						ExplosionSmokeColour;
@@ -58,7 +58,7 @@ struct Stage {
 	var vector Stage_TargetOffset; 
 	
 	var bool   bSeekFinalTarget; //If true, it will seek our actual target in this stage (Incase you want another stage if the missile misses)
-	var bool   bIgnoreHoming; /*Ignores all acceleration created by homing and just does its own thing. Use for initial stages, or to make missiles to loops and whatnot*/
+	var bool   bIgnoreHoming; /*Ignores all acceleration created by homing and just does its own thing. Use for initial stages, or to make missiles do loops and whatnot*/
 	
 	/*If bIgnoreHoming is true, we look to these*/
 	var rotator DirToGo;
@@ -130,10 +130,13 @@ function Init(vector Direction)
 {
 	local Rx_Weapon Rx_Inst; 
 	local Rx_Vehicle_Weapon Rx_VInst;
+	local Rx_PassiveAbility_Weapon Rx_PInst;
 	
 	Rx_Inst=Rx_Weapon(Instigator.Weapon);
 	
 	Rx_VInst=Rx_Vehicle_Weapon(Instigator.Weapon) ;
+	
+	Rx_PInst=Rx_PassiveAbility_Weapon(MyWeaponInstigator) ;
 	
 	if(Rx_Inst != none)
 	{
@@ -146,7 +149,12 @@ function Init(vector Direction)
 		VRank=Rx_VInst.VRank; 
 		YawModifier = Rx_VInst.GetRProjectileYaw();
 	}
-		
+	else
+	if(Rx_PInst != none) 
+	{
+		VRank=Rx_PInst.VRank; 
+		YawModifier = Rx_PInst.GetRProjectileYaw();
+	}	
 	
 	SetRotation(rotator(Direction));
 	
@@ -170,7 +178,6 @@ function Init(vector Direction)
 	}
 	
 }
-
 
 simulated function ShutDownBeforeEndOfLife() 
 {
@@ -237,10 +244,11 @@ simulated state Homing
 				//If we use stages then we actually need some damn replication I guess
 				if(FinalSeekTarget != none) {
 					TargetLocation = ROLE == ROLE_Authority ? FinalSeekTarget.GetTargetLocation() + RocketStages[CurrentStage].Stage_TargetOffset : FinalSeekTarget.GetTargetLocation() ;
-					//`log("Target Offset:" @ RocketStages[CurrentStage].Stage_TargetOffset);
+					//`log("Target Location:" @ TargetLocation);
 					Target = TargetLocation;
 				} else {
-					TargetLocation = Target + RocketStages[CurrentStage].Stage_TargetOffset;	
+					TargetLocation = Target + RocketStages[CurrentStage].Stage_TargetOffset;
+					//`log("Stage:" @ CurrentStage @ "Target Location:" @ TargetLocation.Z);					
 				}
 			}
 			
@@ -268,6 +276,7 @@ simulated state Homing
 			
 			Acceleration = HomingTrackingStrength * AccelRate * Normal(TargetLocation - Location);
 		} else {
+			//`log("Use Base Strength" @ bDontLock @ FinalSeekTarget); 
 			Acceleration = BaseTrackingStrength * AccelRate * Normal(TargetLocation - Location);
 			//Acceleration = 16.0 * Velocity;
 			bDontLockAnymore = true;
@@ -465,6 +474,8 @@ simulated function SpawnExplosionEffects(vector HitLocation, vector HitNormal)
 		
 	if (WorldInfo.NetMode != NM_DedicatedServer)
 	{
+		
+//		ScriptTrace();
 		if(AmbientSound != none)
 			CleanupAmbientSound();
 		
@@ -549,12 +560,12 @@ simulated static function float GetDamageModifier(byte Rank, Controller RxC)
 		return 1.0; 
 }
 
-simulated function SetWeaponInstigator(Weapon SetTo)
+simulated function SetWeaponInstigator(Actor SetTo)
 {
 	MyWeaponInstigator = SetTo; 
 }
 
-simulated function Weapon GetWeaponInstigator()
+simulated function Actor GetWeaponInstigator()
 {
 	return MyWeaponInstigator; 
 }
@@ -622,7 +633,7 @@ simulated function SetRocketStageParameters(){
 	if(CurrentStage == 0)
 		Speed = RocketStages[CurrentStage].Stage_MaxSpeed; 
 	
-	HomingTrackingStrength = RocketStages[CurrentStage].Stage_BaseTrackingStrength;
+	HomingTrackingStrength = RocketStages[CurrentStage].Stage_HomingStrength;
 	BaseTrackingStrength = RocketStages[CurrentStage].Stage_BaseTrackingStrength;
 	
 	if(RocketStages[CurrentStage].bSeekFinalTarget && FinalSeekTarget != none){
@@ -685,11 +696,14 @@ simulated function float GetYawModifier()
 {
 	local Rx_Weapon Rx_Inst; 
 	local Rx_Vehicle_Weapon Rx_VInst;
+	local Rx_PassiveAbility_Weapon Rx_PInst;
 	local float rYaw; 
 	
 	Rx_Inst=Rx_Weapon(Instigator.Weapon);
 	
 	Rx_VInst=Rx_Vehicle_Weapon(Instigator.Weapon) ;
+	
+	Rx_PInst = Rx_PassiveAbility_Weapon(MyWeaponInstigator);
 	
 	if(Rx_Inst != none)
 	{
@@ -702,8 +716,30 @@ simulated function float GetYawModifier()
 		VRank=Rx_VInst.VRank; 
 		rYaw = Rx_VInst.GetRProjectileYaw();
 	}
+	else
+	if(Rx_PInst != none) 
+	{
+		VRank=Rx_PInst.VRank; 
+		rYaw = Rx_PInst.GetRProjectileYaw();
+	}
 	
 	return rYaw; 
+}
+
+event TornOff()
+{
+	/*Hacky: Account for multistage rockets not always being 100% in sync in netplay, and giving them time to actually hit their target visually*/ 
+	if(WorldInfo.NetMode != NM_DedicatedServer)
+	{
+		SetTimer(0.5, false, 'Shutdown');
+		Super(UDKProjectile).TornOff();
+	}
+		
+	else
+	{
+		ShutDown();
+		Super(UDKProjectile).TornOff();
+	}
 }
 
 DefaultProperties

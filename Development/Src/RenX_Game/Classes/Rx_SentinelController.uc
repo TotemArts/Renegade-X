@@ -49,7 +49,6 @@ var bool bHasSpawned;
 
 function PostBeginPlay()
 {
-	//Not entirely sure what this does, but Controller.uc suggests it's a good idea.
 	SightCounter = 0.2 * FRand();
 }
 
@@ -67,7 +66,7 @@ function Possess(Pawn inPawn, bool bVehicleTransition)
 	inPawn.PossessedBy(self, bVehicleTransition);
 	Pawn = inPawn;
 
-	SetFocalPoint(Pawn.Location + 512*vector(Pawn.Rotation));
+	SetFocalPoint(Pawn.Location + 512 * vector(Pawn.Rotation));
 	Restart(bVehicleTransition);
 }
 
@@ -78,7 +77,7 @@ function InitPlayerReplicationInfo()
 		`warn("InitPlayerReplicationInfo called with no Sentinel");
 		Destroy();
 	}
-	else if(false) //if(Cannon.InstigatorController == none)
+	else if(false)
 	{
 		`warn("InitPlayerReplicationInfo called with no InstigatorController");
 		Cannon.Suicide();
@@ -110,8 +109,7 @@ simulated function String GetHumanReadableName()
 
 function Controller GetKillerController()
 {
-	return none;   // my change
-    return Cannon.InstigatorController;
+	return none;
 }
 
 simulated function GetPlayerViewPoint(out vector out_Location, out Rotator out_Rotation)
@@ -122,7 +120,6 @@ simulated function GetPlayerViewPoint(out vector out_Location, out Rotator out_R
 
 function PawnDied(Pawn P)
 {
-	//LogInternal("...........................died");
 	Destroy();
 }
 
@@ -146,7 +143,6 @@ function ChangeBehaviourTo(Rx_SentinelControllerComponent_Behaviour NewBehaviour
 	}
 	else if(CurrentBehaviour != NewBehaviour)
 	{
-		//`log(CurrentBehaviour @ "Change to:" @ NewBehaviour);
 		CurrentBehaviour.EndBehaviour();
 		CurrentBehaviour = NewBehaviour;
 		CurrentBehaviour.BeginBehaviour();
@@ -188,24 +184,15 @@ function SeeMonster(Pawn Seen)
 
 function SeePlayer(Pawn Seen)
 {
-	//`log(Seen @ CurrentBehaviour);
-	//halo2pac - added check to make sure Seen != None to prevent logs from filling up.
 	if (Seen == None)
 		return;
 
 	if(Cannon.MyBuilding.IsDestroyed() || Cannon.MyBuilding.Unpowered())
 		return;
 
-	if(Cannon != None && (Cannon.IsSameTeam(Seen) || (Rx_Pawn(Seen) != None && Rx_Pawn(Seen).isSpy()))) { // added spy exception
-	//	`log("Return cuz none ish?");
+	if(Cannon != None && (Cannon.IsSameTeam(Seen) || (Rx_Pawn(Seen) != None && Rx_Pawn(Seen).isSpy()))) { 
 		return;
 	}
-	/**
-	if(Cannon != None && Rx_Pawn(Seen) != None && UTPawn(Seen).Groundspeed >= 290) {
-			UTPawn(Seen).Groundspeed = 290;
-			Rx_Pawn(Seen).ClientStopSprint();
-	} 
-	*/
 	
 	CurrentBehaviour.ComponentSeePlayer(Seen);
 }
@@ -215,10 +202,7 @@ function EnemyNotVisible()
 	CurrentBehaviour.ComponentEnemyNotVisible();
 }
 
-function HearNoise(float Loudness, Actor NoiseMaker, optional Name NoiseType)
-{
-	//CurrentBehaviour.ComponentHearNoise(Loudness, NoiseMaker, NoiseType);
-}
+function HearNoise(float Loudness, Actor NoiseMaker, optional Name NoiseType) { }
 
 function NotifyTakeHit(Controller InstigatedBy, Vector HitLocation, int Damage, class<DamageType> DamageType, Vector Momentum)
 {
@@ -245,7 +229,6 @@ function Tick(float DeltaTime)
 //Overriden to prevent removing self from team (never added in the first place, so it messes up team size) and logging out.
 function Destroyed()
 {
-	//LogInternal("...........................destroyed2");
 	if(Role == ROLE_Authority)
 	{
 		if(PlayerReplicationInfo != none)
@@ -261,7 +244,6 @@ function CheckPreviouslyCoveredTargets()
 {
 	local Pawn P;
 	foreach SeenButCoveredPawns(P) {
-		//`log("Seen But covered" @ P); 
 		if((UTVehicle(P) != None && !UTVehicle(P).bDriving) || !CanSee(P)) {
 			SeenButCoveredPawns.removeItem(P);
 			continue;
@@ -309,7 +291,6 @@ defaultproperties
 	TargetWaitTime=5.0
 	bSlowerZAcquire=false
 
-	//PlayerReplicationInfoClass=none
 	bIsPlayer=false
 
 	Begin Object Class=Rx_SentinelControllerComponent_Aiming Name=AimingComponent0

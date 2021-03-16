@@ -1,5 +1,7 @@
 class Rx_Weapon_DeployedActor extends Actor
-   abstract;
+   abstract
+   implements(RxIfc_Targetable)
+   implements(Rx_ObjectTooltipInterface);
 
 /** Who owns this */
 var Controller	InstigatorController;
@@ -48,6 +50,10 @@ var float                        InnerExplosionShakeRadius;
 var float                        OuterExplosionShakeRadius;
 var(Damage) bool                 bDamageAll;
 var bool                         bImminentExplode;
+
+// Pickup related
+var class<Rx_Weapon_Deployable>  WeaponClass;
+var float PickupDistance;
 
 //Veterancy
 var byte 						 VRank; 
@@ -103,6 +109,68 @@ simulated function PostBeginPlay()
        if (TimeUntilExplosion > 0)
           SetTimer(TimeUntilExplosion, false, 'Explosion'); 
     }
+}
+
+function ClientPickup(Rx_Controller InController)
+{
+    Pickup(InController);
+}
+
+reliable server function Pickup(Rx_Controller InController)
+{
+    local Rx_InventoryManager InvManager;
+    local Rx_Weapon_Deployable TheWeapon;
+
+    if (!CanPickup(InController)) return;
+
+    InvManager = Rx_InventoryManager(InController.Pawn.InvManager);
+
+    TheWeapon = Rx_Weapon_Deployable(InvManager.FindInventoryType(WeaponClass));
+
+    if (TheWeapon != None)
+    {
+        // Not at full clip
+        if (TheWeapon.GetMaxAmmoInClip() != TheWeapon.CurrentAmmoInClip)
+        {
+            ServerPickup(TheWeapon, InController, TheWeapon.CurrentAmmoInClip + 1, TheWeapon.GetReserveAmmo());
+        }
+        // Full clip, add to reserve ammo
+        else
+        {
+            ServerPickup(TheWeapon, InController, TheWeapon.CurrentAmmoInClip, TheWeapon.GetReserveAmmo() + 1);
+        }
+    }
+
+    // required for picking up mines and other weapons that hide when ammo is depleted (but you could pick up again)
+    Rx_Pawn(InController.Pawn).RefreshBackWeapons();
+}
+
+reliable private server function ServerPickup(Rx_Weapon_Deployable TheWeapon, Rx_Controller InController, int NewAmmoInClip, int NewAmmo)
+{
+    if (!CanPickup(InController)) return;
+
+    // Make sure we don't overfill their weapon
+    if (TheWeapon.AmmoCount != TheWeapon.MaxAmmoCount)
+    {
+        TheWeapon.CurrentAmmoInClip = NewAmmoInClip;
+        TheWeapon.AmmoCount = NewAmmo + NewAmmoInClip;
+        TheWeapon.CurrentAmmoInClipClientside = NewAmmoInClip;
+        TheWeapon.ClientAmmoCount = NewAmmo + NewAmmoInClip;
+
+        TheWeapon.ClientUpdateAmmoCount(NewAmmo);
+    }
+
+    Destroy();
+}
+
+reliable server function bool CanPickup(Rx_Controller InController)
+{
+    return false;
+}
+
+simulated function bool CanPickupClient()
+{
+    return false;
 }
 
 function Landed(vector HitNormal, Actor FloorActor)
@@ -503,7 +571,7 @@ function string GetSpotMarkerName()
 	
 	WGRI = Rx_GRI(WorldInfo.GRI);
 	
-	if(WGRI == none) return "";
+	if (WGRI == none) return "";
 	
 	foreach WGRI.SpottingArray(TempActor)
 	{
@@ -520,6 +588,89 @@ function string GetSpotMarkerName()
 	
 	return NearestSpotMarker.GetSpotName();
 }
+
+simulated function string GetTooltip(Rx_Controller PC)
+{
+    local string bindKey;
+    local Rx_Weapon_Deployable Wep;
+
+    bindKey = Caps(UDKPlayerInput(PC.PlayerInput).GetUDKBindNameFromCommand("GBA_PickupDeployedActor"));
+
+    if (!CanPickupClient()) return "";
+
+    Wep = Rx_Weapon_Deployable(PC.Pawn.FindInventoryType(WeaponClass));
+
+    if (Wep == None) return "";
+
+    if (Wep.AmmoCount >= Wep.MaxAmmoCount)
+        return "Press <font color='#ff0000' size='20'>[ " $ bindKey $ " ]</font> to remove <font color='#ff0000' size='20'>" $ DeployableName $ "</font>.";
+
+    return "Press <font color='#ff0000' size='20'>[ " $ bindKey $ " ]</font> to pick <font color='#ff0000' size='20'>" $ DeployableName $ "</font> up.";
+}
+
+simulated function bool IsTouchingOnly()
+{
+    return false;
+}
+
+simulated function bool IsBasicOnly()
+{
+    return false;
+}
+
+/*-------------------------------------------*/
+/*BEGIN TARGET INTERFACE [RxIfc_Targetable]*/
+/*------------------------------------------*/
+//Health
+simulated function int GetTargetHealth() {return HP;} //Return the current health of this target
+simulated function int GetTargetHealthMax() {return MaxHP;} //Return the current health of this target
+
+//Armour 
+simulated function int GetTargetArmour() {return 0;} // Get the current Armour of the target
+simulated function int GetTargetArmourMax() {return 0;} // Get the current Armour of the target 
+
+// Veterancy
+
+simulated function int GetVRank() {return 0;}
+
+/*Get Health/Armour Percents*/
+simulated function float GetTargetHealthPct() {return float(HP) / max(1,float(MaxHP));}
+simulated function float GetTargetArmourPct() {return 0;}
+simulated function float GetTargetMaxHealthPct() {return 1.0f;} //Everything together (Basically Health and armour)
+
+/*Get what we're actually looking at*/
+simulated function Actor GetActualTarget() {return self;} //Should return 'self' most of the time, save for things that should return something else (like building internals should return the actual building)
+
+/*Booleans*/
+simulated function bool GetUseBuildingArmour(){return false;} //Stupid legacy function to determine if we use building armour when drawing. 
+simulated function bool GetShouldShowHealth(){return true;} //If we need to draw health on this 
+simulated function bool AlwaysTargetable() {return true;} //Targetable no matter what range they're at
+simulated function bool GetIsInteractable(PlayerController PC) {return false;} //Are we ever interactable?
+simulated function bool GetCurrentlyInteractable(PlayerController RxPC) {return false;} //Are we interactable right now? 
+simulated function bool GetIsValidLocalTarget(Controller PC) {return true;} //Are we a valid target for our local playercontroller?  (Buildings are always valid to look at (maybe stealthed buildings aren't?))
+simulated function bool HasDestroyedState() {return false;} //Do we have a destroyed state where we won't have health, but can't come back? (Buildings in particular have this)
+simulated function bool UseDefaultBBox() {return false;} //We're big AF so don't use our bounding box 
+simulated function bool IsStickyTarget() {return false;} //Does our target box 'stick' even after we're untargeted for awhile 
+simulated function bool HasVeterancy() {return false;}
+
+//Spotting
+simulated function bool IsSpottable() {return true;}
+simulated function bool IsCommandSpottable() {return false;} 
+
+simulated function bool IsSpyTarget(){return false;} //Do we use spy mechanics? IE: our bounding box will show up friendly to the enemy [.... There are no spy Refineries...... Or are there?]
+
+/* Text related */
+
+simulated function string GetTargetName() {return DeployableName;} //Get our targeted name 
+simulated function string GetInteractText(Controller C, string BindKey) {return "";} //Get the text for our interaction 
+simulated function string GetTargetedDescription(PlayerController PlayerPerspectiv) {return "";} //Get any special description we might have when targeted 
+
+//Actions
+simulated function SetTargeted(bool bTargeted) ; //Function to say what to do when you're targeted client-side 
+
+/*----------------------------------------*/
+/*END TARGET INTERFACE [RxIfc_Targetable]*/
+/*---------------------------------------*/
 
 defaultproperties
 {

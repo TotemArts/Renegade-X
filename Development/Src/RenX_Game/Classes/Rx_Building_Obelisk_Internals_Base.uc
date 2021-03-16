@@ -2,6 +2,7 @@ class Rx_Building_Obelisk_Internals_Base extends Rx_Building_Team_Internals;
 
 var Rx_Sentinel_Obelisk_Laser_Base laserSentinel;
 var MaterialInstanceConstant CrystalGlowMIC;
+var class<Rx_Sentinel_Obelisk_Laser_Base> LaserSentinelClass;
 
 simulated function Init(Rx_Building Visuals, bool isDebug )
 {
@@ -16,7 +17,7 @@ function SetupLaser()
 {
 	local vector v,v2;
 
-	laserSentinel = Spawn(class'Rx_Sentinel_Obelisk_Laser_Base',,,,,,true);
+	laserSentinel = Spawn(LaserSentinelClass,,,,,,true);
 	laserSentinel.SetOwner(self);
 	laserSentinel.Team = self.TeamID;
 
@@ -66,8 +67,6 @@ simulated function OnBuildingDestroyed()
 		Rx_SentinelWeapon_Obelisk(laserSentinel.SWeapon).ClearTimer('crystalChargingGlow');
 		Rx_SentinelWeapon_Obelisk(laserSentinel.SWeapon).CrystalGlowMIC.SetScalarParameterValue('Obelisk_Glow', 0.0); 
 		Rx_SentinelWeapon_Obelisk(laserSentinel.SWeapon).FiringState=0;
-//		laserSentinel.SController.Cannon.Destroy();
-//		laserSentinel.Destroy();
 	}
 }
 
@@ -75,15 +74,11 @@ function bool PowerLost(optional bool bFromKismet)
 {
 	if(super.PowerLost(bFromKismet) && laserSentinel != none) 
 	{
-//		laserSentinel.SController.Cannon.Destroy();
-//		laserSentinel.Destroy();
-
 		Rx_SentinelWeapon_Obelisk(laserSentinel.SWeapon).ClearTimer('crystalChargingGlow');
 		Rx_SentinelWeapon_Obelisk(laserSentinel.SWeapon).CrystalGlowMIC.SetScalarParameterValue('Obelisk_Glow', 0.0); 
 		Rx_SentinelWeapon_Obelisk(laserSentinel.SWeapon).FiringState=0;
 
 		BuildingVisuals.TriggerEventClass(Class'Rx_SeqEvent_DefenseEvent',None,0);
-//		bNoPower = true;
 
 		return true;
 	}
@@ -93,20 +88,7 @@ function bool PowerLost(optional bool bFromKismet)
 	return false;
 }
 
-/*
-//PowerRestore function
-function bool PowerRestore()
+DefaultProperties
 {
-	if(super.PowerRestore())
-	{
-		BuildingVisuals.TriggerEventClass(Class'Rx_SeqEvent_DefenseEvent',None,1);
-
-		SetupLaser();
-		return true;
-	}
-	else
-	{
-		return false;
-	}
+	LaserSentinelClass = class'Rx_Sentinel_Obelisk_Laser_Base'
 }
-*/

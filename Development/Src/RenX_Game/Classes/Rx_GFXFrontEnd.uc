@@ -116,12 +116,10 @@ function isGameOutOfDate()
 	if(RxG.VQueryHandler.MasterVersionURL == "")
 		return;
 
-	if(RxG.VQueryHandler.QueryedVersionNumber != 0)
-	{
-		if(RxG.VQueryHandler.QueryedVersionNumber != RxG.GameVersionNumber)
-			OpenVersionOutOfDateDialog();
-		else
-			return;
+	if (RxG.VQueryHandler.QueryedVersionNumber != 0
+		&& RxG.GameVersionNumber != 0
+		&& RxG.VQueryHandler.QueryedVersionNumber != RxG.GameVersionNumber) {
+		OpenVersionOutOfDateDialog();
 	}
 }
 
@@ -147,9 +145,9 @@ function RunOnce()
 			GraphicAdapterCheck.CheckGraphicAdapter();
 		}
 
-
-		if (JukeBox == none) {
-			JukeBox = new class'Rx_Jukebox';
+		if (JukeBox == none) 
+		{
+			JukeBox = new Rx_MapInfo(class'WorldInfo'.static.GetWorldInfo().GetMapInfo()).JukeboxClass;
 			JukeBox.Init();
 
 			//Disable this if we do not want to play on start.
@@ -576,6 +574,9 @@ function OpenVersionOutOfDateDialog()
 	local Rx_Game RenGame;
 
 	RenGame = Rx_Game(class'WorldInfo'.static.GetWorldInfo().Game);
+
+	if (RenGame != None && Left(RenGame.GameVersion, 8) != "Open Beta")
+		return;
 
 	dialogInstance = OpenDialog("com.scaleform.renx.dialogs.RenXConfirmationForm", "com.scaleform.renx.dialogs.RenXDialogWindow", -1, -1, true);
 	dialogInstance.SetString("name", "outOfDateDialog");

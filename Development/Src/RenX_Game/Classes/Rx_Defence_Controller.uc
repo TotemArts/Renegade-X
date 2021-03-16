@@ -57,6 +57,7 @@ struct ActiveModifier
 	var class<Rx_StatModifierInfo> ModInfo; 
 	var float				EndTime; 
 	var bool				Permanent; 
+	var Controller			ModifierSource; //Optionally used to give a source to the modifier 
 };
 
 var array<ActiveModifier> ActiveModifications; 
@@ -90,6 +91,9 @@ function bool IsTargetRelevant( Pawn thisTarget )
 	if(Pawn.Health <= 0)
 		return false;
 
+	if(thisTarget == None)
+		return false;
+
 	if (Rx_Pawn(thisTarget) != None && Rx_Pawn(thisTarget).isSpy()) // added spy exception
 		return false;
 
@@ -102,8 +106,7 @@ function bool IsTargetRelevant( Pawn thisTarget )
 			return false;		
 	}
 	
-	if (thisTarget != None && 
-		FastTrace(thisTarget.location,pawn.location) &&
+	if (FastTrace(thisTarget.location,pawn.location) &&
 		(thisTarget.Controller != None) && 
 		(thisTarget.GetTeamNum() != self.GetTeamNum()) &&
 		(thisTarget.Health > 0) &&
@@ -366,7 +369,7 @@ function GiveVeterancy(int VP)
 /**Set modifiers**/
 /*****************/
 
-function AddActiveModifier(class<Rx_StatModifierInfo> Info)//class<Rx_StatModifierInfo> Info) 
+function AddActiveModifier(class<Rx_StatModifierInfo> Info, optional Controller Source = none)//class<Rx_StatModifierInfo> Info) 
 {
 	local int FindI; 
 	local ActiveModifier TempModifier; 
@@ -381,6 +384,7 @@ function AddActiveModifier(class<Rx_StatModifierInfo> Info)//class<Rx_StatModifi
 	{
 		//`log("Found in array");
 		ActiveModifications[FindI].EndTime = WorldInfo.TimeSeconds+Info.default.Mod_Length; 
+		ActiveModifications[FindI].ModifierSource = Source; //Delete or update the modifier source 
 		//return; 	
 	}
 	else //New modifier, so add it in and re-update modification numbers
@@ -388,9 +392,12 @@ function AddActiveModifier(class<Rx_StatModifierInfo> Info)//class<Rx_StatModifi
 		
 		//`log("Adding to array"); 
 		TempModifier.ModInfo = Info; 
-		if(Info.default.Mod_Length > 0) TempModifier.EndTime = WorldInfo.TimeSeconds+Info.default.Mod_Length;
+		if(Info.default.Mod_Length > 0) 
+			TempModifier.EndTime = WorldInfo.TimeSeconds+Info.default.Mod_Length;
 		else
-		TempModifier.Permanent = true; 
+			TempModifier.Permanent = true; 
+		
+		ActiveModifications[FindI].ModifierSource = Source; //Whether that be none or something
 		ActiveModifications.AddItem(TempModifier);	
 	}
 	

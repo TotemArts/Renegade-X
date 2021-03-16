@@ -33,13 +33,6 @@ simulated function PhysicsVolumeChange( PhysicsVolume NewVolume )
     Super.PhysicsVolumeChange(NewVolume);
 }
 
-simulated function SetExplosionEffectParameters(ParticleSystemComponent ProjExplosion)
-{
-    Super.SetExplosionEffectParameters(ProjExplosion);
-
-    ProjExplosion.SetScale(0.85f);
-}
-
 
 DefaultProperties
 {
@@ -70,6 +63,8 @@ DefaultProperties
 	ImpactEffects(18)=(MaterialType=Snow, ParticleTemplate=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Small_Snow',Sound=SoundCue'RX_SoundEffects.Explosions.SC_Explosion_Grenade')
 	ImpactEffects(19)=(MaterialType=SnowStone, ParticleTemplate=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Small_Snow',Sound=SoundCue'RX_SoundEffects.Explosions.SC_Explosion_Grenade')
 	
+    ProjExplosionScale=1.0
+
     DrawScale= 1.0
     
     Physics=PHYS_Falling
@@ -78,14 +73,14 @@ DefaultProperties
     
     MyDamageType=class'Rx_DmgType_GrenadeLauncher'
     
-    TossZ=100 	// 150.0
-    Speed=2000 	// 2000
-    MaxSpeed=2000
-	TerminalVelocity=2000.0
+    TossZ=50 	// 150.0
+    Speed=3000 	// 2000
+    MaxSpeed=3000
+	TerminalVelocity=3000.0
     AccelRate=0
-    LifeSpan=2.0
+    LifeSpan=1.333334
     Damage=70
-    DamageRadius=200//200
+    DamageRadius=300//200
     MomentumTransfer=50000
 	HeadShotDamageMult=2.0
 

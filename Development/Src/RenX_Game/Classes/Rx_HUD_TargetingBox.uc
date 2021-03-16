@@ -1,32 +1,32 @@
 class Rx_HUD_TargetingBox extends Rx_Hud_Component;
 
-var private Font LabelFont;
-var private Font PercentageFont;
-var private Font DescriptionFont;
+var protected Font LabelFont;
+var protected Font PercentageFont;
+var protected Font DescriptionFont;
 
-var private float ScreenEdgePadding;
-var private float ScreenBottomPadding;
-var private float MaxTargetBoxSizePctX;
-var private float MaxTargetBoxSizePctY;
+var protected float ScreenEdgePadding;
+var protected float ScreenBottomPadding;
+var protected float MaxTargetBoxSizePctX;
+var protected float MaxTargetBoxSizePctY;
 
-var private CanvasIcon BoundingBoxFriendlyTopLeft;
-var private CanvasIcon BoundingBoxFriendlyTopRight;
-var private CanvasIcon BoundingBoxFriendlyBottomLeft;
-var private CanvasIcon BoundingBoxFriendlyBottomRight;
-var private CanvasIcon BoundingBoxEnemyTopLeft;
-var private CanvasIcon BoundingBoxEnemyTopRight;
-var private CanvasIcon BoundingBoxEnemyBottomLeft;
-var private CanvasIcon BoundingBoxEnemyBottomRight;
-var private CanvasIcon BoundingBoxNeutralTopLeft;
-var private CanvasIcon BoundingBoxNeutralTopRight;
-var private CanvasIcon BoundingBoxNeutralBottomLeft;
-var private CanvasIcon BoundingBoxNeutralBottomRight;
+var protected CanvasIcon BoundingBoxFriendlyTopLeft;
+var protected CanvasIcon BoundingBoxFriendlyTopRight;
+var protected CanvasIcon BoundingBoxFriendlyBottomLeft;
+var protected CanvasIcon BoundingBoxFriendlyBottomRight;
+var protected CanvasIcon BoundingBoxEnemyTopLeft;
+var protected CanvasIcon BoundingBoxEnemyTopRight;
+var protected CanvasIcon BoundingBoxEnemyBottomLeft;
+var protected CanvasIcon BoundingBoxEnemyBottomRight;
+var protected CanvasIcon BoundingBoxNeutralTopLeft;
+var protected CanvasIcon BoundingBoxNeutralTopRight;
+var protected CanvasIcon BoundingBoxNeutralBottomLeft;
+var protected CanvasIcon BoundingBoxNeutralBottomRight;
 
-var private CanvasIcon InfoBackdropFriendly;
-var private CanvasIcon InfoBackdropEnemy;
-var private CanvasIcon InfoBackdropNeutral;
-var private CanvasIcon BA_InfoBackdropFriendly;
-var private CanvasIcon BA_InfoBackdropEnemy;
+var protected CanvasIcon InfoBackdropFriendly;
+var protected CanvasIcon InfoBackdropEnemy;
+var protected CanvasIcon InfoBackdropNeutral;
+var protected CanvasIcon BA_InfoBackdropFriendly;
+var protected CanvasIcon BA_InfoBackdropEnemy;
 
 var CanvasIcon GDIEnemyIcon;
 var CanvasIcon GDIFriendlyIcon;
@@ -57,21 +57,24 @@ var CanvasIcon Neutral_Heroic;
 var float VetLogoXOffset ;
 var float VetLogoYOffset ;
 
-var private CanvasIcon HealthCellGreen;
-var private CanvasIcon HealthCellYellow;
-var private CanvasIcon HealthCellRed;
-var private CanvasIcon ArmorCellBlue;
-var private CanvasIcon BA_HealthCellIcon; //Building Armour specific health bar.
-var private CanvasIcon BA_ArmourCellIcon; //Building Armour specific Armour bar.
-var private CanvasIcon BA_HealthIcon;
-var private CanvasIcon BA_ArmourIcon;
+var float BA_VetLogoXOffset;
+var float BA_VetLogoYOffset;
+
+var protected CanvasIcon HealthCellGreen;
+var protected CanvasIcon HealthCellYellow;
+var protected CanvasIcon HealthCellRed;
+var protected CanvasIcon ArmorCellBlue;
+var protected CanvasIcon BA_HealthCellIcon; //Building Armour specific health bar.
+var protected CanvasIcon BA_ArmourCellIcon; //Building Armour specific Armour bar.
+var protected CanvasIcon BA_HealthIcon;
+var protected CanvasIcon BA_ArmourIcon;
 
 
-var private CanvasIcon Interact;
-var private float InteractIconBobAmplitude;
-var private float InteractIconBobFrequency;
+var protected CanvasIcon Interact;
+var protected float InteractIconBobAmplitude;
+var protected float InteractIconBobFrequency;
 
-var Actor TargetedActor;
+var RxIfc_Targetable TargetedActor;
 var bool bLookingAtSubstitute;
 var Vector TargetActorHitLoc;
 var Box ActualBoundingBox;
@@ -86,63 +89,63 @@ var Vector2D TargetDescriptionTextSize;
 var bool bDisplayTargetInfo;
 var bool bDisplayBoundingBox;
 
-var private int TargetStance;
+var protected int TargetStance;
 
-var private float BoundingBoxPadding;
+var protected float BoundingBoxPadding;
 
-var private bool AnchorInfoTop; // If true, anchor's the target info above the bounding box, false anchors it below.
+var protected bool AnchorInfoTop; // If true, anchor's the target info above the bounding box, false anchors it below.
 
-var private float BackgroundYOffset;
-var private float BackgroundXOffset;
-var private float LogoXOffset;
-var private float LogoYOffset;
-var private float InteractXOffset;
-var private float InteractYOffset;
-var private float HealthBarXOffset;
-var private float HealthBarYOffset;
-var private float HealthBarCellSpacing;
-var private float Armor_YOffset;
-var private int HealthBarCells;
-var private float HealthBarRedThreshold;
-var private float HealthBarYellowThreshold;
-var private float LabelXOffset;
-var private float LabelYOffset;
-var private float PercentXOffset;
-var private float PercentYOffset;
-var private float DescriptionXOffset;
-var private float DescriptionYOffset;
+var protected float BackgroundYOffset;
+var protected float BackgroundXOffset;
+var protected float LogoXOffset;
+var protected float LogoYOffset;
+var protected float InteractXOffset;
+var protected float InteractYOffset;
+var protected float HealthBarXOffset;
+var protected float HealthBarYOffset;
+var protected float HealthBarCellSpacing;
+var protected float Armor_YOffset;
+var protected int HealthBarCells;
+var protected float HealthBarRedThreshold;
+var protected float HealthBarYellowThreshold;
+var protected float LabelXOffset;
+var protected float LabelYOffset;
+var protected float PercentXOffset;
+var protected float PercentYOffset;
+var protected float DescriptionXOffset;
+var protected float DescriptionYOffset;
 var float DescriptionXScale;
 var float DescriptionYScale;
-var private float BA_ArmourIconYOffset;
-var private float BA_HealthIconYOffset;
+var protected float BA_ArmourIconYOffset;
+var protected float BA_HealthIconYOffset;
 
 /*Building Armour specific setup for boxes. Will incorporate into code once I don't need to edit them in-game*/
-var private float BA_HealthBarXOffset ;
-var private float BA_HealthBarYOffset;
-var private float BA_ArmourBarXOffset;
-var private float BA_ArmourBarYOffset;
-var private float BA_LabelXOffset ;
-var private float BA_LabelYOffset;
-var private float BA_IconsXOffset;
-var private float BA_IconsYOffset;	
-var private float BA_PercentXOffset;		// 55		// -15
-var private float BA_PercentYOffset;		// -35		// -15
+var protected float BA_HealthBarXOffset ;
+var protected float BA_HealthBarYOffset;
+var protected float BA_ArmourBarXOffset;
+var protected float BA_ArmourBarYOffset;
+var protected float BA_LabelXOffset ;
+var protected float BA_LabelYOffset;
+var protected float BA_IconsXOffset;
+var protected float BA_IconsYOffset;	
+var protected float BA_PercentXOffset;		// 55		// -15
+var protected float BA_PercentYOffset;		// -35		// -15
 // Offset for target's description
-var private float BA_DescriptionXOffset;
-var private float BA_DescriptionYOffset;
-var private float BA_BackgroundXOffset;
-var private float BA_BackgroundYOffset;
+var protected float BA_DescriptionXOffset;
+var protected float BA_DescriptionYOffset;
+var protected float BA_BackgroundXOffset;
+var protected float BA_BackgroundYOffset;
 // Offset of team logo
-var private float BA_LogoXOffset;
-var private float BA_LogoYOffset;
-var private float BA_HealthBarCellSpacing;
-var private float BA_IconToPercentSpacing;
-var private float BA_ArmourPercentYOffset;
+var protected float BA_LogoXOffset;
+var protected float BA_LogoYOffset;
+var protected float BA_HealthBarCellSpacing;
+var protected float BA_IconToPercentSpacing;
+var protected float BA_ArmourPercentYOffset;
 
-var private Box VisualBoundingBox;
-var private float VisualBoundsCenterX;
+var protected Box VisualBoundingBox;
+var protected float VisualBoundsCenterX;
 
-var private font InteractFont;
+var protected font InteractFont;
 
 var float TimeSinceNewTarget; // Starts countign when we sucessfully target a new actor
 var float TimeSinceTargetLost; // Starts counting if the target is not being looked at
@@ -165,75 +168,70 @@ function Update(float DeltaTime, Rx_HUD HUD)
 		UpdateTargetHealthPercent();
 		UpdateTargetDescription();
 		UpdateBoundingBox();
-		UpdateTargetStance(TargetedActor);
+		UpdateTargetStance(TargetedActor.GetActualTarget());
 	}
 }
 
 function UpdateTargetedObject (float DeltaTime)
 {
-	local Actor potentialTarget;
+	local Actor potentialTarget; //Used initially as a potential target... then to hold the TRUE Actor pointed to by TargetedActor for the rest of the function
 
 	// Our potential target is the actor we're looking at.
 	potentialTarget = GetActorAtScreenCentre();
+	
 	// If that's a valid target, then it becomes our target.
 	if (IsValidTarget(potentialTarget) && IsTargetInRange(potentialTarget)) {
 		SetTarget(potentialTarget);
-	}
-	// If we're not looking at the targetted building anymore, automatically untarget it.
-	else if (TargetedActor != none && IsBuildingComponent(TargetedActor) && !IsPTorMCT(TargetedActor)) {
-		TargetedActor = none;
-	}
-	// If the targeted actor is out of view, or out of range we should untarget it.
-	else if (TargetedActor != none && (!IsValidTarget(TargetedActor) || !IsActorInView(TargetedActor,true) || !IsTargetInRange(TargetedActor)) ) {
-		if (Rx_Pawn(TargetedActor) != none) {
-			Rx_Pawn(TargetedActor).bTargetted = false;
-		} else if (Rx_Vehicle(TargetedActor) != none) {
-			Rx_Vehicle(TargetedActor).bTargetted = false;
-		}
-		TargetedActor = none;
-	}		
-	// If we're here, that means we're not looking at it, but it's still on screen and in range, so start countdown to untarget it
-	else {
-		TimeSinceTargetLost += DeltaTime;
-	}
 		
+		/* !!!!!IMPORTANT: Repurpose potential target to hold the ACTUAL actor!!!!!! */ 
+		if(TargetedActor != none)
+			potentialTarget = TargetedActor.GetActualTarget(); 
+	}
+	// If we're not looking at the targetted building anymore, automatically untarget it.(Sticky targets like vehic ignore this)
+	//IsBuildingComponent(TargetedActor) && !IsPTorMCT(TargetedActor)) {
+	else if (TargetedActor != none && !TargetedActor.IsStickyTarget() && TargetedActor.GetActualTarget() != potentialTarget ) {  
+		TargetedActor = none;
+	}
+	// If the targeted actor is out of view, or out of range we should untarget it. 
+	else if (TargetedActor != none)
+	{
+		potentialTarget = TargetedActor.GetActualTarget(); //Repurpose potentialtarget if it's 'none' (which it would be by the time it got to this else statement)
+		
+		//Now check for out of range
+		if(!IsValidTarget(potentialTarget) || !IsActorInView(potentialTarget,true) || !IsTargetInRange(potentialTarget)) {
+			TargetedActor.SetTargeted(false);
+		
+			TargetedActor = none;
+		}
+		// If we're here, that means we're not looking at it, but it's still on screen and in range, so start countdown to untarget it
+		else {
+			TimeSinceTargetLost += DeltaTime;
+		}
+		
+	}		
+	
 
 	// If our target has expired, clear it.
-	if (TimeSinceTargetLost > TargetStickTime){
-		if (Rx_Pawn(TargetedActor) != none) {
-			Rx_Pawn(TargetedActor).bTargetted = false;
-		} else if (Rx_Vehicle(TargetedActor) != none) {
-			Rx_Vehicle(TargetedActor).bTargetted = false;
-		}
+	if (TimeSinceTargetLost > TargetStickTime && TargetedActor != none){
+		TargetedActor.SetTargeted(false);
 		TargetedActor = none;	
 	}
 }
 
 function SetTarget(actor Target)
 {
-	if(RxIfc_TargetedSubstitution(Target) != None && RxIfc_TargetedSubstitution(Target).ShouldSubstitute())
-	{
-		Target = RxIfc_TargetedSubstitution(Target).GetActualActorTarget();
-		bLookingAtSubstitute = true;
-	}
-	else
-		bLookingAtSubstitute = false;
-
-
-	if(Rx_Building_Internals(Target) != None)
-		Target = Rx_Building_Internals(Target).BuildingVisuals;
-
-	if (Target != TargetedActor) // We don't already have this actor targeted
-	{
-		if (Rx_Pawn(TargetedActor) != none) {
-			Rx_Pawn(TargetedActor).bTargetted = true;
-		} else if (Rx_Vehicle(TargetedActor) != none) {
-			Rx_Vehicle(TargetedActor).bTargetted = true;
-		}
-		TargetedActor = Target;
-		TimeSinceNewTarget = 0;
-	}
-	TimeSinceTargetLost = 0;
+		//We're at least targeting something legitamate
+		TimeSinceTargetLost = 0;
+		
+		Target = RxIfc_Targetable(Target).GetActualTarget();
+		
+		if(Target == Actor(TargetedActor)) //Already targeting this 
+			return; 
+		else //Commit to setting this to the target
+		{
+			TargetedActor = RxIfc_Targetable(Target);
+			TimeSinceNewTarget = 0;
+		}		
 }
 
 function bool IsTargetInRange(actor a)
@@ -248,10 +246,10 @@ function bool IsTargetInRange(actor a)
 
 function float GetTargetDistance(actor a)
 {
-	if (a == none)
+	if (TargetedActor == none || a == none)
 		return 0;
 
-	if (IsBuildingComponent(TargetedActor) && !IsPTorMCT(TargetedActor)) // Biuldings are large so their centre is bad to judge range by, use the hit location instead.
+	if (TargetedActor.AlwaysTargetable()) //(IsBuildingComponent(TargetedActor) && !IsPTorMCT(TargetedActor)) // Biuldings are large so their centre is bad to judge range by, use the hit location instead.
 		return VSize(RenxHud.PlayerOwner.ViewTarget.Location - TargetActorHitLoc);
 	else
 		return VSize(RenxHud.PlayerOwner.ViewTarget.Location - a.Location);
@@ -261,26 +259,15 @@ function float GetTargetDistance(actor a)
 
 function bool IsValidTarget (actor potentialTarget)
 {
-	if (Rx_Building(potentialTarget) != none ||
-		(Rx_BuildingAttachment(potentialTarget) != none && Rx_BuildingAttachment_Door(potentialTarget) == none) ||
-		Rx_Building_Internals(potentialTarget) != none ||
-		(Rx_Vehicle(potentialTarget) != none && Rx_Vehicle(potentialTarget).Health > 0) ||
-		(Rx_Weapon_DeployedActor(potentialTarget) != none && Rx_Weapon_DeployedActor(potentialTarget).GetHealth() > 0) ||
-		(Rx_Pawn(potentialTarget) != none && Rx_Pawn(potentialTarget).Health > 0)||
-		(Rx_DestroyableObstaclePlus(potentialTarget) !=none && Rx_DestroyableObstaclePlus(potentialTarget).bShowHealth && Rx_DestroyableObstaclePlus(potentialTarget).GetHealth() > 0) ||
-		(Rx_BasicPawn(potentialTarget) !=none && Rx_BasicPawn(potentialTarget).bShowHealth && Rx_BasicPawn(potentialTarget).GetHealth() > 0) ||
-		(Rx_CratePickup(potentialTarget) != none && !Rx_CratePickup(potentialTarget).bPickupHidden) ||
-		(RxIfc_TargetedSubstitution(potentialTarget) != None && RxIfc_TargetedSubstitution(potentialTarget).GetActualActorTarget() != None && IsValidTarget(RxIfc_TargetedSubstitution(potentialTarget).GetActualActorTarget()))
-		)
+	if(potentialTarget == none)
+		return false; 
+	
+	if(RxIfc_Targetable(potentialTarget) != none && RxIfc_Targetable(potentialTarget).GetIsValidLocalTarget(RenxHud.PlayerOwner))
 	{
-		if (IsStealthedEnemyUnit(Pawn(potentialTarget)) ||
-			potentialTarget == RenxHud.PlayerOwner.ViewTarget ||
-			(Rx_VehicleSeatPawn(RenxHud.PlayerOwner.ViewTarget) != none && potentialTarget == Rx_VehicleSeatPawn(RenxHud.PlayerOwner.ViewTarget).MyVehicle))
+		return true;
+	}	
+	else 
 		return false;
-		else return true;
-	}
-		
-	else return false;
 }
 
 function Actor GetActorAtScreenCentre()
@@ -290,96 +277,28 @@ function Actor GetActorAtScreenCentre()
 
 function UpdateTargetHealthPercent ()
 {
-	local Rx_CapturePoint CP;
-
 	TargetArmorPercent = 0;
 	bHasArmor = false;
 	
-	if (IsTechBuildingComponent(TargetedActor) && !IsPTorMCT(TargetedActor))
+	/*Get interface armour/health pcts*/
+	if(TargetedActor.GetShouldShowHealth())
 	{
-		TargetHealthPercent = -1;
-		if(Rx_Building_TechbuildingPoint(TargetedActor) != None)
-		{
-			CP = Rx_Building_TechbuildingPoint_Internals(Rx_Building_TechbuildingPoint(TargetedActor).BuildingInternals).CP;
-			if(CP != None)
-			{
-				TargetHealthPercent = CP.ReplicatedProgress;
-			}
-		}
-		return;
-	}
-	
-	
-	/*Ensure higher class objects come 1st*/
-	if (Rx_Pawn(TargetedActor) != none)
-	{
-		TargetHealthPercent =  (float(Rx_Pawn(TargetedActor).Health)) / max(1,float(Rx_Pawn(TargetedActor).HealthMax + Rx_Pawn(TargetedActor).ArmorMax));
-		TargetArmorPercent = float(Rx_Pawn(TargetedActor).Armor) / max(1,float(Rx_Pawn(TargetedActor).HealthMax + Rx_Pawn(TargetedActor).ArmorMax)); 
-		TargetHealthMaxPercent = float(Rx_Pawn(TargetedActor).HealthMax) / max(1,float(Rx_Pawn(TargetedActor).HealthMax + Rx_Pawn(TargetedActor).ArmorMax));
-	}
-	else if (Rx_BasicPawn(TargetedActor) != none)
-	{
-		TargetHealthPercent = (Rx_BasicPawn(TargetedActor).GetHealth()*1.0) / max(1.0, (Rx_BasicPawn(TargetedActor).GetMaxHealth()*1.0));
-	}
-	else if (Pawn(TargetedActor) != none)
-	{
-		TargetHealthPercent =  float(Pawn(TargetedActor).Health) / max(1, float(Pawn(TargetedActor).HealthMax));
-	}
-	else if (Rx_Weapon_DeployedActor(TargetedActor) != none && !Rx_Weapon_DeployedActor(TargetedActor).bCanNotBeDisarmedAnymore)
-	{
-		TargetHealthPercent = float(Rx_Weapon_DeployedActor(TargetedActor).GetHealth()) / max(1, float(Rx_Weapon_DeployedActor(TargetedActor).GetMaxHealth()));
-	}
-	else if (Rx_DestroyableObstaclePlus(TargetedActor) != none)
-	{
-		TargetHealthPercent = (Rx_DestroyableObstaclePlus(TargetedActor).GetHealth()*1.0) / max(1.0, Rx_DestroyableObstaclePlus(TargetedActor).GetMaxHealth()*1.0);
-	}
-	else if (Rx_BuildingAttachment(TargetedActor) != none && Rx_BuildingAttachment_PT(TargetedActor) == none && Rx_BuildingAttachment_BeaconPedestal(TargetedActor) == none)
-	{
-		TargetHealthPercent = Rx_BuildingAttachment(TargetedActor).getBuildingHealthPct();
-		TargetHealthMaxPercent = Rx_BuildingAttachment(TargetedActor).getBuildingHealthMaxPct();		
-		TargetArmorPercent = Rx_BuildingAttachment(TargetedActor).getBuildingArmorPct();
-		bHasArmor = true;
-	}
-	else if (Rx_Building(TargetedActor) != none)
-	{
-		TargetArmorPercent = float(Rx_Building(TargetedActor).GetArmor()) / max(1,float(Rx_Building(TargetedActor).GetMaxArmor()));
-		TargetHealthPercent = float(Rx_Building(TargetedActor).GetHealth()) / max(1,float(Rx_Building(TargetedActor).GetTrueMaxHealth()));		
-		TargetHealthMaxPercent = 1.0f; //This may need to look at TrueMaxHealth somewhere.. we'll see after testing. 
+		TargetHealthPercent = TargetedActor.GetTargetHealthPct(); 
+		TargetArmorPercent = TargetedActor.GetTargetArmourPct(); //float(Rx_Pawn(TargetedActor).Armor) / max(1,float(Rx_Pawn(TargetedActor).HealthMax + Rx_Pawn(TargetedActor).ArmorMax)); 
+		TargetHealthMaxPercent = TargetedActor.GetTargetMaxHealthPct(); //float(Rx_Pawn(TargetedActor).HealthMax) / max(1,float(Rx_Pawn(TargetedActor).HealthMax + Rx_Pawn(TargetedActor).ArmorMax));
 		
-		bHasArmor = true;
-	}
-	else
-		TargetHealthPercent = -1;
-		
-	if(Rx_Building_Techbuilding(TargetedActor) != None || TargetedActor.isA('Rx_CapturableMCT')
-		|| (Rx_BuildingAttachment(TargetedActor) != none 
-			&& Rx_BuildingAttachment(TargetedActor).OwnerBuilding != None && (Rx_Building_Techbuilding(Rx_BuildingAttachment(TargetedActor).OwnerBuilding.BuildingVisuals) != None || (Rx_BuildingAttachment(TargetedActor).OwnerBuilding.BuildingVisuals).isA('Rx_CapturableMCT'))) )
-	{
-		bHasArmor = false;
+		bHasArmor = TargetedActor.GetUseBuildingArmour(); //Weird legacy variable for drawing. Only applies to BUILDING armour 
 	}	
-		
 }
 
-function UpdateTargetName ()
-{
-	//local Pawn PawnActor; 
-	
-	if (RxIfc_TargetedCustomName(TargetedActor) != none)
-		TargetName = RxIfc_TargetedCustomName(TargetedActor).GetTargetedName(RenxHud.PlayerOwner);
-	else
-		TargetName = TargetedActor.GetHumanReadableName();
-	
-	//PawnActor = Pawn(TargetedActor);
-	
-	//if(PawnActor != none && Rx_PRI(PawnActor.PlayerReplicationInfo) != none && Rx_PRI(PawnActor.PlayerReplicationInfo).bGetIsCommander()) TargetName = TargetName $ "[Commander]" ;
+function UpdateTargetName()
+{	
+	TargetName = TargetedActor.GetTargetName();
 }
 
 function UpdateTargetDescription ()
 {
-	if (RxIfc_TargetedDescription(TargetedActor) != none)
-		TargetDescription = RxIfc_TargetedDescription(TargetedActor).GetTargetedDescription(RenxHud.PlayerOwner);
-	else
-		TargetDescription = "";
+	TargetDescription = TargetedActor.GetTargetedDescription(RenxHud.PlayerOwner);
 }
 
 function UpdateBoundingBox()
@@ -387,8 +306,10 @@ function UpdateBoundingBox()
 	local array<vector> Vertices;
 	local box BBox, BBox2;
 	local int i;
-
-	if (bLookingAtSubstitute || (IsBuildingComponent(TargetedActor) && !IsPTorMCT(TargetedActor) && Rx_BuildingAttachment_BeaconPedestal(TargetedActor) == None))
+	local Actor TrueActor; 
+	
+	TrueActor = TargetedActor.GetActualTarget();
+	if(TargetedActor.UseDefaultBBox())
 	{
 		BBox2.Min.X = Canvas.SizeX * 0.4;
 		BBox2.Max.X = Canvas.SizeX * 0.6;
@@ -397,10 +318,10 @@ function UpdateBoundingBox()
 	}
 	else
 	{
-		if (Rx_BuildingAttachment_PT(TargetedActor) != none)
-			BBox = GetPTBoundingBox(Rx_BuildingAttachment_PT(TargetedActor));
+		if (Rx_BuildingAttachment_PT(TrueActor) != none)
+			BBox = GetPTBoundingBox(Rx_BuildingAttachment_PT(TrueActor));
 		else
-			TargetedActor.GetComponentsBoundingBox(BBox);
+			TrueActor.GetComponentsBoundingBox(BBox);
 	
 		// Project all 8 corner points of the target onto our canvas
 		Vertices.AddItem(Canvas.project(BBox.Min));
@@ -492,7 +413,7 @@ function float GetAttachmentBuildingHealth(Rx_BuildingAttachment BAttachment)
 
 function Draw()
 {
-	if (TargetedActor != none && Canvas != None && Rx_PlayerInput(Renxhud.PlayerOwner.PlayerInput).bDrawTargettingBox)
+	if (TargetedActor != none && TargetedActor.GetIsValidLocalTarget(RenxHud.PlayerOwner) && Canvas != None && Rx_PlayerInput(Renxhud.PlayerOwner.PlayerInput).bDrawTargettingBox)
 	{
 		Canvas.DrawColor = ColorWhite;
 
@@ -504,7 +425,7 @@ function Draw()
 	}
 }
 
-private function DrawBoundingBoxCorners()
+protected function DrawBoundingBoxCorners()
 {
 
 	if (TargetStance == STANCE_NEUTRAL)
@@ -530,12 +451,17 @@ private function DrawBoundingBoxCorners()
 	}
 }
 
-private function DrawTargetInfo()
+protected function DrawTargetInfo()
 {
 		DrawInfoBackground();	
 		DrawTeamLogo();
-		DrawHealthBar();
-		DrawHealthPercent();
+		
+		if(TargetedActor.GetShouldShowHealth())
+		{
+			DrawHealthBar();
+			DrawHealthPercent();
+		}
+		
 		DrawTargetName();
 		if (TargetDescription != "")
 			DrawTargetDescription();
@@ -551,79 +477,71 @@ function bool CanInteract()
 	if (RenxHud.PlayerOwner.Pawn == none || RenxHud.PlayerOwner.Pawn.DrivenVehicle != none)
 		return false;
 
-	if (Rx_Vehicle(TargetedActor) != none && Rx_Vehicle_Harvester(TargetedActor) == none)
-		return Rx_Vehicle(TargetedActor).ShouldShowUseable(RenxHud.PlayerOwner,0);
-
+	if(TargetedActor.GetIsInteractable(RenxHud.PlayerOwner))
+		return true; 
+	
 	return false;
 }
 
 function bool Interactable()
 {
-	if (RenxHud.PlayerOwner.Pawn == none || RenxHud.PlayerOwner.Pawn.DrivenVehicle != none || UTPlayerController(RenxHud.PlayerOwner) == none)
+	
+	local PlayerController PO; 
+
+	PO = RenxHud.PlayerOwner;
+ 	
+	if (PO == none || PO.Pawn == none || PO.Pawn.DrivenVehicle != none)
 		return false;
-
-	if (Rx_Vehicle(TargetedActor) != none && Rx_Vehicle_Harvester(TargetedActor) == none)
-		return Rx_Vehicle(TargetedActor).CanEnterVehicle(RenxHud.PlayerOwner.Pawn);
-
-	else if (Rx_BuildingAttachment_PT_GDI(TargetedActor) != none && Rx_Controller(RenxHud.PlayerOwner).bCanAccessPT && RenxHud.PlayerOwner.Pawn.GetTeamNum() == TEAM_GDI)
-		return true;
-
-	else if (Rx_BuildingAttachment_PT_NOD(TargetedActor) != none && Rx_Controller(RenxHud.PlayerOwner).bCanAccessPT && RenxHud.PlayerOwner.Pawn.GetTeamNum() == TEAM_NOD)
-		return true;
-
-	else 
-		return false;
+	
+	return TargetedActor.GetCurrentlyInteractable(PO);
 }
 
-private function DrawInteractText()
+protected function DrawInteractText()
 {
 	local float X,Y, Xlen,Ylen;
 	local string Text,bindKey;
 	
 	bindKey = Caps(UDKPlayerInput(RenxHud.PlayerOwner.PlayerInput).GetUDKBindNameFromCommand("GBA_Use"));
 	
-	if (Vehicle(TargetedActor) != none)
-		Text = ("Press [ " $ bindKey $ " ] to enter " $ Vehicle(TargetedActor).GetHumanReadableName());
-	else if (Rx_BuildingAttachment_PT(TargetedActor) != none)
-		Text = ("Press [ " $ bindKey $ " ] to enter Purchase Terminal");
-
+	Text = TargetedActor.GetInteractText(RenxHud.PlayerOwner, bindKey); 
+	
 	Canvas.Font = InteractFont;
-	Canvas.TextSize(Text,Xlen,Ylen);
+	Canvas.TextSize(Text,Xlen,Ylen,GetResolutionModifier(),GetResolutionModifier());
 
-	X = VisualBoundsCenterX + InteractXOffset - (Xlen/2);
+	X = VisualBoundsCenterX + (InteractXOffset - (Xlen/2)) * (GetResolutionModifier());
 
 	if (AnchorInfoTop)
-		Y = VisualBoundingBox.Min.Y + InteractYOffset - Ylen;
+		Y = VisualBoundingBox.Min.Y + (InteractYOffset - Ylen) * (GetResolutionModifier());
 	else
-		Y = VisualBoundingBox.Min.Y - Interact.VL - Ylen;
+		Y = VisualBoundingBox.Min.Y - (Interact.VL - Ylen) * (GetResolutionModifier());
 
 	if (RenxHud.ShowInteractableIcon)
-		Y -= Interact.VL;
+		Y -= Interact.VL * (GetResolutionModifier());
 	else
-		Y -= 10;
+		Y -= 10 * (GetResolutionModifier());
 
 	Canvas.DrawColor = ColorGreen;
 	Canvas.SetPos(X,Y,0);
-	Canvas.DrawText(Text);
+	Canvas.DrawText(Text,,(GetResolutionModifier()),(GetResolutionModifier()));
 }
 
-private function DrawInteractableIcon()
+protected function DrawInteractableIcon()
 {
 	local float X,Y;
-	X = VisualBoundsCenterX + InteractXOffset - (Interact.UL/2);
+	X = VisualBoundsCenterX + (InteractXOffset - (Interact.UL/2)) * (GetResolutionModifier());
 
 	if (AnchorInfoTop)
-		Y = VisualBoundingBox.Min.Y + InteractYOffset - Interact.VL;
+		Y = VisualBoundingBox.Min.Y + (InteractYOffset - Interact.VL) * (GetResolutionModifier());
 	else
-		Y = VisualBoundingBox.Min.Y - Interact.VL;
+		Y = VisualBoundingBox.Min.Y - (Interact.VL) * (GetResolutionModifier());
 
 	Y += Sin(class'WorldInfo'.static.GetWorldInfo().TimeSeconds * InteractIconBobFrequency) * InteractIconBobAmplitude;
 
 	Canvas.SetDrawColor(255,255,255,255);
-	Canvas.DrawIcon(Interact,X,Y);
+	Canvas.DrawIcon(Interact,X,Y,(GetResolutionModifier()));
 }
 
-private function DrawHealthBar()
+protected function DrawHealthBar()
 {
 	local int i;
 	local CanvasIcon HealthCell;
@@ -655,17 +573,17 @@ private function DrawHealthBar()
 			//HealthCell = HealthCellGreen;
 			
 				
-					HealthBarsToDraw = RoundUp(TargetHealthPercent * float(HealthBarCells) );
-					ArmorBarsToDraw = RoundUp(TargetArmorPercent * float(HealthBarCells) );//ArmorBarsToDraw = RoundUp(TargetArmorPercent*ArmorHealthPercentTemp * float(HealthBarCells) );
-					HealthFillupBarsToDraw = RoundUp(TargetHealthMaxPercent * float(HealthBarCells)) - HealthBarsToDraw; 
+					HealthBarsToDraw = FCeil(TargetHealthPercent * float(HealthBarCells) );
+					ArmorBarsToDraw = FCeil(TargetArmorPercent * float(HealthBarCells) );//ArmorBarsToDraw = RoundUp(TargetArmorPercent*ArmorHealthPercentTemp * float(HealthBarCells) );
+					HealthFillupBarsToDraw = FCeil(TargetHealthMaxPercent * float(HealthBarCells)) - HealthBarsToDraw; 
 					 
 			
-				X = VisualBoundsCenterX + BA_HealthBarXOffset + BA_IconsXOffset;
+				X = VisualBoundsCenterX + (BA_HealthBarXOffset + BA_IconsXOffset) * (GetResolutionModifier());
 		
 				if (AnchorInfoTop)
-					Y = VisualBoundingBox.Min.Y + BA_HealthBarYOffset;
+					Y = VisualBoundingBox.Min.Y + (BA_HealthBarYOffset * (GetResolutionModifier()));
 				else
-					Y = VisualBoundingBox.Max.Y + BA_HealthBarYOffset;
+					Y = VisualBoundingBox.Max.Y + (BA_HealthBarYOffset * (GetResolutionModifier()));
 			
 			if (TargetHealthPercent > 0) //Don't bother drawing anything if it's already dead  
 			{
@@ -680,35 +598,35 @@ private function DrawHealthBar()
 					HealthCell = BA_ArmourCellIcon;			
 				for (i = 0; i < ArmorBarsToDraw; i++)
 				{
-					Canvas.DrawIcon(HealthCell,X,Y); 
-					X += BA_HealthBarCellSpacing;
+					Canvas.DrawIcon(HealthCell,X,Y,(GetResolutionModifier())); 
+					X += BA_HealthBarCellSpacing * (GetResolutionModifier());
 				}
 				
 				Canvas.DrawColor = ColorGreyedOut;
 				for (i = 0; i < HealthBarCells - (HealthBarsToDraw + HealthFillupBarsToDraw + ArmorBarsToDraw); i++)
 				{
-					Canvas.DrawIcon(HealthCell,X,Y,1.4);
-					X += BA_HealthBarCellSpacing;
+					Canvas.DrawIcon(HealthCell,X,Y,1.4 * (GetResolutionModifier()));
+					X += BA_HealthBarCellSpacing * (GetResolutionModifier());
 				}	
 				
 				//DRaw health under armour 
 				//Again, Health Offsets are now used for Armour, and vice versa!!!!!!!!!
 				
-				X = VisualBoundsCenterX + BA_HealthBarXOffset;
-				Y+=BA_ArmourBarYOffset;
+				X = VisualBoundsCenterX + (BA_HealthBarXOffset * (GetResolutionModifier()));
+				Y+=(BA_ArmourBarYOffset * (GetResolutionModifier()));
 				
 				for (i = 0; i < HealthBarsToDraw; i++)
 				{
 					Canvas.DrawColor=HealthBlendColour;
-					Canvas.DrawIcon(HealthCell,X,Y+BA_ArmourBarYOffset);
-					X += BA_HealthBarCellSpacing;
+					Canvas.DrawIcon(HealthCell,X,Y+BA_ArmourBarYOffset,(GetResolutionModifier()));
+					X += BA_HealthBarCellSpacing * (GetResolutionModifier());
 				}
 				
 				Canvas.DrawColor = ColorGreyedOut;
 				for (i = 0; i < HealthFillupBarsToDraw; i++)
 				{
-					Canvas.DrawIcon(HealthCell,X,Y+BA_ArmourBarYOffset);
-					X += BA_HealthBarCellSpacing;
+					Canvas.DrawIcon(HealthCell,X,Y+BA_ArmourBarYOffset,(GetResolutionModifier()));
+					X += BA_HealthBarCellSpacing * (GetResolutionModifier());
 				}			
 				
 				
@@ -716,10 +634,9 @@ private function DrawHealthBar()
 			}
 		} 
 		else
-		{
-
-	
-			if(Rx_Pawn(TargetedActor) != None)
+		{	
+			//if(Rx_Pawn(TargetedActor) != None)
+			if(TargetedActor.GetTargetArmourMax() > 0) //Infantry are about the only other thing using armour 
 			{
 				if (TargetHealthPercent < HealthBarRedThreshold * TargetHealthMaxPercent)			
 					HealthCell = HealthCellRed;
@@ -727,8 +644,8 @@ private function DrawHealthBar()
 					HealthCell = HealthCellYellow;
 				else 
 					HealthCell = HealthCellGreen;
-				ArmorBarsToDraw = RoundUp(TargetArmorPercent * float(HealthBarCells)) ;
-				HealthBarsToDraw = RoundUp(TargetHealthPercent * float(HealthBarCells));
+				ArmorBarsToDraw = FCeil(TargetArmorPercent * float(HealthBarCells)) ;
+				HealthBarsToDraw = FCeil(TargetHealthPercent * float(HealthBarCells));
 				BarsToDraw = ArmorBarsToDraw + HealthBarsToDraw;
 			}
 			else
@@ -740,15 +657,15 @@ private function DrawHealthBar()
 				else 
 					HealthCell = HealthCellGreen;
 
-				BarsToDraw = RoundUp(TargetHealthPercent * float(HealthBarCells) );
+				BarsToDraw = FCeil(TargetHealthPercent * float(HealthBarCells) );
 			}
 		
-			X = VisualBoundsCenterX + HealthBarXOffset;
+			X = VisualBoundsCenterX + (HealthBarXOffset * GetResolutionModifier());
 	
 	 		if (AnchorInfoTop)
-				Y = VisualBoundingBox.Min.Y + HealthBarYOffset;
+				Y = VisualBoundingBox.Min.Y + (HealthBarYOffset * (GetResolutionModifier()));
 			else
-				Y = VisualBoundingBox.Max.Y + HealthBarYOffset;
+				Y = VisualBoundingBox.Max.Y + (HealthBarYOffset * (GetResolutionModifier()));
 
 			if (TargetHealthPercent > 0) //Don't bother drawing anything if it's already dead  
 			{
@@ -756,50 +673,50 @@ private function DrawHealthBar()
 				{
 					for (i = 0; i < HealthBarsToDraw; i++)
 					{
-						Canvas.DrawIcon(HealthCell,X,Y);
-						X += HealthBarCellSpacing;
+						Canvas.DrawIcon(HealthCell,X,Y,(GetResolutionModifier()));
+						X += HealthBarCellSpacing * (GetResolutionModifier());
 					}					
 					for (i = HealthBarsToDraw; i < ArmorBarsToDraw + HealthBarsToDraw; i++)
 					{
-						Canvas.DrawIcon(ArmorCellBlue,X,Y);
-						X += HealthBarCellSpacing;
+						Canvas.DrawIcon(ArmorCellBlue,X,Y,(GetResolutionModifier()));
+						X += HealthBarCellSpacing * (GetResolutionModifier());
 					}
 				}
 				else 
 				{
 					for (i = 0; i < BarsToDraw; i++)
 					{
-						Canvas.DrawIcon(HealthCell,X,Y);
-						X += HealthBarCellSpacing;
+						Canvas.DrawIcon(HealthCell,X,Y,(GetResolutionModifier()));
+						X += HealthBarCellSpacing * (GetResolutionModifier());
 					}	
 				}
 
 				Canvas.DrawColor = ColorGreyedOut;
 				for (i = 0; i < HealthBarCells - BarsToDraw; i++)
 				{
-					Canvas.DrawIcon(HealthCell,X,Y);
-					X += HealthBarCellSpacing;
+					Canvas.DrawIcon(HealthCell,X,Y,(GetResolutionModifier()));
+					X += HealthBarCellSpacing * (GetResolutionModifier());
 				}
 			}
 		}
 
-		if (TargetHealthPercent <= 0 && Rx_Building_Techbuilding(TargetedActor) == None)
+		if (TargetHealthPercent <= 0 && TargetedActor.HasDestroyedState())
 		{
 			Canvas.DrawColor = ColorGreen; 
 			if(ArmorHealthPercentTemp > 0)	
-				X = VisualBoundsCenterX + BA_LabelXOffset;
+				X = VisualBoundsCenterX + (BA_LabelXOffset * GetResolutionModifier());
 			else
-				X = VisualBoundsCenterX + LabelXOffset;
+				X = VisualBoundsCenterX + (LabelXOffset * GetResolutionModifier());
 			Canvas.Font = LabelFont;
 			Canvas.SetPos(X,Y,0);
-			Canvas.DrawText("(Destroyed)");
+			Canvas.DrawText("(Destroyed)",,(GetResolutionModifier()),(GetResolutionModifier()));
 		}	
 		
 	}
 
 }
 
-private function DrawHealthPercent()
+protected function DrawHealthPercent()
 {
 	local float X,Y; //,f1,f2;
 	local int iHealthPercent;
@@ -813,16 +730,16 @@ private function DrawHealthPercent()
 	
 		if (TargetNameTextSize.X - 4 < PercentXOffset)
 		{
-			X = VisualBoundsCenterX + LabelXOffset + PercentXOffset;
+			X = VisualBoundsCenterX + (LabelXOffset + PercentXOffset) * (GetResolutionModifier());
 		}
 		else
 		{
-			X = VisualBoundsCenterX + LabelXOffset + TargetNameTextSize.X;
+			X = VisualBoundsCenterX + (LabelXOffset + TargetNameTextSize.X) * (GetResolutionModifier());
 		}
 		
 		if(TargetNameTextSize.X > 85) 
 		{
-			X += 18;
+			X += (18 * GetResolutionModifier());
 		}
 	
 
@@ -831,49 +748,39 @@ private function DrawHealthPercent()
 	{
 
 		if (AnchorInfoTop)
-			Y = VisualBoundingBox.Min.Y + PercentYOffset;
+			Y = VisualBoundingBox.Min.Y + (PercentYOffset * (GetResolutionModifier()));
 		else
-			Y = VisualBoundingBox.Max.Y + PercentYOffset;
+			Y = VisualBoundingBox.Max.Y + (PercentYOffset * (GetResolutionModifier()));
 	
 			
-		if(bHasArmor)
+		if(bHasArmor) //Still kind of legacy. Indicates BUILDING armour 
 		{	
 	
 		//Begin Align for building with armour 
 		
-			X = VisualBoundsCenterX + BA_PercentXOffset; //Screw what you were doing... we are here. 
+			X = VisualBoundsCenterX + (BA_PercentXOffset * (GetResolutionModifier())); //Screw what you were doing... we are here. 
 		
 		if (AnchorInfoTop)
-			Y = VisualBoundingBox.Min.Y + BA_PercentYOffset;
+			Y = VisualBoundingBox.Min.Y + (BA_PercentYOffset * (GetResolutionModifier()));
 		else
-			Y = VisualBoundingBox.Max.Y + BA_PercentYOffset;
+			Y = VisualBoundingBox.Max.Y + (BA_PercentYOffset * (GetResolutionModifier()));
 		
 		//End align for building with armour
 		
 			
 			Canvas.DrawColor = ColorBlue;	 
 			Canvas.Font = PercentageFont;
-			Canvas.SetPos(X-12,Y,0);
+			Canvas.SetPos(X - (12 * GetResolutionModifier()),Y,0);
 			
 			Canvas.DrawColor = ColorWhite;	 //don't blend
-			Canvas.DrawIcon(BA_ArmourIcon,X,Y+BA_HealthIconYOffset); //Draw armour icon, remember all Armour/Health Offsets are swapped
+			Canvas.DrawIcon(BA_ArmourIcon,X,Y+(BA_HealthIconYOffset * GetResolutionModifier()),(GetResolutionModifier())); //Draw armour icon, remember all Armour/Health Offsets are swapped
 	
-			X+=BA_IconToPercentSpacing; 
+			X+=(BA_IconToPercentSpacing) * GetResolutionModifier(); 
 			
 			Canvas.SetPos(X,Y,0);
 			
 					
-			Canvas.DrawText(int(TargetArmorPercent*100) );// $ "%");
-			
-			//Canvas.StrLen(int((TargetHealthPercent/TargetHealthMaxPercent)*100) $ "%",f1,f2);
-			//Canvas.SetPos(Canvas.CurX + f1,Y,0);
-			
-			/**if(int(TargetArmorPercent*10) <= 2)
-				Canvas.DrawColor = ColorRed;
-			else if(int(TargetArmorPercent*10) <= 5)
-				Canvas.DrawColor = ColorYellow;	
-			else */
-			
+			Canvas.DrawText(int(TargetArmorPercent*100) ,,(GetResolutionModifier()),(GetResolutionModifier()));// $ "%");
 			
 			//Health under armour
 			
@@ -884,7 +791,7 @@ private function DrawHealthPercent()
 			else 
 				Canvas.DrawColor = ColorGreen;
 			
-			Canvas.DrawIcon(BA_HealthIcon,X-BA_IconToPercentSpacing,Y+BA_ArmourIconYOffset);
+			Canvas.DrawIcon(BA_HealthIcon,X - (BA_IconToPercentSpacing * GetResolutionModifier()),Y + (BA_ArmourIconYOffset * GetResolutionModifier()),(GetResolutionModifier()));
 			
 			
 			if(int((TargetHealthPercent/TargetHealthMaxPercent)*10) <= 2)
@@ -894,14 +801,14 @@ private function DrawHealthPercent()
 			else 
 				Canvas.DrawColor = ColorGreen;		
 			
-			Canvas.SetPos(X,Y+BA_ArmourBarYOffset+BA_ArmourPercentYOffset,0);
+			Canvas.SetPos(X,Y + (BA_ArmourBarYOffset+BA_ArmourPercentYOffset) * GetResolutionModifier(),0);
 			
 			
-			Canvas.DrawText(int((TargetHealthPercent/TargetHealthMaxPercent)*100)); //$ "%");
+			Canvas.DrawText(int((TargetHealthPercent/TargetHealthMaxPercent)*100),,(GetResolutionModifier()),(GetResolutionModifier())); //$ "%");
 			
 			
 		} 
-		else if(Rx_Pawn(TargetedActor) != None) //probably pawn
+		else if(TargetedActor.GetTargetArmourMax() > 0 )//if(Rx_Pawn(TargetedActor) != None) //probably pawn
 		{
 			TargetHealthTotalPercent = FMin((TargetHealthPercent + TargetArmorPercent),1);
 
@@ -916,7 +823,7 @@ private function DrawHealthPercent()
 	
 			Canvas.Font = PercentageFont;
 			Canvas.SetPos(X,Y,0);
-			Canvas.DrawText(iHealthPercent $ "%");			
+			Canvas.DrawText(iHealthPercent $ "%",,(GetResolutionModifier()),(GetResolutionModifier()));			
 		}
 		else
 		{
@@ -931,7 +838,7 @@ private function DrawHealthPercent()
 	
 			Canvas.Font = PercentageFont;
 			Canvas.SetPos(X,Y,0);
-			Canvas.DrawText(iHealthPercent $ "%");
+			Canvas.DrawText(iHealthPercent $ "%",,(GetResolutionModifier()),(GetResolutionModifier()));
 		}	
 		
 		/** Debug Info:
@@ -950,40 +857,30 @@ private function DrawHealthPercent()
 	}
 }
 
-private function int RoundUp(float f)
-{
-	local float Result;
-
-	Result = int(f);
-
-	if(f - Result > 0.0)
-		Result += 1.0;
-
-	return Result;
-}
-
-private function DrawTargetName()
+protected function DrawTargetName()
 {
 	local float X,Y;
+	local Rx_PRI TargetPRI;
+
 	if(!bHasArmor)
 	{
-		X = VisualBoundsCenterX + LabelXOffset;
+		X = VisualBoundsCenterX + LabelXOffset * GetResolutionModifier();
 	
 	
 	if (AnchorInfoTop)
-		Y = VisualBoundingBox.Min.Y + LabelYOffset;
+		Y = VisualBoundingBox.Min.Y + (LabelYOffset  * GetResolutionModifier());
 		else
-		Y = VisualBoundingBox.Max.Y + LabelYOffset;
+		Y = VisualBoundingBox.Max.Y + (LabelYOffset * GetResolutionModifier());
 	
 	}
 	else if(bHasArmor)
 		{
-			X = VisualBoundsCenterX + BA_LabelXOffset;
+			X = VisualBoundsCenterX + BA_LabelXOffset * GetResolutionModifier();
 			
 			if (AnchorInfoTop)
-		Y = VisualBoundingBox.Min.Y + BA_LabelYOffset;
+		Y = VisualBoundingBox.Min.Y + BA_LabelYOffset * GetResolutionModifier();
 		else
-		Y = VisualBoundingBox.Max.Y + BA_LabelYOffset;
+		Y = VisualBoundingBox.Max.Y + BA_LabelYOffset * GetResolutionModifier();
 		}
 		
 	if (TargetStance == STANCE_NEUTRAL)
@@ -993,12 +890,27 @@ private function DrawTargetName()
 	else
 		Canvas.DrawColor = ColorRed;
 	Canvas.Font = LabelFont;
+
+	if(Pawn(TargetedActor) != None && Rx_PRI(Pawn(TargetedActor).PlayerReplicationInfo) != None)
+	{
+		TargetPRI = Rx_PRI(Pawn(TargetedActor).PlayerReplicationInfo);
+	}
+
 	Canvas.SetPos(X,Y,0);
-	Canvas.DrawText(TargetName);
-	Canvas.TextSize(TargetName,TargetNameTextSize.X,TargetNameTextSize.Y);
+	Canvas.DrawText(TargetName,,(GetResolutionModifier()),(GetResolutionModifier()));
+	Canvas.TextSize(TargetName,TargetNameTextSize.X,TargetNameTextSize.Y,GetResolutionModifier(),GetResolutionModifier());
+
+	if(TargetPRI != None && TargetPRI.BountyCredits > 0.f)
+	{
+		Y -= (12.f * GetResolutionModifier());
+
+		Canvas.DrawColor = ColorYellow;
+		Canvas.SetPos(X,Y,0);
+		Canvas.DrawText("Reward : $"$Round(TargetPRI.BountyCredits),,(GetResolutionModifier()),(GetResolutionModifier()));
+	}
 }
 
-private function DrawTargetDescription()
+protected function DrawTargetDescription()
 {
 	local float X,Y;
 	//X = VisualBoundsCenterX + DescriptionXOffset;
@@ -1006,16 +918,16 @@ private function DrawTargetDescription()
 	if(!bHasArmor)
 	{
 	if (AnchorInfoTop)
-		Y = VisualBoundingBox.Min.Y + DescriptionYOffset;
+		Y = VisualBoundingBox.Min.Y + (DescriptionYOffset * (GetResolutionModifier()));
 	else
-		Y = VisualBoundingBox.Max.Y + DescriptionYOffset;
+		Y = VisualBoundingBox.Max.Y + (DescriptionYOffset * (GetResolutionModifier()));
 	}
 	else if(bHasArmor)
 	{
 	if (AnchorInfoTop)
-		Y = VisualBoundingBox.Min.Y + BA_DescriptionYOffset;
+		Y = VisualBoundingBox.Min.Y + (BA_DescriptionYOffset * (GetResolutionModifier()));
 	else
-		Y = VisualBoundingBox.Max.Y + BA_DescriptionYOffset;	
+		Y = VisualBoundingBox.Max.Y + (BA_DescriptionYOffset * (GetResolutionModifier()));	
 		
 	}
 	
@@ -1028,151 +940,165 @@ private function DrawTargetDescription()
 	else
 		Canvas.DrawColor = ColorRed;
 	Canvas.Font = DescriptionFont;
-	Canvas.TextSize(TargetDescription, TargetDescriptionTextSize.X, TargetDescriptionTextSize.Y, DescriptionXScale, DescriptionYScale);
+	Canvas.TextSize(TargetDescription, TargetDescriptionTextSize.X, TargetDescriptionTextSize.Y, DescriptionXScale * GetResolutionModifier(), DescriptionYScale * GetResolutionModifier());
 	X = VisualBoundsCenterX - TargetDescriptionTextSize.X/2;
 	Canvas.SetPos(X,Y,0);
-	Canvas.DrawText(TargetDescription,,DescriptionXScale,DescriptionYScale);
+	Canvas.DrawText(TargetDescription,,DescriptionXScale * (GetResolutionModifier()),DescriptionYScale * (GetResolutionModifier()));
 }
 
 function bool TargetedHasVeterancy()
 {
-	return TargetedActor != None && (Rx_Pawn(TargetedActor) != none || Rx_Vehicle(TargetedActor) != none);
+	return TargetedActor != None && TargetedActor.HasVeterancy();
 }
 
-private function DrawTeamLogo()
+protected function DrawTeamLogo()
 {
 	local float X,Y;
 	local byte VRank, StanceToDraw; //0:FRIENDLY, 1: ENEMY, 2: NEUTRAL
 	local byte MyTeamNum;
 	local Rx_CapturePoint CP;
- 	
-	if(Rx_Pawn(TargetedActor) != none ) VRank = Rx_Pawn(TargetedActor).VRank; 
-	else
-	if(Rx_Vehicle(TargetedActor) != none ) VRank = Rx_Vehicle(TargetedActor).VRank; 
+ 	local Actor ActualActor;
+	local byte ActualActorTeam;
 	
-	if(bHasArmor)
+	ActualActor = TargetedActor.GetActualTarget();
+	ActualActorTeam = ActualActor.GetTeamNum();
+	
+	if(TargetedHasVeterancy())
 	{
-			
-			X = VisualBoundsCenterX + BA_LogoXOffset - BA_BuildingIcon_GDI_Friendly.UL;
-			
-		if (AnchorInfoTop)
-			Y = VisualBoundingBox.Min.Y + BA_LogoYOffset;
-		else
-			Y = VisualBoundingBox.Max.Y + BA_LogoYOffset;
-		Canvas.DrawColor.A=200;
-		if (TargetStance == STANCE_ENEMY && TargetedActor.GetTeamNum() == TEAM_NOD)
-			Canvas.DrawIcon(BA_BuildingIcon_Nod_Enemy,X,Y);
-		else if (TargetStance == STANCE_ENEMY && TargetedActor.GetTeamNum() == TEAM_GDI)
-			Canvas.DrawIcon(BA_BuildingIcon_GDI_Enemy,X,Y);
-		else if (TargetStance == STANCE_FRIENDLY && TargetedActor.GetTeamNum() == TEAM_NOD)
-		{
-			// spy addition, spy should have same boundingbox+icon
-			if (Rx_Pawn(TargetedActor) != none && Rx_Pawn(TargetedActor).isSpy())
-			{
-				if(TargetedActor.GetTeamNum() == RenxHud.PlayerOwner.GetTeamNum())
-					Canvas.DrawIcon(BA_BuildingIcon_Nod_Friendly,X,Y);
-				else
-					Canvas.DrawIcon(BA_BuildingIcon_GDI_Friendly,X,Y);
-			}
-			else
-				Canvas.DrawIcon(BA_BuildingIcon_Nod_Friendly,X,Y);
-		}
-		
-		else if (TargetStance == STANCE_FRIENDLY && TargetedActor.GetTeamNum() == TEAM_GDI)
-		
-		{
-			// spy addition, spy should have same boundingbox+icon
-			if (Rx_Pawn(TargetedActor) != none && Rx_Pawn(TargetedActor).isSpy())
-			{
-				if(TargetedActor.GetTeamNum() == RenxHud.PlayerOwner.GetTeamNum())
-					Canvas.DrawIcon(GDIFriendlyIcon,X,Y);
-				else
-					Canvas.DrawIcon(NodFriendlyIcon,X,Y);
-			}
-			else
-				Canvas.DrawIcon(BA_BuildingIcon_GDI_Friendly,X,Y);	
-		}
+		VRank = TargetedActor.GetVRank();
 	}
-	else if(!bHasArmor)
-	{
-		X = VisualBoundsCenterX + LogoXOffset - NeutralIcon.UL;
-		if (AnchorInfoTop)
-			Y = VisualBoundingBox.Min.Y + LogoYOffset;
-		else
-			Y = VisualBoundingBox.Max.Y + LogoYOffset;
-		
-		if (TargetStance == STANCE_ENEMY && TargetedActor.GetTeamNum() == TEAM_NOD)
-		{
-		Canvas.DrawIcon(NodEnemyIcon,X,Y);	
-		StanceToDraw=1;
-		}
+
+	if(bHasArmor)
+	{			
+		X = VisualBoundsCenterX + (BA_LogoXOffset - BA_BuildingIcon_GDI_Friendly.UL) * GetResolutionModifier();
 			
-		else if (TargetStance == STANCE_ENEMY && TargetedActor.GetTeamNum() == TEAM_GDI)
+		if (AnchorInfoTop)
+			Y = VisualBoundingBox.Min.Y + (BA_LogoYOffset * (GetResolutionModifier()));
+		else
+			Y = VisualBoundingBox.Max.Y + (BA_LogoYOffset * (GetResolutionModifier()));
+		Canvas.DrawColor.A=200;
+		if (TargetStance == STANCE_ENEMY && ActualActorTeam == TEAM_NOD)
 		{
-			Canvas.DrawIcon(GDIEnemyIcon,X,Y);
+			StanceToDraw=1;
+			Canvas.DrawIcon(BA_BuildingIcon_Nod_Enemy,X,Y,(GetResolutionModifier()));
+		}
+		else if (TargetStance == STANCE_ENEMY && ActualActorTeam == TEAM_GDI)
+		{
+			StanceToDraw=1;
+			Canvas.DrawIcon(BA_BuildingIcon_GDI_Enemy,X,Y,(GetResolutionModifier()));
+		}
+		else if (TargetStance == STANCE_FRIENDLY && ActualActorTeam == TEAM_NOD)
+		{
+			// spy addition, spy should have same boundingbox+icon
+			if (TargetedActor.IsSpyTarget())
+			{
+				if(ActualActorTeam == RenxHud.PlayerOwner.GetTeamNum())
+					Canvas.DrawIcon(BA_BuildingIcon_Nod_Friendly,X,Y,(GetResolutionModifier()));
+				else
+					Canvas.DrawIcon(BA_BuildingIcon_GDI_Friendly,X,Y,(GetResolutionModifier()));
+			}
+			else
+				Canvas.DrawIcon(BA_BuildingIcon_Nod_Friendly,X,Y,(GetResolutionModifier()));
+		}
+		
+		else if (TargetStance == STANCE_FRIENDLY && ActualActorTeam == TEAM_GDI)
+		
+		{
+			// spy addition, spy should have same boundingbox+icon
+			if (TargetedActor.IsSpyTarget())
+			{
+				if(ActualActorTeam == RenxHud.PlayerOwner.GetTeamNum())
+					Canvas.DrawIcon(GDIFriendlyIcon,X,Y,(GetResolutionModifier()));
+				else
+					Canvas.DrawIcon(NodFriendlyIcon,X,Y,(GetResolutionModifier()));
+			}
+			else
+				Canvas.DrawIcon(BA_BuildingIcon_GDI_Friendly,X,Y,(GetResolutionModifier()));	
+		
+			StanceToDraw=0;
+		}
+		else
+			StanceToDraw=2;
+	}
+	else
+	{
+		X = VisualBoundsCenterX + (LogoXOffset - NeutralIcon.UL) * GetResolutionModifier();
+		if (AnchorInfoTop)
+			Y = VisualBoundingBox.Min.Y + (LogoYOffset * (GetResolutionModifier()));
+		else
+			Y = VisualBoundingBox.Max.Y + (LogoYOffset * (GetResolutionModifier()));
+		
+		if (TargetStance == STANCE_ENEMY && ActualActorTeam == TEAM_NOD)
+		{
+			Canvas.DrawIcon(NodEnemyIcon,X,Y,(GetResolutionModifier()));	
 			StanceToDraw=1;
 		}
 			
-		else if (TargetStance == STANCE_FRIENDLY && TargetedActor.GetTeamNum() == TEAM_NOD)
+		else if (TargetStance == STANCE_ENEMY && ActualActorTeam == TEAM_GDI)
+		{
+			Canvas.DrawIcon(GDIEnemyIcon,X,Y,(GetResolutionModifier()));
+			StanceToDraw=1;
+		}
+			
+		else if (TargetStance == STANCE_FRIENDLY && ActualActorTeam == TEAM_NOD)
 		{
 			// spy addition, spy should have same boundingbox+icon
-			if (Rx_Pawn(TargetedActor) != none && Rx_Pawn(TargetedActor).isSpy())
+			if (TargetedActor.IsSpyTarget())
 			{
-				if(TargetedActor.GetTeamNum() == RenxHud.PlayerOwner.GetTeamNum())
+				if(ActualActorTeam == RenxHud.PlayerOwner.GetTeamNum())
 				{
-					Canvas.DrawIcon(NodFriendlyIcon,X,Y);
+					Canvas.DrawIcon(NodFriendlyIcon,X,Y,(GetResolutionModifier()));
 					StanceToDraw=0;
 				}
 					
 				else
 				{
-					Canvas.DrawIcon(GDIFriendlyIcon,X,Y);
+					Canvas.DrawIcon(GDIFriendlyIcon,X,Y,(GetResolutionModifier()));
 					StanceToDraw=0;
 				}
 					
 			}
 			else
 			{
-					Canvas.DrawIcon(NodFriendlyIcon,X,Y);
-					StanceToDraw=0;
+				Canvas.DrawIcon(NodFriendlyIcon,X,Y,(GetResolutionModifier()));
+				StanceToDraw=0;
 			}
 			
 		}
-		else if (TargetStance == STANCE_FRIENDLY && TargetedActor.GetTeamNum() == TEAM_GDI)
+		else if (TargetStance == STANCE_FRIENDLY && ActualActorTeam == TEAM_GDI)
 		{
 			// spy addition, spy should have same boundingbox+icon
-			if (Rx_Pawn(TargetedActor) != none && Rx_Pawn(TargetedActor).isSpy())
+			if (TargetedActor.IsSpyTarget())
 			{
-				if(TargetedActor.GetTeamNum() == RenxHud.PlayerOwner.GetTeamNum())
+				if(ActualActorTeam == ActualActorTeam)
 				{
-					Canvas.DrawIcon(GDIFriendlyIcon,X,Y);
+					Canvas.DrawIcon(GDIFriendlyIcon,X,Y,(GetResolutionModifier()));
 					StanceToDraw=0;
 				}
 				else
 				{
-					Canvas.DrawIcon(NodFriendlyIcon,X,Y);
+					Canvas.DrawIcon(NodFriendlyIcon,X,Y,(GetResolutionModifier()));
 					StanceToDraw=0;
 				}
 					
 			}
 			else
 			{
-				Canvas.DrawIcon(GDIFriendlyIcon,X,Y);
+				Canvas.DrawIcon(GDIFriendlyIcon,X,Y,(GetResolutionModifier()));
 				StanceToDraw=0;
-			}
-				
+			}			
 		}
 		else
 		{
-			if(Rx_Building_TechbuildingPoint(TargetedActor) != None)
+			if(Rx_Building_TechbuildingPoint(ActualActor) != None)
 			{
 				MyTeamNum = RenxHud.PlayerOwner.GetTeamNum();
-				if(Rx_Building_TechbuildingPoint(TargetedActor) != None)
-					CP = Rx_Building_TechbuildingPoint_Internals(Rx_Building_TechbuildingPoint(TargetedActor).BuildingInternals).CP;
+				if(Rx_Building_TechbuildingPoint(ActualActor) != None)
+					CP = Rx_Building_TechbuildingPoint_Internals(Rx_Building_TechbuildingPoint(ActualActor).BuildingInternals).CP;
 			}
 			if(CP == None || CP.CapturingTeam == 255)
 			{
-				Canvas.DrawIcon(NeutralIcon,X,Y);
+				Canvas.DrawIcon(NeutralIcon,X,Y,(GetResolutionModifier()));
 			}
 			else
 			{
@@ -1180,22 +1106,22 @@ private function DrawTeamLogo()
 				{
 					if(CP.CapturingTeam == TEAM_GDI)
 					{
-						Canvas.DrawIcon(GDIEnemyIcon,X,Y);	
+						Canvas.DrawIcon(GDIEnemyIcon,X,Y,(GetResolutionModifier()));	
 					}
 					else
 					{
-						Canvas.DrawIcon(NodEnemyIcon,X,Y);	
+						Canvas.DrawIcon(NodEnemyIcon,X,Y,(GetResolutionModifier()));	
 					}
 				}
 				else
 				{
 					if(CP.CapturingTeam == TEAM_GDI)
 					{
-						Canvas.DrawIcon(GDIFriendlyIcon,X,Y);	
+						Canvas.DrawIcon(GDIFriendlyIcon,X,Y,(GetResolutionModifier()));	
 					}
 					else
 					{
-						Canvas.DrawIcon(NodFriendlyIcon,X,Y);	
+						Canvas.DrawIcon(NodFriendlyIcon,X,Y,(GetResolutionModifier()));	
 					}
 				}
 
@@ -1203,26 +1129,35 @@ private function DrawTeamLogo()
 
 			StanceToDraw=2;
 		}
-			
-		//Draw veteran icon placeholder 
+		//Building Armour enabled, and building targeted. 
+	}	
+	
+	//Draw veteran icon placeholder 
 	if(TargetedHasVeterancy())
 	{
-		
-		Y+=VetLogoYOffset;
+		if(bHasArmor)
+			Y+=(BA_VetLogoYOffset * (GetResolutionModifier()));
+
+		else
+			Y+=(VetLogoYOffset * (GetResolutionModifier()));
+
 		if (TargetNameTextSize.X - 4 < VetLogoXOffset)
 		{
-			X = VisualBoundsCenterX + LabelXOffset + PercentXOffset - 42 ;
+			X = VisualBoundsCenterX + (LabelXOffset + PercentXOffset - 42) * (GetResolutionModifier()) ;
 			//X+=VetLogoXOffset; 
 		}
 		else
 		{
-			X = VisualBoundsCenterX + LabelXOffset + TargetNameTextSize.X - 42;
+			X = VisualBoundsCenterX + (LabelXOffset + TargetNameTextSize.X - 42) * (GetResolutionModifier());
 			//X+= TargetNameTextSize.X + 14;
 		}
+
+		if(bHasArmor)
+			X+= (BA_VetLogoXOffset * (GetResolutionModifier()));
 		
 		if(TargetNameTextSize.X > 85) 
 		{
-			X += 18;
+			X += (18 * (GetResolutionModifier()));
 		}
 		
 		if(StanceToDraw == 0) 
@@ -1230,17 +1165,17 @@ private function DrawTeamLogo()
 			switch (VRank)
 			{
 				case 0: 
-				Canvas.DrawIcon(Friendly_Recruit, X, Y);
-				break;
+					Canvas.DrawIcon(Friendly_Recruit, X, Y, (GetResolutionModifier()));
+					break;
 				case 1: 
-				Canvas.DrawIcon(Friendly_Veteran, X, Y);
-				break;
+					Canvas.DrawIcon(Friendly_Veteran, X, Y, (GetResolutionModifier()));
+					break;
 				case 2: 
-				Canvas.DrawIcon(Friendly_Elite, X, Y);
-				break;
+					Canvas.DrawIcon(Friendly_Elite, X, Y, (GetResolutionModifier()));
+					break;
 				case 3: 
-				Canvas.DrawIcon(Friendly_Heroic, X, Y);
-				break;
+					Canvas.DrawIcon(Friendly_Heroic, X, Y, (GetResolutionModifier()));
+					break;
 			}
 		}
 		else 
@@ -1249,17 +1184,17 @@ private function DrawTeamLogo()
 			switch (VRank)
 			{
 				case 0: 
-				Canvas.DrawIcon(Enemy_Recruit, X, Y);
-				break;
+					Canvas.DrawIcon(Enemy_Recruit, X, Y, (GetResolutionModifier()));
+					break;
 				case 1: 
-				Canvas.DrawIcon(Enemy_Veteran, X, Y);
-				break;
+					Canvas.DrawIcon(Enemy_Veteran, X, Y, (GetResolutionModifier()));
+					break;
 				case 2: 
-				Canvas.DrawIcon(Enemy_Elite, X, Y);
-				break;
+					Canvas.DrawIcon(Enemy_Elite, X, Y, (GetResolutionModifier()));
+					break;
 				case 3: 
-				Canvas.DrawIcon(Enemy_Heroic, X, Y);
-				break;
+					Canvas.DrawIcon(Enemy_Heroic, X, Y, (GetResolutionModifier()));
+					break;
 			}
 		}
 		else 
@@ -1267,76 +1202,106 @@ private function DrawTeamLogo()
 			switch (VRank)
 			{
 				case 0: 
-				Canvas.DrawIcon(Neutral_Recruit, X, Y);
-				break;
+					Canvas.DrawIcon(Neutral_Recruit, X, Y, (GetResolutionModifier()));
+					break;
 				case 1: 
-				Canvas.DrawIcon(Neutral_Veteran, X, Y);
-				break;
+					Canvas.DrawIcon(Neutral_Veteran, X, Y, (GetResolutionModifier()));
+					break;
 				case 2: 
-				Canvas.DrawIcon(Neutral_Elite, X, Y);
-				break;
+					Canvas.DrawIcon(Neutral_Elite, X, Y, (GetResolutionModifier()));
+					break;
 				case 3: 
-				Canvas.DrawIcon(Neutral_Heroic, X, Y);
-				break;
+					Canvas.DrawIcon(Neutral_Heroic, X, Y, (GetResolutionModifier()));
+					break;
 			}
 		}
-	}
-		//Building Armour enabled, and building targeted. 
 	}	
 }
 
 
 
-private function DrawInfoBackground()
+protected function DrawInfoBackground()
 {
 	local float X,Y;
 	local CanvasIcon Icon;
+	local Rx_PRI TargetPRI;
 
-	X = VisualBoundsCenterX - InfoBackdropNeutral.UL/2 + BackgroundXOffset;
+	X = VisualBoundsCenterX - ((InfoBackdropNeutral.UL/2 + BackgroundXOffset) * GetResolutionModifier());
 
 	if (AnchorInfoTop)
-		Y = VisualBoundingBox.Min.Y + BackgroundYOffset;
+		Y = VisualBoundingBox.Min.Y + (BackgroundYOffset * (GetResolutionModifier()));
 	else
-		Y = VisualBoundingBox.Max.Y + BackgroundYOffset;
+		Y = VisualBoundingBox.Max.Y + (BackgroundYOffset * (GetResolutionModifier()));
 
 	if(!bHasArmor)
 	{
-	if (TargetStance == STANCE_NEUTRAL)
-		Icon = InfoBackdropNeutral;
-	else if (TargetStance == STANCE_FRIENDLY)
-		Icon = InfoBackdropFriendly;
-	else
-		Icon = InfoBackdropEnemy;
+		if (TargetStance == STANCE_NEUTRAL)
+			Icon = InfoBackdropNeutral;
+		else if (TargetStance == STANCE_FRIENDLY)
+			Icon = InfoBackdropFriendly;
+		else
+			Icon = InfoBackdropEnemy;
 	}
 	
 	else if(bHasArmor)
 	
 	{
 		
-	if (TargetStance == STANCE_NEUTRAL)
-		Icon = BA_InfoBackdropFriendly;
-	else if (TargetStance == STANCE_FRIENDLY)
-		Icon = BA_InfoBackdropFriendly;
-	else
-		Icon = BA_InfoBackdropEnemy;
-		
+		if (TargetStance == STANCE_NEUTRAL)
+			Icon = BA_InfoBackdropFriendly;
+		else if (TargetStance == STANCE_FRIENDLY)
+			Icon = BA_InfoBackdropFriendly;
+		else
+			Icon = BA_InfoBackdropEnemy;	
 	}
+
+	if(Pawn(TargetedActor) != None && Rx_PRI(Pawn(TargetedActor).PlayerReplicationInfo) != None)
+		TargetPRI = Rx_PRI(Pawn(TargetedActor).PlayerReplicationInfo);
 	
 	if (TargetDescription == "")
-		Canvas.DrawIcon(Icon,X,Y);
+	{
+		if(TargetPRI != None && TargetPRI.BountyCredits > 0.f)
+		{
+			Y -= 12.0 * GetResolutionModifier();
+			Canvas.SetPos(X,Y);
+			Canvas.DrawTileStretched(Icon.Texture, (GetResolutionModifier()) * Abs(Icon.UL), 12 + ((GetResolutionModifier()) * Abs(Icon.VL)), Icon.U, Icon.V, Icon.UL, Icon.VL,, true, true);
+		}
+
+		else
+			Canvas.DrawIcon(Icon,X,Y,(GetResolutionModifier()));
+	}
 	else
 	{
 		Canvas.SetPos(X,Y);
 		if (TargetedHasVeterancy())
-			Canvas.DrawTileStretched(Icon.Texture, Abs(Icon.UL) + Friendly_Veteran.UL + 10, Abs(Icon.VL) * 1.25, Icon.U, Icon.V, Icon.UL, Icon.VL,, true, true);
+		{
+			if(TargetPRI != None && TargetPRI.BountyCredits > 0.f)
+			{
+				Y -= 12.0 * GetResolutionModifier();
+				Canvas.SetPos(X,Y);
+				Canvas.DrawTileStretched(Icon.Texture, (GetResolutionModifier()) * (Abs(Icon.UL) + Friendly_Veteran.UL + 10),((GetResolutionModifier()) *  Abs(Icon.VL) * 1.25) + 12, Icon.U, Icon.V, Icon.UL, Icon.VL,, true, true);
+			}				
+			else
+				Canvas.DrawTileStretched(Icon.Texture, (GetResolutionModifier()) * (Abs(Icon.UL) + Friendly_Veteran.UL + 10),(GetResolutionModifier()) *  Abs(Icon.VL) * 1.25, Icon.U, Icon.V, Icon.UL, Icon.VL,, true, true);
+		}
 		else
-			Canvas.DrawTileStretched(Icon.Texture, Abs(Icon.UL), Abs(Icon.VL) * 1.25, Icon.U, Icon.V, Icon.UL, Icon.VL,, true, true);
+		{
+			if(TargetPRI != None && TargetPRI.BountyCredits > 0.f)
+			{
+				Y -= 12.0 * GetResolutionModifier();
+				Canvas.SetPos(X,Y);
+				Canvas.DrawTileStretched(Icon.Texture, (GetResolutionModifier()) * Abs(Icon.UL), ((GetResolutionModifier()) * Abs(Icon.VL) * 1.25) + 12, Icon.U, Icon.V, Icon.UL, Icon.VL,, true, true);
+
+			}
+			else
+				Canvas.DrawTileStretched(Icon.Texture, (GetResolutionModifier()) * Abs(Icon.UL), (GetResolutionModifier()) * Abs(Icon.VL) * 1.25, Icon.U, Icon.V, Icon.UL, Icon.VL,, true, true);
+		}
 	}
 }
 
-private function UpdateTargetStance(Actor inActor)
+protected function UpdateTargetStance(Actor inActor)
 {
-	if (Rx_Pawn(inActor) != none && Rx_Pawn(inActor).isSpy()) // spies always show friendly
+	if (TargetedActor.IsSpyTarget()) // spies always show friendly
 		TargetStance = STANCE_FRIENDLY;
 	else
 		TargetStance = GetStance(inActor);
@@ -1451,59 +1416,62 @@ DefaultProperties
 	ArmorCellBlue = (Texture = Texture2D'renxtargetsystem.T_TargetSystem_ArmorBar_Single_Blue', U= 0, V = 0, UL = 16, VL = 16)
 	Interact = (Texture = Texture2D'renxtargetsystem.T_TargetSystem_Interact', U= 0, V = 0, UL = 32, VL = 64)
 	
-//Building Armour specific Icons (If it really doesn't look right with the larger health cells.)
-BA_HealthCellIcon = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Bar_Health', U= 0, V = 0, UL = 16, VL = 16)
-BA_ArmourCellIcon = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Bar_Armour', U= 0, V = 0, UL = 16, VL = 16)
-BA_HealthIcon = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Icon_Health', U= 0, V = 0, UL = 32, VL = 32)
-BA_ArmourIcon = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Icon_Armour', U= 0, V = 0, UL = 32, VL = 32)	
+	//Building Armour specific Icons (If it really doesn't look right with the larger health cells.)
+	BA_HealthCellIcon = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Bar_Health', U= 0, V = 0, UL = 16, VL = 16)
+	BA_ArmourCellIcon = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Bar_Armour', U= 0, V = 0, UL = 16, VL = 16)
+	BA_HealthIcon = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Icon_Health', U= 0, V = 0, UL = 32, VL = 32)
+	BA_ArmourIcon = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Icon_Armour', U= 0, V = 0, UL = 32, VL = 32)	
 
-BA_BuildingIcon_GDI_Friendly = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Logo_GDI_Friendly', U= 0, V = 0, UL = 64, VL = 64)	
-BA_BuildingIcon_Nod_Friendly = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Logo_Nod_Friendly', U= 0, V = 0, UL = 64, VL = 64)	
+	BA_BuildingIcon_GDI_Friendly = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Logo_GDI_Friendly', U= 0, V = 0, UL = 64, VL = 64)	
+	BA_BuildingIcon_Nod_Friendly = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Logo_Nod_Friendly', U= 0, V = 0, UL = 64, VL = 64)	
 
-BA_BuildingIcon_GDI_Enemy = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Logo_GDI_Enemy', U= 0, V = 0, UL = 64, VL = 64)	
-BA_BuildingIcon_Nod_Enemy = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Logo_Nod_Enemy', U= 0, V = 0, UL = 64, VL = 64)	
+	BA_BuildingIcon_GDI_Enemy = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Logo_GDI_Enemy', U= 0, V = 0, UL = 64, VL = 64)	
+	BA_BuildingIcon_Nod_Enemy = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Logo_Nod_Enemy', U= 0, V = 0, UL = 64, VL = 64)	
 
-BA_InfoBackdropFriendly = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Backdrop_Friendly', U= 0, V = 0, UL = 256, VL = 64)
-BA_InfoBackdropEnemy    = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Backdrop_Enemy', U= 0, V = 0, UL = 256, VL = 64)
+	BA_InfoBackdropFriendly = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Backdrop_Friendly', U= 0, V = 0, UL = 256, VL = 64)
+	BA_InfoBackdropEnemy    = (Texture = Texture2D'RenXTargetSystem.T_HUD_Targetting_Building_Backdrop_Enemy', U= 0, V = 0, UL = 256, VL = 64)
 
 
-//IMPORTANT!!! SWAP ALL "HEALTH" AND "ARMOUR" OFFSETS. Armour was originally drawn beneath health. 
+	//IMPORTANT!!! SWAP ALL "HEALTH" AND "ARMOUR" OFFSETS. Armour was originally drawn beneath health. 
 
-BA_HealthBarXOffset = -32
-BA_HealthBarYOffset = -32
+	BA_HealthBarXOffset = -32
+	BA_HealthBarYOffset = -32
 
-BA_ArmourBarXOffset= -64
-BA_ArmourBarYOffset = 5
+	BA_ArmourBarXOffset= -64
+	BA_ArmourBarYOffset = 5
 
-BA_LabelXOffset = -50
-BA_LabelYOffset = -46
-BA_IconsXOffset = 0
-BA_IconsYOffset = 0 	
-BA_PercentXOffset = -64		// 55		// -15
-BA_PercentYOffset = -34		// -35		// -15
-// Offset for target's description
-BA_DescriptionXOffset = -58
-BA_DescriptionYOffset = -12
+	BA_LabelXOffset = -50
+	BA_LabelYOffset = -46
+	BA_IconsXOffset = 0
+	BA_IconsYOffset = 0 	
+	BA_PercentXOffset = -64		// 55		// -15
+	BA_PercentYOffset = -34		// -35		// -15
+	// Offset for target's description
+	BA_DescriptionXOffset = -58
+	BA_DescriptionYOffset = -12
 
-BA_BackgroundXOffset = -3
-BA_BackgroundYOffset = -55
-// Offset of team logo
-BA_LogoXOffset = -41
-BA_LogoYOffset = -55
+	BA_BackgroundXOffset = -3
+	BA_BackgroundYOffset = -55
+	// Offset of team logo
+	BA_LogoXOffset = -41
+	BA_LogoYOffset = -55
 
-BA_HealthBarCellSpacing = 4
-BA_IconToPercentSpacing = 20
-BA_ArmourIconYOffset = 4
-BA_HealthIconYOffset = -7 
-BA_ArmourPercentYOffset = 8
-//End Building armour specific variables. Will likely undo these once it is confirmed that nothing needs to be moved around anymore
-	InteractFont = Font'RenXHud.Font.PlayerName'
+	BA_HealthBarCellSpacing = 4
+	BA_IconToPercentSpacing = 20
+	BA_ArmourIconYOffset = 4
+	BA_HealthIconYOffset = -7 
+	BA_ArmourPercentYOffset = 8
+	//End Building armour specific variables. Will likely undo these once it is confirmed that nothing needs to be moved around anymore
+		InteractFont = Font'RenXHud.Font.PlayerName'
 
-	InteractIconBobAmplitude = 5.0f;
-	InteractIconBobFrequency = 4.0f;
+		InteractIconBobAmplitude = 5.0f;
+		InteractIconBobFrequency = 4.0f;
 
-VetLogoXOffset = 100
-VetLogoYOffset = -4
+	VetLogoXOffset = 100
+	VetLogoYOffset = -4
+
+	BA_VetLogoXOffset = 30
+	BA_VetLogoYOffset = -14
 	
 
 }

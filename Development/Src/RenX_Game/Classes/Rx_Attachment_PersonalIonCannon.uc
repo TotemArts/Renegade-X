@@ -1,6 +1,5 @@
-class Rx_Attachment_PersonalIonCannon extends Rx_WeaponAttachment;
+class Rx_Attachment_PersonalIonCannon extends Rx_WeaponAttachment_Varying;
 
-var ParticleSystem BeamTemplate;
 var class<UDKExplosionLight> ImpactLightClass;
 
 var int CurrentPath;
@@ -83,13 +82,16 @@ DefaultProperties
 
     DefaultImpactEffect=(ParticleTemplate=ParticleSystem'RX_FX_Munitions.Beams.P_PersonalIonCannon_Impact',Sound=SoundCue'RX_SoundEffects.Explosions.SC_Explosion_Electric')
     DefaultAltImpactEffect=(ParticleTemplate=ParticleSystem'RX_FX_Munitions.Beams.P_PersonalIonCannon_Impact',Sound=SoundCue'RX_SoundEffects.Explosions.SC_Explosion_Electric')
+    DefaultImpactEffect_Heroic=(ParticleTemplate=ParticleSystem'RX_FX_Munitions.Beams.P_PersonalIonCannon_Impact_Heroic',Sound=SoundCue'RX_SoundEffects.Explosions.SC_Explosion_Electric')
 
     BulletWhip=SoundCue'RX_WP_LaserRifle.Sounds.SC_LaserRifle_WizzBy'
     BeamTemplate=ParticleSystem'RX_WP_PersonalIonCannon.Effects.P_PersonalIonCannon_Beam'
+    BeamTemplate_Heroic=ParticleSystem'RX_WP_PersonalIonCannon.Effects.P_PersonalIonCannon_Beam_Heroic'
 
     WeaponClass = class'Rx_Weapon_PersonalIonCannon'
     MuzzleFlashSocket=MuzzleFlashSocket
     MuzzleFlashPSCTemplate=ParticleSystem'RX_WP_PersonalIonCannon.Effects.P_MuzzleFlash_3P'
+    MuzzleFlashPSCTemplate_Heroic=ParticleSystem'RX_WP_PersonalIonCannon.Effects.P_MuzzleFlash_3P_Heroic'
     MuzzleFlashLightClass=class'UTGame.UTShockMuzzleFlashLight'
     ImpactLightClass=Rx_Light_RepairBeam
     MuzzleFlashDuration=2.5    

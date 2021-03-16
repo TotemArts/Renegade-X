@@ -6,7 +6,7 @@ var transient Rx_Vehicle_Harvester harv_vehicle;
 var byte TeamNum;
 var bool                            bLogTripTimes;
 var float							tripTimer;
-var Rx_Building_Refinery refinery;
+var RxIfc_Refinery refinery;
 
 //Comm Centre
 var byte RadarVisibility, LastRadarVisibility; //Set radar visibility. 0: Invisible to all 1: visible to your team 2: visible to enemy team 
@@ -30,6 +30,7 @@ struct ActiveModifier
 	var class<Rx_StatModifierInfo> ModInfo; 
 	var float				EndTime; 
 	var bool				Permanent; 
+	var Controller			ModifierSource; //Optionally used to give a source to the modifier 
 };
 
 var array<ActiveModifier> ActiveModifications; 
@@ -82,9 +83,9 @@ function OnEMPHit(Controller InstigatedByController, Actor EMPCausingActor, opti
 		Pawn.Mesh.stopanim();
 		PauseTimer(true, 'finishHarvesting');
 	}
-	else if(refinery.DockedHarvester == self)
+	else if(refinery.GetDockedHarvester() == self)
 	{
-		refinery.bHarvEMPd = true;
+		refinery.SetHarvEMPd(true);
 	}
 }
 
@@ -97,9 +98,9 @@ function OnEMPBleed(bool finish=false)
 		Pawn.Mesh.PlayAnim('Harvesting',,true);
 		PauseTimer(false, 'finishHarvesting');
 	}
-	else if(refinery.DockedHarvester == self && finish)
+	else if(refinery.GetDockedHarvester() == self && finish)
 	{
-		refinery.bHarvEMPd = false;
+		refinery.SetHarvEMPd(false);
 	}
 }
 
@@ -171,6 +172,7 @@ function ToggleSelfDestructTimer(Rx_Controller InstigatingController)
 
 function SelfDestructHarvester()
 {
+	harv_vehicle.bSuicide = true;
 	harv_vehicle.BlowUpVehicle(); 
 } 
 
@@ -182,7 +184,7 @@ function UpdateHaltedHarvWaypoint(bool bNeedsPush);
 
 /**Set modifiers**/
 
-function AddActiveModifier(class<Rx_StatModifierInfo> Info)//class<Rx_StatModifierInfo> Info) 
+function AddActiveModifier(class<Rx_StatModifierInfo> Info, optional Controller Source = none)//class<Rx_StatModifierInfo> Info) 
 {
 	local int FindI; 
 	local ActiveModifier TempModifier; 
@@ -197,15 +199,19 @@ function AddActiveModifier(class<Rx_StatModifierInfo> Info)//class<Rx_StatModifi
 	{
 		//`log("Found in array");
 		ActiveModifications[FindI].EndTime = WorldInfo.TimeSeconds+Info.default.Mod_Length; 
+		ActiveModifications[FindI].ModifierSource = Source; //Delete or update the modifier source 
 		//return; 	
 	}
 	else //New modifier, so add it in and re-update modification numbers
 	{
 		//`log("Adding to array"); 
 		TempModifier.ModInfo = Info; 
-		if(Info.default.Mod_Length > 0) TempModifier.EndTime = WorldInfo.TimeSeconds+Info.default.Mod_Length;
+		if(Info.default.Mod_Length > 0) 
+			TempModifier.EndTime = WorldInfo.TimeSeconds+Info.default.Mod_Length;
 		else
-		TempModifier.Permanent = true; 
+			TempModifier.Permanent = true; 
+		
+		ActiveModifications[FindI].ModifierSource = Source; //Whether that be none or something
 		ActiveModifications.AddItem(TempModifier);	
 	}
 	
@@ -326,9 +332,9 @@ function CheckActiveModifiers()
 function PawnDied(Pawn inPawn)
 {
 	super.PawnDied(inPawn);
-	if(refinery.DockedHarvester == self)
+	if(refinery.GetDockedHarvester() == self)
 	{
-		refinery.bHarvEMPd = false;
+		refinery.SetHarvEMPd(false);
 	}	
 }
 
@@ -347,7 +353,7 @@ function SetQueuedStop(Rx_Controller StopController)
 	Rx_Game(WorldInfo.Game).CTextBroadCast(GetTeamNum(),"Harvester Stop Queued",'LightBlue');
 }
 
-function ReassignRefinery(Rx_Building_Refinery Ref)
+function ReassignRefinery(RxIfc_Refinery Ref)
 {
 	refinery = Ref;
 }

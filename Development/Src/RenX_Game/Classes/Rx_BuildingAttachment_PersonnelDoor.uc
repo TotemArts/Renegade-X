@@ -1,4 +1,4 @@
-class Rx_BuildingAttachment_PersonnelDoor extends Rx_BuildingAttachment_Door;
+class Rx_BuildingAttachment_PersonnelDoor extends Rx_BuildingAttachment_LockableDoor;
 
 var array<StaticMeshComponent>  DoorPieces;
 
@@ -18,7 +18,7 @@ DefaultProperties
 {
 	RemoteRole          = ROLE_SimulatedProxy
 	bCollideWhenPlacing = False
-	CollisionType       = COLLIDE_BlockAll //CustomDefault
+	CollisionType       = COLLIDE_BlockAll
 	bAlwaysRelevant     = True
 	bCollideActors      = True
 	bBlockActors        = true
@@ -56,8 +56,7 @@ DefaultProperties
 		LightingChannels             = (Static=true,BSP=true,Dynamic=True,bInitialized=True)
 	End Object
 	DoorPieces.Add(TopMeshPiece)
-	
-	
+
 	Begin Object Class=StaticMeshComponent Name=LeftMeshPiece
 		CastShadow                   = True
 		AlwaysLoadOnClient           = True

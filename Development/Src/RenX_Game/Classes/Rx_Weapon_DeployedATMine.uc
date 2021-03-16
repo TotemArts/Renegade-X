@@ -5,28 +5,31 @@
 class Rx_Weapon_DeployedATMine extends Rx_Weapon_DeployedProxyC4;
 
 /** The factor of the DisarmScoreReward to give the player when they destroy the mine. */
-var(Damage) float                  DestroyRewardFactor;
+var(Damage) float DestroyRewardFactor;
+
+var int InitialTeamNum;
 
 
 simulated function PostBeginPlay()
 {
 	super.PostBeginPlay();
-	if(Instigator != none ) Planter = InstigatorController;
 
+	if (Instigator != none) Planter = InstigatorController;
+
+	InitialTeamNum = Planter.GetTeamNum();
 }
 
 function KillCheck()
 {
-	if( Role == ROLE_Authority )
+	if (Role == ROLE_Authority)
 	{
-		// Destroy when player dies
-		if( Instigator == None )  //|| Instigator.Health <= 0 )
+		// Destroy when player leaves game
+		if (OwnerPRI == None)
+		{
 			Destroy();
+		}
 	}
 }
-
-
-
 
 function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)
 {
@@ -44,7 +47,7 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 		if (DamageAmount <= 0 || HP <= 0 || bDisarmed )
 		  return;
 
-		if (EventInstigator.GetTeamNum() != GetTeamNum())
+		if (EventInstigator.GetTeamNum() != InitialTeamNum)
 			HP -= DamageAmount;
 
 		if (HP <= 0)
@@ -78,6 +81,7 @@ event Landed( vector HitNormal, actor FloorActor )
 simulated event Destroyed()
 {
 	super.Destroyed();
+	ScriptTrace();
 	if (Role == ROLE_Authority && Rx_PRI(Planter.PlayerReplicationInfo) != None)
 		Rx_PRI(Planter.PlayerReplicationInfo).RemoveATMine(self);
 }

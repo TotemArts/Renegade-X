@@ -78,8 +78,8 @@ DefaultProperties
     bCharge = true
 
     ClipSize = 50
-    InitalNumClips = 15
-    MaxClips = 15
+    InitalNumClips = 8
+    MaxClips = 8
 
     ReloadAnimName(0) = "weaponreload"
     ReloadAnimName(1) = "weaponreload"
@@ -109,6 +109,7 @@ DefaultProperties
     WeaponPreFireSnd[1]=none
     WeaponFireSnd[0]=SoundCue'RX_WP_FlameThrower.Sounds.FlameThrower_FireCue'
     WeaponFireSnd[1]=none
+    WeaponFireSnd_Heroic[0]=SoundCue'RX_WP_FlameThrower.Sounds.FlameThrower_FireCue_Heroic'
     WeaponPostFireSnd[0]=SoundCue'RX_WP_FlameThrower.Sounds.FlameThrower_FireEndCue'
     WeaponPostFireSnd[1]=none
 

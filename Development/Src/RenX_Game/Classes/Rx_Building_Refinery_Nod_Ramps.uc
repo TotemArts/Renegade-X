@@ -3,6 +3,7 @@ class Rx_Building_Refinery_Nod_Ramps extends Rx_Building_Refinery_Nod
 
 DefaultProperties
 {
+	MineLimit=8
 	Begin Object Class=StaticMeshComponent Name=Static_Ramps
 		StaticMesh = StaticMesh'RX_BU_Refinery.Mesh.SM_Ref_Ramps_Nod'
 		CastShadow                      = True

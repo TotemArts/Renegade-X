@@ -8,6 +8,7 @@ simulated function String GetHumanReadableName()
 
 DefaultProperties
 {
+	MineLimit=6
 	TeamID                  = TEAM_GDI
 	BuildingInternalsClass  = Rx_Building_Barracks_Internals
 

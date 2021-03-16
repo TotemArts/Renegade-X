@@ -32,6 +32,7 @@ var vector					LeftHandIKSocketLocation;
 
 /** Holds the name of the socket to attach the forearm on the 3rd person character */
 var name					LeftHandIKSocket;
+var bool					bCloaked; //If we need to respect being cloaked
 
 simulated event PostBeginPlay()
 {
@@ -176,6 +177,90 @@ simulated function bool EffectIsRelevant(vector SpawnLocation, bool bForceDedica
 {
 	return super.EffectIsRelevant( owner.location, bForceDedicated, VisibleCullDistance, HiddenCullDistance );
 }
+
+/*We need more control over overlays than UT3. Begin*/
+
+/*Bunch of stuff for first-person stealth compatability*/
+simulated function SetCloaked(bool bCloak)
+{
+	bCloaked = bCloak; 
+}
+
+/*Better overlay interface [Easily seen on SSs if tampered with]*/
+simulated function MeshComponent GetOverlayMesh()
+{
+	return OverlayMesh;
+}
+
+simulated function MaterialInstanceConstant CreateAndSetWeaponOverlayMIC()
+{
+	local MaterialInstanceConstant NewOverlayMesh;
+	
+	if(OverlayMesh != none)
+	{
+		NewOverlayMesh = OverlayMesh.CreateAndSetMaterialInstanceConstant(0);
+		`log("ATTACHMENT: New Overlay Mesh is:" @ NewOverlayMesh @ self);
+	}
+	
+	return NewOverlayMesh;
+}
+
+simulated function AttachOverlayMesh()
+{
+	local Rx_Pawn RxP; 
+	
+	RxP = Rx_Pawn(Instigator);
+	
+	if (!OverlayMesh.bAttached)
+	{
+		RxP.Mesh.AttachComponentToSocket(OverlayMesh, RxP.WeaponSocket);
+	}
+}
+
+simulated function MaterialInterface GetOverlayMaterial()
+{
+	local int i; 
+	
+	if(OverlayMesh == none)
+	{
+		`log("ATTACHMENT: WAS NO OVERLAY MESH");
+		return none;
+	}
+		
+	
+	for(i=0;i<OverlayMesh.GetNumElements(); i++)
+	{
+		`log("ATTACHMENT: Overlay Mesh material:" @ i $ ":" @ OverlayMesh.GetMaterial(i));
+	}
+
+	return OverlayMesh.GetMaterial(0);
+}
+
+simulated function SetOverlayMaterial(MaterialInterface NewMIC)
+{
+	local int i;
+	
+	if(OverlayMesh != none)
+	{
+		for(i=0;i<OverlayMesh.GetNumElements(); i++)
+		{
+			OverlayMesh.SetMaterial(i,NewMIC); 
+		}
+	}
+		
+}
+
+/*End overlay interface*/
+
+/*Override so you don't screw with Overlays*/
+function SetSkin(Material NewMaterial)
+{
+	if(bCloaked)
+		return; 
+	
+	super.SetSkin(NewMaterial);
+}
+
 
 DefaultProperties
 {

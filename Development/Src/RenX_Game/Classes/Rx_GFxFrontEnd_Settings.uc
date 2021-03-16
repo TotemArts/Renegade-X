@@ -114,6 +114,7 @@ var GFxClikWidget MinimapCheckBox;
 var GFxClikWidget GameInfoCheckBox;
 var GFxClikWidget TeamInfoCheckBox;
 var GFxClikWidget PersonalInfoCheckBox;
+var GFxClikWidget NoPTSceneCheckBox;
 var GFxClikWidget ScorePanelCheckBox;
 
 var GFxClikWidget CustomRadioCurrent;
@@ -210,6 +211,7 @@ struct SettingsInterfaceOption
 	var bool bPersonalInfo;
 	var bool bScorePanel;
 	var int RadioCommand;
+	var bool bDisablePTScene;
 
 	var int CustomRadioCurrentPosition;
 	var Array<int> RadioCommandsCtrl, RadioCommandsAlt, RadioCommandsCtrlAlt;
@@ -573,6 +575,8 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			}
 			GetLastSelection(FOVSlider);
 			FOVSlider.AddEventListener('CLIK_valueChange', OnFOVSliderChange);
+			FOVSlider.SetInt("minimum",60);
+			FOVSlider.SetInt("maximum",120);
 			bWasHandled = true;
 			break;
 		case 'FOVLabel':
@@ -1148,6 +1152,14 @@ function bool WidgetInitialized(name WidgetName, name WidgetPath, GFxObject Widg
 			PersonalInfoCheckBox.AddEventListener('CLIK_select', OnPersonalInfoCheckBoxSelect);
 			bWasHandled = true;
 			break;
+		case 'NoPTSceneCheckBox':
+			if (NoPTSceneCheckBox == none || NoPTSceneCheckBox != Widget) {
+				NoPTSceneCheckBox = GFxClikWidget(Widget);
+			}
+			GetLastSelection(NoPTSceneCheckBox);
+			NoPTSceneCheckBox.AddEventListener('CLIK_select', OnNoPTSceneCheckBoxSelect);
+			bWasHandled = true;
+			break;
 		case 'ScorePanelCheckBox':
 			if (ScorePanelCheckBox == none || ScorePanelCheckBox != Widget) {
 				ScorePanelCheckBox = GFxClikWidget(Widget);
@@ -1360,7 +1372,8 @@ function SetUpDataProvider(GFxClikWidget Widget)
 			DataProvider.SetElementString(8, "FOR KANE");
 			DataProvider.SetElementString(9, "DIE INFIDEL");
 			DataProvider.SetElementString(10, "GOAT");
-			DataProvider.SetElementString(11, "NONE");
+			DataProvider.SetElementString(11, "CUSTOM");
+			DataProvider.SetElementString(12, "NONE");
 			break;
 
 		/************************************* [Settings - Input] *****************************************/
@@ -1793,7 +1806,10 @@ function GetLastSelection(GFxClikWidget Widget)
 				break;
 			case (ScorePanelCheckBox) :			
 				Widget.SetBool("selected", SettingsCurrentInterface.bScorePanel);
-				break;				
+				break;	
+			case (NoPTSceneCheckBox) :		
+				Widget.SetBool("selected", SettingsCurrentInterface.bDisablePTScene);
+				break;	
 			default:
 				return;
 		}
@@ -1919,6 +1935,7 @@ function ResetSettingsInterfaceOption()
 	SettingsCurrentInterface.bPersonalInfo = MainFrontEnd.SystemSettingsHandler.bPersonalInfo;
 	SettingsCurrentInterface.bScorePanel = MainFrontEnd.SystemSettingsHandler.bScorePanel;
 	SettingsCurrentInterface.RadioCommand = MainFrontEnd.SystemSettingsHandler.GetRadioCommand();
+	SettingsCurrentInterface.bDisablePTScene = MainFrontEnd.SystemSettingsHandler.bDisablePTScene;
 
 	SettingsCurrentInput.bNicknamesUseTeamColors = MainFrontEnd.SystemSettingsHandler.GetNicknamesUseTeamColors();
 	//nBab
@@ -2297,6 +2314,8 @@ function ApplyInterfaceSettings()
 	MainFrontEnd.SystemSettingsHandler.bPersonalInfo = SettingsCurrentInterface.bPersonalInfo;
 	MainFrontEnd.SystemSettingsHandler.bScorePanel = SettingsCurrentInterface.bScorePanel;
 	MainFrontEnd.SystemSettingsHandler.RadioCommand = SettingsCurrentInterface.RadioCommand;
+	MainFrontEnd.SystemSettingsHandler.bDisablePTScene = SettingsCurrentInterface.bDisablePTScene;
+
 	//case 'NicknamesUseTeamColors'
 	MainFrontEnd.SystemSettingsHandler.SetNicknamesUseTeamColors(SettingsCurrentInput.bNicknamesUseTeamColors);
 
@@ -3307,7 +3326,10 @@ function OnScorePanelCheckBoxSelect(GFxClikWidget.EventData ev)
 {
 	SettingsCurrentInterface.bScorePanel = ev._this.GetObject("target").GetBool("selected");
 }
-
+function OnNoPTSceneCheckBoxSelect(GFxClikWidget.EventData ev)
+{
+	SettingsCurrentInterface.bDisablePTScene = ev._this.GetObject("target").GetBool("selected");
+}
 
 DefaultProperties
 {
@@ -3405,6 +3427,8 @@ DefaultProperties
 	SubWidgetBindings.Add((WidgetName="TeamInfoCheckBox",WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="PersonalInfoCheckBox",WidgetClass=class'GFxClikWidget'))
 	SubWidgetBindings.Add((WidgetName="ScorePanelCheckBox",WidgetClass=class'GFxClikWidget'))
+	SubWidgetBindings.Add((WidgetName="NoPTSceneCheckBox",WidgetClass=class'GFxClikWidget'))
+
 	SubWidgetBindings.Add((WidgetName="SettingsInterfaceActionBar",WidgetClass=class'GFxClikWidget'))
 
 	SubWidgetBindings.Add((WidgetName="CustomRadioNextButton",WidgetClass=class'GFxClikWidget'))

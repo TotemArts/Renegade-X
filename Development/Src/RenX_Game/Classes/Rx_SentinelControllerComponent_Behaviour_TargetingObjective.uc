@@ -110,10 +110,6 @@ function bool IsValidObjective(UTGameObjective PotentialObjective)
 	{
 		bResult = false;
 	}
-	/*if(PotentialObjective.IsA('UTOnslaughtObjective') && !UTOnslaughtObjective(PotentialObjective).PoweredBy(GetTeamNum()))
-	{
-		bResult = false;
-	}*/
 	else if(VSizeSq(PotentialObjective.Location - Cannon.Location) > Square(Cannon.GetRange()))
 	{
 		bResult = false;

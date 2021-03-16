@@ -77,8 +77,8 @@ DefaultProperties
 	
 	HeadShotDamageMult=1.75//2.0 //3
 
-	InstantHitDamageTypes(0)=class'Rx_DmgType_SMG'
-	InstantHitDamageTypes(1)=class'Rx_DmgType_SMG'
+	InstantHitDamageTypes(0)=class'Rx_DmgType_SMG_Silenced'
+	InstantHitDamageTypes(1)=class'Rx_DmgType_SMG_Silenced'
 
 	InstantHitMomentum(0)=10000
 	InstantHitMomentum(1)=10000

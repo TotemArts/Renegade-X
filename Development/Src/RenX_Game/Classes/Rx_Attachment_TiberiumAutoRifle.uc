@@ -1,4 +1,4 @@
-class Rx_Attachment_TiberiumAutoRifle extends Rx_WeaponAttachment;
+class Rx_Attachment_TiberiumAutoRifle extends Rx_WeaponAttachment_Varying;
 
 DefaultProperties
 {
@@ -13,6 +13,10 @@ DefaultProperties
 	MuzzleFlashLightClass=class'Rx_Light_TiberiumFlechetteRifle_MuzzleFlash'
 	MuzzleFlashDuration=3.0
 //	ImpactLightClass=none
+
+	BeamTemplate_Heroic	= ParticleSystem'RX_WP_TiberiumAutoRifle.Effects.P_InstantHit_Tracer_TibRed'
+	MuzzleFlashPSCTemplate_Heroic= ParticleSystem'RX_WP_TiberiumAutoRifle.Effects.P_MuzzleFlash_3P_Red'
+	MuzzleFlashLightClass_Heroic=class'Rx_Light_TiberiumFlechetteRifle_MuzzleFlashRed'
 	
 	ShellEjectPSCTemplate=ParticleSystem'RX_WP_AutoRifle.Effects.P_ShellCasing'
 	ShellEjectDuration = 1.0

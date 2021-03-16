@@ -249,6 +249,7 @@ simulated function BeginState( name PreviousState )
 		//RxP.CurrentWeaponAttachment.ChangeVisibility(true);
 		RxP.SetHandIKEnabled(true);
 		RxP.ArmsMesh[0].SetHidden(false);
+		RxP.ArmsOverlayMesh[0].SetHidden(false);
 		}
 		if(RxP != none) 
 		{
@@ -297,9 +298,10 @@ simulated function BeginState( name PreviousState )
 		Mesh.SetHidden(false);
 		if(WorldInfo.Netmode != NM_DedicatedServer && Rx_Pawn(Owner).isFirstPerson() )
 		{
-		//Rx_Pawn(Owner).CurrentWeaponAttachment.ChangeVisibility(true);
-		Rx_Pawn(Owner).SetHandIKEnabled(true);
-		Rx_Pawn(Owner).ArmsMesh[0].SetHidden(false);
+			//Rx_Pawn(Owner).CurrentWeaponAttachment.ChangeVisibility(true);
+			Rx_Pawn(Owner).SetHandIKEnabled(true);
+			Rx_Pawn(Owner).ArmsMesh[0].SetHidden(false);
+			Rx_Pawn(Owner).ArmsOverlayMesh[0].SetHidden(false);
 		}
 		
 		

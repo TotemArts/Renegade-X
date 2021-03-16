@@ -3,6 +3,7 @@ class Rx_Building_Barracks_Ramps extends Rx_Building_Barracks
 
 DefaultProperties
 {
+	MineLimit=10
 	Begin Object Class=StaticMeshComponent Name=Static_Ramps
 		StaticMesh=StaticMesh'RX_BU_Barracks.Mesh.SM_Barracks_Ramps'
 		CastShadow                      = True

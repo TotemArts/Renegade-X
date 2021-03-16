@@ -19,7 +19,10 @@ var() float DeployCheckRadiusSq;
 var SoundCue DeployFailedSoundCue;
 var Rx_Weapon_DeployedActor DeployedActor;
 
-
+simulated function bool bDrawBackAttachment() 
+{
+	return AmmoCount > 0;
+}
 
 static function class<Actor> GetTeamDeployable(int TeamNum)
 {

@@ -116,5 +116,5 @@ defaultproperties
 
 	VehicleSpawnSocket = Veh_DropOff
 
-	SpawnsC130 = true
+	bSpawnsC130 = true
 }

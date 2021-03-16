@@ -14,4 +14,6 @@ DefaultProperties
 
     DrawScale= 0.6f
 
+	HomingTrackingStrength=28.0
+
 }

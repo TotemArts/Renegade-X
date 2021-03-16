@@ -38,21 +38,21 @@ var class<Rx_Hud_PlayerNames> PlayerNamesClass;
 var class<Rx_HUD_CaptureProgress> CaptureProgressClass;
 var class<Rx_HUD_CTextComponent> CommandTextClass;
 var class<Rx_GFxUIScoreboard> ScoreboardClass;
-//var class<Rx_HUD_ObjectiveVisuals> C_VisualsClass;
 
 var Rx_HUD_TargetingBox TargetingBox;
 var Rx_Hud_PlayerNames PlayerNames;
 var Rx_HUD_CaptureProgress CaptureProgress;
 var Rx_HUD_CTextComponent CommandText;
-var Rx_HUD_ObjectiveVisuals C_Visuals;
 
-var bool DrawCText, DrawTargetBox,DrawPlayerNames,DrawCaptureProgress, DrawDamageSystem, DrawFlashHUD; //DrawC_Visuals; 
+var bool DrawCText, DrawTargetBox,DrawPlayerNames,DrawCaptureProgress, DrawFlashHUD; //DrawC_Visuals; 
 
 /** Flash vote/radio menu stuff **/
 var array<int> RadioCommandsCtrl, RadioCommandsAlt, RadioCommandsCtrlAlt;
 
-/** GFx movie used for displaying damage system */
-var Rx_GFxDamageSystem DamageSystemMovie;
+/*Vignette on the screen edges used for damage and other events*/
+var Rx_HUD_VignetteComponent HUDVignette;
+var class<Rx_HUD_VignetteComponent> HUDVignetteClass; 
+
 
 /** GFx movie used for displaying pause menu */
 var class<Rx_GFxPauseMenu> RxPauseMenuMovieClass;
@@ -141,7 +141,7 @@ var bool		bAimingAtSomething;
 
 var float		MiniCommandWindow_AnchorX, MiniCommandWindow_AnchorY; 
 
-var CanvasIcon Neutral_Recruit, Neutral_Veteran, Neutral_Elite, Neutral_Heroic;
+var CanvasIcon VetRankIcons[4];
 
 var bool bEnableFade;
 var float FadePercentage,FadePerSecond;
@@ -157,6 +157,8 @@ var Array<Rx_Building_Team_Internals> TeamBuildingInternals;
 var int DamageIntensity;
 var float DamageIntensityDelay;
 var int PendingBleed;
+
+var Vector2D ViewportSize;
 
 function Actor GetActorAtScreenCentre()
 {
@@ -203,8 +205,10 @@ function UpdateScreenCentreActor()
 		if (HitActor != PlayerOwner.ViewTarget && (Rx_Pickup(HitActor) == none || Rx_CratePickup(HitActor) != none) && ClosestHit >= tempDist)
 		{
 			ClosestHit = tempDist;
-			if (ClosestHit < Square(GetWeaponRange())) // If the hit actor is also within weapon range, then weapon aiming actor is it.
+			if (ClosestHit < Square(GetWeaponRange())) {
 				WeaponAimingActor = HitActor;
+			}
+				
 			PotentialTarget = HitActor;
 			TargetingBox.TargetActorHitLoc = HitLoc;
 			break;
@@ -328,8 +332,17 @@ function Message( PlayerReplicationInfo PRI, coerce string Msg, name MsgType, op
 		cName = CleanHTMLMessage(PRI.PlayerName);
 	else
 		cName = "Host";
-	
-	if (MsgType == 'Say') 
+
+
+	if (MsgType == 'Special') 
+	{
+		if (MsgType == 'Special')
+			fMsg = "<font color='" $HostColor$"'>" $cName$"</font>: <font color='#FFFFFF'>"$Msg$"</font>";
+		PublicChatMessageLog $= fMsg $ "\n";
+		rMsg = cName $": "$ Msg;
+		MessageType = 0;
+	}
+	else if (MsgType == 'Say') 
 	{
 		if (PRI == None)
 			fMsg = "<font color='" $HostColor$"'>" $cName$"</font>: <font color='#FFFFFF'>"$CleanHTMLMessage(Msg)$"</font>";
@@ -424,7 +437,7 @@ function Message( PlayerReplicationInfo PRI, coerce string Msg, name MsgType, op
 	}
 	else if (MsgType == 'AdminWarn' || MsgType == 'PM_AdminWarn') {
 		MessageType = 5;
-		fMsg = "<font color='#E67451' size='25'>You received a Warning from an Admin</font><br><br><font color='#E67451' size='20'>" $ CleanHTMLMessage(Msg) $ "</font>";
+		fMsg = "<font color='#FFFF00' size='25'>You received a Warning from an Admin</font><br><br><font color='#FFFFFF' size='20'>" $ CleanHTMLMessage(Msg) $ "</font>";
 	}
 	else
 		MessageType = 2;
@@ -535,9 +548,8 @@ static function string RestoreHTMLFormat(string msg) // because previous CleanHT
 
 simulated function PostBeginPlay() 
 {
-	local Rx_Building B;
-
 	super.PostBeginPlay();
+
 	if (SystemSettingsHandler == none) 
 	{
 		SystemSettingsHandler = class'WorldInfo'.static.GetWorldInfo().Spawn(class'Rx_SystemSettingsHandler');
@@ -545,13 +557,15 @@ simulated function PostBeginPlay()
 		SystemSettingsHandler.PopulateSystemSettings();
 		bShowScorePanel = SystemSettingsHandler.bScorePanel;
 	}
-	if (GraphicAdapterCheck == none) {
+	if (GraphicAdapterCheck == none)
+	{
 		GraphicAdapterCheck = class'WorldInfo'.static.GetWorldInfo().Spawn(class'Rx_GraphicAdapterCheck');
 		GraphicAdapterCheck.CheckGraphicAdapter();
 	}
 	
-	if (JukeBox == none) {
-		JukeBox = new class'Rx_Jukebox';
+	if (JukeBox == none)
+	{
+		JukeBox = new Rx_MapInfo(WorldInfo.GetMapInfo()).JukeboxClass;
 		JukeBox.Init();
 		WorldInfo.MusicComp = JukeBox.MusicComp;
 		WorldInfo.MusicComp.OnAudioFinished = MusicPlayerOnAudioFinished;
@@ -574,55 +588,57 @@ simulated function PostBeginPlay()
 		}
 	}
 
+	CreateUIInterface();
+
+	SetTimer(0.1,false,'AttemptCacheBuildings');
+}
+
+function AttemptCacheBuildings()
+{
+	local Rx_Building B;
+	
+	if(TeamBuildingInternals.Length > 0)
+		return;
 	// a cache for things to come
-	foreach class'WorldInfo'.static.GetWorldInfo().AllActors(class'Rx_Building',B)
+	foreach WorldInfo.AllActors(class'Rx_Building',B)
 	{
 		if(Rx_Building_Team_Internals(B.BuildingInternals) != None)
 			TeamBuildingInternals.AddItem(Rx_Building_Team_Internals(B.BuildingInternals));
-	}
-// 
-// 	GetPC().WorldInfo.MusicComp.bAutoDestroy = false;
+	
+		if(Rx_Building_TechBuilding(B) != None)
+			TechBuildings.AddItem(Rx_Building_TechBuilding(B));
 
-	CreateUIInterface();
-
-	SetTimer(0.1,true,'RecoverVignette');
-}
-
-function RecoverVignette()
-{
-	if(DamageIntensity > 0)
-	{
-//		`log("DamageIntensity is now"@DamageIntensity);
-
-		if(DamageIntensityDelay > 0.0)
-			DamageIntensityDelay = FMax(0.0,DamageIntensityDelay - 0.1);
-		else
-			DamageIntensity = Clamp(DamageIntensity - 5,0,100);
-	}
+	}	
 }
 
 function ResetVignette()
 {
-	DamageIntensityDelay = 0.0;
-	DamageIntensity = 0;
+	if(HUDVignette != none)
+	{
+		HUDVignette.Reset();
+	}
 }
 
 function UpdateRadioCommandList()
 {
-	RadioCommand = SystemSettingsHandler.RadioCommand;
-
-	if(RadioCommand == 2)
-		SetRadioCommandsCustom();
-	else if(RadioCommand == 1)
-		SetRadioCommandsClassic();
-	else
-		SetRadioCommandsDefault();
+	switch (SystemSettingsHandler.RadioCommand)
+	{
+		case 2:
+			SetRadioCommandsCustom();
+		break;
+		case 1:
+			SetRadioCommandsClassic();
+		break;
+		default:
+			SetRadioCommandsDefault();
+	}
 }
 
 function MusicPlayerOnAudioFinished(AudioComponent AC)
 {
 	local int i;
-	`log("MusicPlayerOnAudioFinished :: bStopped? "$ JukeBox.bStopped $" | AC? " $ AC.Name $" | SoundCue? "$ AC.SoundCue );
+
+	`log("MusicPlayerOnAudioFinished :: bStopped? "$ JukeBox.bStopped $" | AC? " $ AC.Name $" | SoundCue? "$ AC.SoundCue,bDebug);
 	if (JukeBox.bStopped)
 		return;
 
@@ -633,7 +649,7 @@ function MusicPlayerOnAudioFinished(AudioComponent AC)
 
 	//check if we're shuffling
 	if (JukeBox.bShuffled)
-		JukeBox.Play(Rand(JukeBox.JukeBoxList.Length));
+		JukeBox.PlayShuffled();
 	else if (i + 1 < JukeBox.JukeBoxList.Length)
 		JukeBox.Play(i+1);
 	else
@@ -666,7 +682,7 @@ function CreateUIInterface()
 	if(IsMainMenu())
 		return;
 
-	CreateDamageSystemMovie();
+	//CreateDamageSystemMovie();
 	CreateGIHUDMovie();
 	CreateHUDMovie();
 	CreateHudCompoenents();
@@ -711,9 +727,8 @@ function CreateHudCompoenents()
 	PlayerNames = New PlayerNamesClass;
 	CaptureProgress = New CaptureProgressClass;
 	CommandText = New CommandTextClass;
-	//Visuals for objective oriented stuff
-	//C_Visuals = New C_VisualsClass;
-	//Rx_Controller(PlayerOwner).Hudvisuals = C_Visuals; 
+	HUDVignette = new HUDVignetteClass;
+	HUDVignette.InitMaterial();	 
 }
 
 function UpdateHudCompoenents(float DeltaTime, Rx_HUD HUD)
@@ -722,54 +737,25 @@ function UpdateHudCompoenents(float DeltaTime, Rx_HUD HUD)
 	if(DrawPlayerNames)	PlayerNames.Update(DeltaTime,HUD);
 	if(DrawCaptureProgress) CaptureProgress.Update(DeltaTime,HUD);
 	if(DrawCText)	CommandText.Update(DeltaTime,HUD);
-	//if(DrawC_Visuals)	C_Visuals.Update(DeltaTime,HUD);
+	if(HUDVignette != none) HUDVignette.Update(DeltaTime,HUD);
 	if(Rx_Controller(PlayerOwner).Vet_Menu != none) Rx_Controller(PlayerOwner).Vet_Menu.UpdateTiles(DeltaTime, HUD);
 }
 
 function DrawHudCompoenents()
 {
-if(DrawTargetBox)	TargetingBox.Draw(); // Targeting box isn't fully separated from this class yet so we can't draw it here.
-if(DrawPlayerNames)	PlayerNames.Draw();
-if(DrawCaptureProgress)	CaptureProgress.Draw();
-if(Rx_Controller(PlayerOwner).Vet_Menu != none) Rx_Controller(PlayerOwner).Vet_Menu.DrawTiles(self);
-
-//if(DrawC_Visuals)	C_Visuals.Draw(); 
+	if(DrawTargetBox)	TargetingBox.Draw(); // Targeting box isn't fully separated from this class yet so we can't draw it here.
+	if(DrawPlayerNames)	PlayerNames.Draw();
+	if(DrawCaptureProgress)	CaptureProgress.Draw();
+	if(Rx_Controller(PlayerOwner).Vet_Menu != none) Rx_Controller(PlayerOwner).Vet_Menu.DrawTiles(self);
+	if(HUDVignette != none) HUDVignette.Draw();
 }
-
-//Create and initialize the Damage System.
-function CreateDamageSystemMovie()
-{
-	DamageSystemMovie = new class'Rx_GFxDamageSystem';
-	DamageSystemMovie.SetTimingMode(TM_Real);
-	DamageSystemMovie.Init(class'Engine'.static.GetEngine().GamePlayers[DamageSystemMovie.LocalPlayerOwnerIndex]);
-	DamageSystemMovie.RenXHud = Self;
-}
-
-/*
-simulated function RemoveDamageSystemMovie()
-{
-	if ( DamageSystemMovie != None )
-	{
-		DamageSystemMovie.Close(true);
-		DamageSystemMovie = None;
-	}
-}
-
-
-//Destroy existing Movies
-function RemoveMovies()
-{
-	RemoveDamageSystemMovie();
-	Super.RemoveMovies();
-}
-*/
 
 function RemoveMovies()
 {
 	//@Shahman: we will begin monitoring the scaleform removal procedure
 
 	//Let's start by Tracing our last function calls
-	`log("======================= " $self.Class $" =========================");
+	`log("======================= " $self.Class $" =========================",bDebug);
 	//ScriptTrace();
 	// We will now check if each active GFx class has any movie open or not. 
 	// ONLY when it is still open and active, we will CLOSE them. we can't CLOSE something that is no longer exists.
@@ -777,7 +763,7 @@ function RemoveMovies()
 	// for now, we need to monitor this.
 
 	if (Scoreboard != none) {
-		`log("Scoreboard.bMovieIsOpen? " $ Scoreboard.bMovieIsOpen);
+		`log("Scoreboard.bMovieIsOpen? " $ Scoreboard.bMovieIsOpen,bDebug);
 		if (Scoreboard.bMovieIsOpen) {
 			Scoreboard.Close(true);
 		}
@@ -785,35 +771,28 @@ function RemoveMovies()
 	}		
 
 	if (PTMovie != none) {
-		`log("PTMovie.bMovieIsOpen? " $ PTMovie.bMovieIsOpen);
+		`log("PTMovie.bMovieIsOpen? " $ PTMovie.bMovieIsOpen,bDebug);
 		if (PTMovie.bMovieIsOpen) {
 			PTMovie.ClosePTMenu(true);
 		}
 		PTMovie = none;
 	}
-	if ( DamageSystemMovie != None ) {
-		`log("DamageSystemMovie.bMovieIsOpen? " $ DamageSystemMovie.bMovieIsOpen);
-		if (DamageSystemMovie.bMovieIsOpen) {
-			DamageSystemMovie.Close(true);
-		}
-		DamageSystemMovie = None;
-	}
 	if ( RxPauseMenuMovie != None ) {
-		`log("RxPauseMenuMovie.bMovieIsOpen? " $ RxPauseMenuMovie.bMovieIsOpen);
+		`log("RxPauseMenuMovie.bMovieIsOpen? " $ RxPauseMenuMovie.bMovieIsOpen,bDebug);
 		if (RxPauseMenuMovie.bMovieIsOpen) {
 			RxPauseMenuMovie.Close(true);
 		}
 		RxPauseMenuMovie = None;
 	}
 	if( HudMovie != None) {
-		`log("HudMovie.bMovieIsOpen? " $ HudMovie.bMovieIsOpen);
+		`log("HudMovie.bMovieIsOpen? " $ HudMovie.bMovieIsOpen,bDebug);
 		if (HudMovie.bMovieIsOpen) {
 			HudMovie.close(true);
 		}
 		HudMovie = None;
 	}
 	if( GIHudMovie != None) {
-		`log("GIHudMovie.bMovieIsOpen? " $ GIHudMovie.bMovieIsOpen);
+		`log("GIHudMovie.bMovieIsOpen? " $ GIHudMovie.bMovieIsOpen,bDebug);
 		if (GIHudMovie.bMovieIsOpen) {
 			GIHudMovie.close(true);
 		}
@@ -874,9 +853,6 @@ event PostRender()
 
 	if(Scoreboard != None && Scoreboard.bMovieIsOpen)
 		Scoreboard.Draw(); 	
-	
-	if (DamageSystemMovie != None && DamageSystemMovie.bMovieIsOpen && DrawDamageSystem)
-		DamageSystemMovie.TickHud(PlayerOwner); //Draw flash damage screen
 
 	//TODO: find another way to do this
 	if (RxPauseMenuMovie != None && RxPauseMenuMovie.bMovieIsOpen) {
@@ -909,9 +885,6 @@ event PostRender()
 	{
 		if(PTMovie != none)
 		{
-			//`log("=======================" $self.Class $"=========================");
-			//`log("PTMovie.bMovieIsOpen? " $PTMovie.bMovieIsOpen);
-			//ScriptTrace();
 			if (PTMovie.bMovieIsOpen) {
 				PTMovie.ClosePTMenu(true);
 			}			
@@ -936,7 +909,19 @@ event PostRender()
 	DrawHudCompoenents();
 	
 	if(Rx_Controller(PlayerOwner).IsSpectating() && PlayerOwner.WorldInfo.GRI.bMatchHasBegun)
-		DrawSpecmodeInfos();
+	{
+		if(!PlayerOwner.IsInState('PlayerWaiting'))
+		{
+			if(HudMovie != None)
+				HudMovie.GameplayTipsText.SetVisible(false);
+			DrawSpecmodeInfos();
+		}
+		else
+		{
+			if(HudMovie != None)
+				HudMovie.GameplayTipsText.SetText("Press Fire to Spawn!");			
+		}
+	}
 
 	DoSpotting();
 	//DoCommandSpotting(); 
@@ -981,14 +966,14 @@ event PostRender()
 	
 		Canvas.SetPos(EnemyScreenPos.X * Canvas.SizeX, EnemyScreenPos.Y * Canvas.SizeY);
 	
-		// Don't draw lines into the middle of nowhere because enemy isn't in view
 		bIsInFrontOfMe = class'Rx_Utils'.static.OrientationOfLocAndRotToBLocation(Dummy.Location, PlayerOwner.Rotation, PlayerOwner.Pawn.Location) < -0.5;
 	
 		if (!bIsInFrontOfMe) return;
 		
 		Canvas.DrawText("Peak DPS:"@Dummy.PeakDPS$"\nDPS:"@Dummy.DPS$"\nTotal Dmg:"@Dummy.TotalDamageTaken$"\nTotal Hits:"@Dummy.TotalHitsTaken,,0.7,0.7);
 	}
-	if(SystemSettingsHandler.RadioCommand != RadioCommand)
+
+	if (SystemSettingsHandler.RadioCommand != RadioCommand)
 	{
 		UpdateRadioCommandList();
 	}
@@ -1045,13 +1030,6 @@ function DrawSpotTargets()
 	
 	foreach SpotTargets(SpotTarget)
 	{
-		/**
-		if(i >= NumSpotTargetDots) {
-			hudMovie.newSpot(i);
-			NumSpotTargetDots++;
-		}
-		*/
-		//i++;	
 		if(Rx_Building(SpotTarget) != None || Rx_Vehicle_Harvester(SpotTarget) != None || Rx_Defence(SpotTarget) != None
 			|| (SpotTarget.GetTeamNum() == PlayerOwner.GetTeamNum()))
 			continue;	
@@ -1064,27 +1042,16 @@ function DrawSpotTargets()
 		if(bIsBehindMe || (Rx_Building(SpotTarget) == None && !FastTrace(SpotTarget.location,PlayerOwner.ViewTarget.Location,,true)))
 		{
 			if(Rx_Building(SpotTarget) == None)
-				//@Shahman: temp commented out the following line.
-				//SpotTargets.RemoveItem(SpotTarget);
 			continue;
 		}
 		
 		screenLoc = Canvas.Project(SpotTarget.location);
-		//screenLoc = Canvas.Project(SpotTarget.location + Pawn(SpotTarget).GetCollisionHeight() * vect(0,0,1.1));
-		
-		//ScreenLoc.X = FClamp(ScreenLoc.X, 0.f, Canvas.ClipX - 20);
-		//ScreenLoc.Y = FClamp(ScreenLoc.Y, 0.f, Canvas.ClipY - 20);
 		ScreenLoc.X -= 25.5;
 		ScreenLoc.Y -= 25;
 		Canvas.SetPos(ScreenLoc.X, ScreenLoc.Y);	
 
 		Canvas.SetDrawColor(255,0,0,255);
-		//Canvas.SetPos(ScreenLoc.X-SizeX*0.005, ScreenLoc.Y-SizeY*0.01);
-		Canvas.DrawIcon(EnemySpottedIcon,screenLoc.X-SizeX*0.005,screenLoc.Y-SizeY*0.01);
-		// Canvas.DrawBox(SizeX*0.01, SizeY*0.02);
-		
-		//hudMovie.updateSpot(i-1, screenLoc.x *RatioX, screenLoc.y *Ratioy);		
-		//hudMovie.updateSpot(i-1, screenLoc.x, screenLoc.y);		
+		Canvas.DrawIcon(EnemySpottedIcon,screenLoc.X-SizeX*0.005,screenLoc.Y-SizeY*0.01);	
 	}
 }
 
@@ -1103,6 +1070,33 @@ exec function ShowAllAI()
 exec function ShowAIFireline()
 {
 	bShowAIFireline = !bShowAIFireline;
+}
+
+exec function BumpVignette(byte T, int Intensity)
+{
+	local LinearColor LC;
+	
+	if(T == 0)
+	{
+		LC.R = 0.33; 
+		LC.G = 0.1;
+		LC.B = 0.5; 
+	}
+	else if(T == 1)
+	{
+		LC.R = 0.0; 
+		LC.G = 1.0;
+		LC.B = 0.9; 
+	}
+	else if(T == 2)
+	{
+		LC.R = 0.0; 
+		LC.G = 1.0;
+		LC.B = 1.0; 
+	}
+	
+	
+	HUDVignette.VignetteTakeHit(LC,Intensity);
 }
 
 //draws AI goal overlays over each AI pawn
@@ -1197,25 +1191,26 @@ function DrawAIFirelineOverlays()
 function DoSpotting()
 {
 	local bool bPlayerIsSpotting;
-	local Actor StealthedActor;
+	local Actor StealthedActor, TargetActor;
 	
-	if(Rx_Controller(PlayerOwner) == None) //|| Rx_Controller(PlayerOwner).bCommandSpotting == true )
+	if(Rx_Controller(PlayerOwner) == None)
 		return;
 	
+	TargetActor = TargetingBox.TargetedActor != None ? TargetingBox.TargetedActor.GetActualTarget() : none; 
 	bPlayerIsSpotting = Rx_Controller(PlayerOwner).bSpotting;
 	
 	if (bPlayerIsSpotting)
 	{
 		// if we have an actor targeted, and it's not already spotted
-		if (TargetingBox.TargetedActor != None && SpotTargets.Find(TargetingBox.TargetedActor) == -1)
+		if (TargetActor != None && SpotTargets.Find(TargetActor) == -1)
 		{
 			// If we're spotting a building
-			if ( Rx_Building(TargetingBox.TargetedActor) != None || Rx_BuildingAttachment(TargetingBox.TargetedActor) != None)
-				AddNewSpotTarget(Rx_Building(TargetingBox.TargetedActor) != None ? TargetingBox.TargetedActor : Rx_BuildingAttachment(TargetingBox.TargetedActor).OwnerBuilding.BuildingVisuals);
+			if ( Rx_Building(TargetActor) != None || Rx_BuildingAttachment(TargetActor) != None)
+				AddNewSpotTarget(Rx_Building(TargetActor) != None ? TargetActor : Rx_BuildingAttachment(TargetActor).OwnerBuilding.BuildingVisuals);
 			else 			
-				AddNewSpotTarget(TargetingBox.TargetedActor);
+				AddNewSpotTarget(TargetActor);
 		}
-		else if(TargetingBox.TargetedActor == None && RxIfc_Stealth(GetActorWeaponIsAimingAt()) != None)
+		else if(TargetActor == None && RxIfc_Stealth(GetActorWeaponIsAimingAt()) != None)
 		{
 			StealthedActor = GetActorWeaponIsAimingAt();
 			if (RxIfc_Stealth(StealthedActor).GetIsinTargetableState())
@@ -1227,16 +1222,17 @@ function DoSpotting()
 
 function DoCommandSpotting() //Mostly like DoSpotting(), but handled differently elsewhere
 {
+	
 	if(Rx_Controller(PlayerOwner).bCommandSpotting == false || Rx_Controller(PlayerOwner) == None )
 		return;
-	
-		if(Rx_Building(TargetingBox.TargetedActor) != None || Rx_BuildingAttachment(TargetingBox.TargetedActor) != None || RxIfc_Stealth(TargetingBox.TargetedActor) != None ) 
-			return; 
+
+	if(TargetingBox.TargetedActor != None && !TargetingBox.TargetedActor.IsCommandSpottable() )
+		return; 
 		
 		// if we have an actor targeted, and it's not already spotted [EDIT: remove anything regarding buildings and stealthed units for C-Spotting]
-		if (TargetingBox.TargetedActor != None && CommandSpotTargets.Find(TargetingBox.TargetedActor) == -1)
+		if (TargetingBox.TargetedActor.GetActualTarget() != None && CommandSpotTargets.Find(TargetingBox.TargetedActor.GetActualTarget()) == -1)
 		{
-				AddCommanderSpotTarget(TargetingBox.TargetedActor);
+				AddCommanderSpotTarget(TargetingBox.TargetedActor.GetActualTarget());
 		}
 	
 	
@@ -1276,7 +1272,6 @@ function Actor GetTargetFromTrace(out vector HitLocation)
 		return None;
 
 	StartTrace = WeaponOwner.InstantFireStartTrace();
-	//TraceRange = (WeaponOwner.WeaponFireTypes[0] == EWFT_Projectile) ? GetProjectileRange(WeaponOwner) : WeaponOwner.WeaponRange;
 	TraceRange = 15000;
 	EndTrace = StartTrace + TraceRange * vector(PlayerOwner.Rotation);
 	TraceActor = PawnOwner.Trace(HitLocation, HitNormal, EndTrace, StartTrace, true, vect(0,0,0),, TRACEFLAG_Bullet);			
@@ -1384,63 +1379,8 @@ function DrawNewScorePanel()
     FontInfo.GlowInfo.bEnableGlow = true;
     FontInfo.GlowInfo.GlowOuterRadius = GlowRadius;	
 
-	//DrawScorePanelTitle(true);
 	YL = (ScorePanelY * Canvas.SizeY/1050.0) + SizeSY + 10.0f*ResScaleY;
-/*	FirstTeamID = 0;
 
-
-	// draw the teams
-	switch (ScorePanelMode)
-	{
-		case 0:
-		case 1: // show team points and rank
-		case 2:
-		case 3:
-			// Draw the first team
-			if (WorldInfo.GRI != None && WorldInfo.GRI.Teams.Length > 1)
-			{
-				Canvas.DrawColor = Rx_TeamInfo(WorldInfo.GRI.Teams[FirstTeamID]).GetTeamColor();
-				Canvas.SetPos(DrawStartX[0] - 37.0*ResScaleY, YL);
-				Canvas.DrawText(Rx_TeamInfo(WorldInfo.GRI.Teams[FirstTeamID]).ReplicatedSize, false,,,FontInfo);
-				Canvas.SetPos(DrawStartX[0], YL);
-				Canvas.DrawText(Rx_TeamInfo(WorldInfo.GRI.Teams[FirstTeamID]).GetTeamName(), false,,,FontInfo);
-				
-				if(bDrawAdditionalPlayerInfo)
-				{
-					DrawHarvesterHealth(FirstTeamID,YL,FontInfo);		
-				}
-				
-				
-				Canvas.DrawColor = Rx_TeamInfo(WorldInfo.GRI.Teams[FirstTeamID]).GetTeamColor();
-				Canvas.SetPos(DrawStartX[1] + StrLeng("Score") - StrLeng(Rx_TeamInfo(WorldInfo.GRI.Teams[FirstTeamID]).GetRenScore()), YL);
-				Canvas.DrawText(Rx_TeamInfo(WorldInfo.GRI.Teams[FirstTeamID]).GetRenScore(), false,,,FontInfo);
-
-				YL += SizeSY + 10.0f*ResScaleY;
-
-				FirstTeamID = FirstTeamID == 0 ? 1 : 0; // set new team id to draw
-
-				// Draw the other team
-				Canvas.DrawColor = Rx_TeamInfo(WorldInfo.GRI.Teams[FirstTeamID]).GetTeamColor();
-				Canvas.SetPos(DrawStartX[0] - 37.0*ResScaleY, YL);
-				Canvas.DrawText(Rx_TeamInfo(WorldInfo.GRI.Teams[FirstTeamID]).ReplicatedSize, false,,,FontInfo);
-				Canvas.SetPos(DrawStartX[0], YL);
-				Canvas.DrawText(Rx_TeamInfo(WorldInfo.GRI.Teams[FirstTeamID]).GetTeamName(), false,,,FontInfo);
-				
-				if(bDrawAdditionalPlayerInfo)
-				{
-					DrawHarvesterHealth(FirstTeamID,YL,FontInfo);	
-				}				
-				
-				Canvas.SetPos(DrawStartX[1] + StrLeng("Score") - StrLeng(Rx_TeamInfo(WorldInfo.GRI.Teams[FirstTeamID]).GetRenScore()), YL);
-				Canvas.DrawText(Rx_TeamInfo(WorldInfo.GRI.Teams[FirstTeamID]).GetRenScore(), false,,,FontInfo);
-			}
-			break;
-		default:
-			break;
-	}
-*/
-//	YL += SizeSY + 10.0f*ResScaleY;
-	//YL += SizeSY + 4.0f*ResScaleY;
 	DrawScorePanelTitle(,YL - ScorePanelY*ResScaleY);
 	YL += SizeSY + 10.0f*ResScaleY;
 
@@ -1474,7 +1414,7 @@ function DrawNewScorePanel()
 								NearestSpotMarker = SpotMarker;
 							}
 						}
-						Rx_Pri(PRI).SetPawnArea(NearestSpotMarker.GetSpotName());
+						Rx_Pri(PRI).SetPawnArea(NearestSpotMarker.GetNonHTMLSpotName());
 						break;
 					}
 				}
@@ -1492,7 +1432,7 @@ function DrawNewScorePanel()
 					continue;
 				
 				TempStr = "";
-				Temp_Icon = Neutral_Recruit; // Always show recruit icon if all else fails.
+				Temp_Icon = VetRankIcons[0]; // Always show recruit icon if all else fails.
 				
 				if (!PRIArray[I].bIsSpectator)
 				{
@@ -1519,14 +1459,8 @@ function DrawNewScorePanel()
 					}
 					Canvas.SetPos(DrawStartX[0] - 40.0*ResScaleY, YL);
 					Canvas.DrawText(I+1, false,,,FontInfo);
-					if(Rx_Pri(PRIArray[I]).VRank == 0)
-						Temp_Icon = Neutral_Recruit;
-					if(Rx_Pri(PRIArray[I]).VRank == 1)
-						Temp_Icon = Neutral_Veteran;
-					if(Rx_Pri(PRIArray[I]).VRank == 2)
-						Temp_Icon = Neutral_Elite;
-					if(Rx_Pri(PRIArray[I]).VRank == 3)
-						Temp_Icon = Neutral_Heroic;
+					Temp_Icon = VetRankIcons[Rx_Pri(PRIArray[I]).VRank];
+					
 					Canvas.DrawIcon(Temp_Icon,DrawStartX[0] - 5.0*ResScaleY-40, YL-18.0, 0.75);		
 				      
 					Canvas.SetPos(DrawStartX[0] - 5.0*ResScaleY, YL);					
@@ -1725,14 +1659,8 @@ function float DoMinus (optional bool bTeams)
 		default:
                WholeMinus = (bTeams ? StrLeng("#    Teams") : StrLeng("#    Name")) + StrLeng("Score");
                break;
-		//case 1: //
-		//  case 3: //
-		//default:
-               //WholeMinus = StrLeng("Player") + StrLeng("Kills") + StrLeng("Deaths") + StrLeng("K/D") + StrLeng("Credits") + StrLeng("Score");
-               //break;
    }
 
-   //if ((ScorePanelMode % 2) == 1) Plus = 5; else Plus = 1;
 	Plus = 1;
 
 	for (X=0;X<Plus;X++) // add space Length
@@ -2207,11 +2135,9 @@ function DrawDelimitedText(string Txt, string Delimiter, float CurX, float CurY,
 	
 	Canvas.TextSize("A", XL, YL);
 	Canvas.SetPos(CurX,CurY);
-	//ContextMenu_TextSeparationY
 	if(bDrawBackground) 
 	{
 		OldColor = Canvas.DrawColor;
-		//Canvas.SetDrawColor(27,46,56,100); //(56,98,121,50);
 		Canvas.DrawColor=BGColor;
 		Canvas.SetPos(CurX-XExcess,CurY-YExcess); 
 		Canvas.DrawRect(LongestStringLength*XExcess*FontScale, (YL*(DelimitedString.Length+1)*YExcess*FontScale));
@@ -2263,7 +2189,6 @@ function color GetTeamColor(int playerTeamIndex, int enemyTeamIndex)
 
 function DrawReticule()
 {
-
 	if (PlayerOwner == None || (PlayerOwner.Pawn == None && PlayerOwner.ViewTarget == None))
 		return;
 	
@@ -2284,22 +2209,62 @@ function DrawReticule()
 			Rx_Weapon(PlayerOwner.Pawn.Weapon).ActiveRenderOverlays(self);
 		else if (Rx_Vehicle_Weapon(PlayerOwner.Pawn.Weapon) != None)
 			Rx_Vehicle_Weapon(PlayerOwner.Pawn.Weapon).ActiveRenderOverlays(self);
+		
+		if(RxIfc_PassiveAbility(PlayerOwner.Pawn) != none)
+		{
+			RxIfc_PassiveAbility(PlayerOwner.Pawn).RenderPassiveOverlays(self);
+		}
+			
 	}
 }
 
 function DisplayHit(vector HitDir, int Damage, class<DamageType> damageType)
 {
-	HudMovie.DisplayHit(HitDir, Damage, damageType);
+	local LinearColor LC;
+	
+	HudMovie.DisplayHit(HitDir, Damage, damageType); //Show the hit direction 
+	
+	if(class<Rx_DmgType>(damageType) != none)
+		LC = class<Rx_DmgType>(damageType).static.GetHitColour();
+		
+	if(PlayerOwner.Pawn != none && PlayerOwner.Pawn.Health < (PlayerOwner.Pawn.HealthMax*0.20) )
+		HUDVignette.SetCritical(true);
+	
+	
+	HUDVignette.VignetteTakeHit(LC,Damage);
+}
+
+function DisplayHeals(int HealAmount, class<DamageType> damageType)
+{
+	local LinearColor LC;
+
+	if(class<Rx_DmgType>(damageType) != none)
+		LC = class<Rx_DmgType>(damageType).static.GetHitColour();
+
+	if(PlayerOwner.Pawn != none && PlayerOwner.Pawn.Health >= (PlayerOwner.Pawn.HealthMax*0.20) )
+		HUDVignette.SetCritical(false);
+	
+	HUDVignette.VignetteTakeHeals(LC,HealAmount); //Heals generally work in a weirdly consistent manner [This is a bit hacky, but works]
+}
+
+function NotifySpecialVignette(class<Rx_StatModifierInfo> Info)
+{
+	local LinearColor LC; 
+	
+	if(Info != none)
+	{
+		LC = Info.default.EffectColor;
+	
+		HUDVignette.SetSpecialVignette(true, LC, Info.default.VignetteIntensity);
+	}
+	else 
+		HUDVignette.SetSpecialVignette(false);
+	
 }
 
 //chain the toggle from the Rx_Controller to the GFx Hud object where it occurs
 function ToggleScoreboard()
 {
-//	if (ScorePanelMode == 2) 
-//		ScorePanelMode = 1;
-//	else 
-//		ScorePanelMode = 2;
-
 	bShowScorePanel = !bShowScorePanel;
 }
 
@@ -2347,8 +2312,6 @@ function CloseOverviewMap()
 	{
 		if (OverviewMapMovie.bMovieIsOpen)
 			OverviewMapMovie.Close(false);
-
-//		OverviewMapMovie = none;
 	}
 
 	//show our hud again
@@ -2397,7 +2360,6 @@ function HandleSetShowScores(bool bEnableShowScores, bool bForceHandle)
 
 
 		Scoreboard.Close(false);
-//		Scoreboard = None;
 
 		iF(!Rx_GRI(PlayerOwner.WorldInfo.GRI).bMatchIsOver && (RxPauseMenuMovie == none || !RxPauseMenuMovie.bMovieIsOpen))
 			SetVisible(true);
@@ -2426,7 +2388,6 @@ function LocalizedMessage
 	if (HudMovie == none || !HudMovie.bMovieIsOpen)
 		return;
 
-   //PlayerOwner.ClientMessage("ClassType: "$InMessageClass $" | Message: "$CriticalString);
 	if (InMessageClass == class'Rx_DeathMessage')
 	{
 		if (RelatedPRI_1 == none)
@@ -2459,6 +2420,8 @@ function LocalizedMessage
 	{
 		if (Switch == 0)
 			AddBuildingKillMessage(RelatedPRI_1, Rx_Building_Team_Internals(OptionalObject), class<Rx_DmgType>(OptionalObject));
+		else if (Switch == 8)
+			AddBuildingReviveMessage(RelatedPRI_1, Rx_Building_Team_Internals(OptionalObject));
 	}
 	else if (InMessageClass == class'Rx_Message_TechBuilding')
 	{
@@ -2592,6 +2555,11 @@ function AddBuildingKillMessage(PlayerReplicationInfo Killer, Rx_Building_Team_I
 
 	else
 		HudMovie.AddGameEventMessage("* "$ GetColouredName(Killer) $" destroyed the <font color='"$ GetTeamColour(Building.TeamID) $"'>"$ Building.GetBuildingName() $"</font> *");
+}
+
+function AddBuildingReviveMessage(PlayerReplicationInfo Reviver, Rx_Building_Team_Internals Building)
+{
+	HudMovie.AddGameEventMessage("* "$ GetColouredName(Reviver) $" restored the <font color='"$ GetTeamColour(Building.TeamID) $"'>"$ Building.GetBuildingName() $"</font> *");
 }
 
 function AddTechBuildingCaptureMessage(PlayerReplicationInfo Capturer, Rx_Building_Team_Internals Building, byte CapturingTeam)
@@ -2842,7 +2810,6 @@ function TogglePauseMenu()
 				RxPauseMenu_FadeSystemMovie.Start();
 				RxPauseMenu_FadeSystemMovie.ShowSystem();
 				RxPauseMenuMovie.Start();
-				//RxPauseMenuMovie.PlayOpenAnimation();
 
 				// Do not prevent 'escape' to unpause if running in mobile previewer
 				if(!WorldInfo.IsPlayInMobilePreview()) 
@@ -2874,7 +2841,6 @@ function TogglePauseMenu()
 			RxPauseMenu_FadeSystemMovie.Start();
 			RxPauseMenu_FadeSystemMovie.ShowSystem();
 			RxPauseMenuMovie.Start();
-			//RxPauseMenuMovie.PlayOpenAnimation();
 
 			// Do not prevent 'escape' to unpause if running in mobile previewer
 			if(!WorldInfo.IsPlayInMobilePreview()) 
@@ -2955,28 +2921,16 @@ exec function startprivatechat()
 	}
 }
 
+//start private chat (nBab)
+exec function starthostprivatechat()
+{
+	if (WorldInfo.NetMode != NM_Standalone) {
+		HudMovie.starthostprivatechat();
+	}
+}
+
 function string HighlightStructureNames(string Str)
 {
-/*
-	// ALL BUILDINGS SHOULD BE AUTO-HIGHLIGHTED
-
-	//Parse Nod structure names
-	Str = Repl(Str, "Hand of Nod", "<font color='" $NodColor$"'>" $"Hand of Nod"$  "</font>"); 
-	Str = Repl(Str, "Airstrip", "<font color='" $NodColor$"'>" $"Airstrip"$  "</font>"); 
-	Str = Repl(Str, "Nod Refinery", "<font color='" $NodColor$"'>" $"Nod Refinery"$  "</font>");
-	Str = Repl(Str, "Obelisk of Light", "<font color='" $NodColor$"'>" $"Obelisk of Light"$  "</font>");
-	Str = Repl(Str, "Nod Power Plant", "<font color='" $NodColor$"'>" $"Nod Power Plant"$  "</font>");
-	Str = Repl(Str, "Nod Repair Facility", "<font color='" $NodColor$"'>" $"Nod Repair Facility"$  "</font>");
-
-
-	//Parse Nod structure names
-	Str = Repl(Str, "Adv. Guard Tower", "<font color='" $GDIColor$"'>" $"Adv. Guard Tower"$  "</font>"); 
-	Str = Repl(Str, "Weapons Factory", "<font color='" $GDIColor$"'>" $"Weapons Factory"$  "</font>"); 
-	Str = Repl(Str, "GDI Refinery", "<font color='" $GDIColor$"'>" $"GDI Refinery"$  "</font>");
-	Str = Repl(Str, "Barracks", "<font color='" $GDIColor$"'>" $"Barracks"$  "</font>");
-	Str = Repl(Str, "GDI Power Plant", "<font color='" $GDIColor$"'>" $"GDI Power Plant"$  "</font>"); 
-	Str = Repl(Str, "GDI Repair Facility", "<font color='" $GDIColor$"'>" $"GDI Repair Facility"$  "</font>"); 
-*/	
 	//Highlight immediate repair warnings 
 	Str = Repl(Str, "needs repair immediately!", "<font color='" $NodColor$"'>" $"needs repair immediately!"$  "</font>"); 
 	
@@ -3005,8 +2959,6 @@ exec function bool FlipPageForward()
 	}
 	else
 	return false; 
-	/**else
-	if(Rx_VoteMenuHandler(PlayerOwner.VoteHandler) != none)*/
 }
 
 exec function bool FlipPageBackward()
@@ -3022,35 +2974,6 @@ exec function bool FlipPageBackward()
 	}
 	else return false;
 }
-
-//function DrawCommanderMiniWindow()
-//{
-//	local string CommandString;
-//	local color	 BGColor;
-//	
-//	if (!bShowHUD || !DrawFlashHUD || Rx_PlayerInput(PlayerOwner.PlayerInput).bRadio1Pressed || Rx_PlayerInput(PlayerOwner.PlayerInput).bRadio0Pressed)
-//			return;
-//	
-//	if(UTGRI != None && UTGRI.bMatchIsOver) 
-//	{
-//		return;
-//	} 
-//	
-//	BGColor.R = 56; //MakeColor(56,98,121,255);
-//	BGColor.G = 98;
-//	BGColor.B = 121;
-//	BGColor.A = 80;
-//	
-//	if(Rx_PRI(PlayerOwner.PlayerReplicationInfo).bGetIsCommander()) 
-//	{
-//		CommandString = "Ctrl+C [Expand Command Window]%" $ "CP:" @ Rx_TeamInfo(WorldInfo.GRI.Teams[PlayerOwner.GetTeamNum()]).GetCommandPoints() $ "%" ; 
-//	}
-//	
-//	Canvas.SetDrawColor(255,255,255,255);
-//	Canvas.Font = Font'RenXHud.Font.RadioCommand_Medium'; 
-//	if(CommandString != "") DrawDelimitedText(CommandString,"%",MiniCommandWindow_AnchorX*(Canvas.SizeX/1920.0) , MiniCommandWindow_AnchorY*(Canvas.SizeY/1080.0), true,BGColor,1.0,0.25, 0.60);
-//	
-//}
 
 function CloseOtherMenus()
 {
@@ -3107,7 +3030,8 @@ function ProcessFade (float DeltaTime)
 	Canvas.DrawRect(SizeX,SizeY);
 }
 
-function SetRadioCommandsClassic() {
+function SetRadioCommandsClassic()
+{
 	local int index;
 
 	// Populate Ctrl
@@ -3126,17 +3050,21 @@ function SetRadioCommandsClassic() {
 	}
 }
 
-function SetRadioCommandsDefault() {
+function SetRadioCommandsDefault()
+{
 	RadioCommandsCtrl = default.RadioCommandsCtrl;
 	RadioCommandsAlt = default.RadioCommandsAlt;
 	RadioCommandsCtrlAlt = default.RadioCommandsCtrlAlt;
 }
 
-function SetRadioCommandsCustom() {
+function SetRadioCommandsCustom()
+{
 	RadioCommandsCtrl = SystemSettingsHandler.RadioCommandsCtrl;
 	RadioCommandsAlt = SystemSettingsHandler.RadioCommandsAlt;
 	RadioCommandsCtrlAlt = SystemSettingsHandler.RadioCommandsCtrlAlt;
 }
+
+
 
 DefaultProperties
 {
@@ -3176,6 +3104,7 @@ DefaultProperties
 	CommandTextClass = class 'Rx_HUD_CTextComponent'
 	ScoreboardClass = class'Rx_GFxUIScoreboard'
 	//C_VisualsClass = class 'Rx_HUD_ObjectiveVisuals';
+	HUDVignetteClass = class'Rx_HUD_VignetteComponent'
 	
 	RxPauseMenuMovieClass = class'Rx_GFxPauseMenu'
 	
@@ -3183,7 +3112,6 @@ DefaultProperties
 	DrawTargetBox = true 
 	DrawPlayerNames = true 
 	DrawCaptureProgress = false
-	DrawDamageSystem = true 
 	DrawFlashHUD = true 
 	
 	ContextualMenuBackground = (Texture = Texture2D'RenxHud.Images.Rx_HUD_ContextualMenu', U= 134, V = 81, UL = 245, VL = 348); 
@@ -3202,10 +3130,10 @@ DefaultProperties
 	MiniCommandWindow_AnchorX	= 1220
 	MiniCommandWindow_AnchorY	= 970
 
-	Neutral_Recruit = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_Neutral_Recruit', U= 0, V = 0, UL = 64, VL = 64)
-	Neutral_Veteran = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_Neutral_Veteran', U= 0, V = 0, UL = 64, VL = 64)
-	Neutral_Elite = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_Neutral_Elite', U= 0, V = 0, UL = 64, VL = 64)
-	Neutral_Heroic = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_Neutral_Heroic', U= 0, V = 0, UL = 64, VL = 64)
+	VetRankIcons(0) = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_Neutral_Recruit', U= 0, V = 0, UL = 64, VL = 64)
+	VetRankIcons(1) = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_Neutral_Veteran', U= 0, V = 0, UL = 64, VL = 64)
+	VetRankIcons(2) = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_Neutral_Elite', U= 0, V = 0, UL = 64, VL = 64)
+	VetRankIcons(3) = (Texture = Texture2D'RenXTargetSystem.T_TargetSystem_Neutral_Heroic', U= 0, V = 0, UL = 64, VL = 64)
 
 	TestFontScale = 1.15
 	

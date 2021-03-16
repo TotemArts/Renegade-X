@@ -31,6 +31,11 @@ function enter(){
     ai.Pawn.PeripheralVision = -1.0;
 }
 
+simulated function vector GetTargetLocation(optional Actor RequestedBy, optional bool bRequestAlternateLoc)
+{
+    return (super.GetTargetLocation(RequestedBy,bRequestAlternateLoc) + vect(0,0,60));
+}
+
 
 DefaultProperties
 {

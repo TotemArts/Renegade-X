@@ -248,7 +248,7 @@ function Rx_Projectile InitiateProjectile(
 	return proj;
 }
 
-private simulated function float FGetSpread()
+simulated function float FGetSpread()
 {
 	return (2.f * FRand() - 1.0f) * ProjectileDirectionSpreadMulti;
 }

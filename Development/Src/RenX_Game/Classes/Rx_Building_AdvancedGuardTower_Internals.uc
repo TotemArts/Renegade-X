@@ -3,6 +3,9 @@ class Rx_Building_AdvancedGuardTower_Internals extends Rx_Building_Team_Internal
 var Rx_Sentinel_AGT_MG_Base turrets[4];
 var Rx_Sentinel_AGT_Rockets_Base rocketTurret;
 
+var class<Rx_Sentinel_AGT_MG_Base> MGSentinelClass;
+var class<Rx_Sentinel_AGT_Rockets_Base> RocketSentinelClass;
+
 var const name MissileBone;
 var const name MGBones[4];
 
@@ -20,11 +23,11 @@ function SetupDefences()
 	local int i;
 	//WorldInfo.Rotation
 	
-	turrets[0]          = Spawn(class'Rx_Sentinel_AGT_MG_Base',Self,,v,rot( 0,0,0 ),,true);
-	turrets[1]          = Spawn(class'Rx_Sentinel_AGT_MG_Base',Self,,v,rot( 0,0,0 ),,true);
-	turrets[2]          = Spawn(class'Rx_Sentinel_AGT_MG_Base',Self,,v,rot( 0,0,0 ),,true);
-	turrets[3]          = Spawn(class'Rx_Sentinel_AGT_MG_Base',Self,,v,rot( 0,0,0 ),,true); 
-	rocketTurret        = Spawn(class'Rx_Sentinel_AGT_Rockets_Base',,,v,rot( 0,0,0 ),,true);
+	turrets[0]          = Spawn(MGSentinelClass,Self,,v,rot( 0,0,0 ),,true);
+	turrets[1]          = Spawn(MGSentinelClass,Self,,v,rot( 0,0,0 ),,true);
+	turrets[2]          = Spawn(MGSentinelClass,Self,,v,rot( 0,0,0 ),,true);
+	turrets[3]          = Spawn(MGSentinelClass,Self,,v,rot( 0,0,0 ),,true); 
+	rocketTurret        = Spawn(RocketSentinelClass,,,v,rot( 0,0,0 ),,true);
 	rocketTurret.AgtLocation = self.Location;
 	rocketTurret.MyBuilding = BuildingVisuals; 
 	
@@ -141,6 +144,8 @@ DefaultProperties
 	MGBones[3]      = MG_04
 	TeamID          = TEAM_GDI
 
+	MGSentinelClass = class'Rx_Sentinel_AGT_MG_Base'
+	RocketSentinelClass = class'Rx_Sentinel_AGT_Rockets_Base'
 	
 	FriendlyBuildingSounds(BuildingDestroyed)           = SoundNodeWave'RX_EVA_VoiceClips.gdi_eva.S_EVA_GDI_AGT_Destroyed'
 	FriendlyBuildingSounds(BuildingUnderAttack)         = SoundNodeWave'RX_EVA_VoiceClips.gdi_eva.S_EVA_GDI_AGT_UnderAttack'

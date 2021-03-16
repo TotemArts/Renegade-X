@@ -283,11 +283,11 @@ DefaultProperties
 	/**Rx_BasicPawn characteristics**/
 	/********************************/
 
-	Health = 150
-	HealthMax = 150
-	bIsInvincible = false //By default these should not be what is being aimed at
+	Health = 1000
+	HealthMax = 1000
+	ArmorType = ARM_Heavy
 
-	ArmorType = ARM_Light
+	bIsInvincible = false //By default these should not be what is being aimed at
 
 	Physics = PHYS_Flying
 	DamageSmokeThreshold=0.25

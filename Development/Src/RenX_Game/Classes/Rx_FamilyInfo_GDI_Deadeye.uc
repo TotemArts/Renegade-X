@@ -16,6 +16,7 @@ DefaultProperties
 	/*PT Block Info*/
 	/*------------*/
 	bHighTier			= true
+	bIsSniper			= true
 	BasePurchaseCost	= 500
 	PT_Damage			= 5
 	PT_Range			= 6
@@ -40,7 +41,7 @@ DefaultProperties
 	*/
 
 	InvManagerClass = class'Rx_InventoryManager_GDI_Deadeye'
-	
+
 	/***********/
 	/*Veterancy*/
 	/***********/

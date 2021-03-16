@@ -54,6 +54,6 @@ DefaultProperties
 {
 	BroadcastMessageIndex = 24
 	BroadcastMessageAltIndex = 23
-	PickupSound = SoundCue'Rx_Pickups.Sounds.SC_Pickup_Armour'
+	PickupSound = SoundCue'Rx_Pickups.Sounds.SC_Crate_RadarSweep'
 }
 

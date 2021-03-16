@@ -53,6 +53,7 @@ var config bool bGameInfo;
 var config bool bTeamInfo;
 var config bool bPersonalInfo;
 var config bool bScorePanel;
+var config bool bDisablePTScene; // to stabilize fellows with problematic cores
 var config int RadioCommand;
 // custom radios (Handepsilon)
 var config array<int> RadioCommandsCtrl, RadioCommandsAlt, RadioCommandsCtrlAlt;
@@ -113,6 +114,7 @@ var() bool MotionBlur;
 /** (UBOOL) Whether to allow depth of field.*/
 var() bool DepthOfField;
 /** (UBOOL) Whether to allow ambient occlusion.*/
+var() bool ProjectileLights;
 var() bool AmbientOcclusion;
 /** (UBOOL) Whether to allow bloom. */
 var() bool Bloom;
@@ -581,9 +583,9 @@ final function ParseBoolSetting(string key, bool Value)
 		case "DirectionalLightmaps": if(DirectionalLightmaps != Value) DirectionalLightmaps = engine.GetSystemSettingBool(key); /*`log("DirectionalLightmaps"$DirectionalLightmaps);*/ break;
 		case "MotionBlur": if(MotionBlur != Value) MotionBlur = engine.GetSystemSettingBool(key); /*`log("MotionBlur"$MotionBlur);*/ break;
 		case "MotionBlurPause": if(MotionBlurPause != Value) MotionBlurPause = engine.GetSystemSettingBool(key); /*`log("MotionBlurPause"$MotionBlurPause);*/ break;
-		case "DepthOfField": if(DepthOfField != Value) DepthOfField = engine.GetSystemSettingBool(key); /*`log("DepthOfField"$DepthOfField);*/ break;
+		case "DepthOfField": if(ProjectileLights != Value) ProjectileLights = engine.GetSystemSettingBool(key); /*`log("DepthOfField"$DepthOfField);*/ break;
 		case "AmbientOcclusion": if(AmbientOcclusion != Value) AmbientOcclusion = engine.GetSystemSettingBool(key); /*`log("AmbientOcclusion"$AmbientOcclusion);*/ break;
-		case "Bloom": if(Bloom != Value) Bloom = engine.GetSystemSettingBool(key); /*`log("Bloom"$Bloom);*/ break;
+		case "Bloom": if(ProjectileLights != Value) ProjectileLights = engine.GetSystemSettingBool(key); /*`log("Bloom"$Bloom);*/ break;
 		case "UseHighQualityBloom": if(UseHighQualityBloom != Value) UseHighQualityBloom = engine.GetSystemSettingBool(key); /*`log("UseHighQualityBloom"$UseHighQualityBloom);*/ break;
 		case "Distortion": if(Distortion != Value) Distortion = engine.GetSystemSettingBool(key); /*`log("Distortion"$Distortion);*/ break;
 		case "FilteredDistortion": if(FilteredDistortion != Value) FilteredDistortion = engine.GetSystemSettingBool(key); /*`log("FilteredDistortion"$FilteredDistortion);*/ break;
@@ -709,15 +711,15 @@ final function ParseNumericalSetting(string key, string Value)
 */
 final function array<string> GetAvailableResolutions()
 {
-	local string tempResolutionList;
-	local array<string> ResolutionList;
-	local byte i,j;
+	local string tempResolutionList, lastResolution;
+	local array<string> ResolutionList, TrueResolutionList;
+	local byte i;
 
 	tempResolutionList = PC.ConsoleCommand("DUMPAVAILABLERESOLUTIONS",false);
 	ParseStringIntoArray(tempResolutionList, ResolutionList,"\n",true);
 
 	//now to remove the duplicates
-
+/*
 	for (i=0; i < ResolutionList.Length; i++) {
 		for (j=ResolutionList.Length - 1; j > i; j--) {
 			if (ResolutionList[j] != ResolutionList[i]) {
@@ -729,9 +731,20 @@ final function array<string> GetAvailableResolutions()
 			ResolutionList.Remove(j,1);
 		}
 	}
+*/
 
+	// A crash was reported on a player that has a lot of duplicates
 
-	return ResolutionList;
+	for (i=0; i<ResolutionList.Length; i++)
+	{
+		if(ResolutionList[i] == LastResolution)
+			continue;
+
+		TrueResolutionList.AddItem(ResolutionList[i]);
+		LastResolution = ResolutionList[i];
+	}
+
+	return TrueResolutionList;
 }
 final function bool IsFullScreen()
 {
@@ -1108,9 +1121,7 @@ final function SetDepthOfField(bool Value)
 {
     if (PC == none)
        return;
-    DepthOfField = Value;
-    PC.ConsoleCommand("SCALE SET DepthOfField "$Value);
-     
+    ProjectileLights = Value;     
 }
 final function SetMotionBlurPause(bool Value)
 {
@@ -1157,9 +1168,8 @@ final function SetBloom(bool Value)
 {
     if (PC == none)
        return;
-    Bloom = Value;
-    PC.ConsoleCommand("SCALE SET Bloom "$Value);
-     
+
+    ProjectileLights = Value;    
 }
 final function SetUseHighQualityBloom(bool Value)
 {

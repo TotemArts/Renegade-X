@@ -66,14 +66,15 @@ function RefreshAttachedWeapons()
 	local class<Rx_FamilyInfo> finfo;
 	
 	finfo = class<Rx_FamilyInfo>(CurrCharClassInfo);
-	
-	RefreshPrimaryAttachedWeapon(finfo.default.InvManagerClass);
 
+	RefreshPrimaryAttachedWeapon(finfo.default.InvManagerClass);
+	
 	// get back weapons
-	finfo.default.InvManagerClass.static.GetStartingHiddenWeaponAttachmentClasses(finfo.default.InvManagerClass, 
-		CurrentBackWeapons);
+	finfo.default.InvManagerClass.static.GetStartingHiddenWeaponAttachmentClasses(finfo.default.InvManagerClass, CurrentBackWeapons);
 
 	RefreshBackWeaponComponents();
+	SetHandIKEnabled(true);
+	bTickHandIK = true;
 }
 
 function RefreshPrimaryAttachedWeapon(class<Rx_InventoryManager> imclass)
@@ -214,7 +215,122 @@ simulated event Destroyed()
 	super.Destroyed();
 }
 
+simulated function Tick(float DeltaTime)
+{
+	super.Tick(DeltaTime);
+
+	TickHandIK(DeltaTime);
+}
+
 simulated function UpdateRunSpeedNode() ;
+
+simulated function TickHandIK(float DeltaTime)
+{
+	local vector LeftHandVec;
+	local rotator TempRot, NoRot;
+	local class<Rx_Weapon> PawnWeapon;
+	local class<Rx_FamilyInfo> finfo;
+	
+	finfo = class<Rx_FamilyInfo>(CurrCharClassInfo);
+	
+	NoRot.Pitch = 0;
+	NoRot.Yaw = 0;
+	NoRot.Roll = 0;
+	
+	if (finfo != None) 
+		PawnWeapon = finfo.default.InvManagerClass.default.PrimaryWeapons[0]; 
+	
+	if(PawnWeapon == none || PrimaryAttachedWeapon == none || PrimaryWeaponAttachmentClass == None)
+	{
+		SetHandIKEnabled(false);
+		ResetHandIKVectorRotator();
+		return;
+	}
+	
+	if(PawnWeapon.default.bByPassHandIK == false)
+	{						
+		if (LeftHandIK_SB != None)
+		{
+			PrimaryAttachedWeapon.GetSocketWorldLocationAndRotation((PrimaryWeaponAttachmentClass.default.LeftHandIKSocket),LeftHandVec, TempRot, 1);
+	
+			if (PrimaryAttachedWeapon.GetSocketByName(PrimaryWeaponAttachmentClass.default.LeftHandIKSocket) != None)
+			{
+				LeftHandIK_SB.bAddTranslation = false;
+				SetHandIKEnabled(true);
+		
+				if (!IsRelaxed)
+					LeftHandIK_SB.BoneTranslation = LeftHandVec + PawnWeapon.default.LeftHandIK_Offset;
+				else
+				{
+					if (PawnWeapon.default.bUseHandIKWhenRelax)
+					{
+						LeftHandIK_SB.bAddTranslation = false;
+						SetHandIKEnabled(true);
+						LeftHandIK_SB.BoneTranslation = LeftHandVec + PawnWeapon.default.LeftHandIK_Relaxed_Offset;
+					}
+					else
+					{
+						LeftHandIK_SB.bAddTranslation = True;
+						SetHandIKEnabled(false);
+						LeftHandIK_SB.BoneTranslation = PawnWeapon.default.LeftHandIK_Relaxed_Offset;
+					}
+				}
+			}
+			else
+			{
+				LeftHandIK_SB.bAddTranslation = True;
+				SetHandIKEnabled(false);
+			
+				if (!IsRelaxed)
+					LeftHandIK_SB.BoneTranslation = PawnWeapon.default.LeftHandIK_Offset;
+				else
+					LeftHandIK_SB.BoneTranslation = PawnWeapon.default.LeftHandIK_Relaxed_Offset;
+			}
+		}
+		if (LeftHandIK_SBR != None)
+		{
+			if (!IsRelaxed)
+				LeftHandIK_SBR.BoneRotation = PawnWeapon.default.LeftHandIK_Rotation;
+			else
+				LeftHandIK_SBR.BoneRotation = PawnWeapon.default.LeftHandIK_Relaxed_Rotation;
+		}
+		if (RightHandIK_SB != None)
+		{
+			if (!IsRelaxed)
+				RightHandIK_SB.BoneTranslation = PawnWeapon.default.RightHandIK_Offset;
+			else
+				RightHandIK_SB.BoneTranslation = PawnWeapon.default.RightHandIK_Relaxed_Offset;
+		}
+		if (RightHandIK_SBR != None)
+		{
+			if (IsRelaxed)
+				RightHandIK_SBR.BoneRotation = PawnWeapon.default.RightHandIK_Relaxed_Rotation;
+			else
+			{
+				RightHandIK_SBR.BoneRotation = NoRot;
+			}
+		}
+		
+		if (LeftHandOverride != None)
+		{
+			if (PawnWeapon.default.bOverrideLeftHandAnim)
+			{
+				LeftHandOverride.SetBlendTarget(1.0, 0.f);
+				LeftHandAnimName.SetAnim(PawnWeapon.default.LeftHandAnim);
+			}
+			else
+			{
+				LeftHandOverride.SetBlendTarget(0.0, 0.f);
+				LeftHandAnimName.SetAnim(PawnWeapon.default.LeftHandAnim);
+			}
+		}
+	}
+	else
+	{
+		SetHandIKEnabled(false);
+		ResetHandIKVectorRotator();
+	}
+}
 
 DefaultProperties
 {
@@ -223,6 +339,7 @@ DefaultProperties
 	End Object
 
 	bIsPtPawn=true
+	IsRelaxed = true // the pose is always relaxed so... just set this to true
 
 	RemoteRole=ROLE_None
 }

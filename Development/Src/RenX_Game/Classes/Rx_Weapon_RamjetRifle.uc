@@ -205,4 +205,10 @@ defaultproperties
 	bPierceVehicles = false
 	MaximumPiercingAbility  = 32
 	CurrentPiercingPower	= 32
+
+	IronSightViewOffset=(X=4,Y=-6.45,Z=0.0)
+
+    ZoomRecoilMaxIntensity = 0.45
+    ZoomRecoilRecoveryRate = 5
+    ZoomRecoilRate = 90
 }

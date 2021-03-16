@@ -158,9 +158,60 @@ function bool IsActorInView (actor inActor, optional bool IgnoreTrace = false)
 	else return true;
 }
 
+// as a bit of extension, when actor is not in play or you need to take a bit of offset...
+
+function bool IsLocationInView (vector inVector, optional bool IgnoreTrace = false)
+{
+	local Vector screenCoords;
+	local Vector2D screenCoords2d;
+	local Vector canvasOrigin, acotrDir;
+
+	screenCoords = Canvas.Project(inVector);
+
+	if (screenCoords.X > Canvas.SizeX || screenCoords.X < 0 ||
+		screenCoords.Y > Canvas.SizeY || screenCoords.Y < 0 ||
+		screenCoords.Z <= 0)
+	{
+		return false; // location is not onscreen.
+	}
+	else if (!IgnoreTrace) // location is onscreen
+	{
+		screenCoords2d.X = screenCoords.X; 
+		screenCoords2d.Y = screenCoords.Y;
+		Canvas.DeProject(screenCoords2d,canvasOrigin,acotrDir);
+
+		return (RenxHud.PlayerOwner.FastTrace(canvasOrigin,inVector,,true));
+	}
+	else return true;
+}
+
 function Draw()
 {
 
+}
+
+function float GetAlphaForDistance(float distance, float maxDistance, optional float maxAlphaPercentage = 0.8)
+{
+	local float Alpha, maxAlphaDist;
+
+	if (distance <maxDistance)
+	{
+		maxAlphaDist = maxDistance * maxAlphaPercentage;
+		if(distance >= maxAlphaDist)
+		{
+			Alpha = FMin((maxDistance - distance) / (maxDistance - maxAlphaDist), 1.f);
+
+			return Alpha;
+		}
+		else return 1.f;
+	}
+	
+	return 0.f;
+}
+
+function float GetResolutionModifier()
+{
+	return FMax(0.75,RenXHud.ViewportSize.Y / 1080);
 }
 
 DefaultProperties

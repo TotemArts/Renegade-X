@@ -20,7 +20,8 @@ class Rx_Building extends Actor
 	abstract
 	ClassGroup(Buildings)
 	implements(RxIfc_SpotMarker)
-	implements(RxIfc_EMPable);
+	implements(RxIfc_EMPable)
+	implements(RxIfc_Targetable);
 
 /** Team Numbers in handy ENUM form */
 enum TEAM
@@ -50,10 +51,14 @@ var(RenX_Buildings) int                         HealthMax;                // Max
 var(RenX_Buildings) bool                        bBuildingDebug;         // Set to true to enable Debug Logging
 var(RenX_Buildings) const BuildingType myBuildingType;
 
-var class<Rx_Building_Internals>          BuildingInternalsClass; // Class of the internals that needs spawned
+var(RenX_Buildings) class<Rx_Building_Internals>          BuildingInternalsClass; // Class of the internals that needs spawned
 var repnotify Rx_Building_Internals             BuildingInternals;      // Instance of the internals that handles the logic like TakeDamage and the like
 var(RenX_Buildings) bool bSignificant;									// Whether or not this building counts as victory condition and is shown in HUD
+var(RenX_Buildings) bool bTriggerUnderAttack;							// Whether or not this building still announces under attack messages when bSignificant is false
 
+var(RenX_Buildings) int MineLimit; 							// How many mines this building can have in it
+var int MinesOnMeCount;													// How many mines are currently on this building
+var array<Rx_Weapon_DeployedProxyC4> MinesOnMe;
 
 var(BuildingLights) array<PointLightComponent>  PointLightComponents;   // Point lights for the pre setup lighting
 var(BuildingLights) array<SpotLightComponent>   SpotLightComponents;    // Spot lights for the PT's and MCT's for pre setup lighting
@@ -66,7 +71,6 @@ var() StaticMeshComponent StaticInterior;
 var() StaticMeshComponent StaticInteriorComplex;
 var() StaticMeshComponent PTScreens;
 
-
 var() Array<NavigationPoint> ViableAttackPoints;
 
 var(RenX_Buildings) Texture IconTexture;
@@ -77,10 +81,10 @@ var string NodColor, GDIColor, HostColor, ArmourColor, NeutralColor;
 replication
 {
 	if( bNetInitial && Role == ROLE_Authority )
-		IconTexture;
+		IconTexture, MineLimit, bSignificant, bTriggerUnderAttack;
 
 	if( bNetDirty && Role == ROLE_Authority )
-		BuildingInternals;
+		BuildingInternals, MinesOnMeCount, TeamID;
 }
 
 simulated event ReplicatedEvent(name VarName)
@@ -131,29 +135,19 @@ simulated function byte GetBuildingType()
 
 function PostBeginPlay()
 {
+	BuildingInternals = spawn(BuildingInternalsClass, self, BuildingInternalsClass.Name, Location, Rotation);
 
-
-
-	BuildingInternals = spawn(BuildingInternalsClass,self,BuildingInternalsClass.Name,Location,Rotation);
-
-	
-	if ( BuildingInternals != none && (WorldInfo.NetMode == NM_StandAlone || WorldInfo.NetMode == NM_DedicatedServer || WorldInfo.NetMode == NM_ListenServer))
+	if ( BuildingInternals != none 
+		&& ( WorldInfo.NetMode == NM_StandAlone 
+			|| WorldInfo.NetMode == NM_DedicatedServer 
+			|| WorldInfo.NetMode == NM_ListenServer)
+	)
 	{
-		BuildingInternals.Init(self,bBuildingDebug);
+		BuildingInternals.Init(self, bBuildingDebug);
 	}
 
-	
-
-	
-	/**
-	else
-	{
-		`log("CRITICAL ERROR: Building Internals ("$BuildingInternalsClass.default.Class$") did not spawn for"@self.Class$".",,'Buildings');
-	}
-	*/
 	if(Role == ROLE_Authority)
 		GetAttackPoints();
-	
 }
 
 simulated function TickBuilding(float DeltaTime)
@@ -292,11 +286,10 @@ simulated function int GetArmorPct()
 
 simulated function string GetBuildingName()
 {	
-	if(BuildingInternals != None)
+	if (BuildingInternals != None)
 		return BuildingInternals.GetBuildingName();
-	else 
-		return GetBuildingName(); 
 			
+	else return "";
 }
 
 simulated function bool IsDestroyed()
@@ -306,24 +299,34 @@ simulated function bool IsDestroyed()
 	else return false;
 }
 
+simulated function bool IsEligibleSpottingMarker()
+{
+	return true;
+}
+
 simulated function String GetSpotName()
 {
 	local String TeamColor;
 
 	if(GetTeamNum() == 0)
 	{
-		TeamColor = GDIColor;
+		TeamColor = Rx_HUD(GetALocalPlayerController().myHUD).default.GDIColor;
 	}
 	else if(GetTeamNum() == 1)
 	{
-		TeamColor = NodColor;
+		TeamColor = Rx_HUD(GetALocalPlayerController().myHUD).default.NodColor;
 	}
 	else
 	{
-		TeamColor = NeutralColor;
+		TeamColor = Rx_HUD(GetALocalPlayerController().myHUD).default.NeutralColor;
 	}
 
 	return "<font color='"$TeamColor$"'>"$GetHumanReadableName()$"</font>";
+}
+
+simulated function string GetNonHTMLSpotName()
+{
+	return GetHumanReadableName();
 }
 
 /*
@@ -332,6 +335,22 @@ simulated function vector GetTargetLocation(optional actor RequestedBy, optional
 	return super.GetTargetLocation(RequestedBy,bRequestAlternateLoc) + vect(0,0,200);
 }
 */
+
+function AddMine(Rx_Weapon_DeployedProxyC4 Mine)
+{
+	local Rx_Weapon_DeployedProxyC4 M;
+
+	MinesOnMe.AddItem(Mine);
+
+	if (MinesOnMe.Length > MineLimit)
+	{
+		M = MinesOnMe[0];
+		MinesOnMe.Remove(0, 1);
+		M.Destroy();
+	}
+
+	MinesOnMeCount = MinesOnMe.Length;
+}
 
 function RemoveMyMines(Rx_Controller Control)
 {
@@ -342,8 +361,16 @@ function RemoveMyMines(Rx_Controller Control)
 	
 	foreach AllActors(class'Rx_Weapon_DeployedProxyC4', Proxies)
 	{
-		if(Proxies.Base == self && Proxies.GetTeamNum() == TeamByte ) Proxies.TakeDamage(500, Control, vect(0,0,0), vect(0,0,0), class'Rx_DmgType_EMP') ; 
+		if (Proxies.Base == self && Proxies.GetTeamNum() == TeamByte ) Proxies.TakeDamage(500, Control, vect(0,0,0), vect(0,0,0), class'Rx_DmgType_EMP') ; 
 	}
+
+	MinesOnMeCount = 0;
+}
+
+function RemoveMine(Rx_Weapon_DeployedProxyC4 mine)
+{
+	MinesOnMe.RemoveItem(mine);
+	MinesOnMeCount = MinesOnMe.Length;
 }
 
 function GetAttackPoints()
@@ -480,6 +507,59 @@ function bool ShouldCreateUnlistedBO()
 	return myObjective == None;
 }
 
+/*-------------------------------------------*/
+/*BEGIN TARGET INTERFACE [RxIfc_Targetable]*/
+/*------------------------------------------*/
+//Health
+simulated function int GetTargetHealth() {return GetHealth();} //Return the current health of this target
+simulated function int GetTargetHealthMax() {return GetMaxHealth();} //Return the current health of this target
+
+//Armour 
+simulated function int GetTargetArmour() {return GetArmor();} // Get the current Armour of the target
+simulated function int GetTargetArmourMax() {return GetMaxArmor();} // Get the current Armour of the target 
+// Veterancy
+
+simulated function int GetVRank() {return 0;}
+
+/*Get Health/Armour Percents*/
+simulated function float GetTargetHealthPct() {return float(GetHealth()) / max(1,float(GetTrueMaxHealth()));}
+simulated function float GetTargetArmourPct() {return float(GetArmor()) / max(1,float(GetMaxArmor()));}
+simulated function float GetTargetMaxHealthPct() {return 1.0f;} //Everything together (Basically Health and armour)
+
+/*Get what we're actually looking at*/
+simulated function Actor GetActualTarget() {return self;} //Should return 'self' most of the time, save for things that should return something else (like building internals should return the actual building)
+
+/*Booleans*/
+simulated function bool GetUseBuildingArmour(){return true;} //Stupid legacy function to determine if we use building armour when drawing. 
+simulated function bool GetShouldShowHealth(){return true;} //If we need to draw health on this 
+simulated function bool AlwaysTargetable() {return false;} //Targetable no matter what range they're at
+simulated function bool GetIsInteractable(PlayerController PC) {return false;} //Are we ever interactable?
+simulated function bool GetCurrentlyInteractable(PlayerController RxPC) {return false;} //Are we interactable right now? 
+simulated function bool GetIsValidLocalTarget(Controller PC) {return true;} //Are we a valid target for our local playercontroller?  (Buildings are always valid to look at (maybe stealthed buildings aren't?))
+simulated function bool HasDestroyedState() {return true;} //Do we have a destroyed state where we won't have health, but can't come back? (Buildings in particular have this)
+simulated function bool UseDefaultBBox() {return true;} //We're big AF so don't use our bounding box 
+simulated function bool IsStickyTarget() {return false;} //Does our target box 'stick' even after we're untargeted for awhile 
+simulated function bool HasVeterancy() {return false;}
+
+//Spotting
+simulated function bool IsSpottable() {return true;}
+simulated function bool IsCommandSpottable() {return false;} 
+
+simulated function bool IsSpyTarget(){return false;} //Do we use spy mechanics? IE: our bounding box will show up friendly to the enemy [.... There are no spy Refineries...... Or are there?]
+
+/* Text related */
+
+simulated function string GetTargetName() {return GetBuildingName();} //Get our targeted name 
+simulated function string GetInteractText(Controller C, string BindKey) {return "";} //Get the text for our interaction 
+simulated function string GetTargetedDescription(PlayerController PlayerPerspectiv) {return "";} //Get any special description we might have when targeted 
+
+//Actions
+simulated function SetTargeted(bool bTargeted) ; //Function to say what to do when you're targeted client-side 
+
+/*----------------------------------------*/
+/*END TARGET INTERFACE [RxIfc_Targetable]*/
+/*---------------------------------------*/
+
 defaultproperties
 {
 	/***************************************************/
@@ -499,6 +579,8 @@ defaultproperties
 	bOnlyDirtyReplication = True
 	
 	NetUpdateFrequency=10.0
+
+	bEdShouldSnap=true
 
 
 	HealthMax           = 4000
@@ -967,10 +1049,6 @@ defaultproperties
 
 	IconTexture=Texture2D'RenxHud.T_BuildingIcon_RepairPad_Normal'
 
-	NeutralColor		= "#00FF00"
-	NodColor            = "#FF0000"
-	GDIColor            = "#FFC600"
-	HostColor           = "#22BBFF"
 	ArmourColor         = "#05DAFD"
 
 }

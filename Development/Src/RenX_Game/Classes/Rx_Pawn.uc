@@ -4,13 +4,13 @@
  * */
 class Rx_Pawn extends UTPawn
 	implements (RxIfc_ClientSideInstantHitRadius)
-	implements (RxIfc_TargetedCustomName)
-	implements(RxIfc_TargetedDescription)
+	//implements (RxIfc_TargetedCustomName)
+	implements(RxIfc_Targetable)
 	implements(RxIfc_RadarMarker)
 	implements (RxIfc_PassiveAbility);
 
 `include(RenX_Game\RenXStats.uci);
-	
+
 /** one1: added */
 var float CameraSmoothZOffset;
 
@@ -134,6 +134,8 @@ var repnotify float       SpeedUpgradeMultiplier;
 var float		SpeedUpgradeMultiplier_NonReplicated; //Used Explicitly for 
 var float 		JumpHeightMultiplier; 
 var float			SprintDodgeSpeed;
+
+var float 		CheatSpeedMult;
 
 //Dodging
 var string 				DodgeNodeName;
@@ -345,36 +347,42 @@ var bool bWasSprintingBeforeDodge; //Were we sprinting before we started dodging
 
 var vector DodgeCameraOffset; 
 var float  DodgeCameraZOffset;
+var float SprintCameraZOffset; 
 
 var float CrouchCameraZOffset; 
 
 var bool  bCanSuicide; //Can we take the ultimate way out?
+
+var bool bUsingStealthOverlay; 
+var bool bHasArmOverlay;
+
+var UDKSkeletalMeshComponent ArmsOverlayMesh[2]; 
+
+var bool bTargetable; //Replicated variable holding whether we're possibly not targetable for any reason [IE smoke/stealth]
 
 //-----------------------------------------------------------------------------
 // Pawn control
 //-----------------------------------------------------------------------------
 replication
 {
-	if ( bNetDirty)
+	if (bNetDirty)
 		Armor, ArmorMax, CurrentBackWeapons, AirstrikeLocation, SpeedUpgradeMultiplier, Armor_Type, JumpHeightMultiplier, bIsTarget, 
-		VRank, RadarVisibility, bSpotted, bFocused, ReplicatedVoice; //PassiveAbility should be under !bNetOwner 
-	if ( bNetDirty && (!bNetOwner || bDemoRecording))
+		VRank, RadarVisibility, bSpotted, bFocused, ReplicatedVoice, SprintSpeed; //PassiveAbility should be under !bNetOwner 
+	if (bNetDirty && (!bNetOwner || bDemoRecording))
 		bDoingDodge, ReloadAnim, BoltReloadAnim, ParachuteDeployed, bRepairing, bBeaconDeployAnimating, UISymbol, bSprintingServer; //bBlinkingName
 	
 	if( !bNetOwner && (bNetDirty || bNetInitial))
-		PassiveAbilityHandler; //PassiveAbilityAttachmentClass, bPassiveActive; 
+		PassiveAbilityHandler, bTargetable; //PassiveAbilityAttachmentClass, bPassiveActive; 
 	
 	// Only replicate if our current weapon is a shotgun. Otherwise this is irrelivant.
-	if ( bNetDirty && (!bNetOwner || bDemoRecording) && RemoteRole == ROLE_SimulatedProxy && Rx_Weapon_Shotgun(Weapon) != none)
+	if (bNetDirty && (!bNetOwner || bDemoRecording) && RemoteRole == ROLE_SimulatedProxy && Rx_Weapon_Shotgun(Weapon) != none)
 		ShotgunPelletHitLocations;
-	if ( bNetDirty && bDemoRecording )
+	if (bNetDirty && bDemoRecording)
 		HitEnemyForDemorec, HitEnemyWithHeadshotForDemoRec;		
 }
 
-
 simulated event PreBeginPlay()
 {
-	
 	// important that this comes before Super so mutators can modify it
 	if (ArmorMax == 0)
 	{
@@ -410,6 +418,8 @@ simulated function PostBeginPlay()
 		//SetTimer(2.0,true,'TestVisAct');
 	}	
 		SetTimer(SpotUpdateTime,true,'UpdateSpotLocation');
+		//SetTimer(0.5, true, 'LogVelocity');
+	
 }
 
 //set shadow frustum scale (nBab)
@@ -432,6 +442,11 @@ function CheckLoc()
 
 function UpdatePRILocation()
 {
+	if(Controller == None || Controller.PlayerReplicationInfo == None)
+		return;
+	if(Rx_PRI(Controller.PlayerReplicationInfo) == None)
+		return;
+		
 	//`log("Update Location"); 
 	if(Controller != none && DrivenVehicle == none)
 		Rx_PRI(Controller.PlayerReplicationInfo).UpdatePawnLocation(location,rotation,velocity); 
@@ -539,6 +554,10 @@ simulated event ReplicatedEvent(name VarName)
 		else 
 		{
 			TopHalfAnimSlot.StopCustomAnim(1.0);
+			
+			if(bSprinting)
+				Relax(true);
+			
 			SetHandIKEnabled(true);
 			ResetHandIKVectorRotator();
 			bTickHandIK = true; 
@@ -554,6 +573,10 @@ simulated event ReplicatedEvent(name VarName)
 		else 
 		{
 			TopHalfAnimSlot.StopCustomAnim(1.0);
+			
+			if(bSprinting)
+				Relax(true);
+			
 			SetHandIKEnabled(true);
 			ResetHandIKVectorRotator();
 			bTickHandIK = true; 
@@ -668,7 +691,7 @@ simulated function RefreshBackWeaponComponents()
 			if (CurrentBackWeaponComponents[i] != none)
 			{
 				Mesh.DetachComponent(CurrentBackWeaponComponents[i]);
-				DetachComponent(CurrentBackWeaponComponents[i]);
+			DetachComponent(CurrentBackWeaponComponents[i]);
 				CurrentBackWeaponComponents[i] = none;
 			}
 
@@ -693,7 +716,10 @@ simulated function RefreshBackWeaponComponents()
 		CurrentBackWeaponComponents[i].SetLightEnvironment(LightEnvironment);
 		AttachComponent(CurrentBackWeaponComponents[i]);
 		Mesh.AttachComponentToSocket(CurrentBackWeaponComponents[i], BackWeaponSocketNames[i]);
+		CurrentBackWeaponComponents[i].UpdateMaterials(GetTeamNum());
 	}
+	
+	NotifyPassivesBackWeaponAttachmentChanged(); 
 }
 
 
@@ -714,6 +740,8 @@ simulated event Destroyed()
 		}
 	}
 
+	NotifyPassivesDied();
+	
 	// Clear blend weight references
 	ParachuteLeftTurnWeight = none;
 	ParachuteRightTurnWeight = none;
@@ -825,7 +853,10 @@ function DoBleed()
 	for (i=0; i<Bleeds.Length; i++)
 	{
 		bCalculatingBleedDamage = true;
-		self.TakeDamage(Bleeds[i].Damage, Bleeds[i].EventInstigator, vect(0,0,0), vect(0,0,0), Bleeds[i].Type,,self);
+
+		if (Controller != None)
+			TakeDamage(Bleeds[i].Damage, Bleeds[i].EventInstigator, vect(0,0,0), vect(0,0,0), Bleeds[i].Type,,self);
+
 		bCalculatingBleedDamage = false;
 		Bleeds[i].Count--;
 		if (Bleeds[i].Count == 0)
@@ -849,6 +880,21 @@ function bool GiveArmor(int ArmorAmount)
 	return false;
 }
 
+function PerformRefill() {
+	Health = HealthMax;
+	DamageRate = 0;
+	Armor  = ArmorMax;
+	ClientSetStamina(MaxStamina);
+	Bleeds.Remove(0, Bleeds.Length);
+	
+	NotifyHealedDamage(100, class'Rx_DmgType_Refill');
+	
+	if(Rx_InventoryManager(InvManager) != none )
+    {
+		Rx_InventoryManager(InvManager).PerformWeaponRefill();
+    }
+}
+
 event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)
 {
 	local int ActualDamage;
@@ -870,8 +916,9 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 	local Rx_PRI InstigatorPRI; 
 	local Controller DefenseOwner;
 	
+	
+	//`log("Took Damage unadjusted damage" @ Damage);
 	//ScriptTrace(); 
-		
 		
 	if(EventInstigator != none && !ValidRotation(EventInstigator, DamageCauser)) {
 		return;	
@@ -940,6 +987,19 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 	// call Actor's version to handle any SeqEvent_TakeDamage for scripting
 	Super(Actor).TakeDamage(ActualDamage, EventInstigator, HitLocation, Momentum, DamageType, HitInfo, DamageCauser);
 
+	//Modifiers are in place, so check if this should heal us before going any further?
+	if(GetRxFamilyInfo().static.IsHealingDmgType(DamageType))
+	{
+		bHeadshot = false;
+		
+		if(EventInstigator == none)
+			EventInstigator = Controller; //Just nullify it and say it came from yourself 
+		
+		HealDamage(ActualDamage, EventInstigator,DamageType);
+		
+		return;
+	}
+	
 	// FIXME:: Need to tweak damage and count (maybe even specify in the DamageType)
 	if (ClassIsChildOf(DamageType, class'Rx_DmgType_Special'))
 	{
@@ -1111,6 +1171,7 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 		}			
 		
 		PlayVoiceSound('Death', true) ;
+		NotifyPassivesDied(); //Let passives clean themselves up first
 		Died(Killer, DamageType, HitLocation);
 		SetRadarVisibility(0); 
 		ClearPassiveAbilities();
@@ -1125,8 +1186,9 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 		}
 		if ( EventInstigator != None && EventInstigator != controller )
 		{
-			
-			LastHitBy = EventInstigator;
+			if (EventInstigator.GetTeamNum() != Controller.GetTeamNum())			
+				LastHitBy = EventInstigator;
+
 			if(isTimerActive('ResetLastHit')) ClearTimer('ResetLastHit');
 			SetTimer(10.0, false, 'ResetLastHit'); 
 		}
@@ -1162,9 +1224,12 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 	{
 		if(EventInstigator.GetTeamNum() != GetTeamNum() && bTakingDamage && bCanHitReact && DrivenVehicle == none && Health > 0) 
 			PlayVoiceSound('Damage', true) ;
+
+		if (EventInstigator.IsA('Rx_SentinelController'))
+			LegitamateDamage+=ActualDamage;
 		
 		// add score (or sub, if bIsFriendlyFire is on)
-		if(!EventInstigator.IsA('SentinelController') && EventInstigator.PlayerReplicationInfo != None)
+		if(!EventInstigator.IsA('Rx_SentinelController') && EventInstigator.PlayerReplicationInfo != None)
 		{
 			ScoreDamage = ActualDamage;
 			if(Health < 0)
@@ -1249,7 +1314,7 @@ event TakeDamage(int Damage, Controller EventInstigator, vector HitLocation, vec
 
 function bool CanTakeZeroDmgFromSource(Controller EventInstigator)
 {
-	if(GetTeamNum() == EventInstigator.GetTeamNum()) // Prevent friendlies to be able to damage each others
+	if(EventInstigator != None && GetTeamNum() == EventInstigator.GetTeamNum()) // Prevent friendlies to be able to damage each others
 		return true;
 
 	if(Rx_Bot_Scripted(Controller) != None) // Scripted bot might be invulnerable to damage, so allow it
@@ -1666,24 +1731,12 @@ function bool NearEnemyBeacon()
 
 function bool IsSniper()
 {
-	local class<Rx_FamilyInfo> Fam; 
-	
-	Fam=GetRxFamilyInfo();
-	
-	if(Fam == class'Rx_FamilyInfo_GDI_Deadeye' || Fam == class'Rx_FamilyInfo_GDI_Havoc' || Fam == class'Rx_FamilyInfo_Nod_BlackHandSniper' || Fam == class'Rx_FamilyInfo_Nod_Sakura') return true; 
-	else
-	return false; 
+	return (GetRxFamilyInfo().static.IsSniper()); 
 }
 
 function bool IsInfiltrator()
 {
-	local class<Rx_FamilyInfo> Fam; 
-	
-	Fam=GetRxFamilyInfo();
-	
-	if(Fam == class'Rx_FamilyInfo_GDI_Hotwire' || Fam == class'Rx_FamilyInfo_GDI_Engineer' || Fam == class'Rx_FamilyInfo_Nod_Engineer' || Fam == class'Rx_FamilyInfo_Nod_Technician' || Fam == class'Rx_FamilyInfo_Nod_StealthBlackHand') return true; 
-	else
-	return false; 
+	return (GetRxFamilyInfo().static.IsEngi() || GetRxFamilyInfo().static.IsStealthUnit()); 
 }
 
 function bool IHaveABeacon()
@@ -1697,11 +1750,6 @@ function bool IHaveABeacon()
 		if(MyWeapon.isA('Rx_Weapon_Beacon')) return true; 
 	}
 	return false; 
-}
-
-function int GetVRank()
-{
-	return VRank; 
 }
 
 function bool WasSniper (Controller C)
@@ -1729,26 +1777,28 @@ function bool Died(Controller Killer, class<DamageType> damageType, vector HitLo
 	local Rx_CapturePoint CP;
 	local Rx_Volume_CaptureArea VCA;
 	local byte WasTeam;
+	local Rx_PRI PRI;
 	//local Rx_ORI ORI; 
 	
 	WasTeam = GetTeamNum();
+
+	PRI = Rx_PRI(PlayerReplicationInfo);
 	
-	if(Rx_Controller(Controller) != None)
+	if (Rx_Controller(Controller) != None)
 	{
 		Rx_Controller(Controller).RemoveAllEffects();
 	}
-	else
-	if(Rx_Bot(Controller) != None)
+	else if (Rx_Bot(Controller) != None)
 	{
 		Rx_Bot(Controller).RemoveAllEffects();
 	}
 	//Notify ORI that this target was destroyed [Deprecated]
 	//if(ORI != none && bIsTarget) ORI.NotifyTargetKilled(self); 
 
-	if(PlayerReplicationInfo != none)
+	if (PRI != none)
 	{
-		Rx_PRI(PlayerReplicationInfo).SetIsSpy(false);
-		Rx_PRI(PlayerReplicationInfo).SetTargetEliminated(1); 
+		PRI.SetIsSpy(false);
+		PRI.SetTargetEliminated(1);
 	}
 
 	//Don't awkwardly continue regenerating health on your dead body.... 
@@ -1779,6 +1829,15 @@ function bool Died(Controller Killer, class<DamageType> damageType, vector HitLo
 			
 			if(CP != None)
 				CP.NotifyPawnDied(self, WasTeam);
+		}
+		
+		if(ArmsOverlayMesh[0] != none)
+		{
+			ArmsOverlayMesh[0].SetHidden(true);
+		}
+		if(ArmsOverlayMesh[1] != none)
+		{
+			ArmsOverlayMesh[1].SetHidden(true);
 		}
 
 		return true;
@@ -1862,7 +1921,7 @@ simulated function TakeRadiusDamage
 )
 {
 	//The hell ACTUALLY shot me? 
-	local Weapon ProjectileWeaponOwner;
+	local Actor ProjectileWeaponOwner;
 
 	local Rx_BuildingAttachment_Door PossibleDoor;
 	local vector OutLoc, OutNorm;
@@ -1896,19 +1955,27 @@ simulated function TakeRadiusDamage
 	
 	if(Rx_Projectile(DamageCauser) != None && !Rx_Projectile(DamageCauser).isAirstrikeProjectile()) { 
 		if(WorldInfo.NetMode != NM_DedicatedServer 
-					&& InstigatedBy != None && InstigatedBy.Pawn != none && (Rx_Weapon(ProjectileWeaponOwner) != None || Rx_Vehicle_Weapon(ProjectileWeaponOwner) != None)) {	
+					&& InstigatedBy != None && InstigatedBy.Pawn != none && (Rx_Weapon(ProjectileWeaponOwner) != None || Rx_Vehicle_Weapon(ProjectileWeaponOwner) != None || Rx_PassiveAbility_Weapon(ProjectileWeaponOwner) != None )) {	
 			if(Health > 0 && self.GetTeamNum() != InstigatedBy.GetTeamNum() && UTPlayerController(InstigatedBy) != None) {
 				Rx_Hud(UTPlayerController(InstigatedBy).myHud).ShowHitMarker();
 			}
 
-			if (InstigatedBy != None && InstigatedBy.Pawn != none && Rx_Weapon_VoltAutoRifle(ProjectileWeaponOwner) != None)
-				Rx_Weapon_VoltAutoRifle(ProjectileWeaponOwner).ServerALRadiusDamageCharged(self,HurtOrigin,bFullDamage,class'Rx_Projectile_VoltBolt'.static.GetChargePercentFromDamage(BaseDamage));
-			else if(InstigatedBy != None && InstigatedBy.Pawn != none && Rx_Weapon(ProjectileWeaponOwner) != None) {
-				Rx_Weapon(ProjectileWeaponOwner).ServerALRadiusDamage(self,HurtOrigin,bFullDamage);
-			} else {
-				Rx_Vehicle_Weapon(ProjectileWeaponOwner).ServerALRadiusDamage(self,HurtOrigin,bFullDamage, Rx_Projectile(DamageCauser).FMTag);
-			}	
-		} else if(ROLE == ROLE_Authority && AIController(InstigatedBy) != None) {
+			if (InstigatedBy != None && InstigatedBy.Pawn != none) 
+			{
+				if(Rx_Weapon_VoltAutoRifle(ProjectileWeaponOwner) != None)
+					Rx_Weapon_VoltAutoRifle(ProjectileWeaponOwner).ServerALRadiusDamageCharged(self,HurtOrigin,bFullDamage,class'Rx_Projectile_VoltBolt'.static.GetChargePercentFromDamage(BaseDamage));
+				else if(Rx_Weapon(ProjectileWeaponOwner) != None) {
+					Rx_Weapon(ProjectileWeaponOwner).ServerALRadiusDamage(self,HurtOrigin,bFullDamage);
+				} 
+				else if(Rx_Vehicle_Weapon(ProjectileWeaponOwner) != None) {
+					Rx_Vehicle_Weapon(ProjectileWeaponOwner).ServerALRadiusDamage(self,HurtOrigin,bFullDamage, Rx_Projectile(DamageCauser).FMTag);
+				}
+				else if(Rx_PassiveAbility_Weapon(ProjectileWeaponOwner) != None) {
+					Rx_PassiveAbility_Weapon(ProjectileWeaponOwner).ServerALRadiusDamage(self,HurtOrigin,bFullDamage);
+				}
+			}
+		}
+		else if(ROLE == ROLE_Authority && AIController(InstigatedBy) != None) {
 			super.TakeRadiusDamage(InstigatedBy,BaseDamage,DamageRadius,DamageType,Momentum,HurtOrigin,bFullDamage,DamageCauser,DamageFalloffExponent);
 		}
 	} else {
@@ -1960,13 +2027,25 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
 	{
 		LegitamateDamage=fMax(0,LegitamateDamage-TotalAmmount); 
 		Score = TotalAmmount * class<Rx_FamilyInfo>(CurrCharClassInfo).default.HealPointsMultiplier;
-		Rx_PRI(Healer.PlayerReplicationInfo).AddScoreToPlayerAndTeam(Score);
-		Rx_PRI(Healer.PlayerReplicationInfo).AddRepairPoints_P(TotalAmmount); //Add to amount of Pawn repair points this 
 		
+		//Make sure they're not healing from the other team
+		if(Healer != Controller && Healer.GetTeamNum() == GetTeamNum())
+		{
+			Rx_PRI(Healer.PlayerReplicationInfo).AddScoreToPlayerAndTeam(Score);
+			Rx_PRI(Healer.PlayerReplicationInfo).AddRepairPoints_P(TotalAmmount); //Add to amount of Pawn repair points this 
+		}
 	}
 
+	NotifyHealedDamage(Amount, DamageType); 
+	
 	return true;
 }
+
+function NotifyHealedDamage(int Amount, class<DamageType> DamageType)
+{
+	if(Controller != none)
+		Rx_Controller(Controller).NotifyTakeHeals(Amount, DamageType);
+} 
 
 function bool DoJump( bool bUpdating )
 {
@@ -2047,6 +2126,9 @@ simulated function SetGroundSpeed(optional float Speed) {
 }
 
 reliable server function ServerSetGroundSpeed(float Speed) {
+	if (Speed <= 0)
+		return;
+
 	Speed = FMin(Speed, SprintSpeed);
 	if(Speed > RunningSpeed) {
 		bSprintingServer = true;
@@ -2096,7 +2178,7 @@ function StartSprint()
 			}
 		}
 		*/
-	
+
 		if(Rx_Weapon(Weapon).bIronsightActivated) {
 			bWasInIronsightBeforeAction = true;
 			Rx_Weapon(Weapon).EndZoom(UTPlayerController(Controller));
@@ -2200,6 +2282,10 @@ reliable client function ClientStopSprint()
 	StopSprintSelf();	
 }
 
+simulated function LogVelocity()
+{
+	`log("Velocity" @ Velocity);
+}
 
 simulated function Tick(float DeltaTime)
 {	
@@ -2214,7 +2300,16 @@ simulated function Tick(float DeltaTime)
 			TickHandIK(DeltaTime); //Calculate all of the hand IK repositioning crap.
 			bTickHandIK = false; //Reset, as we don't need to do this constantly
 		}
-		
+
+		if (!bSprinting && Stamina < MaxStamina && !bExhausted)
+		{
+			Stamina += (StaminaRegenRate * DeltaTime);
+			if (Stamina > MaxStamina) 
+			{
+				Stamina = MaxStamina;
+			}
+		}
+			
 		super.Tick(DeltaTime); 
 		return; //Ignore all of this if we're not the pawn we need to be concerned with. 
 	}
@@ -2222,16 +2317,7 @@ simulated function Tick(float DeltaTime)
 	if((WorldInfo.NetMode != NM_DedicatedServer)) //For ourselves, just always tick Hand IK
 	{
 		TickHandIK(DeltaTime); //Calculate all of the hand IK repositioning crap.
-	}
-	
-	if (Stamina < MaxStamina && !bExhausted) //Tick Stamina appropriately
-		{
-			Stamina += (StaminaRegenRate * DeltaTime);
-			if (Stamina > MaxStamina) 
-				{
-					Stamina = MaxStamina;
-				}
-		}	
+	}	
 	
 	if (bSprinting && Worldinfo.Netmode != NM_DedicatedServer && DrivenVehicle == None)
 	{
@@ -2309,7 +2395,7 @@ simulated function TickHandIK(float DeltaTime)
 			if (LeftHandIK_SB != None)
 			{
 				CurrentRxAttachment.Mesh.GetSocketWorldLocationAndRotation((CurrentRxAttachment.LeftHandIKSocket),LeftHandVec, TempRot, 1);
-		
+				
 				if (CurrentRxAttachment.Mesh.GetSocketByName(CurrentRxAttachment.LeftHandIKSocket) != None)
 				{
 					LeftHandIK_SB.bAddTranslation = false;
@@ -2486,7 +2572,7 @@ function StartWalking()
 
 function StopWalking()
 {
-	if(Rx_Weapon(Weapon).bIronsightActivated || Rx_Weapon(Weapon).GetZoomedState() != ZST_NotZoomed )
+	if(bDodging || Rx_Weapon(Weapon).bIronsightActivated || Rx_Weapon(Weapon).GetZoomedState() != ZST_NotZoomed )
 		return;
 	SetGroundSpeed(RunningSpeed);
 }
@@ -2504,23 +2590,42 @@ reliable server function ServerStopWalking()
 simulated function SetOverlay(class<Rx_StatModifierInfo> StatClass, bool bAffectWeapons)//SetOverlay(LinearColor MatColour, float MatOpacity, float MatInflation, bool bAffectWeapons)
 {
 	//Incase we're hanging onto anything
-	ClearOverlay();  
-	
-	SetOverlayMaterial(StatClass.default.PawnMIC); 
 	
 	if(bAffectWeapons) 
 	{
 		CurrentStoredWeaponOverlayByte = StatClass.default.EffectPriority;
 	
-		if(Rx_GRI(WorldInfo.GRI).WeaponOverlays.Length == 0 && WorldInfo.NetMode != NM_DedicatedServer) Rx_GRI(WorldInfo.GRI).SetupWeaponOverlays(); //Tell GRI to setup weapon overlays if it hasn't already 
+		if(Rx_GRI(WorldInfo.GRI).WeaponOverlays.Length == 0 && WorldInfo.NetMode != NM_DedicatedServer) 
+			Rx_GRI(WorldInfo.GRI).SetupWeaponOverlays(); //Tell GRI to setup weapon overlays if it hasn't already 
 		
 		SetWeaponOverlayFlag(StatClass.default.EffectPriority);
 	}
 	
+	if(bUsingStealthOverlay)
+		return; 
+	
+	ClearOverlay();
+	
+	SetOverlayMaterial(StatClass.default.PawnMIC);
+	
+	
 }
+
+function SetWeaponOverlayFlag(byte FlagToSet)
+{
+	if(bUsingStealthOverlay)
+	{
+		`log("----Return from setting weapon overlay");
+		return; 
+	}
+	else
+		super.SetWeaponOverlayFlag(FlagToSet);
+}
+
 
 simulated function ClearOverlay()
 {
+	//ScriptTrace();
 	SetOverlayMaterial(none);
 	
 	if(CurrentStoredWeaponOverlayByte != 255) 
@@ -2528,6 +2633,49 @@ simulated function ClearOverlay()
 		ClearWeaponOverlayFlag(CurrentStoredWeaponOverlayByte);
 		CurrentStoredWeaponOverlayByte = 255; 
 	}
+}
+
+/*Super call, then inject just to notify passives our overlay changed (Used by stealth)*/
+simulated function SetOverlayMaterial(MaterialInterface NewOverlay)
+{
+	/*Overlay controlled by Passive stealth*/
+	if(bUsingStealthOverlay)
+		return;
+	
+	//`log("Set Overlay Material");
+	super.SetOverlayMaterial(NewOverlay); 
+	
+	bHasArmOverlay = NewOverlay == none ? false : true;
+	
+	if(ArmsOverlayMesh[0] != none)
+	{
+		ArmsOverlayMesh[0].SetMaterial(0,NewOverlay);
+		
+		if(NewOverlay != none && IsFirstPerson())
+			ArmsOverlayMesh[0].SetHidden(false);
+		else
+			if(NewOverlay == none)
+				ArmsOverlayMesh[0].SetHidden(true);
+		
+			AttachComponent(ArmsOverlayMesh[0]);
+	}
+	/**
+	if(ArmsOverlayMesh[1] != none)
+		{
+		ArmsOverlayMesh[1].SetMaterial(0,NewOverlay);
+		
+		if(NewOverlay != none && IsFirstPerson())
+			ArmsOverlayMesh[1].SetHidden(false);
+		else
+			if(NewOverlay == none)
+				ArmsOverlayMesh[1].SetHidden(true);
+			
+			AttachComponent(ArmsOverlayMesh[1]);
+	}*/
+	
+	//`log("New Pawn Overlay Set To" @ NewOverlay );
+	NotifyPassivesOverlayChanged(NewOverlay); 
+	
 }
 
 simulated event PostInitAnimTree(SkeletalMeshComponent SkelComp)
@@ -2718,6 +2866,7 @@ simulated function StartFire(byte FireModeNum)
 			OurWeapon.StartZoom(UTPlayerController(Instigator.Controller));	
 			bStartFirePressedButNoStopFireYet = true;
 		}
+		ResetRelaxStance();
 		return;
 	} 	
 	if (OurWeapon != none && OurWeapon.GetIsBurstFire())
@@ -2777,6 +2926,7 @@ simulated function StopFire(byte FireModeNum)
 simulated function WeaponFired(Weapon InWeapon, bool bViaReplication, optional vector HitLocation)
 {
 	Relax(false);
+	NotifyPassivesWeaponFired(GetWeaponFiringMode(InWeapon)); 
 	super.WeaponFired(InWeapon,bViaReplication,HitLocation);
 }
 
@@ -2800,6 +2950,7 @@ function bool StopFiring()
 simulated function Relax( bool SetRelaxed )
 {
 	local AnimNodeBlendList RelaxNode;
+	
 	if (bAlwaysRelaxed)
 	{
 		SetRelaxed = true;
@@ -2867,7 +3018,7 @@ function UnmarkTarget()
 function ToggleNightVision()
 {
 	local Rx_Weapon_Scoped W;
-	if( Weapon != none)
+	if( Weapon != none && Rx_MapInfo(WorldInfo.GetMapInfo()).bNightVisionEnabled)
 	{
 		W = Rx_Weapon_Scoped(Weapon);
 		if (W != none)
@@ -2908,18 +3059,15 @@ simulated event Vector GetWeaponStartTraceLocation(optional Weapon CurrentWeapon
  * @return		true if pawn handled this as a headshot, in which case the weapon doesn't need to cause damage to the pawn.
  * @Param		ProjectileWeapon - If a projectile is calling takeheadshot, then you need a reference to the weapon that fired it(otherwise it references whatever weapon the Instigator is carrying when this is called)
 */
-simulated function bool TakeHeadShot(const out ImpactInfo Impact, class<DamageType> HeadShotDamageType, int HeadDamage, float AdditionalScale, controller InstigatingController, bool bRocketDamage, optional Weapon ProjectileWeapon) 
+simulated function bool TakeHeadShot(const out ImpactInfo Impact, class<DamageType> HeadShotDamageType, int HeadDamage, float AdditionalScale, controller InstigatingController, bool bRocketDamage, optional Actor ProjectileWeapon, optional float DmgReduction = 1.0, optional class<Rx_DmgType_Special> BurnDmgType, optional byte FMTag = 255) 
 {
-	local Weapon WeaponToCall; //Weapon to call back to for dealing damage
+	local Actor WeaponToCall; //Weapon to call back to for dealing damage
 	
 	//`log("Took Headshot" @ HeadshotDamageType @ HeadDamage @ AdditionalScale @ InstigatingController @ bRocketDamage); 
 	if(Role < ROLE_Authority && InstigatingController != None && !InstigatingController.IsLocalPlayerController()) {
 		//`log("rETURN fase in take headshot");
 		return false;
 	}
-	
-	
-	
 	
 	if(InstigatingController != None && IsLocationOnHead(Impact, AdditionalScale) && (InstigatingController.IsA('PlayerController') || UTBot(InstigatingController) != None) )
 	{
@@ -2937,10 +3085,13 @@ simulated function bool TakeHeadShot(const out ImpactInfo Impact, class<DamageTy
 			if(Health > 0 && self.GetTeamNum() != InstigatingController.GetTeamNum() && UTPlayerController(InstigatingController) != None)
 			{
 				Rx_Hud(UTPlayerController(InstigatingController).myHud).ShowHitMarker(true);
-				Rx_Controller(InstigatingController).AddHSHit()  ; 	
+				Rx_Controller(InstigatingController).AddHSHit(); 	
 			}	
-			
-			Rx_Weapon(WeaponToCall).ServerALHeadshotHit(self,Impact.HitLocation,Impact.HitInfo);
+		if(Rx_Weapon(WeaponToCall) != none)
+			Rx_Weapon(WeaponToCall).ServerALHeadshotHit(self,Impact.HitLocation,Impact.HitInfo, DmgReduction,FMTag);
+		else
+			if(Rx_PassiveAbility_Weapon(WeaponToCall) != none)
+				Rx_PassiveAbility_Weapon(WeaponToCall).ServerALHeadshotHit(self,Impact.HitLocation,Impact.HitInfo, DmgReduction);
 		}
 		else if (WorldInfo.NetMode != NM_DedicatedServer && (Rx_Vehicle(InstigatingController.Pawn) != None || Rx_VehicleSeatPawn(InstigatingController.Pawn) != None) && InstigatingController.Pawn.IsLocallyControlled())
 		{
@@ -2950,7 +3101,7 @@ simulated function bool TakeHeadShot(const out ImpactInfo Impact, class<DamageTy
 					Rx_Controller(InstigatingController).AddHSHit()  ; 	
 				}
 			//`log("Weapon was " @ Rx_Vehicle_Weapon(InstigatingController.Pawn.Weapon) @ InstigatingController.Pawn.Weapon);
-			Rx_Vehicle_Weapon(WeaponToCall).ServerALHeadshotHit(self,Impact.HitLocation,Impact.HitInfo);
+			Rx_Vehicle_Weapon(WeaponToCall).ServerALHeadshotHit(self,Impact.HitLocation,Impact.HitInfo,,FMTag);
 		}
 		else if (WorldInfo.NetMode == NM_DedicatedServer && (AIController(InstigatingController) != None || bRocketDamage))
 			TakeDamage(HeadDamage, InstigatingController, Impact.HitLocation, Impact.RayDir, HeadShotDamageType, Impact.HitInfo);
@@ -3034,11 +3185,11 @@ function SetMoveDirection(EMoveDir dir)
 
 function bool Dodge(eDoubleClickDir DoubleClickMove)
 { 
+	//`log("Pawn Dodge" @ Physics @ DoubleClickMove);
 	if (!bDodging && bDodgeCapable && !IsTimerActive('DodgeCoolDownTimer') && Physics == Phys_Walking) {
 		StopFiring();
 		if (DeductStamina(DodgeStaminaCost))
 		{
-			
 			if(bSprinting) {
 				StopSprinting();
 				bWasSprintingBeforeDodge = true; /*Client may overrite this on the server by calling (stopsprinting). For servers this is passed in the actual server call */
@@ -3071,20 +3222,19 @@ function DoDodge(eDoubleClickDir DoubleClickMove)
 	
 	WasInFirstPersonBeforeDodge = false;
 	
-		if(Rx_Controller(Controller) != None && !Rx_Controller(Controller).bBehindView) 
-		{
-			Rx_Controller(Controller).SetBehindView(true);
-			WasInFirstPersonBeforeDodge = true;
-		}
+	if(Rx_Controller(Controller) != None && !Rx_Controller(Controller).bBehindView) 
+	{
+		Rx_Controller(Controller).SetBehindView(true);
+		WasInFirstPersonBeforeDodge = true;
+	}
 		
-		//PlaySound(Snd_DodgeCue, false, true,,, true);
+	//PlaySound(Snd_DodgeCue, false, true,,, true);
 	
 	if(Rx_weapon(Weapon) != none)
 	{
 		Rx_Weapon(Weapon).OnActionStart(); 
 	}		
 			
-	
 	SetHandIKEnabled(false);
 	
 	// finds global axes of pawn
@@ -3094,8 +3244,6 @@ function DoDodge(eDoubleClickDir DoubleClickMove)
 	AirSpeed = bWasSprintingBeforeDodge ? SprintDodgeSpeed : DodgeSpeed;
 	GroundSpeed = bWasSprintingBeforeDodge ? SprintDodgeSpeed : DodgeSpeed;
 	Velocity.Z = -default.GroundSpeed;
-
-	//`log("bWasSprinting:" @ bWasSprintingBeforeDodge @ AirSpeed @ GroundSpeed @ DoubleClickMove); 
 	
 	switch ( DoubleClickMove )
 	{
@@ -3121,8 +3269,12 @@ function DoDodge(eDoubleClickDir DoubleClickMove)
 			break;
 	}
 
+	//`log(Groundspeed @ DodgeSpeed @ DodgeVelocity);
+	
 	Velocity.X = DodgeVelocity.X;
 	Velocity.Y = DodgeVelocity.Y;
+	
+	//`log("Dodge Velocity: " @ DodgeVelocity);
 	
 //	LastVelZInDodge = 0.f;
 
@@ -3172,8 +3324,7 @@ function Dodging(float DeltaTime)
 	if( !bDodging ) {
 		return;	
 	}
-	
-	
+
 	TimeInDodge += DeltaTime;
 	
 	//all traces start slightly offset from center of pawn
@@ -3230,7 +3381,11 @@ function Dodging(float DeltaTime)
 
 function UnDodge()
 {	
-
+	if(Health <= 0)
+		return;
+	
+	//ClearTimer('LogVelocity');
+	
 	SetPhysics(Phys_Falling); //use falling instead of walking in case we are mid-air after the dodge
 	bDodgeCapable = true;
 	bDodging = false;
@@ -3289,13 +3444,6 @@ function playDodgeAnimation()
 	//FullBodyAnimSlot.PlayCustomAnimByDuration( DodgeAnim, DodgeDuration + 0.2, 0.2, 0.2);
 }
 
-simulated function FaceRotation(rotator NewRotation, float DeltaTime)
-{
-	if(!bDodging) {
-		super.FaceRotation(NewRotation, DeltaTime); 
-	}
-}
-
 final simulated function SetOfflineChar(byte CharNum)
 {
 	local int i;
@@ -3336,7 +3484,7 @@ simulated function SetCharacterClassFromInfo(class<UTFamilyInfo> Info) {
 	local class<Rx_Weapon> weapClass;
 	
 	/*Clear Our passive abilities if the class doesn't have any.. otherwise they're just overwritten, or removed as needed*/
-	if(class<Rx_FamilyInfo>(Info).static.HasPassiveAbilities() == false)
+	if(ROLE == ROLE_Authority && class<Rx_FamilyInfo>(Info).static.HasPassiveAbilities() == false)
 		ClearPassiveAbilities(); 
 	
 	prev = CurrCharClassInfo;
@@ -3348,7 +3496,7 @@ simulated function SetCharacterClassFromInfo(class<UTFamilyInfo> Info) {
 	if(Mesh.SkeletalMesh != None) {
 		for (i = 0; i < Mesh.SkeletalMesh.Materials.length; i++) {
 			Mesh.SetMaterial( i, None );
-		} 
+		}
 	}
 
 	/** one1: Set inventory manager according to family info class. */
@@ -3374,11 +3522,6 @@ simulated function SetCharacterClassFromInfo(class<UTFamilyInfo> Info) {
 		{
 			if(Rx_InventoryManager(InvManager).IsItemAllowed(weapClass))
 				Rx_InventoryManager(InvManager).AddWeaponOfClass(weapClass, CLASS_ITEM);
-		}
-			
-	//Clear and Set passive abilities
-		for(i=0;i<3;i++){
-			GivePassiveAbility(i, class<Rx_FamilyInfo>(Info).default.PassiveAbilities[i]) ;
 		}
 	}
 }
@@ -3432,7 +3575,9 @@ simulated event StartDriving(Vehicle V)
 				RxIfc_Stealth(StealthedActor).ChangeStealthVisibilityParam(false);    
 			}
 		} 
-	}	
+	}
+
+		NotifyPassivesDriveVehicle(true);
 }
 
 simulated event StopDriving(Vehicle V)
@@ -3523,6 +3668,8 @@ simulated event StopDriving(Vehicle V)
 	
     if(Rx_Bot(Controller) != None && Physics == PHYS_Falling)
     	SetTimer(FRand()+0.5f,false,'TryParachute');	
+	
+	NotifyPassivesDriveVehicle(false);
 }
 
 simulated function string GetCharacterClassName()
@@ -3532,10 +3679,11 @@ simulated function string GetCharacterClassName()
 	return fam.default.CharacterName;
 }
 
+/**
 simulated function string GetTargetedName(PlayerController PlayerPerspective)
 {
 	return GetCharacterClassName();
-}
+}*/
 
 simulated function ProcessViewRotation( float DeltaTime, out rotator out_ViewRotation, out Rotator out_DeltaRot )
 {
@@ -3909,7 +4057,7 @@ event UpdateEyeHeight( float DeltaTime )
 		// smooth eye position changes while going up/down stairs
 		smooth = FMin(0.9, 10.0 * DeltaTime/CustomTimeDilation);
 		LandBob *= (1 - smooth);
-		if( Physics == PHYS_Walking || Physics==PHYS_Spider || Controller.IsInState('PlayerSwimming') )
+		if( Physics == PHYS_Walking || Physics==PHYS_Spider || Physics == PHYS_Flying || Controller.IsInState('PlayerSwimming') )
 		{
 			OldEyeHeight = EyeHeight;
 			EyeHeight = FMax((EyeHeight - Location.Z + OldZ) * (1 - smooth) + BaseEyeHeight * smooth,
@@ -4175,6 +4323,10 @@ simulated function bool CalcThirdPersonCam( float fDeltaTime, out vector out_Cam
 		
 		if(bDodging)
 			DesiredCameraZOffset += DodgeCameraZOffset; 
+		else if(bSprinting){
+			DesiredCameraZOffset += SprintCameraZOffset; 
+		}
+			
 		
 		CameraZOffset = Lerp(CameraZOffset,DesiredCameraZOffset,FClamp(fDeltaTime * 10.0f,0,1)) ; //(CameraZOffset >= CamStartCrouchZHeight && CameraZOffset <= CamStartZHeight) ? Lerp(CameraZOffset,DesiredCameraZOffset,FClamp(fDeltaTime * 10.0f,0,1)) : DesiredCameraZOffset;
 		
@@ -4256,16 +4408,16 @@ simulated function bool CalcThirdPersonCam( float fDeltaTime, out vector out_Cam
 				if(VSizeSq(location-out_CamLoc) < 3025.0)
 				{
 					if(WorldInfo.NetMode != NM_DedicatedServer)
-						SetHidden(true); // when cam gets near to prevent the cam showing the inside of the character	
+						Set3PHidden(true); // when cam gets near to prevent the cam showing the inside of the character	
 				}
 				else if(WorldInfo.NetMode != NM_DedicatedServer)
-					SetHidden(false);
+					Set3PHidden(false);
 
 				return false;
 			} else if(WorldInfo.NetMode != NM_DedicatedServer)
-				SetHidden(false);
+				Set3PHidden(false);
 		} else if(WorldInfo.NetMode != NM_DedicatedServer)
-			SetHidden(false);
+			Set3PHidden(false);
 	}
 
 	if(VehiclePawnTransitionStartLoc != vect(0,0,0) && BlendPct < 1.0f)
@@ -4285,6 +4437,14 @@ simulated function bool CalcThirdPersonCam( float fDeltaTime, out vector out_Cam
 
 simulated function SetCamOffset(vector Offset){
 	CamOffset = Offset;
+}
+
+/*Sets 3rd person relevant meshes hidden (Weapon attachment Mesh and Pawn Mesh) Does not tamper with 1st person meshes*/
+simulated function Set3PHidden(bool bIsHidden)
+{	
+	Mesh.SetHidden(bIsHidden);
+	if(CurrentWeaponAttachment != None)
+		CurrentWeaponAttachment.ChangeVisibility(!bIsHidden);
 }
 
 simulated function vector GetSmoothedCamStart(vector DesiredStart)
@@ -4489,7 +4649,7 @@ simulated function PlayBeaconDeployAnimation()
 	bBeaconDeployAnimating = true;
 	ReloadAnim = ''; // to notify remote clients (with repnotify) that they should stop reloadanimation if they play it
 	BoltReloadAnim = '';
-	FullBodyAnimSlot.PlayCustomAnimByDuration('H_M_Beacon_Deploy', 4, 0.4, 0.4);
+	FullBodyAnimSlot.PlayCustomAnimByDuration('H_M_Beacon_Deploy', 4, 0.4, 0.4, true);
 	if (Role < ROLE_Authority)
 	{
 		ServerPlayBeaconDeployAnimation();
@@ -4684,14 +4844,12 @@ simulated function UpdateParachuteAnim(float DeltaTime)
 event Landed(vector HitNormal, actor FloorActor)
 {
 	local Controller KeepLastHit; //don't reset last hit on landing 
-	
+
 	if(LastHitBy != none) 
 		KeepLastHit=LastHitBy;  
 	
 	bVaulted = false;
 	super.Landed(HitNormal,FloorActor);
-
-	NotifyPassivesLanded();
 	
 	//SetTimer(0.15, false, 'JumpRecoilTimer'); 
 	
@@ -4714,12 +4872,17 @@ event Landed(vector HitNormal, actor FloorActor)
 			}
 		}
 	}
+	
+	
 
 	if(bIsPtPawn) {
 		SetPhysics(PHYS_None);
 		bPTInitialized=true;
 	}
 	LastHitBy = KeepLastHit; 
+	
+	NotifyPassivesLanded();
+		
 }
 
 simulated function JumpRecoilTimer(); //If this Timer's active, you still can't jump 
@@ -4789,6 +4952,11 @@ simulated function WeaponChanged(UTWeapon NewWeapon)
             ArmsMesh[1].SetFOV(UTSkel.FOV);
             ArmsMesh[0].SetScale(UTSkel.Scale);
             ArmsMesh[1].SetScale(UTSkel.Scale);
+			ArmsOverlayMesh[0].SetFOV(UTSkel.FOV);
+            ArmsOverlayMesh[1].SetFOV(UTSkel.FOV);
+            ArmsOverlayMesh[0].SetScale(UTSkel.Scale+0.015);
+            ArmsOverlayMesh[1].SetScale(UTSkel.Scale+0.015);
+			
             Rx_Weapon(NewWeapon).PlayWeaponEquipWithOptionalAnim(false);
         }
     }
@@ -4994,7 +5162,7 @@ local Rx_ORI ORI;
 	Mesh.AttachComponentToSocket(CapeMesh, HeadShotSocketName);
 }*/
 
-exec simulated function AttachVoiceBox()
+simulated function AttachVoiceBox()
 {	
 	local name HeadShotSocketName;
 	HeadShotSocketName = GetFamilyInfo().default.HeadShotGoreSocketName;
@@ -5321,11 +5489,7 @@ function ResetFocused()
 
 simulated function bool IsHealer()
 {
-	local class<Rx_FamilyInfo> Fam; 
-	
-	Fam = GetRxFamilyInfo();
-	
-	return (Fam == class'Rx_FamilyInfo_GDI_Hotwire' || Fam == class'Rx_FamilyInfo_GDI_Engineer' || Fam == class'Rx_FamilyInfo_Nod_Technician' || Fam == class'Rx_FamilyInfo_Nod_Engineer');
+	return (GetRxFamilyInfo().static.IsEngi());
 }
 
 simulated function class<Rx_Pawn_VoiceClass> GetVoiceClass()
@@ -5663,7 +5827,9 @@ simulated function WeaponAttachmentChanged()
 {
 	super.WeaponAttachmentChanged();
 	if(Vrank == 3 && Rx_WeaponAttachment_Varying(CurrentWeaponAttachment) != none ) 
-		Rx_WeaponAttachment_Varying(CurrentWeaponAttachment).SetHeroic(true); 
+		Rx_WeaponAttachment_Varying(CurrentWeaponAttachment).SetHeroic(true);
+		
+	NotifyPassivesWeaponAttachmentChanged();
 }
 
 
@@ -5875,6 +6041,13 @@ state Vaulting
 
 }
 
+event Bump( Actor Other, PrimitiveComponent OtherComp, Vector HitNormal )
+{
+	//Notify we hit something at our current velocity
+	NotifyPassivesBumpedActor(Other, Velocity, HitNormal);
+	super.Bump(Other,OtherComp,HitNormal);
+}
+
 function TestVisAct()
 {
 	local Actor CA; 
@@ -5891,6 +6064,20 @@ function TestVisAct()
 				//`log("-----Actor Found------: " @ CA); 
 				
 			}
+}
+
+simulated function Rx_Building GetTouchingFriendlyBuilding()
+{
+	local Rx_Building B;
+
+	ForEach OverlappingActors(class'Rx_Building', B, 100, Location)
+	{
+		if (B.GetTeamNum() == GetTeamNum() && Rx_Building_Techbuilding(B) == None) return B; 
+
+		continue; 
+	}
+
+	return None;
 }
 
 /****Do not stack supply crate healing*****/
@@ -5924,7 +6111,7 @@ function bool bCanAcceptSupportHealing()
 /**Stat Modifier Calls**/ 
 simulated function float GetSpeedModifier()
 {
-	return (SpeedUpgradeMultiplier+GetRxFamilyInfo().default.Vet_SprintSpeedMod[VRank])+GetInventoryWeight();
+	return ((SpeedUpgradeMultiplier+GetRxFamilyInfo().default.Vet_SprintSpeedMod[VRank])+GetInventoryWeight()) * CheatSpeedMult;
 }
 
 simulated function float GetResistanceModifier()
@@ -5953,14 +6140,7 @@ function SetSpeedUpgradeMod(float UpgradeNum)  //Used to modify from outside sou
 	SpeedUpgradeMultiplier = GetRxFamilyInfo().default.SpeedMultiplier + UpgradeNum;
 }
 
-simulated function string GetTargetedDescription(PlayerController PlayerPerspective)
-{
-	//Above all else 
-	if(Rx_PRI(PlayerReplicationInfo) != none && Rx_PRI(PlayerReplicationInfo).bGetIsCommander()) 
-		return "[COMMANDER]";
-	else
-	return ""; 
-}
+
 
 simulated function SetAlwaysRelevant(bool Relevant)
 {
@@ -6006,6 +6186,11 @@ simulated function DisableMinimap()
 	SetRadarVisibility(0);
 }
 */
+
+simulated function bool GetUseSquadMarker(byte TeamByte, byte SquadByte)
+{
+	return false; 
+}
 
 /******************
 *END RadarMarker***
@@ -6153,14 +6338,31 @@ simulated function float GetStamina()
 	return Stamina;
 }
 
+simulated function string GetStaminaName()
+{
+	return "Stamina";
+}
+
+function SetupPassives(class<Rx_FamilyInfo> Info)
+{
+	local int i; 
+	ClearPassiveAbilities();
+	
+	//Clear and Set passive abilities
+		for(i=0;i<3;i++){
+			GivePassiveAbility(i, Info.default.PassiveAbilities[i]);
+		}
+}
+
 function GivePassiveAbility(byte AbilityNum, class<Rx_PassiveAbility> PassiveAbility)
 {
+	//`log("------Give Passive:----------" @ PassiveAbility @ AbilityNum);
 	/*Null abilitiy given, or we just need to clean out the slot Delete the ability in this number slot then */
 	if(PassiveAbilities[AbilityNum] != none)
 	{
-		PassiveAbilities[AbilityNum].RemoveUser(); 
+		//`log("Ability Was here already" @ PassiveAbilities[AbilityNum] @ "/" @ "");
+		PassiveAbilities[AbilityNum].RemoveUser();
 		PassiveAbilities[AbilityNum] = none; 
-		
 	}
 	
 	if(PassiveAbility == none)
@@ -6169,7 +6371,6 @@ function GivePassiveAbility(byte AbilityNum, class<Rx_PassiveAbility> PassiveAbi
 		return; 
 	}
 		
-	
 	PassiveAbilities[AbilityNum] = Spawn(PassiveAbility, self);
 	
 	//`log("AbilityNum: " @ AbilityNum); 
@@ -6182,10 +6383,8 @@ function GivePassiveAbility(byte AbilityNum, class<Rx_PassiveAbility> PassiveAbi
 
 //Called on the client. Passes an actual instance of an ability class 
 simulated function ReplicatePassiveAbility (byte AbilityNum, Rx_PassiveAbility PassiveAbility){
-	//`log("Set Passive ability: " @ AbilityNum @ PassiveAbility);
-	
 	//We're not yours anymore
-	if(PassiveAbilities[AbilityNum] != none) 
+	if(PassiveAbilities[AbilityNum] != none && PassiveAbilities[AbilityNum] != PassiveAbility) 
 		PassiveAbilities[AbilityNum].RemoveUser();
 	
 	PassiveAbilities[AbilityNum] = PassiveAbility;
@@ -6264,19 +6463,44 @@ simulated function ClearPassiveAbilities()
 {
 	local int i; 
 	
+	//ScriptTrace();
+	
 	for(i=0;i<3;i++){
-			if(PassiveAbilities[i] != none)
-			{
-				PassiveAbilities[i].RemoveUser();
-				PassiveAbilityHandler.PassiveAbilityAttachmentClass[i] = none;
-			}
-					 
-			PassiveAbilities[i] = none; 
+		if(PassiveAbilities[i] != none)
+		{
+			//`log("------------Passives Cleared -------" @ PassiveAbilities[i]);
+			PassiveAbilities[i].RemoveUser();
+			PassiveAbilityHandler.PassiveAbilityAttachmentClass[i] = none;
 		}
-		//`log("Passives Cleared" @ PassiveAbilities[0]);
+				 
+		PassiveAbilities[i] = none; 
+	}
+	//`log("------------Passives Cleared -------" @ PassiveAbilities[0]);
+}
+
+//Lets a passive remove just itself
+simulated function RemovePassive(byte SlotNum, Rx_PassiveAbility PassiveAbility)
+{
+	if(PassiveAbilities[SlotNum] == PassiveAbility)
+	{
+		PassiveAbilities[SlotNum].RemoveUser();
+		PassiveAbilities[SlotNum] = none;
+	}
 }
 
 /*Passive Abilities Interface*/
+
+simulated function RenderPassiveOverlays(HUD H)
+{
+	local int i; 
+	
+	for(i=0;i<3;i++){
+		if(PassiveAbilities[i] != none)
+		{
+			PassiveAbilities[i].RenderOverlay(H); 
+		}
+	}
+}
 
 simulated function bool ActivateJumpAbility(bool bToggle) {
 	
@@ -6300,9 +6524,52 @@ simulated function bool ActivateJumpAbility(bool bToggle) {
 	return false; //I don't know how you'd get here... but just in case
 }
 
-simulated function bool ActivateAbility0(bool Toggle); 
+simulated function bool ActivateAbility0(bool Toggle)
+{
+	//`log("Passive Ability" @ PassiveAbilities[0]); 
+	if(PassiveAbilities[1] == none)
+	{
+		return false; 
+	}
+	//`log("Toggle:" @ Toggle);
+	if(Toggle) //Toggle it on (Button was pressed)
+	{
+		PassiveAbilities[1].ToggleAbility();
+		return true; 			
+	}
+	else //Button was released, so ignore activating, but check if should deactivate on release
+	{
+		if(PassiveAbilities[1].bDeactivateOnRelease)
+			PassiveAbilities[1].DeactivateAbility(false);
+		return true; 	
+	}
 
-simulated function bool ActivateAbility1(bool Toggle); 
+	return false; //I don't know how you'd get here... but just in case
+} 
+
+/*Always on abilities (Like auras)*/
+simulated function bool ActivateAbility1(bool Toggle)
+{
+	//`log("Passive Ability" @ PassiveAbilities[0]); 
+	if(PassiveAbilities[2] == none)
+	{
+		return false; 
+	}
+	//`log("Toggle:" @ Toggle);
+	if(Toggle) //Toggle it on (Button was pressed)
+	{
+		PassiveAbilities[2].ToggleAbility();
+		return true; 			
+	}
+	else //Button was released, so ignore activating, but check if should deactivate on release
+	{
+		if(PassiveAbilities[2].bDeactivateOnRelease)
+			PassiveAbilities[2].DeactivateAbility(false);
+		return true; 	
+	}
+
+	return false; //I don't know how you'd get here... but just in case
+}
 
 simulated function bool NotifyPassivesDodged(int DodgeDir){
 	local int i; 
@@ -6322,6 +6589,17 @@ simulated function NotifyPassivesCrouched(bool Toggle){
 	for(i=0;i<3;i++){
 		if(PassiveAbilities[i] != none)
 			PassiveAbilities[i].NotifyCrouched(Toggle); 
+	}
+}
+
+//Lets Passives do whatever right before controller sends the full move
+simulated function NotifyPassivesPlayerMove(name ControllerState, vector NewAccelVector, float DeltaTime)
+{
+		local int i; 
+	
+		for(i=0;i<3;i++){
+		if(PassiveAbilities[i] != none)
+			PassiveAbilities[i].NotifyPlayerMoving(ControllerState, Controller, NewAccelVector, DeltaTime); 
 	}
 }
 
@@ -6362,6 +6640,199 @@ simulated function NotifyPassivesMeshChanged()
 	}
 }
 
+simulated function NotifyPassivesOverlayChanged(MaterialInterface NewMIC)
+{
+	local int i; 
+	
+	for(i=0;i<3;i++){
+		if(PassiveAbilities[i] != none)
+		{
+			PassiveAbilities[i].NotifyOverlayChanged(NewMIC); 
+		}
+		
+		if(PassiveAbilityAttachments[i] != none)
+		{
+			PassiveAbilityAttachments[i].NotifyOverlayChanged(NewMIC); 
+		}
+	}
+}
+
+simulated function NotifyPassivesMaterialsChanged()
+{
+	local int i; 
+	
+	//`log(" PAWN NOTIFY MATERIALS CHANGED "); 
+	for(i=0;i<3;i++){
+		if(PassiveAbilities[i] != none)
+		{
+			PassiveAbilities[i].NotifyMaterialsChanged(); 
+		}
+		
+		if(PassiveAbilityAttachments[i] != none)
+		{
+			PassiveAbilityAttachments[i].NotifyMaterialsChanged(); 
+		}
+		
+			
+	}
+}
+
+simulated function NotifyPassivesTookDamage()
+{
+	local int i; 
+	
+	//`log(" PAWN NOTIFY Damaged"); 
+	for(i=0;i<3;i++){
+		if(PassiveAbilities[i] != none)
+		{
+			PassiveAbilities[i].NotifyTookDamage(); 
+		}
+		
+		if(PassiveAbilityAttachments[i] != none)
+		{
+			PassiveAbilityAttachments[i].NotifyTookDamage(); 
+		}
+		
+			
+	}
+}
+
+/*This one is kind of Infantry specific*/
+simulated function NotifyPassivesWeaponAttachmentChanged()
+{
+	local int i; 
+	
+	for(i=0;i<3;i++){
+		if(PassiveAbilities[i] != none)
+		{
+			PassiveAbilities[i].NotifyWeaponAttachmentsChanged(); 
+		}
+		
+		if(PassiveAbilityAttachments[i] != none)
+		{
+			PassiveAbilityAttachments[i].NotifyWeaponAttachmentsChanged(); 
+		}
+		
+			
+	}
+}
+
+simulated function NotifyPassivesBackWeaponAttachmentChanged()
+{
+	local int i; 
+	
+	for(i=0;i<3;i++){
+		if(PassiveAbilities[i] != none)
+		{
+			PassiveAbilities[i].NotifyBackWeaponAttachmentsChanged(); 
+		}
+		
+		if(PassiveAbilityAttachments[i] != none)
+		{
+			PassiveAbilityAttachments[i].NotifyBackWeaponAttachmentsChanged(); 
+		}
+		
+			
+	}
+}
+
+simulated function NotifyPassivesBumpedActor(Actor Other, Vector Vel, Vector HitNormal)
+{
+	local int i; 
+	
+	for(i=0;i<3;i++){
+		if(PassiveAbilities[i] != none)
+		{
+			PassiveAbilities[i].NotifyBumpedActor(Other, Vel, HitNormal); 
+		}
+	}
+}
+
+simulated function NotifyPassivesDriveVehicle(bool bEntering)
+{
+	local int i; 
+	
+	for(i=0;i<3;i++){
+		if(PassiveAbilities[i] != none)
+			PassiveAbilities[i].NotifyDriveVehicle(bEntering);
+
+		if(PassiveAbilityAttachments[i] != none)
+		{
+			PassiveAbilityAttachments[i].NotifyDriveVehicle(bEntering); 
+		}
+	}
+
+}
+/*We died*/
+simulated function NotifyPassivesDied()
+{
+	local int i; 
+	
+	for(i=0;i<3;i++){
+		if(PassiveAbilities[i] != none)
+		{
+			PassiveAbilities[i].NotifyOwnerDied(); 
+		}
+		
+		if(PassiveAbilityAttachments[i] != none)
+		{
+			PassiveAbilityAttachments[i].NotifyOwnerDied(); 
+		}	
+	}
+	
+	ClearPassiveAbilities();
+}
+
+simulated function NotifyPassivesServerMove(float DeltaTime)
+{
+	local int i; 
+	
+	for(i=0;i<3;i++){
+		if(PassiveAbilities[i] != none)
+		{
+			PassiveAbilities[i].NotifyServerMove(DeltaTime); 
+		}			
+	}
+}
+
+simulated function NotifyPassivesWeaponFired(byte FM)
+{
+	local int i; 
+	
+	for(i=0;i<3;i++){
+		if(PassiveAbilities[i] != none)
+		{
+			PassiveAbilities[i].NotifyWeaponFired(FM); 
+		}
+		
+		if(PassiveAbilityAttachments[i] != none)
+		{
+			PassiveAbilityAttachments[i].NotifyWeaponFired(FM); 
+		}
+		
+			
+	}
+}
+
+simulated function NotifyPassivesPhysicsVolumeChanged(PhysicsVolume NewVolume)
+{
+	local int i; 
+	
+	for(i=0;i<3;i++){
+		if(PassiveAbilities[i] != none)
+		{
+			PassiveAbilities[i].NotifyPhysicsVolumeChange(NewVolume); 
+		}
+		
+		if(PassiveAbilityAttachments[i] != none)
+		{
+			PassiveAbilityAttachments[i].NotifyPhysicsVolumeChange(NewVolume); 
+		}
+		
+			
+	}
+}
+
 /*END Passive ability interface*/
 
 simulated function SetFiringMode(Weapon InWeapon, byte InFiringMode)
@@ -6369,6 +6840,314 @@ simulated function SetFiringMode(Weapon InWeapon, byte InFiringMode)
 	//scripttrace();
 	//`log( WorldInfo.TimeSeconds @ GetFuncName() @ "old:" @ FiringMode @  "new:" @ InFiringMode );
 	super.SetFiringMode(InWeapon, InFiringMode); 
+}
+
+function CleanupOwnerlessPawn() {	
+	// If its a vehicle, just destroy the driver, otherwise do the normal.
+	if (DrivenVehicle != None)
+	{
+		DrivenVehicle.DriverLeave(TRUE); // Force the pawn out of the vehicle
+	}
+
+	Health = 0;
+	Died(None, class'DamageType', Location);
+}
+
+function PawnOwnerLeft() {
+	// Delay cleaning up of Pawn in case the player rejoins
+	SetTimer(10.0, false, nameof(CleanupOwnerlessPawn));
+}
+
+function PossessedBy(Controller C, bool bVehicleTransition) {
+	ClearTimer(nameof(CleanupOwnerlessPawn));
+	Super.PossessedBy(C, bVehicleTransition);
+}
+
+
+
+simulated function SkeletalMeshComponent GetOverlayMesh()
+{
+	return OverlayMesh; 
+}
+
+/*Overlay Mesh for arms */
+simulated function SkeletalMeshComponent GetArmsOverlay(int Num)
+{
+	return ArmsOverlayMesh[num];
+}
+
+/*Better overlay interface [Easily seen on SSs if tampered with]*/
+simulated function MeshComponent GetArmsOverlayMesh(byte Num)
+{
+	return ArmsOverlayMesh[Num];
+}
+
+simulated function MaterialInstanceConstant CreateAndSetArmsOverlayMIC(byte Num)
+{
+	local MaterialInstanceConstant NewOverlayMaterial;
+	
+	if(ArmsOverlayMesh[Num] != none)
+	{
+		NewOverlayMaterial = ArmsOverlayMesh[Num].CreateAndSetMaterialInstanceConstant(0);
+	}
+	
+	return NewOverlayMaterial;
+}
+
+simulated function MaterialInterface GetArmsOverlayMaterial(byte Num)
+{
+	//local int i; 
+	
+	if(ArmsOverlayMesh[Num] == none)
+	{
+		//`log("ATTACHMENT: WAS NO OVERLAY MESH");
+		return none;
+	}
+		
+	
+	/**for(i=0;i<ArmsOverlayMesh[Num].GetNumElements(); i++)
+	{
+		`log("ATTACHMENT: Arms Overlay Mesh material:" @ i $ ":" @ OverlayMesh.GetMaterial(i));
+	}*/
+
+	return ArmsOverlayMesh[Num].GetMaterial(0);
+}
+
+simulated function SetArmsOverlayMaterial(byte Num, MaterialInterface NewMIC)
+{
+	if(ArmsOverlayMesh[Num] != none)
+		ArmsOverlayMesh[Num].SetMaterial(0,NewMIC); 
+}
+
+/** Assign an arm mesh and material to this pawn */
+simulated function SetFirstPersonArmsInfo(SkeletalMesh FirstPersonArmMesh, MaterialInterface ArmMaterial)
+{
+	// Arms
+	ArmsMesh[0].SetSkeletalMesh(FirstPersonArmMesh);
+	ArmsMesh[1].SetSkeletalMesh(FirstPersonArmMesh);
+
+	ArmsOverlayMesh[0].SetSkeletalMesh(FirstPersonArmMesh);
+	ArmsOverlayMesh[1].SetSkeletalMesh(FirstPersonArmMesh);
+		
+	
+	SetArmsSkin(ArmMaterial);
+}
+
+/*UTPAwn Arm Management (Add functionality for Arm Overlay)*/
+simulated function SetWeaponVisibility(bool bWeaponVisible)
+{
+	local UTWeapon Weap;
+	local AnimNodeSequence WeaponAnimNode, ArmAnimNode, OverlayAnimNode;
+	local int i;
+
+	Weap = UTWeapon(Weapon);
+	if (Weap != None)
+	{
+		Weap.ChangeVisibility(bWeaponVisible);
+
+		// make the arm animations copy the current weapon anim
+		WeaponAnimNode = Weap.GetWeaponAnimNodeSeq();
+		if (WeaponAnimNode != None)
+		{
+			for (i = 0; i < ArrayCount(ArmsMesh); i++)
+			{
+				if (ArmsMesh[i].bAttached)
+				{
+					ArmAnimNode = AnimNodeSequence(ArmsMesh[i].Animations);
+					if (ArmAnimNode != None)
+					{
+						ArmAnimNode.SetAnim(WeaponAnimNode.AnimSeqName);
+						ArmAnimNode.PlayAnim(WeaponAnimNode.bLooping, WeaponAnimNode.Rate, WeaponAnimNode.CurrentTime);
+					}
+					//Overlay should copy 
+					if(ArmsOverlayMesh[i] != none)
+					{
+						OverlayAnimNode = AnimNodeSequence(ArmsOverlayMesh[i].Animations);
+						if (OverlayAnimNode != None)
+						{
+							OverlayAnimNode.SetAnim(WeaponAnimNode.AnimSeqName);
+							OverlayAnimNode.PlayAnim(WeaponAnimNode.bLooping, WeaponAnimNode.Rate, WeaponAnimNode.CurrentTime);
+						}
+					}
+					
+				}
+			}
+		}
+	}
+}
+
+/*(UTPawn)Called by Camera when this actor becomes its ViewTarget */
+simulated event EndViewTarget( PlayerController PC )
+{
+	PawnAmbientSound.bAllowSpatialization = true;
+	WeaponAmbientSound.bAllowSpatialization = true;
+
+	if (LocalPlayer(PC.Player) != None)
+	{
+		SetMeshVisibility(true);
+		bArmsAttached=false;
+		DetachComponent(ArmsMesh[0]);
+		DetachComponent(ArmsMesh[1]);
+		DetachComponent(ArmsOverlayMesh[0]);
+		DetachComponent(ArmsOverlayMesh[1]);
+	}
+}
+
+/*End overlay for arms interface*/
+
+
+//Simply returns if we're actually hurt in any way (Get around needing to check health and armor )
+simulated function bool HasTakenDamage()
+{
+	return Health < HealthMax || Armor < ArmorMax;
+} 
+
+/*-------------------------------------------*/
+/*BEGIN TARGET INTERFACE [RxIfc_Targetable]*/
+/*------------------------------------------*/
+//Health
+simulated function int GetTargetHealth() {return Health;} //Return the current health of this target
+simulated function int GetTargetHealthMax() {return HealthMax;} //Return the current health of this target
+
+//Armour 
+simulated function int GetTargetArmour() {return Armor;} // Get the current Armour of the target
+simulated function int GetTargetArmourMax() {return ArmorMax;} // Get the current Armour of the target 
+
+// Veterancy
+
+simulated function int GetVRank() {return VRank;}
+
+
+/*Get Health/Armour Percents*/
+simulated function float GetTargetHealthPct() {return (1.0 * Health / max(1,HealthMax + ArmorMax));}
+simulated function float GetTargetArmourPct() {return (1.0 * Armor / max(1,float(HealthMax + ArmorMax)));}
+simulated function float GetTargetMaxHealthPct() {return ( 1.0 * HealthMax / max(1,float(HealthMax + ArmorMax)));} //Everything together (Basically Health and armour)
+
+/*Get what we're actually looking at*/
+simulated function Actor GetActualTarget() {return self;} //Should return 'self' most of the time, save for things that should return something else (like building internals should return the actual building)
+
+/*Booleans*/
+simulated function bool GetUseBuildingArmour(){return false;} //Stupid legacy function to determine if we use building armour when drawing. 
+simulated function bool GetShouldShowHealth(){return true;} //If we need to draw health on this 
+simulated function bool AlwaysTargetable() {return false;} //Targetable no matter what range they're at
+simulated function bool GetIsInteractable(PlayerController PC) {return false;} //Are we ever interactable?
+simulated function bool GetCurrentlyInteractable(PlayerController RxPC) {return false;} //Are we interactable right now? 
+simulated function bool GetIsValidLocalTarget(Controller PC) {return (Health > 0 && (PC.GetTeamNum() == GetTeamNum() || bTargetable)) ;} //Are we a valid target for our local playercontroller?  (Buildings are always valid to look at (maybe stealthed buildings aren't?))
+simulated function bool HasDestroyedState() {return false;} //Do we have a destroyed state where we won't have health, but can't come back? (Buildings in particular have this)
+simulated function bool UseDefaultBBox() {return false;} //We're big AF so don't use our bounding box 
+simulated function bool IsStickyTarget() {return true;} //Does our target box 'stick' even after we're untargeted for awhile 
+simulated function bool HasVeterancy() {return true;}
+
+//Spotting
+simulated function bool IsSpottable() {return bTargetable;}
+simulated function bool IsCommandSpottable() {return bTargetable;} 
+
+simulated function bool IsSpyTarget(){return isSpy();} //Do we use spy mechanics? IE: our bounding box will show up friendly to the enemy [.... There are no spy Refineries...... Or are there?]
+
+/* Text related */
+
+simulated function string GetTargetName() {return GetCharacterClassName();} //Get our targeted name 
+simulated function string GetInteractText(Controller C, string BindKey) {return "";} //Get the text for our interaction 
+
+simulated function string GetTargetedDescription(PlayerController PlayerPerspective)
+{
+	//Above all else 
+	if(Rx_PRI(PlayerReplicationInfo) != none && Rx_PRI(PlayerReplicationInfo).bGetIsCommander()) 
+		return "[COMMANDER]";
+	else
+		return ""; 
+}
+
+//Actions
+simulated function SetTargeted(bool bTargeted) 
+{
+	bTargetted = bTargeted; //lol, why the hell is it spelled different? 
+}; //Function to say what to do when you're targeted client-side 
+
+/*----------------------------------------*/
+/*END TARGET INTERFACE [RxIfc_Targetable]*/
+/*---------------------------------------*/
+
+function TakeImpact(int Damage, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, bool bKnockdown)
+{
+	if(ROLE == ROLE_Authority)
+	{
+		
+		if(bKnockdown){
+			Velocity = Momentum;
+			SetPhysics(PHYS_Falling); 	
+			ForceRagdoll();	
+		
+			TakeDamage(Damage, EventInstigator, HitLocation, Momentum, DamageType);
+		}
+		
+	}
+}
+
+simulated function bool UseArmOverlay()
+{
+	//`log("------USE ARM OVERLAY----" @ bHasArmOverlay);
+	return bHasArmOverlay; //ArmsOverlayMesh[0].GetMaterial(0) != none || ArmsOverlayMesh[1].GetMaterial(0) != none;
+}
+
+function SetTargetable(bool TargetStatus)
+{
+	bTargetable = TargetStatus;
+}
+
+simulated function FaceRotation(rotator NewRotation, float DeltaTime)
+{
+	if(bDodging)
+		return;
+	
+	if ( Physics == PHYS_Ladder )
+	{
+		NewRotation = OnLadder.Walldir;
+	}
+	else if ( (Physics == PHYS_Walking) || (Physics == PHYS_Falling))
+	{
+		NewRotation.Pitch = 0;
+	}
+	NewRotation.Roll = Rotation.Roll;
+	SetRotation(NewRotation);
+}
+
+simulated state OperateRemoteVehicle
+{
+	simulated event BeginState(Name PreviousStateName)
+	{
+		SetPhysics(PHYS_NONE); 
+		Velocity = vect(0,0,0);
+		PlayBeaconDeployAnimation();
+	}
+	
+	simulated event EndState(Name NextStateName)
+	{
+		CancelBeaconDeployAnimation();
+		super.EndState(NextStateName);
+	}
+	
+	simulated event byte ScriptGetTeamNum()
+	{
+		return PlayerReplicationInfo.GetTeamNum();
+	}
+}
+
+simulated function OperateRCVehicle (bool bOperate)
+{
+	if(bOperate)
+		GotoState('OperateRemoteVehicle');
+	else
+		GotoState('Auto');
+	
+}
+
+reliable client function ClientOperateRCVehicle (bool bOperate)
+{
+	if(bOperate)
+		GotoState('OperateRemoteVehicle');
+	else
+		GotoState('Auto');
 }
 
 DefaultProperties
@@ -6521,6 +7300,47 @@ DefaultProperties
 	End Object
 	ArmsMesh[1]=FirstPersonArms2
 	
+	/*Arm Overlays*/
+	Begin Object class=UDKSkeletalMeshComponent Name=FirstPersonArmsOverlay
+		// PhysicsAsset=None
+		FOV=55
+		Scale=1.015
+		Animations=MeshSequenceA
+		DepthPriorityGroup=SDPG_Foreground
+		bUpdateSkelWhenNotRendered=true
+		CastShadow=false
+		bAllowAmbientOcclusion=true
+		bCastDynamicShadow=false
+		bSelfShadowOnly=false
+		bOnlyOwnerSee=true
+		bOverrideAttachmentOwnerVisibility=true
+		AbsoluteTranslation=false
+		AbsoluteRotation=true
+		AbsoluteScale=true
+	End Object
+	ArmsOverlayMesh[0] = FirstPersonArmsOverlay
+	
+	/*Arm Overlays*/
+	Begin Object class=UDKSkeletalMeshComponent Name=FirstPersonArmsOverlay2
+		// PhysicsAsset=None
+		Scale=1.015
+		FOV=55
+		Scale3D=(Y=-1.0)
+		Animations=MeshSequenceB
+		DepthPriorityGroup=SDPG_Foreground
+		bUpdateSkelWhenNotRendered=true
+		CastShadow=false
+		bSelfShadowOnly=true
+		bAllowAmbientOcclusion=true
+		bOnlyOwnerSee=true
+		bOverrideAttachmentOwnerVisibility=true
+		AbsoluteTranslation=false
+		AbsoluteRotation=true
+		AbsoluteScale=true
+		HiddenGame=true
+	End Object
+	ArmsOverlayMesh[1] = FirstPersonArmsOverlay2
+	
 	// default bone names
 	WeaponSocket=WeaponPoint
 	WeaponSocket2=DualWeaponPoint
@@ -6552,6 +7372,7 @@ DefaultProperties
 	MaxLeanRoll=2500
 	JumpZ=325.0
 	VehicleCheckRadius=120
+	CheatSpeedMult = 1.0
 	
 	CustomGravityScaling=0.85
 
@@ -6721,4 +7542,5 @@ DefaultProperties
 	SmoothNetUpdateTime=0.2//0.125
 
 	bPushesRigidBodies = true
+	bTargetable = true
 }

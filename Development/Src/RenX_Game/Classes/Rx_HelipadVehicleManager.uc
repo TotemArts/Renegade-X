@@ -72,7 +72,6 @@ function Rx_Building_VehicleFactory GetAirNearestProduction(Rx_PRI Buyer, out Ve
 
 	if(Buyer.GetTeamNum() == TEAM_GDI)
 	{			
-		`log(GDIHelipad.Length);
 		for(i=0; i<GDIHelipad.length;i++)
 		{
 			if(BestFactory == None)
@@ -94,7 +93,6 @@ function Rx_Building_VehicleFactory GetAirNearestProduction(Rx_PRI Buyer, out Ve
 					bActiveBuildingAvailable = true;
 			}
 		}
-		`log(BestFactory);
 		BestFactory.BuildingInternals.BuildingSkeleton.GetSocketWorldLocationAndRotation('Veh_Spawn', loc, rot);
 	}
 	else if(Buyer.GetTeamNum() == TEAM_NOD)
@@ -286,9 +284,9 @@ function queueWork_GDIAir()
 			ClearTimer('queueWork_GDIAir');
 			if (GDI_QueueAir.Length > 0)
 			{
-				SetTimer(ProductionDelay+4.5f+GDIAdditionalAirdropProductionDelay, false, 'queueWork_GDIAir');
+				SetTimer(ProductionDelay, false, 'queueWork_GDIAir');
 
-				SetTimer(4.5f,false,'DelayedGDIConstructionWarn');
+				ConstructionWarn(0);
 			}
 		}
 	}
@@ -309,9 +307,9 @@ function queueWork_NODAir()
 			ClearTimer('queueWork_NODAir');
 			if (NOD_QueueAir.Length > 0)
 			{
-				SetTimer(ProductionDelay+4.5f+NodAdditionalAirdropProductionDelay, false, 'queueWork_NODAir');	
+				SetTimer(ProductionDelay, false, 'queueWork_NODAir');	
 
-				SetTimer(4.5f,false,'DelayedNodConstructionWarn');
+				ConstructionWarn(1);
 			}
 		}
 	}
@@ -350,10 +348,7 @@ function bool IsAllowedToQueueUpAnotherVehicle(Rx_PRI Buyer)
 
 function bool IsAirclass(class<Object> VehClass)
 {
-	if (ClassIsChildOf(VehClass, class'Rx_Vehicle_Air'))
-		return true;
-
-	return ClassIsChildOf(VehClass, class'Rx_Vehicle_Air_Jet');
+	return ClassIsChildOf(VehClass, class'Rx_Vehicle_Air') || ClassIsChildOf(VehClass, class'Rx_Vehicle_Air_Jet');
 }
 
 DefaultProperties

@@ -82,8 +82,8 @@ DefaultProperties
     bCharge = true
 
     ClipSize = 50
-    InitalNumClips = 20
-    MaxClips = 20
+    InitalNumClips = 8
+    MaxClips = 8
 
     ReloadAnimName(0) = "weaponreload"
     ReloadAnimName(1) = "weaponreload"

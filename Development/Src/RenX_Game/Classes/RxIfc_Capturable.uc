@@ -14,4 +14,6 @@ function NotifyRestoredCaptured();
 
 function NotifyUnderAttack(byte TeamIndex);
 
+function NotifyContested(bool bContested);
+
 simulated function bool IsCapturableBy(byte TeamIndex);

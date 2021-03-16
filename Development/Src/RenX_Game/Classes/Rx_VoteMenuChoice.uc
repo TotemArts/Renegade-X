@@ -78,6 +78,12 @@ function ServerInit(Rx_Controller instigator, string param, int t)
 	 
 	ToTeam = t;
 	VoteInstigator = instigator;
+
+	//Load team colors from Rx_HUD
+	GDIColor = class<Rx_HUD>(Rx_Game(instigator.WorldInfo.Game).HUDClass).default.GDIColor;
+	NodColor = class<Rx_HUD>(Rx_Game(instigator.WorldInfo.Game).HUDClass).default.NodColor;
+	HostColor = class<Rx_HUD>(Rx_Game(instigator.WorldInfo.Game).HUDClass).default.HostColor;
+
 	DeserializeParam(param);
 	TopString = ComposeTopString();
 	EndTime = instigator.WorldInfo.TimeSeconds + TimeLeft;
@@ -99,16 +105,16 @@ function ServerInit(Rx_Controller instigator, string param, int t)
 	UpdatePlayers(instigator.WorldInfo);
 }
 
-static function string TeamTypeToString(int type)
+function string TeamTypeToString(int type)
 {
 	switch (type)
 	{
 	case -1:
 		return "Global";
 	case 0:
-		return "GDI";
+		return Rx_Game(VoteInstigator.WorldInfo.Game).GetTeamName(0);
 	case 1:
-		return "Nod";
+		return Rx_Game(VoteInstigator.WorldInfo.Game).GetTeamName(1);
 	}
 	return "";
 }
@@ -309,7 +315,4 @@ DefaultProperties
 
 	TimeLeft = 30 // seconds
 	ToTeam = -1
-	NodColor            = "#FF0000"
-	GDIColor            = "#FFC600"
-	HostColor           = "#22BBFF"
 }

@@ -25,6 +25,7 @@ var float ZoomGroundSpeed;
 var float ZoomAirSpeed;
 var float ZoomWaterSpeed;
 var float ZoomJumpZ;
+var float AimRate;
 
 /** Spread value while zoom aiming */
 var float SpreadScoped;
@@ -164,9 +165,10 @@ simulated function StartZoom(UTPlayerController PC)
 		}
 		bIronsightActivated=true;
 		ClearTimer('MoveWeaponOutOfIronSight');
-		SetTimer(0.005,true,'MoveWeaponToIronSight');
+		SetTimer((0.005 / 100 * AimRate),true,'MoveWeaponToIronSight');
 		if(bPlayingIdleAnim) {
 			UTPawn(Instigator).ArmsMesh[0].StopAnim();
+			Rx_Pawn(Instigator).ArmsOverlayMesh[0].StopAnim();
 			AnimSeq = GetWeaponAnimNodeSeq();
 			if( AnimSeq != None )
 			{
@@ -256,7 +258,7 @@ simulated function LeaveZoom()
 	PC = UTPlayerController(Instigator.Controller);
 	ZoomCount = 0;
 	ClearTimer('MoveWeaponToIronSight');
-	SetTimer(0.005,true,'MoveWeaponOutOfIronSight');
+	SetTimer((0.005 / 100 * AimRate),true,'MoveWeaponOutOfIronSight');
 	
 	PC.StartZoomNonlinear(PC.DefaultFOV+InverseZoomOffset, 10.0);
 	//PC.EndZoomNonlinear(10.0);
@@ -406,7 +408,10 @@ defaultproperties
 	bIronsightActivated=false
 
 	//This sets how fast we want to zoom, a very high value gives an instant zoom rather than the UT3 Sniper Rifle's hold to zoom setup
-	ZoomedRate=300000.0
+	ZoomedRate=300000.0]
+
+	//This sets how quick we want the weapon to arrive to the aiming position
+	AimRate = 100.f
 
 	//
 	//This value does not need to be present in your weapon class but can be if you wish to have a different amount of zoom while zoom aiming

@@ -22,6 +22,8 @@ var bool bRemoveWhenDepleted;
 var bool bBlockDeployCloseToOwnBase;
 var bool bAffectedByNoDeployVolume;
 
+var bool bAllowDropDeploy;
+
 /*replication
 {
    if(bNetDirty && Role == ROLE_Authority)
@@ -205,26 +207,46 @@ simulated function CustomFire()
 }
 
 function bool Deploy()
-   {
-      local Rotator FlatAim;
-      local vector spawnLoc;
+{
+    local Rotator SpawnRot;
+    local vector SpawnLoc, SpawnNormal,X, Y, Z;
+    local Actor SpawnBase;
+    local bool bTraceHit;
 	  
-	  if(!isValidPosition())
-	  {
-	  	return false;
-	  }	  
-
-      FlatAim.Yaw = 0;
-      FlatAim.Pitch = 0;
-      FlatAim.Roll = 0;
+	if(!isValidPosition())
+	{
+		return false;
+	}	  
 	  
-	  spawnLoc = Owner.Location;
+	if(!bAllowDropDeploy)
+	{
+		bTraceHit = GetBeaconSpawnLoc(SpawnLoc, SpawnNormal, SpawnBase);
+	  
+		if(!bTraceHit)
+			return false;
 
-      DeployedActor = Spawn(DeployedActorClass, Pawn(Owner).Controller,, spawnLoc, FlatAim); 
-      DeployedActor.bCollideComplex=false;
+		GetAxes(Rotator(SpawnNormal),X,Y,Z);
+		SpawnRot = Rotator(Z);
+	}
+	else
+	{
+		SpawnLoc = Owner.Location;
+		SpawnRot = Owner.Rotation;
+		SpawnRot.Pitch = 0.0;
+	}
 
-	  ClientFire();
-      ConsumeAmmo(0);
+    DeployedActor = Spawn(DeployedActorClass, Pawn(Owner).Controller,, SpawnLoc, SpawnRot,,true); 
+//      DeployedActor.bCollideComplex=false;
+    if(bTraceHit && !bAllowDropDeploy)
+    	DeployedActor.Landed(SpawnNormal,SpawnBase); //force land
+    else if(bAllowDropDeploy)
+    {
+    	DeployedActor.bCollideComplex=false;
+    	DeployedActor.SetPhysics(PHYS_Falling);
+    }
+
+	ClientFire();
+    ConsumeAmmo(0);
 
 	  /** one1: Added to remove from inventory. */
 	  if (AmmoCount <= 0 && bRemoveWhenDepleted)
@@ -239,6 +261,30 @@ function bool Deploy()
 	`RecordGamePositionStat(WEAPON_BEACON_DEPLOYED, DeployedActor.Location, 1);
 
       return true;
+}
+
+function bool GetBeaconSpawnLoc(out vector OutLoc, out vector OutNormal, out Actor HitBase)
+{
+	local vector TraceStart, TraceEnd, HitLocation,HitNormal;
+	local actor A;
+
+	TraceStart = Owner.Location;
+	TraceEnd = TraceStart - vect(0,0,1500);
+
+	foreach TraceActors(class'Actor', A, HitLocation, HitNormal, TraceEnd, TraceStart,,,TRACEFLAG_Bullet)
+	{
+		if(!A.bWorldGeometry || Rx_Weapon_DeployedActor(A) != None)
+			continue;
+
+		OutLoc = HitLocation;
+		OutNormal = HitNormal;
+		HitBase = A;
+
+		return true;
+	}
+
+	return false;
+
 }
 
 reliable server function ServerDeploy()
@@ -439,6 +485,7 @@ defaultproperties
 	bBlockDeployCloseToOwnBase = true
 	bAffectedByNoDeployVolume = true
 	bDropOnDeath = false//true
+	bCanGetAmmo=false
 
 	WeaponFireSnd(0)=SoundCue'RX_WP_TimedC4.Sounds.SC_TimedC4_Fire'
    	FiringStatesArray(0)="Charging"

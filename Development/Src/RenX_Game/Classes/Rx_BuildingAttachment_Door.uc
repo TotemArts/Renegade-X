@@ -2,10 +2,9 @@ class Rx_BuildingAttachment_Door extends Rx_BuildingAttachment
     abstract;
 
 var SkeletalMeshComponent       DoorSkeleton;
-var Rx_Buildings_DoorSensor     DoorSensor;
+
 var LightEnvironmentComponent   LightComp;
 var TEAM                        TeamID;
-var int                         NumActorsTouching;
 var bool                        bOpen;
 var repnotify bool              bServerOpen;
 var const float                 SensorRadius;
@@ -33,9 +32,14 @@ simulated event ReplicatedEvent(name VarName)
 	if (VarName == 'bServerOpen')
 	{
 		if (bServerOpen)
+		{
 			OpenDoor();
+		}
 		else
+		{
 			CloseDoor();
+		}
+			
 	}
 }
 
@@ -45,19 +49,10 @@ simulated function PostBeginPlay()
 
 	SetCollision(true, true);
 
-	DoorSensor = Spawn(class'Rx_Buildings_DoorSensor',self,,Location,Rotation);
-
-	if ( DoorSensor != none )
-	{
-		DoorSensor.RegisterDoor(self);
-	}
-
 	if (WorldInfo.NetMode != NM_DedicatedServer) 
 	{
 		AnimNode = DoorSkeleton.FindAnimNode(OpenAnimName);
 	}
-
-//	SetTimer(1.0, true, nameof(CheckGameStart));
 }
 
 simulated function CheckGameStart()
@@ -74,43 +69,19 @@ simulated event byte ScriptGetTeamNum()
     return TeamID;
 }
 
-simulated function SensorTouch( Actor Other )
+simulated function UpdateActorCountTouchingDoor(int actorTouchingDoorCount)
 {
-	if( Rx_Vehicle(Other) != none && bOpenForVehicles == false)
-			return;
-
-	if( ClassIsChildOf(Other.Class,class'Pawn') )
-	{
-		if( NumActorsTouching == 0 )
-		{
-			if(Role == ROLE_Authority)
-			{
-				OpenDoor();
-			}
-		}
-		NumActorsTouching++;
+	if (Role != ROLE_Authority) {
+		return;
 	}
-}
 
-simulated function SensorUnTouch( Actor Other )
-{
-	if( Rx_Vehicle(Other) != none && bOpenForVehicles == false)
-			return;
-
-	if(ClassIsChildOf(Other.Class,class'Pawn'))
+	if (actorTouchingDoorCount > 0)
 	{
-		if(NumActorsTouching >= 1) 
-		{
-			NumActorsTouching--;
-			if( NumActorsTouching == 0 )
-			{
-				if(Role == ROLE_Authority)
-				{
-					CloseDoor();
-				}
-			}
-		}
-		
+		OpenDoor();
+	}
+	else
+	{
+		CloseDoor();
 	}
 }
 
@@ -119,36 +90,49 @@ simulated function OpenDoor()
 	if (!bOpen)
 	{
 		SetCollision( False, False, False );
-		bOpen=true;
+		bOpen = true;
 
-		if(WorldInfo.NetMode != NM_DedicatedServer)
+		if(WorldInfo.NetMode != NM_DedicatedServer )
 		{
-			PlaySound(OpeningSound,true);
-			DoorSkeleton.PlayAnim(OpenAnimName,DoorOpenTime, false,false, ,false);
+			PlaySound(OpeningSound, true);
+			DoorSkeleton.PlayAnim(OpenAnimName, DoorOpenTime, false, false, ,false);
 		}
-		else
+		else if (Role == ROLE_Authority)
 		{
 			bServerOpen = true;
 		}
 	}
 }
+
 simulated function CloseDoor()
 {
 	if (bOpen)
 	{
 		SetCollision( True, True, True );
-		bOpen=false;
+		bOpen = false;
 
 		if(WorldInfo.NetMode != NM_DedicatedServer)
 		{
-			PlaySound(ClosingSound,true);
-			DoorSkeleton.PlayAnim(OpenAnimName,DoorOpenTime, false, false, ,true);
+			PlaySound(ClosingSound, true);
+			DoorSkeleton.PlayAnim(OpenAnimName, DoorOpenTime, false, false, ,true);
 		}
 		else
 		{
 			bServerOpen = false;
 		}
 	}
+}
+
+// Override this function to change who is allowed to trigger door
+simulated function bool ShouldAllowActor(Actor actor) 
+{
+	local bool isVehicle;
+	local bool isPlayer;
+
+	isVehicle = Rx_Vehicle(actor) != none && bOpenForVehicles;
+	isPlayer = Rx_Pawn(actor) != none;
+
+	return isPlayer || isVehicle;
 }
 
 simulated function float GetSensorHeight()
@@ -170,7 +154,6 @@ defaultproperties
 	bCollideActors      = True
 	bBlockActors        = true
 	bOpenForVehicles    = true
-	//bWorldGeometry 		= true
 
 	Begin Object Class=DynamicLightEnvironmentComponent Name=MyLightEnvironment
 		bEnabled                        = True
@@ -189,8 +172,4 @@ defaultproperties
 	
 	OpeningSound=SoundCue'rx_bu_door.Sounds.SC_Door_Open'
 	ClosingSound=SoundCue'rx_bu_door.Sounds.SC_Door_Open'
-	
-	/**
-	OpeningSound=SoundCue'TS_BU_Barracks.Sounds.SC_Door_Open'
-	ClosingSound=SoundCue'TS_BU_Barracks.Sounds.SC_Door_Close'*/
 }

@@ -18,6 +18,21 @@ exec function Ghost()
 	ClientMessage("You feel ethereal");
 }
 
+exec function SetSpeed( float F )
+{
+	local Rx_Pawn RxP;
+
+	RxP = Rx_Pawn(Pawn);
+
+	if(RxP != None)
+	{
+		RxP.CheatSpeedMult = F;
+		RxP.SetGroundSpeed();
+	}
+	else
+		Super.SetSpeed(F);
+}
+
 exec function ChangeCharacter( String CharacterClassStr, optional string ModifyPlayer="" )
 {
 	local PlayerController c;
@@ -49,6 +64,24 @@ exec function ChangeCharacter( String CharacterClassStr, optional string ModifyP
 	{
 		`log("ChangeCharacter() Missing class or pawn"@`ShowVar(CharacterClassStr)@`ShowVar(CharacterClass)@`ShowVar(c));
 
+	}
+}
+
+exec function Bleed(optional int Damage = 1, optional int Duration = 10)
+{
+	local Rx_Pawn PlayerPawn;
+	PlayerPawn = Rx_Pawn(Pawn);
+	if (PlayerPawn != None) {
+		PlayerPawn.AddBleed(Damage, Duration, GetALocalPlayerController(), class'Rx_DmgType_Burn'.Default.BleedType);
+	}
+}
+
+exec function Refill()
+{
+	local Rx_Pawn PlayerPawn;
+	PlayerPawn = RX_Pawn(Pawn);
+	if (PlayerPawn != None) {
+		PlayerPawn.PerformRefill();
 	}
 }
 

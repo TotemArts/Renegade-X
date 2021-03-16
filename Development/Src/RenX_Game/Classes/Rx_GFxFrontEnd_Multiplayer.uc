@@ -613,7 +613,7 @@ function SetUpDataProvider(GFxClikWidget Widget)
 			TempObj.SetString("action", "join");
 			DataProvider.SetElementObject(0, TempObj);
 			TempObj = CreateObject("Object");
-			TempObj.SetString("label", "Enter IP");
+			TempObj.SetString("label", "ENTER IP");
 			TempObj.SetString("action", "ip");
 			DataProvider.SetElementObject(1, TempObj);
 			TempObj = CreateObject("Object");

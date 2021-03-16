@@ -3,6 +3,7 @@ class Rx_Building_WeaponsFactory_Ramps extends Rx_Building_WeaponsFactory
 
 defaultproperties
 {
+	MineLimit=8
     Begin Object Class=StaticMeshComponent Name=Static_Ramps
         StaticMesh = StaticMesh'RX_BU_WeaponsFactory.Mesh.SM_WeaponsFactory_Ramps'
 		CastShadow                      = True

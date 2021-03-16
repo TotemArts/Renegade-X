@@ -52,7 +52,7 @@ DefaultProperties
     AccelRate=0
     LifeSpan=1.0		// 0.6
     Damage=40 //25
-    DamageRadius=200 //160
+    DamageRadius=175 //160
 	HeadShotDamageMult=1.5
     MomentumTransfer=10000
 	bWaitForEffects=true

@@ -25,7 +25,7 @@ simulated function CustomFire()
 }
 
 /** Modified version of Rx_Weapon::TryHeadshot(...) that allows Shotgun headshots to work. */
-simulated function bool TryHeadshot(byte FiringMode, ImpactInfo Impact) 
+simulated function bool TryHeadshot(byte FiringMode, ImpactInfo Impact, optional float DmgReduction = 1.0) 
 {
 	local float Scaling;
 	local int HeadDamage;
@@ -140,10 +140,10 @@ defaultproperties
 
     ShotCost(0)=1
     ShotCost(1)=1
-    Spread(0)=0.02 //0.18
+    Spread(0)=0.15
 //    Spread(1)=0.3
 
-	IronSightAndScopedSpread(0)= 0.05
+	IronSightAndScopedSpread(0)= 0.115
     
     EquipTime=0.55
 //	PutDownTime=0.4
@@ -163,7 +163,7 @@ defaultproperties
 
     WeaponFireTypes(0)=EWFT_Custom
     WeaponFireTypes(1)=EWFT_None
-    WeaponRange=1200 //800.0
+    WeaponRange=1600 //800.0
 
     InstantHitDamage(0)=13 //10 //12//16
 //    InstantHitDamage(1)=16
@@ -290,7 +290,7 @@ defaultproperties
 	bLocSync = true; 
 	LocSyncIncrement = 4; 
 	
-	bUseConstantSpread = true
+	bUseConstantSpread = false
 	
 	NumSpreadLayers = 4//2 //6 
 	LayerDensity = 0.02//0.03

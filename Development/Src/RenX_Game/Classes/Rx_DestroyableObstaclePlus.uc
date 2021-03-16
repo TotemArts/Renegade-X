@@ -1,5 +1,6 @@
 class Rx_DestroyableObstaclePlus extends Actor 
-abstract;
+abstract
+implements(RxIfc_Targetable);
 
 
 /** The Mesh */
@@ -206,9 +207,8 @@ simulated function TakeRadiusDamage
 //Do not allow healing of 'most' destroyable obstacles
 function bool HealDamage(int Amount, Controller Healer, class<DamageType> DamageType)
 {
-if(bCanHeal) HP=Min(MaxHP,HP+Amount); //Nothing fancy for a rock 
-else
-return false;
+	if (bCanHeal) HP=Min(MaxHP,HP+Amount); //Nothing fancy for a rock 
+	else return false;
 } 
 
 function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)
@@ -222,23 +222,18 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 	if (DamageAmount <= 0 || HP <= 0)
       return;
 
-	if ( DamageType != None )
+	if (DamageType != None)
 	{
-		
-	if(bLightArmor) 
-	{
-	DamageAmount*=RXDT.static.VehicleDamageScalingFor(none);
-	HP-=fmax(DamageAmount, 1);
-	}  
-	else //Heavy armor is fine taking no damage from low damage weapons 
-	{
-	DamageAmount *= RXDT.static.BuildingDamageScalingFor();  
-	HP-=DamageAmount;
-	}
-	
-	
-	
-	
+		if (bLightArmor) 
+		{
+			DamageAmount*=RXDT.static.VehicleDamageScalingFor(none);
+			HP-=fmax(DamageAmount, 1);
+		} 
+		else //Heavy armor is fine taking no damage from low damage weapons 
+		{
+			DamageAmount *= RXDT.static.BuildingDamageScalingFor();  
+			HP-=DamageAmount;
+		}
 	}
 	
 	//KISS
@@ -300,79 +295,134 @@ function OnToggleShowDestroyableHealth(Rx_SeqAct_ToggleShowDestroyableHealth Act
 		bShowHealth = !bShowHealth;
 }
 
+/*-------------------------------------------*/
+/*BEGIN TARGET INTERFACE [RxIfc_Targetable]*/
+/*------------------------------------------*/
+//Health
+simulated function int GetTargetHealth() {return GetHealth();} //Return the current health of this target
+simulated function int GetTargetHealthMax() {return GetMaxHealth();} //Return the current health of this target
+
+//Armour 
+simulated function int GetTargetArmour() {return 0;} // Get the current Armour of the target
+simulated function int GetTargetArmourMax() {return 0;} // Get the current Armour of the target 
+
+// Veterancy
+
+simulated function int GetVRank() {return 0;}
+
+
+/*Get Health/Armour Percents*/
+simulated function float GetTargetHealthPct() {return (GetHealth()*1.0) / max(1.0, (GetMaxHealth()*1.0));}
+simulated function float GetTargetArmourPct() {return 0;}
+simulated function float GetTargetMaxHealthPct() {return 1.0f;} //Everything together (Basically Health and armour)
+
+/*Get what we're actually looking at*/
+simulated function Actor GetActualTarget() {return self;} //Should return 'self' most of the time, save for things that should return something else (like building internals should return the actual building)
+
+/*Booleans*/
+simulated function bool GetUseBuildingArmour(){return false;} //Stupid legacy function to determine if we use building armour when drawing. 
+simulated function bool GetShouldShowHealth(){return bShowHealth;} //If we need to draw health on this 
+simulated function bool AlwaysTargetable() {return false;} //Targetable no matter what range they're at
+simulated function bool GetIsInteractable(PlayerController PC) {return false;} //Are we ever interactable?
+simulated function bool GetCurrentlyInteractable(PlayerController RxPC) {return false;} //Are we interactable right now? 
+simulated function bool GetIsValidLocalTarget(Controller PC) {return bShowHealth;} //Are we a valid target for our local playercontroller?  (Buildings are always valid to look at (maybe stealthed buildings aren't?))
+simulated function bool HasDestroyedState() {return false;} //Do we have a destroyed state where we won't have health, but can't come back? (Buildings in particular have this)
+simulated function bool UseDefaultBBox() {return false;} //We're big AF so don't use our bounding box 
+simulated function bool IsStickyTarget() {return false;} //Does our target box 'stick' even after we're untargeted for awhile 
+simulated function bool HasVeterancy() {return false;}
+
+//Spotting
+simulated function bool IsSpottable() {return true;}
+simulated function bool IsCommandSpottable() {return false;} 
+
+simulated function bool IsSpyTarget(){return false;} //Do we use spy mechanics? IE: our bounding box will show up friendly to the enemy [.... There are no spy Refineries...... Or are there?]
+
+/* Text related */
+
+simulated function string GetTargetName() {return GetHumanReadableName();} //Get our targeted name 
+simulated function string GetInteractText(Controller C, string BindKey) {return "";} //Get the text for our interaction 
+simulated function string GetTargetedDescription(PlayerController PlayerPerspectiv) {return "";} //Get any special description we might have when targeted 
+
+//Actions
+simulated function SetTargeted(bool bTargeted) ; //Function to say what to do when you're targeted client-side 
+
+/*----------------------------------------*/
+/*END TARGET INTERFACE [RxIfc_Targetable]*/
+/*---------------------------------------*/
+
 DefaultProperties
 
 {
-Physics=PHYS_NONE
-HP=7000
+	Physics=PHYS_NONE
+	HP=7000
 
-MaxHP=7000
+	MaxHP=7000
 
-//Team=255
-
-
- 
-//Jack a small bit from Rx_Vehicle for explosions/animations 
- 
-DamageSmokeThreshold=0.25
- 
-ExplosionSound=SoundCue'RX_SoundEffects.Vehicle.SC_Vehicle_Explode'
+	//Team=255
 
 
-bExplodes = false
-ExplosionDamage=0
-ExplosionRadius=1
-ExplosionDelay=0.5f;
-bDamageAll=false 
-DamageMomentum=10000
+	 
+	//Jack a small bit from Rx_Vehicle for explosions/animations 
+	 
+	DamageSmokeThreshold=0.25
+	 
+	ExplosionSound=SoundCue'RX_SoundEffects.Vehicle.SC_Vehicle_Explode'
 
 
-DamageTypeClass=class'Rx_DmgType_GrenadeLauncher'
+	bExplodes = false
+	ExplosionDamage=0
+	ExplosionRadius=1
+	ExplosionDelay=0.5f;
+	bDamageAll=false 
+	DamageMomentum=10000
 
- 
-ObstacleName = "Destroyable Obstacle" 
 
- 
-   Begin Object Class=DynamicLightEnvironmentComponent Name=MyLightEnvironment
-		bEnabled=TRUE
-	End Object
-	LightEnvironment=MyLightEnvironment
-	Components.Add(MyLightEnvironment)
+	DamageTypeClass=class'Rx_DmgType_GrenadeLauncher'
 
-Begin Object Class=StaticMeshComponent Name=ObstacleMesh
-		//HiddenGame=true
-		CastShadow                      = True
-		CollideActors                   = True
-		BlockActors                     = True
-		BlockRigidBody                  = True
-		BlockZeroExtent                 = True
-		BlockNonZeroExtent              = True
-		bCastDynamicShadow              = True
-		bAcceptsLights                  = True
-		bAcceptsDecalsDuringGameplay    = True
-		bAcceptsDecals                  = True
-		bAllowApproximateOcclusion      = True
-		bUsePrecomputedShadows          = True
-		bForceDirectLightMap            = True
-		bAcceptsDynamicLights           = True
-		ForcedLodModel 					= 1
-		LightingChannels                = (bInitialized=True,Static=True)
+	 
+	ObstacleName = "Destroyable Obstacle" 
+
+	 
+	   Begin Object Class=DynamicLightEnvironmentComponent Name=MyLightEnvironment
+			bEnabled=TRUE
+		End Object
 		LightEnvironment=MyLightEnvironment
-	End Object
-	Mesh=ObstacleMesh
-	Components.Add(ObstacleMesh)
-  
- bCollideActors=true
- bCollideWorld=true 
- bCollideComplex=true
- bBlockActors=true
- bProjTarget=true 
- 
- bShowHealth=true
- 
- bAlwaysRelevant=true
- bGameRelevant=true
-	RemoteRole=ROLE_SimulatedProxy
-	bPathColliding=true
+		Components.Add(MyLightEnvironment)
+
+	Begin Object Class=StaticMeshComponent Name=ObstacleMesh
+			//HiddenGame=true
+			CastShadow                      = True
+			CollideActors                   = True
+			BlockActors                     = True
+			BlockRigidBody                  = True
+			BlockZeroExtent                 = True
+			BlockNonZeroExtent              = True
+			bCastDynamicShadow              = True
+			bAcceptsLights                  = True
+			bAcceptsDecalsDuringGameplay    = True
+			bAcceptsDecals                  = True
+			bAllowApproximateOcclusion      = True
+			bUsePrecomputedShadows          = True
+			bForceDirectLightMap            = True
+			bAcceptsDynamicLights           = True
+			ForcedLodModel 					= 1
+			LightingChannels                = (bInitialized=True,Static=True)
+			LightEnvironment=MyLightEnvironment
+		End Object
+		Mesh=ObstacleMesh
+		Components.Add(ObstacleMesh)
+	  
+	 bCollideActors=true
+	 bCollideWorld=true 
+	 bCollideComplex=true
+	 bBlockActors=true
+	 bProjTarget=true 
+	 
+	 bShowHealth=true
+	 
+	 bAlwaysRelevant=true
+	 bGameRelevant=true
+		RemoteRole=ROLE_SimulatedProxy
+		bPathColliding=true
 
 }

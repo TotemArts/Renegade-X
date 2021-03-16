@@ -144,7 +144,6 @@ function ChangeState (name newState) {
    GotoState(newState);
 }
 
-
 /* =============
  * state WaitForSt - all the time checks are performed here
  * and the main decision point for getting stealthed
@@ -604,12 +603,18 @@ simulated function SetMaterialsCloaked(bool cloaked)
         // Set equipped weapon to stealth and intialize MIC
         if ((Weapon != None && Weapon.Mesh != none) && (Weapon.default.Mesh.Materials.Length > 0 || Weapon.Mesh.GetNumElements() > 0))
         {
-            count = Weapon.default.Mesh.Materials.Length > 0 ?  Weapon.default.Mesh.Materials.Length : Weapon.Mesh.GetNumElements();
-            for (i = 0; i < count; i++) 
+            if(Rx_Weapon_LaserRifle(Weapon) != none)
             {
-                Weapon.Mesh.SetMaterial(i, MICStealthed);
-                Weapon.Mesh.CreateAndSetMaterialInstanceConstant(i);  
-            }     
+               Weapon.Mesh.SetMaterial(0, MICStealthed);
+               Weapon.Mesh.CreateAndSetMaterialInstanceConstant(0);
+            } else {
+               count = Weapon.default.Mesh.Materials.Length > 0 ?  Weapon.default.Mesh.Materials.Length : Weapon.Mesh.GetNumElements();
+               for (i = 0; i < count; i++) 
+               {
+                  Weapon.Mesh.SetMaterial(i, MICStealthed);
+                  Weapon.Mesh.CreateAndSetMaterialInstanceConstant(i);  
+               }     
+            }
         }   
     
         // Set 1st person arms to stealth and intialize MIC
@@ -688,12 +693,19 @@ simulated function SetMaterialsCloaked(bool cloaked)
 
         for (j = 0; j < ArrayCount(CurrentBackWeapons); j++) 
         {
-            if (CurrentBackWeaponComponents[j] != None)
+            if (CurrentBackWeaponComponents[j] != None) {
                 for (i = 0; i < CurrentBackWeaponComponents[j].default.SkeletalMesh.Materials.length; i++)
-                {
-                    CurrentBackWeaponComponents[j].SetMaterial(i, CurrentBackWeaponComponents[j].default.SkeletalMesh.Materials[i]);
-                    CurrentBackWeaponComponents[j].CreateAndSetMaterialInstanceConstant(i);
+                { 
+                   // Some weapons such as the nod autorifile, get the GDI material if we use the skeletal mesh
+                   // If the material exists, use it otherwise fall back to the skeletal mesh.
+                   if (i < CurrentBackWeaponComponents[j].default.Materials.length) {
+                     CurrentBackWeaponComponents[j].SetMaterial(i, CurrentBackWeaponComponents[j].default.Materials[i]);
+                   } else {
+                      CurrentBackWeaponComponents[j].SetMaterial(i, CurrentBackWeaponComponents[j].default.SkeletalMesh.Materials[i]);
+                   }
+                   CurrentBackWeaponComponents[j].CreateAndSetMaterialInstanceConstant(i);
                 }
+            }
         } 
     }
 }
@@ -737,6 +749,10 @@ function bool GiveHealth(int HealAmount, int HealMax)
 	return super.GiveHealth(HealAmount, HealMax);
 }
 
+function PerformRefill() {
+   Super.PerformRefill();
+   ChangeState('WaitForSt');
+}
 
 
 /** todo: when sprinting decrease stealtheffect a bit
@@ -806,10 +822,11 @@ simulated function ClearOverlay()
 /*Functions shared by all stealth units for the HUD (And maybe for a sensor array or something)*/
 
 simulated function bool GetIsinTargetableState(){
-	return ((GetStateName() != 'Stealthed' && GetStateName() != 'BeenShot') || bStealthRecoveringFromBeeingShotOrSprinting ); 
+	return (((GetStateName() != 'Stealthed' && GetStateName() != 'BeenShot') || bStealthRecoveringFromBeeingShotOrSprinting) && Health > 0); 
 }
 
-simulated function bool GetIsStealthCapable(){
+simulated function bool GetIsStealthCapable()
+{
 	return Health > HealthMax*LowHPMult;
 }
 	
@@ -822,6 +839,10 @@ simulated function ChangeStealthVisibilityParam(bool ForOnFoot, optional float P
 } 
 
 /*End Stealth Interface Functions*/
+
+/*RxIfc_Targetable*/
+simulated function bool GetIsValidLocalTarget(Controller PC) {return PC.GetTeamNum() == GetTeamNum() || GetIsinTargetableState();} //Are we a valid target for our local playercontroller?  (Buildings are always valid to look at (maybe stealthed buildings aren't?))
+
 
 Defaultproperties 
 {

@@ -5,6 +5,16 @@ var() const int DamageWait;
 var float fWaitToWarn;
 var Soundcue PlayerWarnSound;
 
+var() const int AssignedSize;
+
+var bool bActive;
+
+replication
+{
+	if (bNetDirty && Role == ROLE_Authority)
+		bActive, AssignedSize;
+}
+
 event UnTouch(Actor Other)
 {
 	`Log("Area Volume: UnTouch"@`ShowVar(Other),,'DevScript');
@@ -185,7 +195,7 @@ function AreaWarningEffects(Bool enable, Controller PC)
 
 function bool IsAcceptableAreaVolume(Rx_AreaVolume V, Pawn P)
 {
-	return true;
+	return bActive;
 }
 
 /**
@@ -219,4 +229,6 @@ DefaultProperties
 	
 	//internal
 	bPawnsOnly 			    = true
+
+	bActive = true
 }

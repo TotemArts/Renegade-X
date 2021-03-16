@@ -90,7 +90,7 @@ DefaultProperties
     ReloadTime(0) = 3.5// 3.0 2.0
     ReloadTime(1) = 8.0
     
-    FireInterval(0)= 0.25
+    FireInterval(0)= 0.3
     FireInterval(1)=0.2
     bFastRepeater = true
     

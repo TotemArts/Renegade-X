@@ -4,7 +4,7 @@
 
 class Rx_Weapon_DeployedBeacon extends Rx_Weapon_DeployedActor
 	abstract
-	implements (RxIfc_TargetedDescription)
+	//implements (RxIfc_TargetedDescription)
 	implements(RxIfc_RadarMarker);
 
 `include(RenX_Game\RenXStats.uci);
@@ -47,7 +47,9 @@ function Explosion()
 	local Rx_Building B, tracedB;
 	local Pawn P;
 	local vector HitLoc,HitNorm, BuildingLocation, FlatLocation, ExplosionLocation;
- 	local bool bDamagePawn, bBuildingHit;   
+ 	local bool bDamagePawn, bBuildingHit;
+ 	local Rx_DestroyableObstaclePlus D;
+ 	local Rx_DestroyableObstacle DB;
 
 
 	if (InstigatorController != None && InstigatorController.PlayerReplicationInfo != None)
@@ -151,6 +153,17 @@ function Explosion()
       	}
    	}
 
+   	//function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)
+   	foreach CollidingActors(class'Rx_DestroyableObstaclePlus', D, DmgRadius * (bOnPedestal ? 10 : 1), ExplosionLocation, false)
+   	{
+        D.TakeDamage(Damage*Vet_DamageModifier[VRank], InstigatorController, vect(0,0,0), vect(0,0,0), DamageTypeClass,,self);
+    }
+
+    foreach CollidingActors(class'Rx_DestroyableObstacle', DB, DmgRadius * (bOnPedestal ? 10 : 1), ExplosionLocation, false)
+   	{
+        D.TakeDamage(Damage*Vet_DamageModifier[VRank], InstigatorController, vect(0,0,0), vect(0,0,0), DamageTypeClass,,self);
+    }  	
+
    	SetTimer(0.5f, false, 'ToDestroy'); 
 
 	`RecordGamePositionStat(WEAPON_BEACON_EXPLODED, Location, 1);
@@ -207,6 +220,8 @@ simulated function PostBeginPlay()
 				MinimapIconTexture = Texture2D'RenxHud.T_Beacon_Star';
 			} 				
 	}
+	if(!bDeployed && WorldInfo.NetMode != NM_Client)
+		SetTimer(1.0, false, 'SelfTrace');
 
 }
 
@@ -216,12 +231,55 @@ simulated event HitWall( vector HitNormal, actor Wall, PrimitiveComponent WallCo
 	Landed(HitNormal, wall);
 }
 
+//if summoned manually, will self-trace itself
+function SelfTrace()
+{
+	local vector TraceStart, TraceEnd, HitLocation,HitNormal, X,Y,Z;
+	local Actor HitBase;
+	local Vector OutLoc,OutNormal;
+	local Rotator OutRot;
+	local actor A;
+
+	TraceStart = Location;
+	TraceEnd = TraceStart - vect(0,0,100000);
+
+	foreach TraceActors(class'Actor', A, HitLocation, HitNormal, TraceEnd, TraceStart,,,TRACEFLAG_Bullet)
+	{
+		if(!A.bWorldGeometry)
+			continue;
+
+		OutLoc = HitLocation;
+		OutNormal = HitNormal;
+		HitBase = A;
+		break;
+	}
+	if(HitBase == None)
+	{
+		OutLoc = TraceEnd;
+		OutRot = Rot(0,0,0);
+		OutNormal = Vect(0,0,0);
+		HitBase = WorldInfo;
+	}
+	else
+	{
+		GetAxes(Rotator(HitNormal),X,Y,Z);	
+		OutRot = Rotator(Z);
+		OutRot.Pitch = 0.0;
+	}
+	SetLocation(OutLoc);
+	SetRotation(OutRot);
+	Landed(OutNormal,HitBase);
+}
+
+
 function Landed(vector HitNormal, Actor FloorActor)
 {
     super(Actor).Landed(HitNormal, FloorActor);
    
    	if (WorldInfo.NetMode != NM_Client)
       	bDeployed = true;
+
+    ClearTimer('SelfTrace');
 
     if (FloorActor != None)
     {
@@ -603,6 +661,7 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 	
 }
 
+//RxIfc_Targetable
 simulated function string GetTargetedDescription(PlayerController PlayerPerspective)
 {
 	local int DisarmTime;
@@ -639,7 +698,7 @@ simulated function vector GetRadarActorLocation()
 } 
 simulated function rotator GetRadarActorRotation()
 {
-	return rotation; 
+	return rot(0.0,0.0,0.0); 
 }
 
 simulated function byte GetRadarVisibility()
@@ -649,6 +708,11 @@ simulated function byte GetRadarVisibility()
 simulated function Texture GetMinimapIconTexture()
 {
 	return MinimapIconTexture; 
+}
+
+simulated function bool GetUseSquadMarker(byte TeamByte, byte SquadByte)
+{
+	return false; 
 }
 
 /******************
@@ -704,6 +768,7 @@ function bool TooCloseToBuilding(Rx_Building Building)
 
 DefaultProperties
 {
+	Physics=PHYS_None
 	PlayExplosionSound = false;
 	bBroadcastPlaced = true;
 	bBroadcastDisarmed = true;

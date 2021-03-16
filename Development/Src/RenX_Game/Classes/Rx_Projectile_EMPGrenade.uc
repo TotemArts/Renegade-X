@@ -1,19 +1,22 @@
 class Rx_Projectile_EMPGrenade extends Rx_Projectile_Grenade;
 
 var float Init_MineDamage ; //Initial damage done to proximity mines when this explodes. 
-var float Vet_EMPTimeModifier[4]; 
+var float Vet_EMPTimeModifier[4];
+var int InitialTeamNum;
 
 function Init(vector Direction)
 {
-	super.Init(Direction); 
-	Init_MineDamage*=Vet_DamageIncrease[Vrank]; 
+	super.Init(Direction);
+	Init_MineDamage*=Vet_DamageIncrease[Vrank];
+
+	InitialTeamNum = Instigator.GetTeamNum();
 }
 
 simulated function Explode(vector HitLocation, vector HitNormal)
 {
-	if (WorldInfo.NetMode != NM_Client)
-	//	ReplicatePositionAfterLanded(); 
+	if (WorldInfo.NetMode != NM_Client && InitialTeamNum == MyWeaponInstigator.GetTeamNum())
 		Spawn(class'Rx_EMPField',self,,HitLocation,,,);
+
 	super.Explode(HitLocation, HitNormal);
 }
 
@@ -43,6 +46,10 @@ simulated function bool HurtRadius( float DamageAmount,
 	{
 		InstigatedByController = InstigatorController;
 	}
+
+	if (InstigatedByController != None)
+		if (InitialTeamNum != InstigatedByController.GetTeamNum())
+			return false;
 
 	// if ImpactedActor is set, we actually want to give it full damage, and then let him be ignored by super.HurtRadius()
 	if (ImpactedActor != None && RxIfc_EMPable(ImpactedActor) != None && RxIfc_EMPable(ImpactedActor).IsEffectedByEMP() )

@@ -1,4 +1,4 @@
-class Rx_Building_AirStrip_Internals extends Rx_Building_Team_Internals;
+class Rx_Building_AirStrip_Internals extends Rx_Building_VehicleFactory_Internals;
 
 simulated function Init(Rx_Building Visuals, bool isDebug )
 {

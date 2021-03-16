@@ -3,6 +3,7 @@ class Rx_GameViewportClient extends UTGameViewportClient dependsOn(Rx_Jukebox);
 var Rx_GFXFrontEnd FrontEnd;
 var bool bKickMessageRecently;
 var bool bTakeSS;
+var string FailoverURL;
 
 function SetStartupMovie(string leaving_level, string loading_level)
 {
@@ -205,6 +206,17 @@ function NotifyConnectionError(EProgressMessageType MessageType, optional string
 
 	if(Title == "Kicked") {
 		bKickMessageRecently = true;
+	}
+	else if (MessageType == PMT_ConnectionFailure // PMT_SocketFailure?
+		&& FailoverURL != "") {
+		// Try to failover
+		if (Outer.GamePlayers[0].Actor != None) {
+			Outer.GamePlayers[0].Actor.ClientTravel(FailoverURL, TRAVEL_Absolute);
+		}
+
+		// Clear failover
+		FailoverURL = "";
+		return;
 	}
 
 	WI = class'Engine'.static.GetCurrentWorldInfo();

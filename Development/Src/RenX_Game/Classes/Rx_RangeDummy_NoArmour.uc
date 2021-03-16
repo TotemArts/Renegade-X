@@ -92,7 +92,7 @@ simulated event TakeDamage(int DamageAmount, Controller EventInstigator, vector 
 	
 	if(RXDT == none) return; 
 	
-	`log("Range Dummy Hit by Damage Type:" @ RXDT); 
+	//`log("Range Dummy Hit by Damage Type:" @ RXDT); 
 	
 	if ( DamageType != None )
 	{

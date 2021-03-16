@@ -166,7 +166,7 @@ DefaultProperties
 //========================================================\\
 
 
-    Health=600
+    Health=800
     MaxDesireability=0.8
     MomentumMult=0.7
     bCanFlip=False

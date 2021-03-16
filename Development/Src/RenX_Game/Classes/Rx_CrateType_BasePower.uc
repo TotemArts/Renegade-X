@@ -17,11 +17,17 @@ function BroadcastMessage(Rx_PRI RecipientPRI, Rx_CratePickup CratePickup)
 	{
 		CratePickup.BroadcastLocalizedTeamMessage(TEAM_GDI, CratePickup.MessageClass, BroadcastMessageAltIndex, RecipientPRI);
 		CratePickup.BroadcastLocalizedTeamMessage(TEAM_NOD, CratePickup.MessageClass, BroadcastMessageIndex, RecipientPRI);
+
+		Rx_Game(RecipientPRI.WorldInfo.Game).CTextBroadcast(TEAM_NOD,"Enemy defenses temporarily offline!",'Red',,2,true);
+		Rx_Game(RecipientPRI.WorldInfo.Game).CTextBroadcast(TEAM_GDI,"Our defenses are temporarily offline!",'Red',,2,true);
 	}
 	else
 	{
 		CratePickup.BroadcastLocalizedTeamMessage(TEAM_NOD, CratePickup.MessageClass, BroadcastMessageAltIndex, RecipientPRI);
 		CratePickup.BroadcastLocalizedTeamMessage(TEAM_GDI, CratePickup.MessageClass, BroadcastMessageIndex, RecipientPRI);
+
+		Rx_Game(RecipientPRI.WorldInfo.Game).CTextBroadcast(TEAM_GDI,"Enemy defenses temporarily offline!",'Red',,2,true);
+		Rx_Game(RecipientPRI.WorldInfo.Game).CTextBroadcast(TEAM_NOD,"Our defenses are temporarily offline!",'Red',,2,true);
 	}
 }
 
@@ -31,7 +37,7 @@ function float GetProbabilityWeight(Rx_Pawn Recipient, Rx_CratePickup CratePicku
 	local bool hasDefences;
 	
 		foreach CratePickup.AllActors(class'Rx_Building', building) {
-			if ( Rx_Building_Defense(building) != None ) 
+			if ( Rx_Building_Defense(building) != None  && (!Rx_Building_Defense(building).bDisabled || !building.IsDestroyed()))
 				hasDefences = true;
 		}
 	if ( !hasDefences )
@@ -58,7 +64,7 @@ function ExecuteCrateBehaviour(Rx_Pawn Recipient, Rx_PRI RecipientPRI, Rx_CrateP
 						if ( buildingTeamInternals.bNoPower == false )
 						{
 							BuildingsPoweredDown.AddItem(buildingTeamInternals);
-							buildingTeamInternals.PowerLost();
+							buildingTeamInternals.PowerLost(true);
 							buildingTeamInternals.SetTimer(RestorePowerInSeconds, false, 'PowerRestore');
 							`log("[Rx_CrateType_BasePower] Found Adv Defenses | Building Power Disabled " $ building.Name);
 						}
@@ -75,7 +81,7 @@ function ExecuteCrateBehaviour(Rx_Pawn Recipient, Rx_PRI RecipientPRI, Rx_CrateP
 						if ( buildingTeamInternals.bNoPower == false )
 						{
 							BuildingsPoweredDown.AddItem(buildingTeamInternals);
-							buildingTeamInternals.PowerLost();
+							buildingTeamInternals.PowerLost(true);
 							Rx_Building_AdvancedGuardTower_Internals(buildingTeamInternals).SetTimer(RestorePowerInSeconds, false, 'PowerRestore');
 							`log("[Rx_CrateType_BasePower] Found Adv Defenses | Building Power Disabled " $ building.Name);
 						}
@@ -112,5 +118,7 @@ DefaultProperties
 	BroadcastMessageIndex = 26
 	BroadcastMessageAltIndex = 27
 	RestorePowerInSeconds = 90
+	
+	Pickupsound = SoundCue'Rx_Pickups.Sounds.SC_Crate_PowerOffline'
 }
 

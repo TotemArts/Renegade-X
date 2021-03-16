@@ -3,7 +3,9 @@
 *to support power based stuff (Like a mutha' fu**in' cruise missile)
 */
 
-class Rx_BasicPawn extends Pawn; 
+class Rx_BasicPawn extends Pawn
+abstract
+implements(RxIfc_Targetable); 
 
 var bool bShowHealth; //Whether to show a target reticle with health
 
@@ -21,7 +23,8 @@ enum Armor
 	ARM_Building,
 	ARM_Aircraft,
 	ARM_Kevlar,
-	ARM_FLAK
+	ARM_FLAK,
+	ARM_None
 };
 
 var Armor ArmorType; 
@@ -34,6 +37,7 @@ var bool				bLightArmor; //Just means whether this will take damage from bullets
 var bool				bTakeRadiusDamage; 
 var bool				bCanHeal;  
 
+var bool bCanTakeDamage;
 
 var CameraAnim          ExplosionShake;
 var float               InnerExplosionShakeRadius;
@@ -67,7 +71,7 @@ var int		VPReward;
 replication
 {	
    if (bNetDirty)
-      bExploded, TeamIndex, bDrawLocation ;
+      bExploded, TeamIndex, bDrawLocation, bCanTakeDamage;
 }
 
 simulated event ReplicatedEvent(name VarName)
@@ -371,38 +375,38 @@ function float ParseArmor(float AdjustedDamage, class<Rx_DmgType> RXDT)
 {
 	switch(ArmorType)
 		{
-		//Heavy Vehicle Armour 
-		case ARM_Heavy: 
-		AdjustedDamage*=RXDT.static.VehicleDamageScalingFor(none);
-		break; 
-		//Light Vehicle Armour
-		case ARM_Light: 
-		AdjustedDamage*=RXDT.static.LightVehicleDamageScalingFor();
-		break; 
-		
-		//Building armour 
-		case ARM_Building: 
-		AdjustedDamage*=RXDT.static.BuildingDamageScalingFor();
-		break; 
-		
-		//Armourless infantry damage
-		case ARM_Infantry: 
-		AdjustedDamage*=RXDT.static.NoArmourDamageScalingFor();
-		break; 
-		case ARM_Aircraft: 
-		AdjustedDamage*=RXDT.static.AircraftDamageScalingFor();
-		break; 
-		
-		//Kevlar infantry armour 
-		case ARM_KEVLAR: 
-		AdjustedDamage*=RXDT.static.KevlarDamageScalingFor();
-		break; 
-		
-		
-		case ARM_FLAK: 
-		AdjustedDamage*=RXDT.static.FLAKDamageScalingFor();
-		break; 
-		
+			//Heavy Vehicle Armour 
+			case ARM_Heavy: 
+			AdjustedDamage*=RXDT.static.VehicleDamageScalingFor(none);
+			break; 
+			//Light Vehicle Armour
+			case ARM_Light: 
+			AdjustedDamage*=RXDT.static.LightVehicleDamageScalingFor();
+			break; 
+			
+			//Building armour 
+			case ARM_Building: 
+			AdjustedDamage*=RXDT.static.BuildingDamageScalingFor();
+			break; 
+			
+			//Armourless infantry damage
+			case ARM_Infantry: 
+			AdjustedDamage*=RXDT.static.NoArmourDamageScalingFor();
+			break; 
+			case ARM_Aircraft: 
+			AdjustedDamage*=RXDT.static.AircraftDamageScalingFor();
+			break; 
+			
+			//Kevlar infantry armour 
+			case ARM_KEVLAR: 
+			AdjustedDamage*=RXDT.static.KevlarDamageScalingFor();
+			break; 
+			
+			
+			case ARM_FLAK: 
+			AdjustedDamage*=RXDT.static.FLAKDamageScalingFor();
+			break;
+			
 		}	
 		return AdjustedDamage; 
 }
@@ -433,6 +437,60 @@ simulated function byte GetAntiTeamByte(byte ForTeam)
 	 else
 	 return 255; 
 }
+
+/*-------------------------------------------*/
+/*BEGIN TARGET INTERFACE [RxIfc_Targetable]*/
+/*------------------------------------------*/
+//Health
+simulated function int GetTargetHealth() {return GetHealth();} //Return the current health of this target
+simulated function int GetTargetHealthMax() {return GetMaxHealth();} //Return the current health of this target
+
+//Armour 
+simulated function int GetTargetArmour() {return 0;} // Get the current Armour of the target
+simulated function int GetTargetArmourMax() {return 0;} // Get the current Armour of the target 
+
+// Veterancy
+
+simulated function int GetVRank() {return 0;}
+
+/*Get Health/Armour Percents*/
+simulated function float GetTargetHealthPct() {return (GetHealth()*1.0) / max(1.0, (GetMaxHealth()*1.0));}
+simulated function float GetTargetArmourPct() {return 0;}
+simulated function float GetTargetMaxHealthPct() {return 1.0f;} //Everything together (Basically Health and armour)
+
+/*Get what we're actually looking at*/
+simulated function Actor GetActualTarget() {return self;} //Should return 'self' most of the time, save for things that should return something else (like building internals should return the actual building)
+
+/*Booleans*/
+simulated function bool GetUseBuildingArmour(){return false;} //Stupid legacy function to determine if we use building armour when drawing. 
+simulated function bool GetShouldShowHealth(){return bShowHealth;} //If we need to draw health on this 
+simulated function bool AlwaysTargetable() {return false;} //Targetable no matter what range they're at
+simulated function bool GetIsInteractable(PlayerController PC) {return false;} //Are we ever interactable?
+simulated function bool GetCurrentlyInteractable(PlayerController RxPC) {return false;} //Are we interactable right now? 
+simulated function bool GetIsValidLocalTarget(Controller PC) {return true;} //Are we a valid target for our local playercontroller?  (Buildings are always valid to look at (maybe stealthed buildings aren't?))
+simulated function bool HasDestroyedState() {return false;} //Do we have a destroyed state where we won't have health, but can't come back? (Buildings in particular have this)
+simulated function bool UseDefaultBBox() {return false;} //We're big AF so don't use our bounding box 
+simulated function bool IsStickyTarget() {return true;} //Does our target box 'stick' even after we're untargeted for awhile 
+simulated function bool HasVeterancy() {return false;}
+
+//Spotting
+simulated function bool IsSpottable() {return true;}
+simulated function bool IsCommandSpottable() {return false;} 
+
+simulated function bool IsSpyTarget(){return false;} //Do we use spy mechanics? IE: our bounding box will show up friendly to the enemy [.... There are no spy Refineries...... Or are there?]
+
+/* Text related */
+
+simulated function string GetTargetName() {return GetHumanReadableName();} //Get our targeted name 
+simulated function string GetInteractText(Controller C, string BindKey) {return "";} //Get the text for our interaction 
+simulated function string GetTargetedDescription(PlayerController PlayerPerspectiv) {return "";} //Get any special description we might have when targeted 
+
+//Actions
+simulated function SetTargeted(bool bTargeted) ; //Function to say what to do when you're targeted client-side 
+
+/*----------------------------------------*/
+/*END TARGET INTERFACE [RxIfc_Targetable]*/
+/*---------------------------------------*/
 
 DefaultProperties
 {

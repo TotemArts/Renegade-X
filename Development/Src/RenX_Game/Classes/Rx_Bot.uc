@@ -100,6 +100,7 @@ struct ActiveModifier
 	var class<Rx_StatModifierInfo> ModInfo; 
 	var float				EndTime; 
 	var bool				Permanent; 
+	var Controller			ModifierSource; //Optionally used to give a source to the modifier 
 };
 
 var array<ActiveModifier> ActiveModifications; 
@@ -137,8 +138,10 @@ function RxInitialize(float InSkill, const out CharacterInfo BotInfo, UTTeamInfo
 	if(OurTeamAI == None)
 		OurTeamAI = Rx_TeamAI(BotTeam.AI);
 
-
-
+//	loading colors from Rx_HUD
+	GDIColor = class<Rx_HUD>(Rx_Game(WorldInfo.Game).HUDClass).default.GDIColor;
+	NodColor = class<Rx_HUD>(Rx_Game(WorldInfo.Game).HUDClass).default.NodColor;
+	HostColor = class<Rx_HUD>(Rx_Game(WorldInfo.Game).HUDClass).default.HostColor;
 
 }
 
@@ -163,6 +166,10 @@ function bool AssessPurchasing()
 
 	if(PTTask == "")
 		return false;
+
+	if(UTSquadAI(Squad).IsDefending(self) && DefendedBuildingNeedsHealing() && HasRepairGun())
+		return false;
+
 
 	if(Left(PTTask,8) == "Buy Char")
 	{
@@ -230,6 +237,9 @@ function bool AssignSquadResponsibility()
 			return true;
 		}
 	}
+	if(UTSquadAI(Squad).IsDefending(self) && DefendedBuildingNeedsHealing() && HasRepairGun())
+		return false;
+
 	if(bOnboardForTactics && !ReviewTactics())	
 	{
 		return true;
@@ -431,8 +441,13 @@ function bool RepairCloseVehicles()
 function bool ReviewTactics()
 {
 
+	GoalString = "- Reviewing Tactics...";
+
 	if(Squad == None || Rx_SquadAI(Squad).CurrentTactics == None)
 		return true; 								//Pass by, we got nothing special
+
+	else
+		GoalString @= "-"@Rx_SquadAI(Squad).CurrentTactics.default.TacticName;
 
 	if((GetCredits() + MoneySaving) >= MoneySaving && !bEquippedForTactics && PurchaseTacticsEquipment())
 	{
@@ -441,7 +456,10 @@ function bool ReviewTactics()
 	if(!Rx_SquadAI(Squad).bTacticsCommenced && ((PTQueue.Length <= 0 && PTTask == "") || !CanBuyCurrentPTTask()) && BaughtVehicle == None && BaughtVehicleIndex == -1)
 	{
 		if(Rx_SquadAI(Squad).SquadLeader == Self)
+		{
 			HoldPosition();
+			return false;
+		}
 		else if (Rx_SquadAI(Squad).TellBotToFollow(Self,Rx_SquadAI(Squad).SquadLeader))
 			return false;
 		else
@@ -864,7 +882,10 @@ function bool CanAttack(Actor Other)
 		if(VSizeSq(Other.Location - Pawn.Location) <= 490000)
 			return Rx_Weapon_RepairGun(Pawn.Weapon).CanAttack(Other);
 	}
-	else if (Rx_Vehicle(Pawn) != None)
+	else if(Other.GetTeamNum() == GetTeamNum()) // friendly fire keeps happening when vehicle ownership switches... recheck!
+		return false; 
+
+	else if(Rx_Vehicle(Pawn) != None)
 	{
 		if(Rx_Building(Other) != None && !Rx_Vehicle_Weapon(Pawn.Weapon).bOkAgainstBuildings)
 		{
@@ -1170,21 +1191,21 @@ function Actor FindNearestFactory()
 	{
 		for(i=0; i<Purchase.WeaponsFactory.length; i++)
 		{
-			if(Purchase.WeaponsFactory[i].myObjective == None)
+			if(Rx_Building(Purchase.WeaponsFactory[i]).myObjective == None)
 				continue;
 
 			if(BestBO == None)
 			{
-				BestBO = Purchase.WeaponsFactory[i].myObjective;
-				BestDist = VSizeSq(Pawn.Location - Purchase.WeaponsFactory[i].myObjective.location);
+				BestBO = Rx_Building(Purchase.WeaponsFactory[i]).myObjective;
+				BestDist = VSizeSq(Pawn.Location - Rx_Building(Purchase.WeaponsFactory[i]).myObjective.location);
 			}
 			else
 			{
 
-				CurDist = VSizeSq(Pawn.Location - Purchase.WeaponsFactory[i].myObjective.location);				
+				CurDist = VSizeSq(Pawn.Location - Rx_Building(Purchase.WeaponsFactory[i]).myObjective.location);				
 				if(BestDist < CurDist)
 				{
-						BestBO = Purchase.WeaponsFactory[i].myObjective;
+						BestBO = Rx_Building(Purchase.WeaponsFactory[i]).myObjective;
 						BestDist = CurDist;
 				}
 			}
@@ -1197,20 +1218,20 @@ function Actor FindNearestFactory()
 	{
 		for(i=0; i<Purchase.Airstrip.length; i++)
 		{
-			if(Purchase.Airstrip[i].GetObjective() == None)
+			if(Rx_Building(Purchase.Airstrip[i]).GetObjective() == None)
 				continue;
 
 			if(BestBO == None)
 			{
-				BestBO = Purchase.Airstrip[i].GetObjective();
-				BestDist = VSizeSq(Pawn.Location - Purchase.Airstrip[i].GetObjective().location);
+				BestBO = Rx_Building(Purchase.Airstrip[i]).GetObjective();
+				BestDist = VSizeSq(Pawn.Location - Rx_Building(Purchase.Airstrip[i]).GetObjective().location);
 			}
 			else
 			{
-				CurDist = VSizeSq(Pawn.Location - Purchase.Airstrip[i].GetObjective().location);
+				CurDist = VSizeSq(Pawn.Location - Rx_Building(Purchase.Airstrip[i]).GetObjective().location);
 				if(BestDist < CurDist)
 				{
-					BestBO = Purchase.Airstrip[i].GetObjective();
+					BestBO = Rx_Building(Purchase.Airstrip[i]).GetObjective();
 					BestDist = CurDist;
 				}
 			}
@@ -1908,6 +1929,10 @@ function bool BotRandomBuyVehicle()
 		SetBaughtVehicle(PickedVehicle);
 		return true;
 	}
+	else
+	{
+		PTTask = "";
+	}
 
 	return false;
 }
@@ -1973,6 +1998,14 @@ function bool CanBuyCurrentPTTask()
 			return true;
 
 		return false;
+	}
+	else if (PTTask == "Random Buy Vehicle")
+	{
+		if(!PurchaseSystem.AreVehiclesDisabled(GetTeamNum(), None))
+		{
+			PTTask = "";
+			return false;
+		}		
 	}
 
 	else if(Left(PTTask,8) == "Buy Char")
@@ -2199,11 +2232,11 @@ function class<UTFamilyInfo> BotBuy(Rx_Bot Bot, bool bJustRespawned, optional st
 	{
 		if(Bot.GetTeamNum() == 0)
 		{
-			return DefaultClass[0];
+			return PurchaseSystem.GDIInfantryClasses[0];
 		}
 		else
 		{
-			return DefaultClass[1];
+			return PurchaseSystem.NodInfantryClasses[0];
 		}
 	}
 
@@ -2434,7 +2467,7 @@ function ResetSkill()
 
 /**Set modifiers**/
 
-function AddActiveModifier(class<Rx_StatModifierInfo> Info)//class<Rx_StatModifierInfo> Info) 
+function AddActiveModifier(class<Rx_StatModifierInfo> Info, optional Controller Source = none)//class<Rx_StatModifierInfo> Info) 
 {
 	local int FindI; 
 	local ActiveModifier TempModifier; 
@@ -2449,15 +2482,20 @@ function AddActiveModifier(class<Rx_StatModifierInfo> Info)//class<Rx_StatModifi
 	{
 		//`log("Found in array");
 		ActiveModifications[FindI].EndTime = WorldInfo.TimeSeconds+Info.default.Mod_Length; 
+		ActiveModifications[FindI].ModifierSource = Source; //Delete or update the modifier source 
 		//return; 	
 	}
 	else //New modifier, so add it in and re-update modification numbers
 	{
 		//`log("Adding to array"); 
 		TempModifier.ModInfo = Info; 
-		if(Info.default.Mod_Length > 0) TempModifier.EndTime = WorldInfo.TimeSeconds+Info.default.Mod_Length;
+		if(Info.default.Mod_Length > 0) 
+			TempModifier.EndTime = WorldInfo.TimeSeconds+Info.default.Mod_Length;
 		else
-		TempModifier.Permanent = true; 
+			TempModifier.Permanent = true; 
+		
+		ActiveModifications[FindI].ModifierSource = Source; //Whether that be none or something
+		
 		ActiveModifications.AddItem(TempModifier);	
 	}
 	
@@ -3432,7 +3470,7 @@ function BroadcastBuildingSpotMessages(Rx_Building Building)
 				TextIndex = 37;
 				ContextString = Building.GetHumanReadableName();
 			
-				if (Rx_Building_Refinery(Building) != None)
+				if (RxIfc_Refinery(Building) != None)
 					SoundIndex = 28;
 				else if(Rx_Building_PowerPlant(Building) != None)
 					SoundIndex = 29;
@@ -3460,7 +3498,7 @@ function BroadcastBuildingSpotMessages(Rx_Building Building)
 				ContextString = Building.GetHumanReadableName() @ "<font color='" $ ArmourColor $ "'>" $ Building.GetArmorPct() $ "%</font>";
 				TextIndex = 37;
 			
-				if(Rx_Building_Refinery(Building) != None)
+				if(RxIfc_Refinery(Building) != None)
 					SoundIndex = 28;
 				else if(Rx_Building_PowerPlant(Building) != None)
 					SoundIndex = 29;
@@ -3902,9 +3940,6 @@ DefaultProperties
 	RadioCommands(29)    =   SoundCue'RX_RadioSounds.Ctrl_Alt.10_DefentThePowerplantCue'
 
 
-	NodColor            = "#FF0000"
-	GDIColor            = "#FFC600"
-	HostColor           = "#22BBFF"
 	ArmourColor         = "#05DAFD"
 
 	bCanTalk = true

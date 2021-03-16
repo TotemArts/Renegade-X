@@ -10,11 +10,14 @@ var int CurrentTier;
 function array<string> GetDisplayStrings()
 {
 	local array<string> ret;
+	local GameReplicationInfo GRI;
+
+	GRI = Handler.PlayerOwner.WorldInfo.GRI;
 
 	if (CurrentTier == 0)
 	{
-		ret.AddItem("1|From GDI");
-		ret.AddItem("2|From NOD");
+		ret.AddItem("1|To " $Rx_TeamInfo(GRI.Teams[0]).GetHumanReadableName());
+		ret.AddItem("2|To " $Rx_TeamInfo(GRI.Teams[1]).GetHumanReadableName());
 		ret.AddItem("3|From both Teams");
 	}
 	else if (CurrentTier == 1)
@@ -108,10 +111,10 @@ function string ComposeTopString()
 	switch (BotsToTeam)
 	{
 	case 1:
-		str = str $ "<font color='" $GDIColor $"'>"$"GDI"$"</font>";
+		str = str $ "<font color='" $GDIColor $"'>"$TeamTypeToString(0)$"</font>";
 		break;
 	case 2:
-		str = str $ "<font color='" $NodColor $"'>"$"NOD"$"</font>";
+		str = str $ "<font color='" $NodColor $"'>"$TeamTypeToString(1)$"</font>";
 		break;
 	case 3:
 		str = str $ "<font color='" $HostColor $"'>"$"both teams"$"</font>";
@@ -128,10 +131,10 @@ function string ParametersLogString()
 	switch (BotsToTeam)
 	{
 	case 1:
-		teamPram = "GDI";
+		teamPram = TeamTypeToString(0);
 		break;
 	case 2:
-		teamPram = "Nod";
+		teamPram = TeamTypeToString(1);
 		break;
 	case 3:
 		teamPram = "Both";

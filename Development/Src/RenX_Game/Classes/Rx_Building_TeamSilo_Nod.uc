@@ -11,13 +11,14 @@ function bool ShouldSpawnHarvester()
 	return false;	
 }
 
+function SetInitialHarvStandby(); //Silo doesn't have a harv
 
 defaultproperties
 {
    TeamID = TEAM_NOD
    BuildingInternalsClass = Rx_Building_TeamSilo_Nod_Internals
    bSignificant		= false
-
+   bTriggerUnderAttack = true
 	
 	Begin Object Name=Static_Exterior
 		StaticMesh = StaticMesh'RX_BU_TeamSilo.Meshes.SM_Silo_Nod'

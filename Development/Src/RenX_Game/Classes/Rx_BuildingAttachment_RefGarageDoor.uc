@@ -1,4 +1,4 @@
-class Rx_BuildingAttachment_RefGarageDoor extends Rx_BuildingAttachment_Door;
+class Rx_BuildingAttachment_RefGarageDoor extends Rx_BuildingAttachment_LockableDoor;
 
 simulated function PostBeginPlay()
 {
@@ -12,6 +12,10 @@ simulated function PostBeginPlay()
 
 simulated function OpenDoor()
 {
+	if (bOpen) {
+		return;
+	}
+
 	bOpen=true;
 	if(WorldInfo.NetMode != NM_DedicatedServer)
 	{
@@ -27,6 +31,10 @@ simulated function OpenDoor()
 }
 simulated function CloseDoor()
 {
+	if (!bOpen) {
+		return;
+	}
+
 	bOpen=false;
 	if(WorldInfo.NetMode != NM_DedicatedServer)
 	{
@@ -58,32 +66,13 @@ simulated function SetDoorsInitial()
 	}
 }
 
-simulated function SensorTouch( Actor Other )
+simulated function bool ShouldAllowActor(Actor actor) 
 {
-	if(Other.isA('Rx_Vehicle_Harvester'))
-	{
-		super.SensorTouch(Other);
-	}
-}
+    local Rx_Vehicle_Harvester harvester;
 
-simulated function SensorUnTouch( Actor Other )
-{
-	if(Other.isA('Rx_Vehicle_Harvester'))
-	{
-		if(NumActorsTouching > 0) 
-		{
-			NumActorsTouching--;
-		}
+    harvester = Rx_Vehicle_Harvester(actor);
 
-		if(Other.bHidden || Other.Physics == PHYS_None)
-			return;
-		if(Rx_Vehicle_HarvesterController(Pawn(Other).Controller) != None && Rx_Vehicle_HarvesterController(Pawn(Other).Controller).IsTurningToDock()) 
-			return;
-
-		if( NumActorsTouching == 0 )
-		{
-		}
-	}
+	return harvester != none;
 }
 
 simulated function Close() 

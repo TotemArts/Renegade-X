@@ -45,6 +45,12 @@ function DeserializeParam(string param)
 	{
 		if (c.PlayerReplicationInfo.PlayerID == KickID)
 		{
+			if (c.PlayerReplicationInfo.bAdmin || Rx_PRI(c.PlayerReplicationInfo).bModeratorOnly)
+			{
+				VoteInstigator.CTextMessage("You can not kick a moderator.", 'Red');
+				break;
+			}
+
 			KickC = c;
 			break;
 		}
@@ -62,8 +68,6 @@ function ServerSecondTick(Rx_Game game)
 	if (KickC == none) game.DestroyVote(self);
 	else super.ServerSecondTick(game);
 }
-
-
 
 function string ComposeTopString()
 {
@@ -91,6 +95,7 @@ function string ParametersLogString()
 
 function Execute(Rx_Game game)
 {
+
 	game.AccessControl.KickPlayer(KickC, "voted to be kicked");
 }
 
@@ -107,7 +112,6 @@ function int IndexForKey(byte InputIndex) {
 	PageNum = Rx_HUD(Handler.PlayerOwner.myHUD).CurrentPageNum; 
 	
 	// Return array index based on input index and page
-	`log("---AGENT--- InputIndex: " $ InputIndex $ "; PageNum: " $ PageNum);
 	return (PageNum - 1) * 10 + InputIndex - 1;
 }
 
@@ -117,7 +121,6 @@ function KeyPress(byte InputIndex)
 
 	// Get selection index based on input
 	ParsedSelection = IndexForKey(InputIndex);
-	`log("---AGENT--- ParsedSelection: " $ ParsedSelection $ "; TargetPlayerIDs.Length: " $ TargetPlayerIDs.Length);
 
 	// Sanity check selection index
 	if (ParsedSelection >= 0 && ParsedSelection < TargetPlayerIDs.Length) {

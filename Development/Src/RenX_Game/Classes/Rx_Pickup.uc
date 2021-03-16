@@ -5,7 +5,21 @@ var int PickupsRemaining;
 var float DespawnTime;
 var int TimeToStartDisappearing;
 var MaterialInstanceConstant MIC;
-var float Res;
+var repnotify float Res;
+
+replication 
+{
+	if (bNetDirty && Role >= ROLE_Authority)
+		Res;
+}
+
+simulated event ReplicatedEvent(name VarName)
+{
+	if (VarName == 'Res')
+		UpdateRes();
+
+	super.ReplicatedEvent(VarName);
+}
 
 auto simulated state Pickup
 {
@@ -38,6 +52,17 @@ auto simulated state Pickup
 
 		MIC.SetScalarParameterValue('ResIn', Res);
 	}
+}
+
+simulated function UpdateRes()
+{
+	if (MIC == None)
+	{
+		MIC = StaticMeshComponent(PickupMesh).CreateAndSetMaterialInstanceConstant(0);
+	}
+
+	if (MIC != None)
+		MIC.SetScalarParameterValue('ResIn', Res);
 }
 
 function SetRespawn()

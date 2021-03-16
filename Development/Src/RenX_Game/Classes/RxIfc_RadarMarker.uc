@@ -10,3 +10,5 @@ simulated function bool ForceVisible(); //Overrides standard radar visibility wh
 
 //0:Infantry 1: Vehicle 2:Miscellaneous  
 simulated function int		GetRadarIconType(); 
+
+simulated function bool GetUseSquadMarker(byte TeamByte, byte SquadByte); 

@@ -47,6 +47,9 @@ var int ATMineLimit;
 var array<Rx_Weapon_DeployedRemoteC4> RemoteC4;
 var int RemoteC4Number;
 var int RemoteC4Limit;
+var array<Rx_Weapon_DeployedProxyC4> PersonalProxyC4;
+var int PersonalProxyC4Number;
+var int PersonalProxyC4Limit;
 var array<Rx_Defence> DeployedDefenses;
 var int DeployedDefenseLimit, DeployedDefenseNumber;
 var int LastAirdropTime;
@@ -82,15 +85,14 @@ var float Score_Offense, Score_Defense, Score_Support; //Total scores
 *Commander oriented stuff**
 ***************************/
 var Rx_PRI Unit_Commander; 
-var repnotify byte Unit_TargetStatus[2]; // Array: [0 GDI, 1 is Nod] | Value 1 for attack   
-var repnotify byte Unit_TargetNumber[2]; //Number they show up as to the enemy for ID purposes 
+var byte Unit_TargetStatus[2]; // Array: [0 GDI, 1 is Nod] | Value 1 for attack   
+var byte Unit_TargetNumber[2]; //Number they show up as to the enemy for ID purposes 
 var float TargetDecayTime ;
-var repnotify bool bIsCommander; 
+var repnotify bool bIsCommander;
+var int LastCommanderTime;
 var float ClientTargetUpdatedTime;
 var repnotify bool bUpdateTargetTimeFlag; 
 var bool bNeedRelevancyInfo; //Do we need to replicate relevancy stufF?
-
-var byte CurrentControlGroup;  
 
 //Pawn Minimap Info
 var  vector PawnLocation;
@@ -109,59 +111,114 @@ var bool bisAFK;			// HANDEPSILON - This indicates whether or not the player is 
 var bool bIsScripted;
 var int OldTeamID;
 var bool bDonateOnDelete;
+var Pawn lingeringPawn;
+
+var int PersonalMineCount;
+
+//Bounty
+var int BountyRank;
+var int BountyKill;
+
+var string BountyName;
+var float BountyCredits;
+var float BountyVP;
+
+var bool bCanBeVotedCommander;
+var float CommanderVoteResetTime;
 
 replication
 {
-	if( bNetDirty && Role == ROLE_Authority)
+	if (bNetDirty && Role == ROLE_Authority)
 		PawnVehicleClass, ReplicatedRenScore, RenTotalKills, bIsSpy, 
 		bIsVehicleStolen, bIsVehicleFromCrate, bModeratorOnly, VRank, bUpdateTargetTimeFlag, bIsCommander, Veterancy_Points, 
-		NonDefensiveVeterancy_Points, Credits, Total_Vehicle_Kills, bCanRequestCheatBots, BotSkill, bIsAFK, bIsScripted; 
+		NonDefensiveVeterancy_Points, Credits, Total_Vehicle_Kills, bCanRequestCheatBots, BotSkill, bIsAFK, bIsScripted, PersonalMineCount,
+		BountyRank, BountyKill, BountyName, BountyCredits, bCanBeVotedCommander; 
 	
-	if(bNeedRelevancyInfo && !bNetOwner && bNetDirty && ROLE == ROLE_Authority)
+	if (bNeedRelevancyInfo && !bNetOwner && bNetDirty && ROLE == ROLE_Authority)
 		PawnLocation, PawnRotation, PawnRadarVis, PawnVelocity; 
 	
-	if(bNetDirty && bNetOwner)
-		AirdropCounter, bCanMine, DeployedDefenseNumber, RemoteC4Number, ATMineNumber;
+	if (bNetDirty && bNetOwner)
+		AirdropCounter, bCanMine, DeployedDefenseNumber, RemoteC4Number, ATMineNumber, PersonalProxyC4Number;
 
-	if(bNetDirty && !bNetOwner)
+	if (bNetDirty && !bNetOwner)
 		Unit_TargetStatus, Unit_TargetNumber, bSpotted, bFocused;
-	
-		//if( bNetDirty && Role == ROLE_Authority && bDemoRecording) 
-	//	ReplicatedNetworkAddress; // want to try to live without this, so demos can be shared publically without showing IPs of the players
 }
 
 simulated event ReplicatedEvent(name VarName)
 {
+	local PlayerController PC;
+	local int WelcomeMessageNum;
 	if ( VarName == 'CharClassInfo' )
     {
 		UpdateCharClassInfo();
     }
 	else
-	if ( VarName == 'bUpdateTargetTimeFlag' )
-    {
-		ClientTargetUpdatedTime = WorldInfo.TimeSeconds; 
-    }
-    else if ( VarName == 'AirdropCounter' )
-    {
-		
-		LastAirdropTime = Worldinfo.TimeSeconds;
-		
-	} 
-	else if(VarNAme == 'PawnVelocity')
-	{
-		ClearTimer('SimVelocityToLocationTimer');
-		TenthSecondsSinceLocationRep = 0; 
-		SetTimer(0.1,true,'SimVelocityToLocationTimer'); 
-	}
-	else
-    {
-		Super.ReplicatedEvent(VarName);
-	}
+		if ( VarName == 'bUpdateTargetTimeFlag' )
+		{
+			ClientTargetUpdatedTime = WorldInfo.TimeSeconds; 
+		}
+		else if ( VarName == 'AirdropCounter' )
+		{
+			
+			LastAirdropTime = Worldinfo.TimeSeconds;
+			
+		} 
+		else if(VarNAme == 'PawnVelocity')
+		{
+			ClearTimer('SimVelocityToLocationTimer');
+			TenthSecondsSinceLocationRep = 0; 
+			SetTimer(0.1,true,'SimVelocityToLocationTimer'); 
+		}
+			else if ( VarName == 'PlayerName' )
+		{
+	
+			if ( WorldInfo.TimeSeconds < 2 )
+			{
+				bHasBeenWelcomed = true;
+				OldName = PlayerName;
+				return;
+			}
+	
+			// new player or name change
+			if ( bHasBeenWelcomed )
+			{
+				if( ShouldBroadCastWelcomeMessage() )
+				{
+					ForEach LocalPlayerControllers(class'PlayerController', PC)
+					{
+						PC.ReceiveLocalizedMessage( GameMessageClass, 2, self );
+					}
+				}
+			}
+			else
+			{
+				if ( bOnlySpectator )
+					WelcomeMessageNum = 16;
+				else
+					WelcomeMessageNum = 1;
+	
+				bHasBeenWelcomed = true;
+	
+				if( ShouldBroadCastWelcomeMessage() )
+				{
+					ForEach LocalPlayerControllers(class'PlayerController', PC)
+					{
+						PC.ReceiveLocalizedMessage( GameMessageClass, WelcomeMessageNum, self );
+					}
+				}
+			}
+			OldName = PlayerName;
+
+			return;
+		}
+		else
+		{
+			Super.ReplicatedEvent(VarName);
+		}
 }
 
 simulated function PostBeginPlay()
 {
-	
 	super.PostBeginPlay();
 	if(ROLE == ROLE_Authority) 
 	{
@@ -173,6 +230,7 @@ simulated function PostBeginPlay()
 simulated function UpdateCharClassInfo()
 {
 	local UTPawn UTP;
+
 	foreach WorldInfo.AllPawns(class'UTPawn', UTP)
 	{
 		if (UTP.PlayerReplicationInfo == self || (UTP.DrivenVehicle != None && UTP.DrivenVehicle.PlayerReplicationInfo == self))
@@ -240,6 +298,7 @@ function SetVehicleIsFromCrate(bool inIsVehicleFromCrate)
 
 /**
  * Pawn is provided and not calculated from Owner because Owner sometimes takes a while to update
+ * isFreeClass will be true when purchasing a free class OR when purchasing the same class again
  */
 function SetChar(class<Rx_FamilyInfo> newFamily, Pawn pawn, optional bool isFreeClass)
 {
@@ -255,11 +314,7 @@ function SetChar(class<Rx_FamilyInfo> newFamily, Pawn pawn, optional bool isFree
 	{
 		return;
 	}
-//	if(Rx_Bot(Owner) != None)
-//	{
-//		Rx_Pawn(pawn).NotifyTeamChanged();
-//		Rx_Pawn(pawn).ChangeCharacterClass();
-//	}
+
 	if(((WorldInfo.NetMode == NM_ListenServer && RemoteRole == ROLE_SimulatedProxy) || WorldInfo.NetMode == NM_Standalone ) && !bBot)
 	{
 		UpdateCharClassInfo();
@@ -305,7 +360,7 @@ function equipStartWeapons(optional bool FreeClass)
 {
    	local Rx_Pawn rxPawn;
     local class<Rx_FamilyInfo> rxCharInfo;   
-	local float ArmourPCT; 
+	local float ArmourPCT, HealthPCT; 
 
 	rxCharInfo = class<Rx_FamilyInfo>(CharClassInfo);
 	rxPawn = Rx_Pawn(Controller(Owner).Pawn);
@@ -315,7 +370,7 @@ function equipStartWeapons(optional bool FreeClass)
 	
 	if(FreeClass) 
 	{
-		/*Give the pawn the same percentage of armour if they switch classes. E.G, switching from a RifleSoldier with 100 health and armour, 
+		/*Give the pawn the same percentage of armour if they switch classes (or pick the same one). E.G, switching from a RifleSoldier with 100 health and armour, 
 		to a Grenadier would still make the grenadier have full health/armour*/ 
 		ArmourPCT=float(rxPawn.Armor)/float(rxPawn.ArmorMax); 
 		
@@ -326,6 +381,13 @@ function equipStartWeapons(optional bool FreeClass)
 			rxPawn.Armor     = rxCharInfo.default.MaxArmor; //rxPawn.Armor > rxCharInfo.default.MaxArmor ? rxCharInfo.default.MaxArmor : rxPawn.Armor;	
 		
 			rxPawn.Armor*=ArmourPCT; 
+		}
+
+		HealthPCT = float(rxPawn.Health)/float(rxPawn.HealthMax);
+
+		if (rxPawn.Health != rxCharInfo.default.MaxHealth) {
+			rxPawn.HealthMax = rxCharInfo.default.MaxHealth;
+			rxPawn.Health = rxCharInfo.default.MaxHealth * HealthPCT;
 		}
 	 	
 		rxPawn.setArmorType(rxCharInfo.default.Armor_Type);
@@ -441,7 +503,9 @@ function AddScoreToPlayerAndTeam(float inScore, optional bool bAddCredits = true
 	ReplicatedRenScore = RenScore;
 	
 	if(!bBot && Worldinfo.NetMode != NM_Standalone)
+	{
 		ResetAFKTimer();
+	}
 	
 	Rx_TeamInfo(Team).AddRenScore(inScore);	
 }
@@ -569,7 +633,6 @@ function SetFocused()
 	
 }
 
-
 reliable server function ServerSetFocused()
 {
 	bFocused = true; 
@@ -600,6 +663,7 @@ function CopyProperties(PlayerReplicationInfo PRI)
 	RxPRI = Rx_PRI(PRI);
 	if ( RxPRI == None )
 		return;
+
 	RxPRI.RenTotalKills = RenTotalKills;
 	RxPRI.RenPlayerKills = RenPlayerKills;
 	RxPRI.Credits = Credits;
@@ -608,6 +672,7 @@ function CopyProperties(PlayerReplicationInfo PRI)
 	RxPRI.Veterancy_Points = Veterancy_Points;
 	RxPRI.NonDefensiveVeterancy_Points = NonDefensiveVeterancy_Points;
 	RxPRI.VRank = VRank;
+	RxPRI.OldTeamID = OldTeamID;
 }
 
 function Reset()
@@ -661,7 +726,6 @@ function RemoveRemoteC4(Rx_Weapon_DeployedRemoteC4 mine)
 {
 	RemoteC4.RemoveItem(mine);
 	RemoteC4Number = RemoteC4.Length;
-
 }
 
 function AddRemoteC4(Rx_Weapon_DeployedRemoteC4 mine)
@@ -713,6 +777,20 @@ function SwitchMineStatus()
 function bool GetMineStatus()
 {
 	return bCanMine;
+}
+
+reliable server function NotifyDoorAsHacked(Actor door)
+{
+	local Rx_BuildingAttachment_LockableDoor lockableDoor;
+
+	lockableDoor = Rx_BuildingAttachment_LockableDoor(door);
+
+	if (lockableDoor == none )
+	{
+		return;
+	}
+
+	lockableDoor.ServerSetDoorHacked(true);
 }
 
 function AddVP(float Amount)
@@ -1171,13 +1249,16 @@ function SetCommander(Rx_PRI RxPRI)
 
 function RemoveCommander(byte ToTeam)
 {
-	if(bIsCommander) bIsCommander = false; 
+	if(bIsCommander) {
+		bIsCommander = false; 
+		LastCommanderTime = WorldInfo.TimeSeconds;
+	}
 	Unit_Commander = none;
 	//Rx_Controller(Owner).CTextMessage("No Team Commander Set",'LightBlue',120); 	
 
 }
 
-reliable server function SetAsTarget(byte TType) //Type of target to be set as. Simplified from commander mod
+reliable server function SetAsTarget(byte TType, optional byte ForSquad) //Type of target to be set as. Simplified from commander mod
 {
 	local byte TeamByte; 
 	
@@ -1261,11 +1342,6 @@ simulated function bool bGetIsCommander()
 	return bIsCommander;
 }
 
-function SetControlGroup(byte Group)
-{
-	CurrentControlGroup = Group; 
-}
-
 function UpdatePawnLocation(vector L, rotator R, vector V)
 {
 	PawnLocation=L;
@@ -1324,6 +1400,11 @@ simulated function Texture GetMinimapIconTexture()
 	return PawnVehicleClass == none ? none : class<Rx_Vehicle>(PawnVehicleClass).default.MinimapIconTexture ; 
 }
 
+simulated function bool GetUseSquadMarker(byte TeamByte, byte SquadByte)
+{
+	return false; 
+}
+
 /******************
 *END RadarMarker***
 *******************/
@@ -1347,6 +1428,7 @@ reliable server function ResetAFKTimer ()
 
 //	`log(Owner.GetHumanReadableName()@" : Resetting afk timer from"@GetTimerCount('ServerDeclareAFK'));
 	SetTimer(180.0,false,'ServerDeclareAFK');
+	PlayerController(Owner).LastActiveTime = WorldInfo.TimeSeconds;
 
 }
 
@@ -1392,6 +1474,28 @@ reliable server function ServerLeaveDonate()
 	Rx_Game(Worldinfo.Game).DeletedPRITeamDonate(self,GetCredits() - Rx_Game(Worldinfo.Game).InitialCredits);
 }
 
+function BountySpot()
+{
+	if(Role != ROLE_Authority)
+		return;
+
+	SetSpotted(90);
+	SetAsTarget(1);
+}
+
+function DisallowCommander()
+{
+	bCanBeVotedCommander = false;
+
+	if (!bCanBeVotedCommander && !IsTimerActive(nameof(ResetAllowCommander)));
+		SetTimer(CommanderVoteResetTime, false, nameof(ResetAllowCommander));
+}
+
+function ResetAllowCommander()
+{
+	bCanBeVotedCommander = true;
+}
+
 DefaultProperties
 {
 	
@@ -1410,17 +1514,21 @@ DefaultProperties
 	VRank = 0
 	//Set by Rx_Game.
 	LastFreeCharacterClass = 0
+	PersonalProxyC4Limit=3
+	PersonalProxyC4Number=0
 	
 	//Amount of healing/Damage needed for certain goals 
 	Repair_Threshold_Building = 600
 	Repair_Threshold_Pawn = 100
 	Repair_Threshold_Vehicle = 250
-	Damage_Threshold_Building = 450
+	Damage_Threshold_Building = 675
 	Damage_Threshold_Vehicle = 350 //250
 	
 	//Decay time of attack targets in seconds 
 	TargetDecayTime = 20.0 //12.0
-	
-	//ControlGroup
-	CurrentControlGroup = 255
+
+	BountyRank = -1
+
+	bCanBeVotedCommander = true
+	CommanderVoteResetTime = 90
 }

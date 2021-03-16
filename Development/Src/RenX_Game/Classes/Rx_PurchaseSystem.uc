@@ -21,23 +21,14 @@ var config int                          NodItemPrices[8];
 
 var Array<Rx_Building_PowerPlant>          GDIPowerPlants;
 var Array<Rx_Building_PowerPlant>          NodPowerPlants;
-var Array<Rx_Building_GDI_VehicleFactory>		WeaponsFactory;
-var Array<Rx_Building_Nod_VehicleFactory>		AirStrip;
-var Array<Rx_Building_GDI_InfantryFactory>	Barracks;
-var Array<Rx_Building_Nod_InfantryFactory>	HandOfNod;
+var Array<RxIfc_FactoryVehicle>		WeaponsFactory;
+var Array<RxIfc_FactoryVehicle>		AirStrip;
+var Array<RxIfc_FactoryInfantry>	Barracks;
+var Array<RxIfc_FactoryInfantry>	HandOfNod;
 var array<Actor>			            Silos;
 
 var Rx_VehicleManager                   VehicleManager;
 var config int 							AirdropCooldownTime;
-
-// replication block nuked because the purchasesystem is inside Rx_Game anyways
-
-//replication
-//{
-//	if( bNetInitial && Role == ROLE_Authority )
-//		GDIPowerPlants, NodPowerPlants, GDIVehiclePrices, NodVehiclePrices, WeaponsFactory, AirStrip, Barracks, HandOfNod;
-//
-//}
 
 simulated event PostBeginPlay()
 {
@@ -52,22 +43,20 @@ simulated event PostBeginPlay()
 			else if (Building.GetTeamNum() == 1)
 				NodPowerPlants.AddItem(Rx_Building_PowerPlant(building));
 		}
-		else if (Rx_Building_GDI_VehicleFactory(building) != None)
+		else if (RxIfc_FactoryVehicle(building) != None)
 		{
-			WeaponsFactory.AddItem(Rx_Building_GDI_VehicleFactory(building));
+			if(building.GetTeamNum() == 0)
+				WeaponsFactory.AddItem(RxIfc_FactoryVehicle(building));
+			else if(building.GetTeamNum() == 1)
+				AirStrip.AddItem(RxIfc_FactoryVehicle(building));
 		}
-		else if (Rx_Building_Nod_VehicleFactory(building) != None)
+		else if (RxIfc_FactoryInfantry(building) != None)
 		{
-			AirStrip.AddItem(Rx_Building_Nod_VehicleFactory(building));
+			if(building.GetTeamNum() == 0)
+				Barracks.AddItem(RxIfc_FactoryInfantry(building));
+			else if(building.GetTeamNum() == 1)
+				HandOfNod.AddItem(RxIfc_FactoryInfantry(building));
 		}
-		else if (Rx_Building_GDI_InfantryFactory(building) != None)
-		{
-			Barracks.AddItem(Rx_Building_GDI_InfantryFactory(building));
-		}
-		else if (Rx_Building_Nod_InfantryFactory(building) != None)
-		{
-			HandOfNod.AddItem(Rx_Building_Nod_InfantryFactory(building));
-		}	
 		else if (building.isA('Rx_Building_Silo'))
 		{
 			Silos.AddItem(building.BuildingInternals);
@@ -247,23 +236,33 @@ function bool IsFree(class<Rx_FamilyInfo> CharacterClass) {
 	return CharacterClass.default.BasePurchaseCost <= 0;
 }
 
-function PurchaseCharacter(Controller Buyer, int TeamID, class<Rx_FamilyInfo> CharacterClass)
+function PurchaseCharacter(Rx_Controller Buyer, int TeamID, class<Rx_FamilyInfo> CharacterClass)
 {
+	local Rx_Pawn PlayerPawn;
 	if (IsHighTierClass(CharacterClass) && AreHighTierPayClassesDisabled(TeamID))
 		return; // You can't buy high tier classes when your infantry factory is destroyed
 
-	if (FFloor(Rx_PRI(Buyer.PlayerReplicationInfo).GetCredits()) >= GetClassPrice(TeamID, CharacterClass) )
+	if (FFloor(Rx_PRI(Buyer.PlayerReplicationInfo).GetCredits()) >= GetClassPrice(TeamID, CharacterClass) || Rx_Pawn(Buyer.Pawn).GetRxFamilyInfo() == CharacterClass)
 	{
-		Rx_PRI(Buyer.PlayerReplicationInfo).RemoveCredits(GetClassPrice(TeamID, CharacterClass));
+		if(Rx_Pawn(Buyer.Pawn).GetRxFamilyInfo() != CharacterClass)	// if the character is the same, don't remove credits
+			Rx_PRI(Buyer.PlayerReplicationInfo).RemoveCredits(GetClassPrice(TeamID, CharacterClass));
 		
 		if (IsFree(CharacterClass))
 			Rx_PRI(Buyer.PlayerReplicationInfo).SetChar(CharacterClass, Buyer.Pawn, true); // Free class
 		else
-			Rx_PRI(Buyer.PlayerReplicationInfo).SetChar(CharacterClass, Buyer.Pawn, false); // Not a free class
+			Rx_PRI(Buyer.PlayerReplicationInfo).SetChar(CharacterClass, Buyer.Pawn, Rx_Pawn(Buyer.Pawn).GetRxFamilyInfo() == CharacterClass); // Not a free class
 		
 		`LogRxPub("GAME" `s "Purchase;" `s "character" `s Rx_PRI(Buyer.PlayerReplicationInfo).CharClassInfo.name `s "by" `s `PlayerLog(Buyer.PlayerReplicationInfo));
 		Rx_PRI(Buyer.PlayerReplicationInfo).SetIsSpy(false); // if spy, after new char should be gone
-		
+		PlayerPawn = Rx_Pawn(Buyer.Pawn);
+		if (PlayerPawn == None || Buyer.RefillCoolDown() > 0 ) { return; }
+		// only perform the refill if we will heal from it. 
+		if (PlayerPawn.Health < PlayerPawn.HealthMax || PlayerPawn.Armor < PlayerPawn.ArmorMax || PlayerPawn.Bleeds.Length > 0) {
+			PlayerPawn.PerformRefill();
+			Buyer.RefillCooldownTime = Buyer.default.RefillCooldownTime;
+			Buyer.SetTimer(1.0,true,'RefillCooldownTimer');	
+			//Buyer.ClientResetVignette();	
+		}
 	}
 }
 
@@ -320,15 +319,10 @@ function PerformRefill( Rx_Controller cont )
 	if ( p != none )
 	{
 		`LogRxPub("GAME" `s "Purchase;" `s "refill" `s `PlayerLog(cont.PlayerReplicationInfo));
-		p.Health = p.HealthMax;
-		p.Armor  = p.ArmorMax;
-		p.DamageRate  = 0;
-		p.ClientSetStamina(p.MaxStamina);
-		if(Rx_Pawn_SBH(p) != None)
-			Rx_Pawn_SBH(p).ChangeState('WaitForSt');
+		p.PerformRefill();
 		cont.RefillCooldownTime = cont.default.RefillCooldownTime;
 		cont.SetTimer(1.0,true,'RefillCooldownTimer');	
-		cont.ClientResetVignette();	
+		//cont.ClientResetVignette();	
 	}
 
 	if(Rx_InventoryManager(p.InvManager) != none )
@@ -351,12 +345,7 @@ function BotPerformRefill (Rx_Bot cont)
 	if ( p != none )
 	{
 		`LogRxPub("GAME" `s "Purchase;" `s "refill" `s `PlayerLog(cont.PlayerReplicationInfo));
-		p.Health = p.HealthMax;
-		p.Armor  = p.ArmorMax;
-		p.DamageRate  = 0;
-		p.ClientSetStamina(p.MaxStamina);
-		if(Rx_Pawn_SBH(p) != None)
-			Rx_Pawn_SBH(p).ChangeState('WaitForSt');
+		p.PerformRefill();
 	}
 
 	if(Rx_InventoryManager(p.InvManager) != none )
@@ -529,9 +518,9 @@ simulated function string GetFactoryDescription(byte teamID, string menuName, Rx
 	
 	if (menuName == "VEHICLES") {
 		if (teamID == TEAM_GDI) {
-			factoryName = WeaponsFactory.Length > 0 ? Caps(WeaponsFactory[0].GetHumanReadableName()) : "WEAPONS FACTORY";
+			factoryName = WeaponsFactory.Length > 0 ? Caps(Actor(WeaponsFactory[0]).GetHumanReadableName()) : "WEAPONS FACTORY";
 		} else if (teamID == TEAM_NOD) {
-			factoryName = AirStrip.Length > 0 ? Caps(AirStrip[0].GetHumanReadableName()) : "AIRSTRIP";
+			factoryName = AirStrip.Length > 0 ? Caps(Actor(AirStrip[0]).GetHumanReadableName()) : "AIRSTRIP";
 		}
 
 		if (teamID == TEAM_GDI && WeaponsFactory.Length <= 0)
@@ -575,9 +564,9 @@ simulated function string GetFactoryDescription(byte teamID, string menuName, Rx
 	} 
 	else if (menuName == "CHARACTERS") {
 		if (teamID == TEAM_GDI) {
-			factoryName = Barracks.Length > 0 ? Caps(Barracks[0].GetHumanReadableName()) : "BARRACKS";
+			factoryName = Barracks.Length > 0 ? Caps(Actor(Barracks[0]).GetHumanReadableName()) : "BARRACKS";
 		} else if (teamID == TEAM_NOD) {
-			factoryName = HandOfNod.Length > 0 ? Caps(HandOfNod[0].GetHumanReadableName()) : "HAND OF NOD";
+			factoryName = HandOfNod.Length > 0 ? Caps(Actor(HandOfNod[0]).GetHumanReadableName()) : "HAND OF NOD";
 		}
 		
 		factoryStatus = "STATUS: " $ AreHighTierPayClassesDisabled(teamID) ? "LIMITED" : "ACTIVE";
@@ -919,8 +908,9 @@ DefaultProperties
 	GDIVehicleClasses[2]   = class'RenX_Game.Rx_Vehicle_GDI_MRLS_PTInfo'
 	GDIVehicleClasses[3]   = class'RenX_Game.Rx_Vehicle_GDI_MediumTank_PTInfo'
 	GDIVehicleClasses[4]   = class'RenX_Game.Rx_Vehicle_GDI_MammothTank_PTInfo'
-	GDIVehicleClasses[5]   = class'RenX_Game.Rx_Vehicle_GDI_Chinook_PTInfo'
-	GDIVehicleClasses[6]   = class'RenX_Game.Rx_Vehicle_GDI_Orca_PTInfo'
+	GDIVehicleClasses[5]   = None
+	GDIVehicleClasses[6]   = class'RenX_Game.Rx_Vehicle_GDI_Chinook_PTInfo'
+	GDIVehicleClasses[7]   = class'RenX_Game.Rx_Vehicle_GDI_Orca_PTInfo'
 
 	GDIItemClasses[0]  = class'Rx_Weapon_IonCannonBeacon'
 	GDIItemClasses[1]  = class'Rx_Weapon_Airstrike_GDI'
@@ -938,7 +928,7 @@ DefaultProperties
 	NodInfantryClasses[9]  = class'Rx_FamilyInfo_Nod_Stealthblackhand'
 	NodInfantryClasses[10] = class'Rx_FamilyInfo_Nod_LaserChainGunner'
 	NodInfantryClasses[11] = class'Rx_FamilyInfo_Nod_Sakura'		
-	NodInfantryClasses[12] = class'Rx_FamilyInfo_Nod_Raveshaw'//_Mutant'
+	NodInfantryClasses[12] = class'Rx_FamilyInfo_Nod_Raveshaw'
 	NodInfantryClasses[13] = class'Rx_FamilyInfo_Nod_Mendoza'
 	NodInfantryClasses[14] = class'Rx_FamilyInfo_Nod_Technician'
 	

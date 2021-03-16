@@ -56,14 +56,25 @@ function float GetProbabilityWeight(Rx_Pawn Recipient, Rx_CratePickup CratePicku
 function ExecuteCrateBehaviour(Rx_Pawn Recipient, Rx_PRI RecipientPRI, Rx_CratePickup CratePickup)
 {
     local Rx_InventoryManager InvManager;
+    local class<Rx_Weapon> TempWep;
+    local int i;
 
     WeaponClass = WeaponList[Rand(WeaponList.Length)];
+
     InvManager = Rx_InventoryManager(Recipient.InvManager);
-    if(InvManager.PrimaryWeapons.Find(WeaponClass) < 0)
-    {
-        WeaponClass = WeaponList[Rand(WeaponList.Length)];
-    }
+
+    if (InvManager.PrimaryWeapons.Find(TempWep) != INDEX_NONE)
+        ForEach WeaponList(TempWep, i)
+        {
+            if (i == 0)
+            {
+                WeaponClass = WeaponList[Rand(WeaponList.Length)];
+            }
+            else break;
+        }
+
     InvManager.PrimaryWeapons.AddItem(WeaponClass);
+
     if(InvManager.FindInventoryType(WeaponClass) != none)
     {
         InvManager.SetCurrentWeapon(Rx_Weapon(InvManager.FindInventoryType(WeaponClass)));
@@ -72,6 +83,8 @@ function ExecuteCrateBehaviour(Rx_Pawn Recipient, Rx_PRI RecipientPRI, Rx_CrateP
     {
         InvManager.SetCurrentWeapon(Rx_Weapon(InvManager.CreateInventory(WeaponClass, false)));
     }
+
+    InvManager.PromoteAllWeapons(RecipientPRI.VRank);
 }
 
 defaultproperties
@@ -100,5 +113,5 @@ defaultproperties
 	WeaponList(21)=class'Rx_Weapon_TiberiumAutoRifle_Blue'
 	WeaponList(22)=class'Rx_Weapon_VoltAutoRifle_Nod'
     BroadcastMessageIndex=21 
-	PickupSound=SoundCue'Rx_Pickups.Sounds.SC_Pickup_Ammo'
+	PickupSound=SoundCue'Rx_Pickups.Sounds.SC_Crate_RandomWeapon'
 }

@@ -7,7 +7,7 @@ defaultproperties
     SuicideStatsName=SUICIDES_M2BRADLEY
 
     VehicleDamageScaling=0.75
-	lightArmorDmgScaling=0.75
+	lightArmorDmgScaling=0.85
     BuildingDamageScaling=1.1f
 
 	IconTextureName="T_DeathIcon_LightTank"

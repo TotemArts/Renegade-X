@@ -10,6 +10,11 @@ simulated function String GetHumanReadableName()
 	return ReadableName;
 }
 
+simulated function string GetBuildingName()
+{
+	return ReadableName;
+}
+
 simulated function bool IsTouchingOnly()
 {
 	return false;
@@ -25,6 +30,8 @@ simulated function string GetTooltip(Rx_Controller PC)
 	if (class'Rx_Utils'.static.OrientationToB(self, PC.Pawn) > 0.1)
 	return ToolTip;
 }
+
+simulated function bool GetShouldShowHealth(){return true;}
 
 defaultproperties
 {

@@ -4,7 +4,17 @@ class Rx_SpottingArea extends Actor
 
 var() String NameOfArea;
 
+simulated function bool IsEligibleSpottingMarker()
+{
+	return true;
+}
+
 simulated function String GetSpotName(){
+	return NameOfArea;
+}
+
+simulated function String GetNonHTMLSpotName()
+{
 	return NameOfArea;
 }
 

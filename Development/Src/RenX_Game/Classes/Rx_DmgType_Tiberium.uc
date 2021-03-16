@@ -99,4 +99,6 @@ DefaultProperties
 	IconTexture=Texture2D'RenX_AssetBase.DeathIcons.T_DeathIcon_Tiberium'
 	
 	bUnsourcedDamage=true
+	
+	HitColour = (R = 0.0, G = 0.75, B = 0.0, A = 1.0)
 }

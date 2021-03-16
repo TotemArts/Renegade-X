@@ -1,5 +1,11 @@
 class Rx_Building_InfantryFactory extends Rx_Building
+	implements(RxIfc_FactoryInfantry)
 	abstract;
+
+simulated function bool IsOperational()
+{
+	return (!IsDestroyed());
+}
 
 DefaultProperties
 {

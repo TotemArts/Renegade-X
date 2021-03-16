@@ -783,7 +783,7 @@ simulated function SetupWeaponOverlays()
 		{
 				//Don't be so overbearingly large on weapons 
 				MIC.SetScalarParameterValue('Opacity', 0.10);
-				MIC.SetScalarParameterValue('Inflate', 0.20);
+				MIC.SetScalarParameterValue('Inflate', 0.10);
 		}
 	}
 }
@@ -800,7 +800,7 @@ simulated function CreateCustomRxWeaponOverlays()
 		 
 		TempMIC.SetVectorParameterValue('Effect_Colour', SM.default.EffectColor);
 		TempMIC.SetScalarParameterValue('Inflate', 0.10); //Minimize both of these effects for weapons so they don't hinder ironsights
-		TempMIC.SetScalarParameterValue('Opacity', 0.20);
+		TempMIC.SetScalarParameterValue('Opacity', 0.10);
 			
 		WeaponOverlays.AddItem(TempMIC); 
 	}
@@ -809,8 +809,10 @@ simulated function CreateCustomRxWeaponOverlays()
 simulated function CreateListArrays(){
 	local Actor TempActor;
 	
-	foreach AllActors(class'Actor',TempActor,class'RxIfc_SpotMarker') {
-		SpottingArray.AddItem(TempActor); 
+	foreach AllActors(class'Actor',TempActor,class'RxIfc_SpotMarker') 
+	{
+		if(RxIfc_SpotMarker(TempActor).IsEligibleSpottingMarker())
+			SpottingArray.AddItem(TempActor); 
 	}
 }
 
@@ -876,11 +878,12 @@ defaultproperties
 	//WeaponOverlays(1) = MaterialInstanceConstant'RenX_AssetBase.Stealth.MI_PowerUp_Main' //Simplified.. cuz this is a lot of time wasted on this. Weapons are either buffed or they're not
  
 	//These need to sync up with the 'Effect_Priority' byte in the classes themselves
-	StatClasses(0) = class'Rx_StatModifierInfo_GDI_OI'
-	StatClasses(1) = class'Rx_StatModifierInfo_Nod_PTP' 
-	StatClasses(2) = class'Rx_StatModifierInfo_Nod_UTP'
-	StatClasses(3) = class'Rx_StatModifierInfo_GDI_DI'
-	StatClasses(4) = class'Rx_StatModifierInfo_ChemGrenadeDebuff'
-	StatClasses(5) = class'Rx_StatModifierInfo_Crate_Defense'
-	StatClasses(6) = class'Rx_StatModifierInfo_Crate_Speed'
+	StatClasses(0) = class'Rx_StatModifierInfo_Nod_Stealth'
+	StatClasses(1) = class'Rx_StatModifierInfo_GDI_OI'
+	StatClasses(2) = class'Rx_StatModifierInfo_Nod_PTP' 
+	StatClasses(3) = class'Rx_StatModifierInfo_Nod_UTP'
+	StatClasses(4) = class'Rx_StatModifierInfo_GDI_DI'
+	StatClasses(5) = class'Rx_StatModifierInfo_ChemGrenadeDebuff'
+	StatClasses(6) = class'Rx_StatModifierInfo_Crate_Defense'
+	StatClasses(7) = class'Rx_StatModifierInfo_Crate_Speed'
 }

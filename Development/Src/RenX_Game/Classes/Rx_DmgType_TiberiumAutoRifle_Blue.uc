@@ -18,13 +18,14 @@ defaultproperties
 	MCTDamageScaling= 3.0 //2.5 
 	MineDamageScaling=1.0
 	
-	
     bPiercesArmor=false
 	
 	BleedDamageFactor=0.1
-	BleedCount=5
+	BleedCount=2
 
 	IconTextureName="T_WeaponIcon_TiberiumAutoRifle"
 	IconTexture=Texture2D'RX_WP_TiberiumAutoRifle.UI.T_WeaponIcon_TiberiumAutoRifle'
 	bUnsourcedDamage=false
+	
+	HitColour = (R = 0.33, G = 0.0, B = 0.0, A = 1.0)
 }

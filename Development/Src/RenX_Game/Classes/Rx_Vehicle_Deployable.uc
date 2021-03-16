@@ -374,25 +374,31 @@ event bool CanDeploy(optional bool bShowMessage = true)
 
 		return false;
 	}
-	else if (IsFiring())
+	else if (Rx_Vehicle_Multiweapon(Weapon) != None)
+	{
+		if(Weapon.PendingFire(0) || Weapon.PendingFire(1))
+			return false;
+	}
+	else if (IsFiring() && !Weapon.IsInState('Reloading'))
 	{
 		return false;
 	}
-	else
+
+	// Make sure all 4 wheels are on the ground if required
+	if (bRequireAllWheelsOnGround)
 	{
-		// Make sure all 4 wheels are on the ground if required
-		if (bRequireAllWheelsOnGround)
+		for (i=0;i<Wheels.Length;i++)
 		{
-			for (i=0;i<Wheels.Length;i++)
+			if ( !Wheels[i].bWheelOnGround )
 			{
-				if ( !Wheels[i].bWheelOnGround )
-				{
-					return false;
-				}
+				return false;
 			}
+
 		}
 		return true;
 	}
+
+	return true;
 }
 
 reliable server function ServerToggleDeploy()
@@ -464,7 +470,7 @@ state Deployed
 {
 	reliable server function ServerToggleDeploy()
 	{
-		if (!IsFiring())
+		if (CanDeploy())
 		{
 			GotoState('UnDeploying');
 		}

@@ -39,16 +39,18 @@ DefaultProperties
 	TossZ=30
 */
     bCollideComplex=true
-    Speed=1750 //2000
-    MaxSpeed=1750 //2000
+    Speed=2000 //2000
+    MaxSpeed=2000 //2000
     AccelRate=0
-    LifeSpan=0.80
+    LifeSpan=0.7
     Damage=16 //13.2
     DamageRadius=0 //50 //150 //Needs no damage radius. Use SprayRadii vector to make he spray more shapes
 	HeadShotDamageMult=1.10//1.2//1.0 //1.3
     MomentumTransfer=1
 	
-	SprayRadii = (X=15,Y=15,Z=15)
+	MaxSprayRadii = (X=5,Y=5,Z=5) //You're THIS big in the end 
+	MinSprayRadii =  (X=5,Y=5,Z=5) //You're this big to start with 
+	//SprayRadii = (X=0.0,Y=0.0,Z=0.0)
 	
 	//Use something less taxing every tick 
 	/**Begin Object Name=CollisionCylinder

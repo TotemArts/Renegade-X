@@ -9,6 +9,9 @@ function SetSkeletalMesh(SkeletalMesh m)
 		Mesh.SetSkeletalMesh(m);
 }
 
+function UpdateVehicle(SkeletalMesh m, MaterialInterface Mat)
+{}
+
 DefaultProperties
 {
 	Begin Object Class=SkeletalMeshComponent Name=WPawnSkeletalMeshComponent

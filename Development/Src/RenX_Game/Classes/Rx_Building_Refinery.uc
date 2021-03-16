@@ -1,5 +1,6 @@
 class Rx_Building_Refinery extends Rx_Building
-	abstract;
+	abstract
+	implements(RxIfc_Refinery);
 
 var private repnotify bool bDocking;
 var repnotify bool bHarvEMPd;
@@ -13,12 +14,14 @@ var SoundCue 				CreditFlowSound;
 var private SkeletalMeshComponent DockingMesh, GarageDoorMesh;
 var AnimNode                      AnNodeDockStation, AnNodeDoor;
 
-var Rx_Ref_NavigationPoint RefNode;
+var(RenX_Refinery) Rx_Ref_NavigationPoint RefNode;
 
 var(RenX_Refinery) float HarvesterUnloadTime;
 var(RenX_Refinery) float HarvesterHarvestTime;
 var(RenX_Refinery) float HarvesterCreditDump;
 var(RenX_Refinery) float CreditsPerTick;
+
+var Rx_VehicleManager VM;
 
 replication
 {
@@ -36,7 +39,13 @@ simulated function PostBeginPlay()
 	if(worldinfo.NetMode != NM_DedicatedServer)
 		CredAC = CreateAudioComponent(CreditFlowSound, false, true, false);
 
+	SetInitialHarvStandby();
 	HarvesterHarvestTime *= Rx_MapInfo(WorldInfo.GetMapInfo()).HarvesterHarvestTimeMultiplier;
+
+	if(Rx_Game(WorldInfo.Game) != None)
+	{
+		VM = Rx_Game(WorldInfo.Game).VehicleManager;
+	}
 }
 
 simulated event ReplicatedEvent( name VarName )
@@ -164,6 +173,102 @@ simulated function SimulateHarvDump(float DeltaTime)
 function bool ShouldSpawnHarvester()
 {
 	return true;	
+}
+
+function SetInitialHarvStandby()
+{
+	local Rx_CommanderWaypoint WP;
+	local vector refineryLoc;
+	local rotator refineryRot;
+	local string MetaTag;
+	local Rx_RefineryStandbyNode Node;
+
+	MetaTag = GetTeamNum() == 0 ? "GDI_Harvester_Halt" : "Nod_Harvester_Halt";
+	
+	BuildingInternals.BuildingSkeleton.GetSocketWorldLocationAndRotation('RefNodeSocket', refineryLoc, refineryRot);
+
+	ForEach WorldInfo.AllActors(class'Rx_RefineryStandbyNode', Node)
+	{
+		if (Node.GetTeamNum() == GetTeamNum())
+		{
+			refineryLoc = Node.Location;
+			Node.Destroy();
+			break;
+		}
+	}
+	
+	WP=spawn(class'Rx_CommanderWaypoint',,,refineryLoc,,, true); 
+	
+	WP.InitWaypoint("Harvester Standby", GetTeamNum(), MetaTag);
+}
+
+simulated function float GetCreditsPerTick()
+{
+	return CreditsPerTick;
+}
+
+simulated function Rx_Ref_NavigationPoint GetRefNavPoint()
+{
+	return RefNode;
+}
+
+simulated function SetRefNavPoint(Rx_Ref_NavigationPoint NewPoint)
+{
+	RefNode = NewPoint;
+}
+
+function NotifyHarvesterDestroyed()
+{
+	if(IsDestroyed())
+		return;
+    	
+    if((GetTeamNum() == 0 && VM.bGDIIsUsingAirdrops) || (GetTeamNum() == 1 && VM.bNodIsUsingAirdrops)) 
+    {
+    	BuildingInternals.SetTimer(360.0, false, 'HarvesterAirdropTimer'); //because Rx_Building is a static object, we cannot do a SetTimer here, divert to Internals
+    }
+    else
+    {
+    	RequestHarvester();	 	
+    }
+}
+
+function NotifyHarvesterCreated();
+
+function RequestHarvester()
+{
+	local bool bDoesNotHaveDelay;
+
+	if(VM != None && ShouldSpawnHarvester())
+	{
+		bDoesNotHaveDelay = (GetTeamNum() == 0 && VM.bGDIIsUsingAirdrops) || (GetTeamNum() == 1 && VM.bNodIsUsingAirdrops);
+
+		VM.QueueHarvester(RxIfc_Refinery(Self),!bDoesNotHaveDelay);
+	}
+}
+
+function Rx_Vehicle_HarvesterController GetDockedHarvester()
+{
+	return DockedHarvester;
+}
+
+function SetDockedHarvester(Rx_Vehicle_HarvesterController NewHarv)
+{
+	DockedHarvester = NewHarv;
+}
+
+function bool GetHarvEMPd()
+{
+	return bHarvEMPd;
+}
+
+function SetHarvEMPd(bool bEMPd)
+{
+	bHarvEMPd = bEMPd;
+}
+
+function float GetHarvesterHarvestTime()
+{
+	return HarvesterHarvestTime;
 }
 
 defaultproperties

@@ -152,13 +152,16 @@ simulated function RepairBuildingAttachment(Rx_BuildingAttachment buildingAttach
 
 simulated function RepairDeployedActor(Rx_Weapon_DeployedActor deployedActor, float DeltaTime)
 {
+	if (Rx_Weapon_DeployedProxyC4(deployedActor) != None
+		&& CurrentFireMode == 1
+		&& (Rx_Weapon_DeployedProxyC4(deployedActor).OwnerPRI == None || Rx_Weapon_DeployedProxyC4(deployedActor).OwnerPRI == Instigator.PlayerReplicationInfo 
+			|| (Rx_PRI(Instigator.PlayerReplicationInfo) != None && Rx_PRI(Instigator.PlayerReplicationInfo).bIsCommander)	
+			|| Rx_PRI(Rx_Weapon_DeployedProxyC4(deployedActor).OwnerPRI).GetMineStatus() == false )
+		&& deployedActor.HP > 0
+		&& deployedActor.HP <= deployedActor.MaxHP)
+		Repair(deployedActor,DeltaTime,true);
 	
-	if (!deployedActor.bCanNotBeDisarmedAnymore 
-			&& (IsEnemy(deployedActor) || (Rx_Weapon_DeployedProxyC4(deployedActor) != None 
-												&& CurrentFireMode == 1
-												&& (Rx_Weapon_DeployedProxyC4(deployedActor).OwnerPRI == Instigator.PlayerReplicationInfo || Rx_PRI(Rx_Weapon_DeployedProxyC4(deployedActor).OwnerPRI).GetMineStatus() == false )
-												&& deployedActor.HP > 0
-												&& deployedActor.HP <= deployedActor.MaxHP)))
+	else if (!deployedActor.bCanNotBeDisarmedAnymore && IsEnemy(deployedActor))
 	{
 		Repair(deployedActor,DeltaTime,true);
 	}
@@ -770,6 +773,183 @@ simulated function UpdateBeam(float DeltaTime)
 	}
 }
 
+// Mk-I S.M.A.R.T Protocol.
+// Beam will pass through things that doesn't necessarily need repairs. Manufactured by HQA - Handepsilon's Quirky Arsenal
+//
+// Due to Engineering group constantly getting in each others' way, a new system was proposed in order for the repair gun
+// systems to proactively attempt to circumvent through small obstacles
+
+simulated function ImpactInfo CalcWeaponFire(vector StartTrace, vector EndTrace, optional out array<ImpactInfo> ImpactList, optional vector Extent)
+{
+	local vector			HitLocation, HitNormal, Dir;
+	local Actor				HitActor, HitActorTemp;
+	local TraceHitInfo		HitInfo;
+	local ImpactInfo		CurrentImpact;
+	local PortalTeleporter	Portal;
+	local float				HitDist;
+	local bool				bOldBlockActors, bOldCollideActors;
+
+	// Perform trace to retrieve hit info, ignore anything that doesn't necessarily need repair
+	foreach GetTraceOwner().TraceActors(class'Actor', HitActorTemp, HitLocation, HitNormal, EndTrace, StartTrace, Extent, HitInfo, 1)
+	{
+		if(!HitInfo.HitComponent.BlockZeroExtent && Rx_Pawn(HitActorTemp) == None)
+		{
+			continue;
+		}
+		if(Pawn(HitActorTemp) != None && Pawn(HitActorTemp).Health <= 0) // don't let dead pawn block repair beam
+		{
+			continue;
+		}
+		if(!PassThroughRepair(HitActorTemp))
+		{
+			HitActor = HitActorTemp;
+//			`log("Repair Gun hits" @ HitActor @ "at" @ HitLocation);
+			break;
+		}
+	}
+
+	//	HitActor = GetTraceOwner().Trace(HitLocation, HitNormal, EndTrace, StartTrace, TRUE, Extent, HitInfo, TRACEFLAG_Bullet);
+
+	// If we didn't hit anything, then set the HitLocation as being the EndTrace location
+	if( HitActor == None)
+	{
+		HitLocation	= EndTrace;
+	}
+
+	// Convert Trace Information to ImpactInfo type.
+	CurrentImpact.HitActor		= HitActor;
+	CurrentImpact.HitLocation	= HitLocation;
+	CurrentImpact.HitNormal		= HitNormal;
+	CurrentImpact.RayDir		= Normal(EndTrace-StartTrace);
+	CurrentImpact.StartTrace	= StartTrace;
+	CurrentImpact.HitInfo		= HitInfo;
+	
+	if(default.MaximumPiercingAbility > 0)
+	{
+		if(HitActor == None)
+			CurrentPiercingPower = 0; //Blocked 
+		else if(HitActor.IsA('Rx_Pawn') && CurrentPiercingPower > 0) 
+			CurrentPiercingPower-=1;
+		else if(HitActor.IsA('Rx_Vehicle') && CurrentPiercingPower >= 3)  
+			CurrentPiercingPower-=3;
+		else 
+			CurrentPiercingPower = 0; //Blocked 
+	}
+	
+	// Add this hit to the ImpactList
+	ImpactList[ImpactList.Length] = CurrentImpact;
+	// check to see if we've hit a trigger.
+	// In this case, we want to add this actor to the list so we can give it damage, and then continue tracing through.
+	if( HitActor != None )
+	{		
+		if (PassThroughDamage(HitActor) && CurrentPiercingPower > 0) 
+		{
+			// disable collision temporarily for the actor we can pass-through
+			HitActor.bProjTarget = false;
+			bOldCollideActors = HitActor.bCollideActors;
+			bOldBlockActors = HitActor.bBlockActors;
+			if (HitActor.IsA('Pawn'))
+			{
+				// For pawns, we need to disable bCollideActors as well
+				HitActor.SetCollision(false, false);
+
+				// recurse another trace
+				CalcWeaponFire(HitLocation, EndTrace, ImpactList, Extent);
+			}
+			else
+			{
+				if( bOldBlockActors )
+				{
+					HitActor.SetCollision(bOldCollideActors, false);
+				}
+				// recurse another trace and override CurrentImpact
+				CurrentImpact = CalcWeaponFire(HitLocation, EndTrace, ImpactList, Extent);
+			}
+
+			// and reenable collision for the trigger
+			HitActor.bProjTarget = true;
+			HitActor.SetCollision(bOldCollideActors, bOldBlockActors);
+		}
+		else
+		{
+			// if we hit a PortalTeleporter, recurse through
+			Portal = PortalTeleporter(HitActor);
+			if( Portal != None && Portal.SisterPortal != None )
+			{
+				Dir = EndTrace - StartTrace;
+				HitDist = VSize(HitLocation - StartTrace);
+				// calculate new start and end points on the other side of the portal
+				StartTrace = Portal.TransformHitLocation(HitLocation);
+				EndTrace = StartTrace + Portal.TransformVectorDir(Normal(Dir) * (VSize(Dir) - HitDist));
+				//@note: intentionally ignoring return value so our hit of the portal is used for effects
+				//@todo: need to figure out how to replicate that there should be effects on the other side as well
+				CalcWeaponFire(StartTrace, EndTrace, ImpactList, Extent);
+			}
+		}
+	}
+	//Need the last impact info if it was piercing targets/First if it doesn't pierce 
+	if(default.MaximumPiercingAbility == 0)
+		return CurrentImpact;
+	else
+		return ImpactList[ImpactList.Length-1];
+
+}
+
+// Similar to PassThroughDamage, but since said function was static, it's impossible to get the Owner
+simulated function bool PassThroughRepair(Actor HitActor) 
+{
+	local Rx_Pawn RxP;
+	local Rx_Vehicle RxV;
+	local Rx_Weapon_DeployedActor RxD;
+
+	if(Owner == None) // can't determine if owner doesn't exist
+	{
+		//blank, on purpose
+	}
+	else if(UTPickupFactory(HitActor) != None || Rx_SmokeScreen(HitActor) != None)
+		return true;
+
+	else if(HitActor.GetTeamNum() == Owner.GetTeamNum() || (HitActor.isA('Rx_Vehicle') && HitActor.GetTeamNum() == 255))
+	{
+		if(HitActor.isA('Rx_Pawn'))
+		{
+			RxP = Rx_Pawn(HitActor);
+
+			return (RxP.Health <= 0 || (RxP.Health >= RxP.HealthMax && RxP.Armor >= RxP.ArmorMax));
+		}
+		else if(HitActor.isA('Rx_Vehicle'))
+		{
+			RxV = Rx_Vehicle(HitActor);
+
+			return (RxV.Health <= 0 || (RxV.Health >= RxV.HealthMax));
+		}
+		else if(HitActor.IsA('Rx_Weapon_DeployedActor'))
+		{
+			RxD = Rx_Weapon_DeployedActor(HitActor);
+
+			if(Rx_Weapon_DeployedProxyC4(HitActor) != None
+				&& Rx_Weapon_DeployedProxyC4(HitActor).OwnerPRI != None
+				&& CurrentFireMode == 1
+				&& (Rx_Weapon_DeployedProxyC4(HitActor).OwnerPRI == Instigator.PlayerReplicationInfo || Rx_PRI(Rx_Weapon_DeployedProxyC4(HitActor).OwnerPRI).GetMineStatus() == false )
+				&& RxD.HP > 0
+				&& RxD.HP <= RxD.MaxHP)
+				return false;
+
+			else
+			{
+				return (RxD.HP <= 0 || RxD.HP >= RxD.MaxHP);
+			}
+		}
+	}
+
+	// Although smart, the targetting system is not smart enough to bypass enemies... because reasons
+	//
+	// O.O.C. - We try to give the responsibility back to the reliable super function that we used earlier, just in case.
+	// This also will still allow enemies to bodyblock repair with their body or their deployable as a viable strategy, but team member will not be able to teamhamper.
+
+	return false;
+}
+
 function PromoteWeapon(byte rank) /*Covers most of what needs to be done(Damage,ROF,ClipSize,etc.) Special things obviously need to be added for special weapons*/
 {
 VRank = rank; 
@@ -832,6 +1012,9 @@ DefaultProperties
 
 	InstantHitDamage(0)=0
 	InstantHitDamage(1)=0
+
+	InstantHitDamageTypes(0) = class'Rx_DmgType_RepairGun'
+	InstantHitDamageTypes(1) = class'Rx_DmgType_RepairGun'
 	
 	InstantHitMomentum(0)=0
 	InstantHitMomentum(1)=0
@@ -848,6 +1031,7 @@ DefaultProperties
 	InitalNumClips = 1
 	MaxClips = 1
 	bHasInfiniteAmmo = true
+	bCanGetAmmo=false
 
 	WeaponFireSnd[0]=SoundCue'RX_WP_RepairGun.Sounds.RepairGun_FireCue'
 	WeaponFireSnd[1]=SoundCue'RX_WP_RepairGun.Sounds.RepairGun_FireCue'

@@ -2,12 +2,11 @@ class Rx_Pickup_Ammo extends Rx_Pickup;
 
 auto state Pickup
 {
-	function bool ValidTouch( Pawn Other )
+	function bool ValidTouch(Pawn Other)
 	{
 		if(Rx_InventoryManager(Other.InvManager) != none)
-		{
 			return !Rx_InventoryManager(Other.InvManager).IsAmmoFull();
-		}
+
 		else return false;
 	}
 }
@@ -17,8 +16,6 @@ function SpawnCopyFor(Pawn Recipient)
 	local Rx_Weapon Weap;
 	local Rx_Weapon_Reloadable RWeap;
 	local int AddAmount;
-	//if(Rx_InventoryManager(Recipient.InvManager) != none)
-		//Rx_InventoryManager(Recipient.InvManager).PerformWeaponRefill();
 
 	ForEach Rx_InventoryManager(Recipient.InvManager).InventoryActors(class'Rx_Weapon', Weap)
 	{
@@ -32,7 +29,7 @@ function SpawnCopyFor(Pawn Recipient)
 				if(WorldInfo.NetMode == NM_DedicatedServer) RWeap.ClientUpdateAmmoCount(AddAmount);
 			}				
 			else
-			Weap.PerformRefill(); 
+				Weap.PerformRefill(); 
 			
 			Weap.bForceHidden = false;
 		}

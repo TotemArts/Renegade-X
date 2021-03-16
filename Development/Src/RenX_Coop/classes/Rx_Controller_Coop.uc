@@ -14,16 +14,6 @@ simulated function Array<Rx_CoopObjective> GetCoopObjectives()
 	return COList;
 }
 
-/*
-function bool ValidPTUse(Rx_BuildingAttachment_PT PT)	// we don't always have PT inside buildings, so validate if this PT is not owned by any buildings
-{
-	if ((PT.OwnerBuilding == None || IsInBuilding() == PT.OwnerBuilding.BuildingVisuals) && PT.GetTeamNum() == GetTeamNum())
-		return true;
-	else
-		return false;
-}
-*/
-
 function EnableCommanderMenu()
 {
 	

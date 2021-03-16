@@ -1,4 +1,4 @@
-class Rx_Building_WeaponsFactory_Internals extends Rx_Building_Team_Internals;
+class Rx_Building_WeaponsFactory_Internals extends Rx_Building_VehicleFactory_Internals;
 
 DefaultProperties
 {

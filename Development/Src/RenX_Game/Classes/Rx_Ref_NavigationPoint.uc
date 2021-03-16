@@ -3,17 +3,17 @@ class Rx_Ref_NavigationPoint extends NavigationPoint
    placeable;
 
 var() byte TeamNum;
-var() Rx_Building_Refinery ConnectedRefinery;
+var() RxIfc_Refinery ConnectedRefinery;
 
 
 function PostBeginPlay()
 {
-	local Rx_Building_Refinery Ref, BestRef;
+	local Rx_Building Ref, BestRef;
 	local float BestDist,CurrentDist;
 
 	if(ConnectedRefinery == None)
 	{
-		foreach AllActors(class'Rx_Building_Refinery', Ref)
+		foreach AllActors(class'Rx_Building', Ref,class'RxIfc_Refinery')
 		{
 			if(Ref.GetTeamNum() == GetTeamNum())
 			{
@@ -29,7 +29,7 @@ function PostBeginPlay()
 		if(BestRef != None)
 		{
 			ConnectedRefinery = BestRef;
-			ConnectedRefinery.RefNode = Self;
+			ConnectedRefinery.SetRefNavPoint(Self);
 		}
 	}
 }

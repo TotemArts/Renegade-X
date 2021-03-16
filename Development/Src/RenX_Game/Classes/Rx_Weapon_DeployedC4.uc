@@ -233,8 +233,16 @@ simulated function bool HurtRadius
 		if ( (Victim != IgnoredActor) && (Victim.bCanBeDamaged || Victim.bProjTarget) )
 		{
 			//if(FRand() < 0.75)
+			if (InstigatorController.GetTeamNum() != GetTeamNum())
+			{
+				Victim.TakeDamage(20,None,Location,vect(0,0,0),class'Rx_DmgType_BurnC4');
+				Victim.TakeRadiusDamage(None, BaseDamage, DamageRadius, DamageType, Momentum, HurtOrigin, bDoFullDamage, self);
+			}
+			else
+			{
 				Victim.TakeDamage(20,InstigatedByController,Location,vect(0,0,0),class'Rx_DmgType_BurnC4');
-			Victim.TakeRadiusDamage(InstigatedByController, BaseDamage, DamageRadius, DamageType, Momentum, HurtOrigin, bDoFullDamage, self);
+				Victim.TakeRadiusDamage(InstigatedByController, BaseDamage, DamageRadius, DamageType, Momentum, HurtOrigin, bDoFullDamage, self);
+			}
 			bCausedDamage = bCausedDamage || Victim.bProjTarget;
 		}
 	}
@@ -251,14 +259,31 @@ function BroadcastDisarmed(Controller Disarmer)
 		`LogRxPub("GAME" `s "Disarmed;" `s self.Class `s "by" `s `PlayerLog(Disarmer.PlayerReplicationInfo));
 }
 
+//Disable this so ImpactedActor does not take double damage from explosives
+simulated function TakeRadiusDamage
+(
+	Controller			InstigatedBy,
+	float				BaseDamage,
+	float				DamageRadius,
+	class<DamageType>	DamageType,
+	float				Momentum,
+	vector				HurtOrigin,
+	bool				bFullDamage2,
+	Actor               DamageCauser,
+	optional float      DamageFalloffExponent=1.f
+)
+{
+}
+
 function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)
 {
 	
 	//super.TakeDamage(DamageAmount,EventInstigator,HitLocation,Momentum,DamageType,HitInfo,DamageCauser);
 	if (!CanDisarmMe(DamageCauser))
 	{
-		if(ImpactedActor != None)
+		if (ImpactedActor != None && ImpactedActor.GetTeamNum() != EventInstigator.GetTeamNum())
 			ImpactedActor.TakeDamage(DamageAmount,EventInstigator,HitLocation,Momentum,DamageType,HitInfo,DamageCauser);
+
 		return;
 	}
 	

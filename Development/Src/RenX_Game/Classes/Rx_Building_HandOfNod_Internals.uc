@@ -28,9 +28,6 @@ DefaultProperties
 	EnemyBuildingSounds(BuildingUnderAttack)            = SoundNodeWave'RX_EVA_VoiceClips.gdi_eva.S_EVA_GDI_HON_UnderAttack'
 
 	AttachmentClasses.Add(Rx_BuildingAttachment_Door_Nod)
-	//AttachmentClasses.Add(Rx_BuildingAttachment_Glass_TypeA)
-	//AttachmentClasses.Add(Rx_BuildingAttachment_Glass_TypeB)
-	//AttachmentClasses.Add(Rx_BuildingAttachment_Glass_TypeC)
 	AttachmentClasses.Add( Rx_BuildingAttachment_RadialImpulse_HoN )
 	AttachmentClasses.Add(Rx_BuildingAttachment_BeaconPedestal)
 }

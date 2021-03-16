@@ -145,7 +145,10 @@ simulated function UpdateBeam(float DeltaTime)
 	{
 		CurrHitLocation = RealImpact.HitLocation;
 		// Allow children to process the hit
-		ProcessBeamHit(StartTrace, AimDir, RealImpact, DeltaTime);
+		if(UsesClientSideHitDetection(CurrentFireMode) && WorldInfo.NetMode != NM_DedicatedServer)
+			ProcessBeamHit(StartTrace, AimDir, RealImpact, DeltaTime);
+		else if(!UsesClientSideHitDetection(CurrentFireMode) && ROLE == ROLE_AUTHORITY)
+			ProcessBeamHit(StartTrace, AimDir, RealImpact, DeltaTime);
 		UpdateBeamEmitter(RealImpact.HitLocation, RealImpact.HitNormal, RealImpact.HitActor);
 		PrevHitActor = RealImpact.HitActor;
 	}

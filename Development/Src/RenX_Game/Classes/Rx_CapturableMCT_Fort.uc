@@ -26,7 +26,7 @@ defaultproperties
 	CustomGDIVehicleList.Add(class'RenX_Game.Rx_Vehicle_GDI_MediumTank_PTInfo')
 	CustomGDIVehicleList.Add(class'RenX_Game.Rx_Vehicle_GDI_MammothTank_PTInfo')
 	CustomGDIVehicleList.Add(class'RenX_Game.TS_Vehicle_GDI_Wolverine_PTInfo')
-   	CustomGDIVehicleList.Add(class'Renx_Game.TS_Vehicle_GDI_HMRLS_PTInfo')
+   	CustomGDIVehicleList.Add(class'RenX_Game.TS_Vehicle_GDI_HMRLS_PTInfo')
    	CustomGDIVehicleList.Add(class'RenX_Game.TS_Vehicle_GDI_Titan_PTInfo')
 
 	CustomNodVehicleList.Add(class'RenX_Game.Rx_Vehicle_Nod_Buggy_PTInfo')
@@ -35,8 +35,8 @@ defaultproperties
 	CustomNodVehicleList.Add(class'RenX_Game.Rx_Vehicle_Nod_FlameTank_PTInfo')
 	CustomNodVehicleList.Add(class'RenX_Game.Rx_Vehicle_Nod_LightTank_PTInfo')
 	CustomNodVehicleList.Add(class'RenX_Game.Rx_Vehicle_Nod_StealthTank_PTInfo')
- 	CustomNodVehicleList.Add(class'RenX_Game.Rx_Vehicle_Nod_ReconBike_PTInfo')
  	CustomNodVehicleList.Add(class'RenX_Game.TS_Vehicle_Nod_Buggy_PTInfo')
+ 	CustomNodVehicleList.Add(class'RenX_Game.TS_Vehicle_Nod_ReconBike_PTInfo')
  	CustomNodVehicleList.Add(class'RenX_Game.TS_Vehicle_Nod_TickTank_PTInfo')
 
 	IconTexture = Texture2D'RenxHUD.T_Tech_Fort'

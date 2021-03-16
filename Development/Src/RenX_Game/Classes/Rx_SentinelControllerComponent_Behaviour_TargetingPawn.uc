@@ -21,18 +21,13 @@ function BeginBehaviour()
 
 function EndBehaviour()
 {
-	//loginternal("EndBehaviour TargetingPawn");
 	ClearTimer('NotVisibleTimer');
 }
 
 function ComponentSeePlayer(Pawn Seen)
 {
-
-	//loginternal("SeePlayer");
-    //Check for best target.
 	if(PossiblyTarget(Seen, false))
 	{
-		//`log("Possible Target" @ Seen); 
         SetTargetInfo(Seen, true, Seen.Location, WorldInfo.TimeSeconds);
 		ChangeBehaviourTo(self);
 	}
@@ -48,20 +43,7 @@ function ComponentHearNoise(float Loudness, Actor NoiseMaker, optional Name Nois
 }
 
 function ComponentNotifyTakeHit(Controller InstigatedBy, Vector HitLocation, int Damage, class<DamageType> DamageType, Vector Momentum)
-{
-	/**
-	//Target inflicter of damage if not otherwise engaged.
-	if(InstigatedBy != none && IgnoredDamageTypes.Find(DamageType) == INDEX_NONE)
-	{
-		if(PossiblyTarget(InstigatedBy.Pawn, DamageCauserExtraWeight, false))
-		{
-			SetTargetInfo(InstigatedBy.Pawn, LineOfSightTo(Enemy), HitLocation, WorldInfo.TimeSeconds);
-			ChangeBehaviourTo(self);
-		}
-	}
-	*/
-	
-	//loginternal("TookDamage");
+{ 
 }
 
 function ComponentNotVisibleTimer()
@@ -153,7 +135,6 @@ function SetTargetInfo(Pawn NewTarget, bool bCanSee, Vector DetectedLocation, fl
 	LastDetectedLocation = DetectedLocation;
 	LastDetectedTime = DetectedTime;
 	bEnemyIsVisible = bCanSee && Cannon.CanDetect(Enemy);
-	//loginternal("Enemy visible STI"@bEnemyIsVisible);
 
 	if(bEnemyIsVisible)
 	{
@@ -166,7 +147,6 @@ function SetTargetInfo(Pawn NewTarget, bool bCanSee, Vector DetectedLocation, fl
 		Cannon.SetTarget(Enemy);
 		//If enemy not re-detected before timer goes off, give up.
 		SetTimer(TargetWaitTime, false, 'NotVisibleTimer');
-		//loginternal("NotVisibleTimer");
 	}
 }
 
@@ -182,34 +162,26 @@ function bool PossiblyTarget(Pawn PotentialTarget, optional bool bOnlyFastTrace,
 {
 	local Vector AimSpot;
 
-    if(PotentialTarget == none) //|| !PotentialTarget.IsValidTargetFor(Cannon.InstigatorController))
+    if(PotentialTarget == none)
 		return false;
 		
 	if(PotentialTarget.Health <= 0) {
 		return false;
 	}
 
-	//Don't target owner or owner's Sentinels (non-team games).
 	if(Cannon.IsSameTeam(PotentialTarget))
 		return false;
 
-	//Don't target pawns outside of range (particularly important for Grenade Launcher).
 	if(VSizeSq(PotentialTarget.Location - Cannon.Location) > Square(Cannon.GetRange()))
 	{
 		return false;	
 	}
 		
-
-	//Hook to allow for gun specific visibility checks 
 	if(!Cannon.IsVisibleFromGuns(PotentialTarget)) {
-	//`log("Left for invisible to guns"); 
-		//loginternal("not visible");
 		return false;
 	}
 
-	//Don't target pawns closer then minimal range (no hurt radius arround Ob and AGT).
 	if(!Cannon.IsOutsideMinimalDistToOwner(PotentialTarget)) {
-		//`log("Outside Minimal Distance to Owner"); 
 		return false;
 	}
 	
@@ -218,9 +190,8 @@ function bool PossiblyTarget(Pawn PotentialTarget, optional bool bOnlyFastTrace,
 	
 	AimSpot = PotentialTarget.GetTargetLocation();
 	if(!AimingComponent.TraceCheckAim(PotentialTarget, Cannon.GetPawnViewLocation(), PotentialTarget.GetTargetLocation(), AimSpot)) {
-		//`log("Can't HIT");
+
 		if(SeenButCoveredPawns.Find(PotentialTarget) == -1) {
-			//`log("Was not a potential Target");
 			SeenButCoveredPawns.addItem(PotentialTarget);
 			if(!IsTimerActive('CheckPreviouslyCoveredTargets')) {
 				SetTimer(0.2, true, 'CheckPreviouslyCoveredTargets');
@@ -247,12 +218,6 @@ function bool PossiblyTarget(Pawn PotentialTarget, optional bool bOnlyFastTrace,
 	//Always change if current target is dead or nonexistent.
 	if(Enemy == none || Enemy.Health <= 0)
 		return true;
-
-	/**
-	//Keep dishing out the punishment until they die or otherwise go away.
-	if(PotentialTarget == Enemy)
-		return true;
-	*/
 		
 	//Change if new target is more important than current target.
 	if(!bEnemyIsVisible && (PawnTargetPriority(PotentialTarget, ExtraWeight) > PawnTargetPriority(Enemy)))
@@ -275,7 +240,7 @@ function float PawnTargetPriority(Pawn PawnTarget, optional int ExtraWeight)
 	local float Weight;
 
 	Weight = ExtraWeight;
-	//Better to target someone who's nearly dead.
+	// Better to target someone who's nearly dead.
 	Weight += 1.0 - (float(PawnTarget.Health) / float(PawnTarget.HealthMax));
 	//Prefer closer targets.
 	Weight += 1.0 - (VSize(PawnTarget.Location - Cannon.Location) / Cannon.GetRange());

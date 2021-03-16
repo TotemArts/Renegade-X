@@ -1,7 +1,7 @@
 class Rx_BlueprintModel extends Actor;
 
 var SkeletalMeshComponent Visual;
-var Rx_Weapon_Blueprint BoundWeapon;
+var RxIfc_Blueprint BoundWeapon;
 var MaterialInterface CorrectMat, IncorrectMat;
 var bool bWasValid;
 
@@ -18,7 +18,7 @@ event Tick(float DeltaTime)
 
 function bool NeedsValidationUpdate()
 {
-	return bWasValid != BoundWeapon.bValidPlacement;
+	return bWasValid != BoundWeapon.PlacementAllowed();
 	//return (bWasValid && !BoundWeapon.bValidPlacement) || (!bWasValid && BoundWeapon.bValidPlacement);
 }
 
@@ -28,14 +28,14 @@ function RevalidateMat()
 
 	for(i=0; i<Visual.SkeletalMesh.Materials.Length; i++)
 	{
-		if(BoundWeapon.bValidPlacement)
+		if(BoundWeapon.PlacementAllowed())
 			Visual.SetMaterial(i,CorrectMat);
 
 		else
 			Visual.SetMaterial(i,IncorrectMat);
 	}	
 
-	bWasValid = BoundWeapon.bValidPlacement;
+	bWasValid = BoundWeapon.PlacementAllowed();
 }
 
 DefaultProperties

@@ -67,9 +67,8 @@ function bool CheckSquadObjectives(UTBot B)
 
 	UTObjective = UTGameObjective(SquadObjective);
 
-	if(Rx_Bot(B).DefendedBuildingNeedsHealing())
+	if(Rx_Bot(B).DefendedBuildingNeedsHealing() && UTObjective.TellBotHowToHeal(B))
 	{
-		UTObjective.TellBotHowToHeal(B);
 		return true;
 	}
 

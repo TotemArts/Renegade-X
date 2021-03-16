@@ -294,21 +294,23 @@ static function GetStartingHiddenWeaponAttachmentClasses(class<Rx_InventoryManag
 	for (i = 0; i < ArrayCount(attclasses); i++)
 		attclasses[i] = none;
 
-	SetStartingHiddenWeaponAttachmentClassesPerCategory(attclasses, default.SecondaryWeapons, invtype);
-	SetStartingHiddenWeaponAttachmentClassesPerCategory(attclasses, default.SidearmWeapons, invtype);
-	SetStartingHiddenWeaponAttachmentClassesPerCategory(attclasses, default.ExplosiveWeapons, invtype);
-	SetStartingHiddenWeaponAttachmentClassesPerCategory(attclasses, default.Items, invtype);
+	SetStartingHiddenWeaponAttachmentClassesPerCategory(attclasses, default.PrimaryWeapons, invtype, true);
+	SetStartingHiddenWeaponAttachmentClassesPerCategory(attclasses, default.SecondaryWeapons, invtype, false);
+	SetStartingHiddenWeaponAttachmentClassesPerCategory(attclasses, default.SidearmWeapons, invtype, false);
+	SetStartingHiddenWeaponAttachmentClassesPerCategory(attclasses, default.ExplosiveWeapons, invtype, false);
+	SetStartingHiddenWeaponAttachmentClassesPerCategory(attclasses, default.Items, invtype, false);
 }
 
 static private function SetStartingHiddenWeaponAttachmentClassesPerCategory(
 	out class<Rx_BackWeaponAttachment> attclasses[5],
 	array<class<Rx_Weapon> > cat,
-	class<Rx_InventoryManager> invtype)
+	class<Rx_InventoryManager> invtype,
+	bool skipFirst)
 {
 	local class<Rx_BackWeaponAttachment> bclass;
 	local int i;
 
-	for (i = 0; i < cat.Length; i++)
+	for (i = skipFirst ? 1 : 0; i < cat.Length; i++)
 	{
 		bclass = cat[i].default.BackWeaponAttachmentClass;
 		if (bclass == none) continue;
@@ -335,13 +337,9 @@ private function AddWeaponsFromArray(array<class<Rx_Weapon> > a, bool bActivateF
 	} 
 }
 
-/** one1: Call this to set weapons for pawn. */
 simulated function SetWeaponsForPawn()
 {
 	local Rx_Weapon W;
-
-	/** one1: Moved and adjusted from Rx_PRI to here. 
-	 *  This code belongs to Inventory manager not PRI! */
 
 	// first remove all the weapons, but standard weapons!
 	foreach InventoryActors(class'Rx_Weapon', W) 
@@ -353,40 +351,19 @@ simulated function SetWeaponsForPawn()
        	}
  	}
 
-	//Setup Abilities if they exist
 	InitAbilities(); 
-	
-	// add secondary weapons
+
 	AddWeaponsFromArray(SecondaryWeapons, false);
-
-	// add sidearm weapons
 	AddWeaponsFromArray(SidearmWeapons, false);
-
-//	if(UDKBot(Pawn(Owner).controller) == None)
-//	{ 
-		// add explosives
-		AddWeaponsFromArray(ExplosiveWeapons, false);
-//	}
-//
-	// add items
+	AddWeaponsFromArray(ExplosiveWeapons, false);
 	AddWeaponsFromArray(Items, false);
-	
-	// add primary weapons
 	AddWeaponsFromArray(PrimaryWeapons, true);
 
-	
-	
-	//SetTimer(0.5, false, 'SwitchToStartWeapon');
+	Rx_Pawn(Owner).RefreshBackWeapons();
 }
 
-/** one1: Moved from Rx_PRI. */
 simulated function SwitchToStartWeapon()
 {
-	//local Weapon LinkWeapon; 
-	
-	//LinkWeapon = Weapon(CreateInventory(class'UTWeap_LinkGun', false));
-	
-	//SetCurrentWeapon(LinkWeapon);
 	SetCurrentWeapon(Weapon(FindInventoryType(default.PrimaryWeapons[0])));
 }
 simulated function SwitchToSidearmWeapon()
@@ -743,7 +720,7 @@ simulated function bool IsAmmoFull()
 
 	ForEach InventoryActors( class'Rx_Weapon', Weap )
 	{
-		if (!Weap.bHasInfiniteAmmo && Weap.AmmoCount < Weap.MaxAmmoCount)
+		if (!Weap.bHasInfiniteAmmo && Weap.AmmoCount < Weap.MaxAmmoCount && Weap.bCanGetAmmo)
 			return false;
 	}
 	return true;
@@ -758,6 +735,9 @@ simulated function PerformWeaponRefill()
 		Weap.PerformRefill();
 		Weap.bForceHidden = false;
 	}
+
+	// some weapons hide on empty ammo (mines, etc). Need to redraw them if applicable
+	Rx_Pawn(Owner).RefreshBackWeapons();
 }
 
 simulated function PromoteAllWeapons(byte rank) 

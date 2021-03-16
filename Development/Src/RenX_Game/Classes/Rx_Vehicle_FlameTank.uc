@@ -161,8 +161,8 @@ Snd_FlameAmbient_Heroic=SoundCue'RX_VH_FlameTank.Sounds.SC_FlameTank_Fire_Heroic
 
         bClampedFrictionModel=true
 
-        WheelSuspensionStiffness=80
-        WheelSuspensionDamping=4.0
+        WheelSuspensionStiffness=60//80
+        WheelSuspensionDamping=8.0//4.0
         WheelSuspensionBias=0.0
 
 //        WheelLongExtremumSlip=0

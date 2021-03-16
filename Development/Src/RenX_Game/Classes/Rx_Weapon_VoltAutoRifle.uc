@@ -462,19 +462,19 @@ DefaultProperties
 	
 	//-------------- Recoil
 	RecoilDelay = 0.02
-	MinRecoil = 25.0
-	MaxRecoil = 30.0
-	MaxTotalRecoil = 2000.0
+	MinRecoil = 40.0
+	MaxRecoil = 60.0
+	MaxTotalRecoil = 3500.0
 	RecoilYawModifier = 0.5 // will be a random value between 0 and this value for every shot
 	RecoilYawMultiplier = 2.0
 	RecoilInterpSpeed = 30.0
 	RecoilDeclinePct = 0.5
 	RecoilDeclineSpeed = 6.0
-	MaxSpread = 0.2
-	RecoilSpreadIncreasePerShot = 0.000175
+	MaxSpread = 0.35
+	RecoilSpreadIncreasePerShot = 0.000145
 	RecoilSpreadDeclineSpeed = 0.3
 	RecoilSpreadDecreaseDelay = 0.2
-	RecoilSpreadCrosshairScaling = 1000
+	RecoilSpreadCrosshairScaling = 3500
 
     bInstantHit=true
     bSplashJump=false
@@ -498,7 +498,7 @@ DefaultProperties
     EquipTime=1.0
 //	PutDownTime=0.7
 
-    Spread(0)=0.017
+    Spread(0)=0.021
     Spread(1)=0.0
     
     WeaponRange=3000.0
@@ -576,7 +576,7 @@ DefaultProperties
     FireSocket=MuzzleFlashSocket
     MuzzleFlashPSCTemplate=ParticleSystem'RX_WP_VoltAutoRifle.Effects.P_VoltRifle_MuzzleFlash_1P'
     MuzzleFlashDuration=0.1
-    MuzzleFlashLightClass=class'Rx_Light_RepairBeam'
+    MuzzleFlashLightClass=class'RenX_Game.Rx_Light_VoltRifle_MuzzleFlash'
 
     Begin Object Class=UDKParticleSystemComponent Name=ChargePart
         Template=ParticleSystem'RX_WP_VoltAutoRifle.Effects.P_ChargeUp_1P_Blue'
@@ -635,10 +635,10 @@ DefaultProperties
 	/** one1: Added. */
 	BackWeaponAttachmentClass = class'Rx_BackWeaponAttachment_VoltAutoRifle'
     
-    MaxCharge=25
-    AutoDischargeTime=3
+    MaxCharge=15
+    AutoDischargeTime=2
     MinCharge=5
-    CooldownLength=1.5
+    CooldownLength=0.5f
 	
 	bLocSync = true; 
 	LocSyncIncrement = 25; 

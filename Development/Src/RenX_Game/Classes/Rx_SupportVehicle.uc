@@ -330,6 +330,11 @@ simulated function Texture GetMinimapIconTexture()
 	return MinimapIconTexture; 
 }
 
+simulated function bool GetUseSquadMarker(byte TeamByte, byte SquadByte)
+{
+	return false; 
+}
+
 /******************
 *END RadarMarker***
 *******************/

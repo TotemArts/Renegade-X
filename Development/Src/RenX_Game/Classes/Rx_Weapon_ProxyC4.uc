@@ -2,27 +2,7 @@ class Rx_Weapon_ProxyC4 extends Rx_Weapon_Beacon ;//Rx_Weapon_Deployable;
 
 var StaticMeshComponent VisualizationMesh;
 var bool ShowVisualization;
-
-/**
-simulated function WeaponEmpty()
-{
-	if(AmmoCount <= 0) {
-		Rx_InventoryManager(Instigator.InvManager).RemoveWeaponOfClass(self.Class);
- 		if (Rx_Controller(Instigator.Controller).PreviousExplosiveTransactionRecords.Find(self.Class) > -1) {
- 			Rx_Controller(Instigator.Controller).PreviousExplosiveTransactionRecords.RemoveItem(self.Class);
- 		}
-	if (Rx_Controller(Instigator.Controller).CurrentExplosiveWeapon == self.Class) {
-			Rx_Controller(Instigator.Controller).CurrentExplosiveWeapon = none;
-		}
-	} 
-	
-	super.WeaponEmpty();
-}*/
-
-/**
- * Draw the Crosshairs
- * halo2pac - implemented code that changes crosshair color based on what's targeted. Edit for Proxy mines, tack on the mine limit.
- **/
+var Rx_Building TouchingFriendlyBuilding;
 
 simulated event PostBeginPlay()
 {
@@ -30,16 +10,19 @@ simulated event PostBeginPlay()
 
 	if (Pawn(Owner) != None)
 		Pawn(Owner).Mesh.AttachComponent(VisualizationMesh, 'b_R_Toe');
+
+	SetTimer(0.5, true, nameof(CheckTouchBuildings));
 }
 
 simulated event Tick(float DeltaTime)
 {
 	super.Tick(DeltaTime);
 
-	if (Owner == None || Pawn(Owner) == None || Pawn(Owner).Mesh == None)
+	if (Owner == None || Pawn(Owner) == None || Pawn(Owner).Mesh == None || Pawn(Owner).Weapon != self)
 	{
 		VisualizationMesh.SetHidden(true);
 		VisualizationMesh.DetachFromAny();
+		ShowVisualization = false;
 		return;
 	}
 
@@ -48,6 +31,16 @@ simulated event Tick(float DeltaTime)
 
 	if (!VisualizationMesh.bAttached)
 		Pawn(Owner).Mesh.AttachComponent(VisualizationMesh, 'b_R_Toe');
+}
+
+auto simulated state Inactive
+{
+	simulated function BeginState(name PreviousStateName)
+	{
+		Super.BeginState(PreviousStateName);
+
+		VisualizationMesh.SetHidden(true);
+	}
 }
 
 simulated event Destroyed()
@@ -220,8 +213,6 @@ simulated function DrawCrosshair( Hud HUD )
 		
 		H.Canvas.DrawText("Mines: " $ MineNum $ "/" $ MaxMineNum ,true,MineEmphasisScale,MineEmphasisScale);
 		H.Canvas.DrawColor=TempColor;
-
-		UpdateMineVisualization();
 	}
 
 	DrawHitIndicator(H,x,y);
@@ -241,37 +232,81 @@ simulated function PlayWeaponPutDown()
 	ShowVisualization = false;
 }
 
-simulated function UpdateMineVisualization()
-{
-	`log("update mine");
-}
-
 simulated function bool IsValidPosition() 
 {
 	return true;
 }
 
+simulated function CheckTouchBuildings()
+{
+	if (Instigator != None && Instigator.Weapon != self) return;
+
+	TouchingFriendlyBuilding = Rx_Pawn(Instigator).GetTouchingFriendlyBuilding();
+}
+
+simulated function bool IsInTeamBuilding() 
+{
+	return Rx_Building(Instigator.Base) != None && Rx_Building_Techbuilding(Instigator.Base) == None && Instigator.Base.GetTeamNum() == Instigator.GetTeamNum();
+}
+
 function bool Deploy()
 {
 	local Rx_Controller IPC;
-	
-	IPC=Rx_Controller(Instigator.Controller);
-	
-	if(Rx_PRI(IPC.PlayerReplicationInfo).bCanMine == false) /*Nobody likes you; you can't use these things that have been badly designed for 12+ years now.*/
-	{	
+	local Rx_PRI PRI; 
+
+	IPC = Rx_Controller(Instigator.Controller);
+
+	PRI = Rx_PRI(IPC.PlayerReplicationInfo);
+
+	if(!PRI.bCanMine)
+	{
+		/*Nobody likes you; you can't use these things that have been badly designed for 12+ years now.*/ // <- true
 		IPC.CTextMessage("You are currently banned from Mining");
-		return false;
+		return false;		
 	}
-	
-	//if(super(Rx_Weapon_Deployable).Deploy()) {
-		if(super.Deploy() ){
-		destroyOldMinesIfMinelimitReached();
+
+	if (super.Deploy())
+	{
 		Rx_TeamInfo(Rx_Game(WorldInfo.Game).Teams[Instigator.GetTeamNum()]).mineCount++;
+		Rx_Weapon_DeployedProxyC4(DeployedActor).IsTeamProxyC4 = true;
+		destroyOldMinesIfMinelimitReached();
+
 		return true;
 	}
+
 	return false;
 }
 
+function destroyOldMinesIfMinelimitReached()
+{
+	local Rx_TeamInfo teamInfo;
+	local Rx_Weapon_DeployedProxyC4 mine, oldestMine;
+	local string OldMineLocationString;
+
+	teamInfo = Rx_TeamInfo(Rx_Game(WorldInfo.Game).Teams[Instigator.GetTeamNum()]);
+	if (teamInfo.MineLimit < teamInfo.mineCount)
+	{
+		foreach DynamicActors(class'Rx_Weapon_DeployedProxyC4', mine) 
+		{
+			if(!mine.IsTeamProxyC4 || !mine.bUsesMineLimit || mine.GetTeamNum() != teamInfo.GetTeamNum()) 
+			{
+				continue;
+			}
+			if(oldestMine == None) 
+			{
+				oldestMine = mine;
+			} 
+			else if(mine.CreationTime < oldestMine.CreationTime) 
+			{
+				oldestMine = mine;
+			}
+		}
+		if(Rx_Controller(Instigator.Controller) != None)
+			OldMineLocationString = Rx_Controller(Instigator.Controller).GetSpottargetLocationInfo(oldestMine);
+		oldestMine.Destroy();
+		OvermineBroadcast(OldMineLocationString);
+	}
+}
 
 /**
  * Access to HUD and Canvas. Set bRenderOverlays=true to receive event.
@@ -279,7 +314,7 @@ function bool Deploy()
  *
  * @param   HUD H
  */
-simulated function ActiveRenderOverlays( HUD H )
+simulated function ActiveRenderOverlays(HUD H)
 {
    local Canvas C;
    local float PanX, PanY, PosX, PosY;
@@ -325,19 +360,16 @@ simulated function string GetWeaponTips()
 {
 	local int CurMines, MaxMines;
 	local Rx_PRI RxPRI;
-	local string TempString;
 
 	RxPRI = Rx_PRI(Pawn(Owner).PlayerReplicationInfo);
 
-	if(RxPRI == None)
+	if (RxPRI == None)
 		return "";
 
 	MaxMines = Rx_TeamInfo(RxPRI.Team).MineLimit;
 	CurMines = Rx_TeamInfo(RxPRI.Team).MineCount;
 
-	TempString = "MINE COUNT: "$CurMines$"/"$MaxMines;
-
-	return TempString;
+	return "TEAM MINE COUNT: "$CurMines$"/"$MaxMines;
 }
 
 simulated function LinearColor GetTipsColor()
@@ -347,20 +379,21 @@ simulated function LinearColor GetTipsColor()
 
 	RxPRI = Rx_PRI(Pawn(Owner).PlayerReplicationInfo);
 
-	if(RxPRI == None)
+	if (RxPRI == None)
 		return super.GetTipsColor();
 
-	if(!RxPRI.bCanMine)
+
+	if (!RxPRI.bCanMine)
 		return MakeLinearColor(1.0,0.0,0.0,1.0);
 
 	MaxMines = Rx_TeamInfo(RxPRI.Team).MineLimit;
 	CurMines = Rx_TeamInfo(RxPRI.Team).MineCount;
 
-	if(MaxMines <= CurMines)
+	if (MaxMines <= CurMines)
 	{
 		return MakeLinearColor(1.0,0.0,0.0,1.0);
 	}
-	else if(MaxMines - 5 <= CurMines)
+	else if (MaxMines - 3 <= CurMines)
 	{
 		return MakeLinearColor(1.0,1.0,0.0,1.0);
 	}
@@ -372,20 +405,23 @@ simulated function string GetWeaponSecondaryTips()
 {
 	local int CurMines, MaxMines;
 	local Rx_PRI RxPRI;
+	local string extra;
 
 	RxPRI = Rx_PRI(Pawn(Owner).PlayerReplicationInfo);
 
-	if(RxPRI == None)
+	if (RxPRI == None)
 		return "";
 
-	if(!RxPRI.bCanMine)
-		return ">>BANNED FROM MINING<<";
+	if (!RxPRI.bCanMine)
+		return ">>BANNED FROM MINING IN BUILDINGS<<";
 
 	MaxMines = Rx_TeamInfo(RxPRI.Team).MineLimit;
 	CurMines = Rx_TeamInfo(RxPRI.Team).MineCount;
 
-	if(MaxMines <= CurMines)
-		return ">>>>LIMIT REACHED<<<<";
+	extra = "TEAM";
+
+	if (MaxMines <= CurMines)
+		return ">>>>"$ extra @ "MINE LIMIT REACHED<<<<";
 
 	return "";
 }
@@ -423,6 +459,8 @@ DefaultProperties
 		BlockZeroExtent=False
 		BlockNonZeroExtent=False
 		BlockRigidBody=False
+		bOnlyOwnerSee=true
+		HiddenGame=true
 	End Object
 	VisualizationMesh=TMesh
 
@@ -441,6 +479,7 @@ DefaultProperties
 	bRemoveWhenDepleted = false
 	bBlockDeployCloseToOwnBase=false
 	bAffectedByNoDeployVolume=false
+	bAllowDropDeploy = true
 	
 	//-------------- Recoil
 	RecoilDelay = 0.07
@@ -475,12 +514,9 @@ DefaultProperties
 	
 	bDisplayCrosshair=false
 	
-	ClipSize = 3 //6 //1
-	InitalNumClips = 1 //6
-	MaxClips = 1 //6
-	
-	//AmmoCount=6
-	//MaxAmmoCount=6
+	ClipSize = 3
+	InitalNumClips = 1
+	MaxClips = 1
 	
 	ThirdPersonWeaponPutDownAnim="H_M_C4_PutDown"
 	ThirdPersonWeaponEquipAnim="H_M_C4_Equip"

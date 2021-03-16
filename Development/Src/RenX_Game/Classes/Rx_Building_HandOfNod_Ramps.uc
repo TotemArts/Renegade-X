@@ -3,6 +3,7 @@ class Rx_Building_HandOfNod_Ramps extends Rx_Building_HandOfNod
 
 DefaultProperties
 {
+	MineLimit=10
      Begin Object Class=StaticMeshComponent Name=Static_Ramps
         StaticMesh = StaticMesh'RX_BU_Hand.Mesh.SM_HoN_Ramps'
 		CastShadow                      = True

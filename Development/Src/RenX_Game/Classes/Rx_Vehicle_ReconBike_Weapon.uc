@@ -198,7 +198,7 @@ DefaultProperties
     ConsoleLockAim       = 0.997			// 0.997000
     LockAim              = 0.997			// 0.998000
     LockCheckTime        = 0.1			// 0.1
-    LockAcquireTime      = 0.5 			// 0.7
+    LockAcquireTime      = 0.25			// 0.7
     StayLocked           = 0.1 			// 0.1		// This does nothing
 
     bTargetLockingActive = true

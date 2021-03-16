@@ -102,6 +102,9 @@ DefaultProperties
 
 	WeaponFireSnd[0]=SoundCue'RX_WP_RocketLauncher.Sounds.RocketLauncher_FireCue'
 	WeaponFireSnd[1]=SoundCue'RX_WP_RocketLauncher.Sounds.RocketLauncher_FireCue'
+
+
+	WeaponFireSnd_Heroic[0]=SoundCue'RX_WP_RocketLauncher.Sounds.RocketLauncher_FireCue_Heroic'
 	
 	WeaponDistantFireSnd=SoundCue'RX_WP_RocketLauncher.Sounds.SC_RocketLauncher_DistantFire'
 

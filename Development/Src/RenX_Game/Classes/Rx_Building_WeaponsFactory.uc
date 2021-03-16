@@ -8,6 +8,7 @@ simulated function String GetHumanReadableName()
 
 defaultproperties
 {
+	MineLimit=6
 	BuildingInternalsClass  = Rx_Building_WeaponsFactory_Internals
 
     Begin Object Name=Static_Exterior

@@ -52,6 +52,7 @@ var const bool			bFemale; //halo2pac
 var const float			VPReward[4]; 
 var const int			VPCost[3]; 
 var bool				bIsStealth;
+var bool				bIsSniper;
 var const string		PTString;
 
 // Offset the 3rd person camera height for tall or short characters.
@@ -59,6 +60,8 @@ var const float         CameraHeightModifier;
 
 // Array of damage types we're immune to
 var array<class>        ImmuneTo;
+// Array of damage types that heal us [You fools]
+var array<class>        HealsIn;
 
 /** one1: Inventory manager class for this familyinfo. */
 var class<Rx_InventoryManager> InvManagerClass;
@@ -181,6 +184,11 @@ static function bool IsEngi()
 	return false;
 }
 
+static function bool IsSniper()
+{
+	return default.bIsSniper;
+}
+
 /** END Rx_IPurchasable */
 
 /** one1: Removed and modified to return only first weapon. This is used only
@@ -215,6 +223,25 @@ function static bool IsImmuneTo(class<DamageType> damageType)
 }
 
 
+
+// See if we're immune to a specific damage type
+function static bool IsHealingDmgType(class<DamageType> damageType)
+{
+	local int i;
+
+	for (i = 0; i < default.HealsIn.Length; i++)
+	{
+		if (default.HealsIn[i] == damageType)
+			return true;
+	}
+	return false;
+
+}
+
+function static bool CanPickupDeployedActor(class<Rx_Weapon_DeployedActor> Deployed)
+{
+	return false;
+}
 
 //Used to verify the client isn't sending up a VP buy request for something different. 
 function static  bool VerifyVPPrice(byte Iterator,int Cost)
@@ -252,7 +279,7 @@ static function bool HasPassiveAbilities()
 {
 	local int i; 
 	
-	for(i=0;i<2;i++)
+	for(i=0;i<=2;i++)
 	{
 		if(default.PassiveAbilities[i] != none)
 			return true; 

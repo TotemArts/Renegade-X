@@ -76,6 +76,8 @@ var int Ammo_Increment; //1 by default. This is used by ammo boxes and veterancy
 var bool bOverrideFireIntervalForReload; //If FALSE then this will wait until the length of fire interval to reload after firing the last shot in the clip
 var bool bLimitAmmoForScripted;
 
+
+
 //returns partial bot damage
 simulated function float GetBotDamagePercentage()
 {
@@ -117,6 +119,13 @@ simulated event PreBeginPlay()
 	CurrentAmmoInClipClientside = ClipSize;
 	bForceNetUpdate = true;
 	super.PreBeginPlay();
+}
+
+simulated function PostBeginPlay()
+{
+	super.PostBeginPlay();
+
+
 }
 
 simulated event ReplicatedEvent(name VarName)
@@ -210,8 +219,6 @@ simulated event ReplicatedEvent(name VarName)
     } 
 }
 
-
-
 simulated function RestartWeaponFiringAfterReload()
 {
 	//`log("Pushed Restart Weapon Fire" @ GetStateName() ); 
@@ -219,6 +226,15 @@ simulated function RestartWeaponFiringAfterReload()
 		return; 
 	
 	GotoState('Active');	
+
+	if(Rx_Pawn(Owner).DrivenVehicle != None)
+	{
+		ClientPendingFire[0] = false; 
+		ClientPendingFire[1] = false; 
+		ClearPendingFire(0); 
+		ClearPendingFire(1);
+		return;
+	}
 	
 	if(ROLE < ROLE_Authority || WorldInfo.Netmode == NM_Standalone) 
 	{
@@ -230,6 +246,9 @@ simulated function UpdateAmmoCounter(); // Needs overloaded if you need to updat
 
 simulated function PerformRefill()
 {
+	if (bIsCrateWeapon)
+		return;
+
 	AmmoCount = MaxAmmoCount;
 	CurrentAmmoInClip = ClipSize;
 	ClientRefill(); 
@@ -332,6 +351,10 @@ simulated state Reloading
 
 	simulated function EndState( name NextState )
 	{
+		local Rx_Pawn RxP; 
+		
+		RxP = Rx_Pawn(Owner);
+		
 		if (bDebugWeapon)
 		{
 			`log("---"@self$"."$GetStateName()$".EndState("$NextState$")");
@@ -352,8 +375,15 @@ simulated state Reloading
 		
 		CurrentlyReloading = false;
 			//CurrentlyBoltReloading = false; // if we're just switching weapons, don't suddenly take off the bolt reload. 
-		Rx_Pawn(Owner).ReloadAnim = '';
-		Rx_Pawn(Owner).SetHandIKEnabled(true);
+		RxP.ReloadAnim = '';
+		
+		//Resume sprint animations correctly
+		if(RxP.bSprinting)
+		{
+			RxP.Relax(true);
+		}
+			
+		RxP.SetHandIKEnabled(true);
 		
 		ClearTimer('PerBulletReloadWeaponTimer');
 		ClearTimer('ReloadWeaponTimer');
@@ -502,8 +532,10 @@ simulated state Reloading
 	
 	simulated event bool IsFiring()
 	{
-		return true;
+		return CurrentlyReloading || CurrentlyBoltReloading;//true;
 	}
+	
+	simulated function Activate(); //Ignore calls to activate while reloading (So no random arms appear behind us)
 }
 
 // This will get called after reloading is complete
@@ -741,9 +773,9 @@ simulated function PlayWeaponAnimation(name Sequence, float fDesiredDuration, op
 //Special variant for playing arm animations that need to be partial//
 simulated function PlayArmAnimation( Name Sequence, float fDesiredDuration, optional bool OffHand, optional bool bLoop, optional SkeletalMeshComponent SkelMesh)
 {
-	local UTPawn UTP;
-	local SkeletalMeshComponent ArmMeshComp;
-	local AnimNodeSequence WeapNode;
+	local Rx_Pawn UTP;
+	local SkeletalMeshComponent ArmMeshComp, ArmOverlayComp;
+	local AnimNodeSequence WeapNode, ArmOverlayNode;
 
 	// do not play on a dedicated server or if they aren't being seen
 	if( WorldInfo.NetMode == NM_DedicatedServer || Instigator == None || !Instigator.IsFirstPerson())
@@ -754,7 +786,7 @@ simulated function PlayArmAnimation( Name Sequence, float fDesiredDuration, opti
 	if(Sequence == ArmIdleAnims[0] && Rx_Pawn(Instigator).bSprinting)
 		return;
 	
-	UTP = UTPawn(Instigator);
+	UTP = Rx_Pawn(Instigator);
 	if(UTP == none)
 	{
 		return;
@@ -765,10 +797,12 @@ simulated function PlayArmAnimation( Name Sequence, float fDesiredDuration, opti
 		if(!OffHand)
 		{
 			ArmMeshComp = UTP.ArmsMesh[0];
+			ArmOverlayComp =  UTP.ArmsOverlayMesh[0];
 		}
 		else
 		{
 			ArmMeshComp = UTP.ArmsMesh[1];
+			ArmOverlayComp =  UTP.ArmsOverlayMesh[1];
 		}
 
 		// Check we have access to mesh and animations
@@ -785,15 +819,20 @@ simulated function PlayArmAnimation( Name Sequence, float fDesiredDuration, opti
 		if(Sequence == ReloadAnimName[0] && bUsePartialReload) 
 		{
 			ArmMeshComp.PlayAnim(Sequence, fDesiredDuration, bLoop,,ReloadPointTimes[CurrentReloadPart]);
+			ArmOverlayComp.PlayAnim(Sequence, fDesiredDuration, bLoop,,ReloadPointTimes[CurrentReloadPart]);
 		}
 		else
-			ArmMeshComp.PlayAnim(Sequence, fDesiredDuration, bLoop);			
+			ArmMeshComp.PlayAnim(Sequence, fDesiredDuration, bLoop);
+			ArmOverlayComp.PlayAnim(Sequence, fDesiredDuration, bLoop);
 		}
 		else
 		{
 			WeapNode = AnimNodeSequence(ArmMeshComp.Animations);
+			ArmOverlayNode = AnimNodeSequence(ArmOverlayComp.Animations);
 			WeapNode.SetAnim(Sequence);
+			ArmOverlayNode.SetAnim(Sequence);
 			WeapNode.PlayAnim(bLoop, DefaultAnimSpeed);
+			ArmOverlayNode.PlayAnim(bLoop, DefaultAnimSpeed);
 		}
 	}
 }
@@ -990,7 +1029,7 @@ simulated state BoltActionReloading
 		  if(WorldInfo.NetMode == NM_StandAlone || WorldInfo.NetMode == NM_Client)
         {
         	PlayWeaponBoltReloadAnim();
-        	PlaySound( BoltReloadSound[CurrentFireMode], false,true);
+//        	PlaySound( BoltReloadSound[CurrentFireMode], false,true);
         }
 		
 		reloadBeginTime = WorldInfo.TimeSeconds;
@@ -1108,6 +1147,30 @@ simulated function PlayWeaponBoltReloadAnim()
 	}
 }
 
+simulated function ActiveRenderOverlays( HUD H )
+{
+   local PlayerController PC;
+   PC = PlayerController(Instigator.Controller);
+   
+   if (bCanLock && bLockedOnTarget && (LockedTarget != None) && (Instigator != None) && WorldInfo.NetMode != NM_DedicatedServer) 
+   {
+      if ( ((LocalPlayer(PC.Player) == None) || !LocalPlayer(PC.Player).GetActorVisibility(LockedTarget))) 
+      {
+          DrawCrosshair(H);
+          return;
+      }
+      else 
+      {
+         DrawLockedOn( H );
+      }
+   }
+   else 
+   {
+   	  DrawCrosshair(H);
+      bWasLocked = false;
+   }
+}
+/*
 simulated function DrawCrosshair( Hud HUD )
 {
 	local float x,y;
@@ -1117,9 +1180,24 @@ simulated function DrawCrosshair( Hud HUD )
 	local int targetTeam;
 	local LinearColor LC; //nBab
 	local float XResScale, MinDotScale;
+
+	local bool bTargetBehindUs;
 	
+	local float TweenPercentage;
+
+	local Rotator LockOnRotation;
+	local Vector LockPosNormal;
+	local Vector LockPos[4];
+	local int i;	
 	
-	
+	if(PendingLockedTargetTime == 0.0)
+		TweenPercentage = 0.f;
+	else
+	{
+		TweenPercentage = 1.f - FClamp(((PendingLockedTargetTime - WorldInfo.TimeSeconds) / LockAcquireTime), 0.0, 1.0);
+
+	}
+
 	//set initial color based on settings (nBab)
 	LC.A = 1.f;
 	switch (Rx_HUD(Rx_Controller(Instigator.Controller).myHUD).SystemSettingsHandler.GetCrosshairColor())
@@ -1233,10 +1311,52 @@ simulated function DrawCrosshair( Hud HUD )
 	//nBab
 	CrosshairMIC2.SetVectorParameterValue('Reticle_Colour', LC);
 	CrosshairDotMIC2.SetVectorParameterValue('Reticle_Colour', LC);
-	
+	if(ADSCrosshairMIC2 != None)
+		ADSCrosshairMIC2.SetVectorParameterValue('Reticle_Colour', LC);
+			
 	H.Canvas.SetPos( CrosshairLinesX, CrosshairLinesY );
-	if(bDisplayCrosshair) {
-		H.Canvas.DrawMaterialTile(CrosshairMIC2, CrosshairWidth, CrosshairHeight);
+	if(bDisplayCrosshair) 
+	{
+		if(bIronsightActivated && ADSCrosshairMIC2 != None)
+			H.Canvas.DrawMaterialTile(ADSCrosshairMIC2, CrosshairWidth, CrosshairHeight);
+					
+		else
+			H.Canvas.DrawMaterialTile(CrosshairMIC2, CrosshairWidth, CrosshairHeight);
+
+		if(PendingLockedTarget != none)
+		{
+			bTargetBehindUs = class'Rx_Utils'.static.OrientationOfLocAndRotToBLocation(Rx_Controller(Instigator.Controller).ViewTarget.Location,Instigator.Controller.Rotation,PendingLockedTarget.location) < -0.5;
+				
+			if(!bTargetBehindUs && TargetMIC2 != None)
+			{
+				LC.R = 1.f;
+				LC.G = 10.f;
+				LC.B = 1.f;
+				CrosshairMIC2.SetVectorParameterValue('Reticle_Colour', LC);
+
+				LC.G = 1.f;
+				TargetMIC2.SetVectorParameterValue('Reticle_Colour', LC);
+				ScreenLoc = PendingLockedTarget.location; 
+				ScreenLoc = H.Canvas.Project(ScreenLoc);
+				for(i=0;i<4;i++)
+				{
+					LockOnRotation.Pitch = 0.f;
+					LockOnRotation.Roll = 0.f;
+					LockOnRotation.Yaw = ((45.f + (90.f * i)) * DegToUnrRot) + (Lerp(-90.0 * DegToUnrRot, 0, TweenPercentage));
+					LockPosNormal = Vector(LockOnRotation);
+
+
+					LockPos[i].X = ScreenLoc.X + (-1 * LockOnSize/2) + (-0.72 * LockOnSize * LockPosNormal.X) + (-1 * (LockOnSize * (1.0 - TweenPercentage)) * LockPosNormal.X);
+					LockPos[i].Y = ScreenLoc.Y + (-1 * LockOnSize/2) + (-0.72 * LockOnSize * LockPosNormal.Y) + (-1 * (LockOnSize * (1.0 - TweenPercentage)) * LockPosNormal.Y);
+
+					LockOnRotation.Yaw -= (45.f * DegToUnrRot);
+
+					H.Canvas.SetPos( LockPos[i].X, LockPos[i].Y );
+					H.Canvas.DrawRotatedMaterialTile(TargetMIC2, LockOnRotation,LockOnSize, LockOnSize);	
+				}				
+			}
+		}
+		
 	}
 
 	CrosshairLinesX = H.Canvas.ClipX * 0.5 - (default.CrosshairWidth * 0.5 * MinDotScale);
@@ -1247,29 +1367,6 @@ simulated function DrawCrosshair( Hud HUD )
 		H.Canvas.DrawMaterialTile(CrosshairDotMIC2, default.CrosshairWidth*MinDotScale, default.CrosshairHeight*MinDotScale);
 	}
 	DrawHitIndicator(H,x,y);
-			
-	
-/**	if(bDebugWeapon)
-	{
-	H.Canvas.DrawText("Reloading: " @ CurrentlyReloading ,true,1,1);
-	Y+=20;
-	H.Canvas.DrawText("Ammo: S: " @ CurrentAmmoInClip @ "C: " @ CurrentAmmoInClipClientSide,true,1,1);
-	Y+=20;
-	H.Canvas.DrawText("PendingFire:" @ PendingFire(0),true,1,1);
-	Y+=20;
-	H.Canvas.DrawText("ClientPendingFire:" @ ClientPendingFire[0],true,1,1);
-	Y+=20;
-	H.Canvas.DrawText("ReadyFire:" @ bReadyToFire(),true,1,1);
-	Y+=20;
-	H.Canvas.DrawText("Has Ammo:" @ HasAmmo(0),true,1,1);
-	Y+=20;
-	H.Canvas.DrawText("State" @ GetStateName(),true,1,1);
-	Y+=20;
-	H.Canvas.DrawText("RefireTimer" @ IsTimerActive('RefireCheckTimer') ,true,1,1);
-	Y+=20;
-	H.Canvas.DrawText("Loc" @ Rx_Pawn(Owner).SpotLocation ,true,1,1);
-	}
-	*/
 	
 	if(bDebugWeapon)
 	{
@@ -1301,6 +1398,7 @@ simulated function DrawCrosshair( Hud HUD )
 		H.Canvas.DrawText("Pawn Acc:" @ Rx_Pawn(MyPawnOwner).Acceleration ,true,1,1);
 	}
 }
+*/
 
 simulated function DrawHitIndicator(HUD H, float x, float y)
 {
@@ -1324,6 +1422,8 @@ simulated function DrawHitIndicator(HUD H, float x, float y)
     HitIndicatorCrosshairMIC2.SetScalarParameterValue('Reticle_Opacity', Rx_Hud(H).GetHitEffectAplha()/100.0);
     H.Canvas.DrawMaterialTile(HitIndicatorCrosshairMIC2,CrosshairSize.X, CrosshairSize.Y,0.0,0.0,1.0,1.0);
 }
+
+
 /**
  * Called when the weapon runs out of ammo during firing
  */

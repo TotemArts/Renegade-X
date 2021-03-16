@@ -1,6 +1,7 @@
 // A weapon to deploy stuff, 
 
-Class Rx_Weapon_Blueprint extends Rx_Weapon_Reloadable;
+Class Rx_Weapon_Blueprint extends Rx_Weapon_Reloadable
+	implements(RxIfc_Blueprint);
 
 
 // Build Status
@@ -43,7 +44,7 @@ simulated state Active
 		if(ActiveModel == None)
 		{
 			ActiveModel = spawn(ModelClass,,,BuildLoc + BuildOffset,BuildRot);
-			ActiveModel.BoundWeapon = Self;
+			ActiveModel.BoundWeapon = RxIfc_Blueprint(Self);
 			
 			GetBlueprintLocation();
 
@@ -109,6 +110,7 @@ simulated state Active
 				{
 					if (!PlacementAllowed()) 
 					{
+						AnnounceDeployFailure();
 						return; // if Can't place building here, do nothing
 					}			
 					DeployBlueprint(BuildLoc + BuildOffset,BuildRot);
@@ -250,6 +252,12 @@ reliable server function DeployBlueprint(vector DeployLoc, rotator DeployRot)
 simulated function bool PlacementAllowed()
 {
 	return bValidPlacement;
+}
+
+simulated function AnnounceDeployFailure()
+{
+	if(Rx_Controller(Instigator.Controller) != None)
+		Rx_Controller(Instigator.Controller).CTextMessage("Cannot deploy here",'Red',120);
 }
 
 simulated function SpawnDeploymentEffect(vector DeployLoc, rotator DeployRot)

@@ -16,6 +16,7 @@ simulated function string GetTargetedDescription(PlayerController PlayerPerspect
 
 defaultproperties
 {
+    MineLimit=3
     TeamID                 = TEAM_NOD
     BuildingInternalsClass = Rx_Building_Obelisk_Internals
     Begin Object Name=Static_Exterior

@@ -44,8 +44,8 @@ DefaultProperties
     
     bCollideComplex=true
 //    bCollideWorld=true
-    Speed=9000 //11200
-    MaxSpeed=9000 //11200
+    Speed=11200 //9000
+    MaxSpeed= 11200 //9000 
     AccelRate=0
     LifeSpan=0.5 //0.5
     Damage=30

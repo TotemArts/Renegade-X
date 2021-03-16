@@ -248,4 +248,6 @@ DefaultProperties
 	
 	bLocSync = true; 
 	ROFTurnover = 2;
+
+	IronSightViewOffset=(X=-5,Y=-6.45,Z=0.84)
 }

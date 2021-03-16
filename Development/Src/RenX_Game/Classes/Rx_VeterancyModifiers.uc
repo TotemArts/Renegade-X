@@ -79,7 +79,7 @@ DefaultProperties
 	//Events 
 	Ev_GoodBeaconLaid = +2
 	Ev_BuildingRepair = +1 
-	Ev_PawnRepair = +2 
+	Ev_PawnRepair = +1
 	Ev_VehicleRepair = +2 //Same bonus as infantry, but slightly slower to achieve
 	Ev_VehicleSteal = +10
 	Ev_C4Disarmed = +1
@@ -93,6 +93,6 @@ DefaultProperties
 	//Team-Wide Bonuses
 	Ev_BuildingDestroyed = +15 //+35 //+50 Modified in Rx_Game based on number of buildings destroyed
 	Ev_BuildingArmorBreak = +10 //+15 //+20 
-	Ev_HarvesterDestroyed = +8
+	Ev_HarvesterDestroyed = 2 //+8 //Changed to increase infinitely with each harvester trip
 
 } 

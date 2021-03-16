@@ -143,4 +143,6 @@ DefaultProperties
 	bCollideActors      = True
 	bBlockActors        = True
 	BlockRigidBody      = True
+	bUpdateSimulatedPosition = true;
+	NetUpdateFrequency = 1.0
 }

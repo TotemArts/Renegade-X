@@ -170,7 +170,7 @@ DefaultProperties
 
     DrawScale=1.0
 	
-	SkeletalMeshForPT=SkeletalMesh'RX_VH_ReconBike.Mesh.SK_VH_ReconBike'
+	SkeletalMeshForPT=SkeletalMesh'RX_VH_ReconBike.Mesh.SK_PTVH_ReconBike'
 
 	VehicleIconTexture=Texture2D'RX_VH_ReconBike.UI.T_VehicleIcon_ReconBike'
 	MinimapIconTexture=Texture2D'TS_VH_ReconBike.Materials.T_RadarBlip_ReconBike'

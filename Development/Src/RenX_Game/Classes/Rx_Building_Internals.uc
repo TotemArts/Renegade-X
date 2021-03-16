@@ -17,7 +17,8 @@
 *********************************************************/
 
 class Rx_Building_Internals extends Actor
-	abstract;
+	abstract
+	implements(RxIfc_Targetable);
 
 /** Skeletal Mesh that contains all the bones for      *
   * spawn Doors, PT's, MCT's, Particle Systems, etc... */
@@ -34,6 +35,8 @@ var bool                                    bBuildingDebug;
 
 /** The actor that spawns and owns this actor. It provides the static visual elements for this building */
 var repnotify Rx_Building                   BuildingVisuals;
+
+var int 									BuybackCost, BuybackProgress, BuybackRange;
 
 /** Team Numbers in handy ENUM form */
 enum TEAM
@@ -61,15 +64,13 @@ var const string GDIPTAttachment;
 var array<vector>	Trace2dTargets;
 const MAX_TRACE2D_TARGETS = 10;
 
-
-
 replication
 {
 	
-	if ( bNetDirty && Role == ROLE_Authority )
-		BuildingVisuals,ReplicatedMesh;
+	if (bNetDirty && Role == ROLE_Authority)
+		BuildingVisuals, ReplicatedMesh, BuybackProgress, BuybackCost;
 		
-	if ( bNetInitial && Role == ROLE_Authority )
+	if (bNetInitial && Role == ROLE_Authority)
 		TeamID;
 }
 
@@ -98,13 +99,13 @@ simulated event PostBeginPlay()
 	{
 		ReplicatedMesh = BuildingSkeleton.SkeletalMesh;
 	}
-	
-	//Init(BuildingVisuals,false);
 }
 
 simulated event Tick (float DeltaTime)
 {
-	BuildingVisuals.TickBuilding(DeltaTime);
+	if(BuildingVisuals != None)
+		BuildingVisuals.TickBuilding(DeltaTime);
+		
 	super.Tick(DeltaTime);
 }
 
@@ -116,6 +117,26 @@ simulated function Init(Rx_Building Visuals, bool isDebug )
 	GetPTClasses();
 	SetupBuildingComponents();
 	SetupTrace2dTargets();
+}
+
+simulated function bool CanContributeToRevivePool(Rx_Controller PC)
+{
+	return false;
+}
+
+simulated function int GetBuybackCost()
+{
+	return BuybackCost;
+}
+
+reliable server function bool AddCreditsToRevivePool(Rx_Controller PC, int CreditsToAdd)
+{
+	return false;
+}
+
+simulated function int GetRemainingCreditsForRevive()
+{
+	return GetBuybackCost() - BuybackProgress;
 }
 
 simulated function GetPTClasses()
@@ -172,7 +193,7 @@ simulated function SetupBuildingComponents()
 simulated function SpawnBuildingAttachment( class<Rx_BuildingAttachment> attachmentClass, Vector L, Rotator R, name SocketName )
 {
 	local Rx_BuildingAttachment attachClass;
-	attachClass = Spawn(attachmentClass,self,name(self.Name$attachmentClass.default.SpawnName),L,R);
+	attachClass = Spawn(attachmentClass, self, name(self.Name$attachmentClass.default.SpawnName), L, R);
 	if ( attachClass != none )
 	{
 		attachClass.Init(self, SocketName);
@@ -247,6 +268,13 @@ simulated function int GetArmor();
 
 simulated function int GetMaxArmor();
 
+simulated function string GetHumanReadableName()
+{
+	if (GetBuildingName() == "")
+		return BuildingVisuals.GetHumanReadableName();
+
+	return GetBuildingName();
+}
 
 simulated function string GetBuildingName()
 {
@@ -259,6 +287,67 @@ simulated function bool IsDestroyed()
 }
 
 simulated function OnBuildingDestroyed();
+
+/*-------------------------------------------*/
+/*BEGIN TARGET INTERFACE [RxIfc_Targetable]*/
+/*------------------------------------------*/
+//Health
+simulated function int GetTargetHealth() {return GetHealth();} //Return the current health of this target
+simulated function int GetTargetHealthMax() {return GetMaxHealth();} //Return the current health of this target
+
+//Armour 
+simulated function int GetTargetArmour() {return GetArmor();} // Get the current Armour of the target
+simulated function int GetTargetArmourMax() {return GetMaxArmor();} // Get the current Armour of the target 
+
+// Veterancy
+
+simulated function int GetVRank() 
+{
+	if(BuildingVisuals != None)
+		return (BuildingVisuals.GetVRank());
+
+	return 0;
+}
+
+/*Get Health/Armour Percents*/
+simulated function float GetTargetHealthPct() {return float(GetHealth()) / max(1,float(GetTrueMaxHealth()));}
+simulated function float GetTargetArmourPct() {return float(GetArmor()) / max(1,float(GetMaxArmor()));}
+simulated function float GetTargetMaxHealthPct() {return 1.0f;} //Everything together (Basically Health and armour)
+
+/*Get what we're actually looking at*/
+simulated function Actor GetActualTarget() {return BuildingVisuals;} //Should return 'self' most of the time, save for things that should return something else (like building internals should return the actual building)
+
+/*Booleans*/
+simulated function bool GetUseBuildingArmour(){return true;} //Stupid legacy function to determine if we use building armour when drawing. 
+simulated function bool GetShouldShowHealth(){return true;} //If we need to draw health on this 
+simulated function bool AlwaysTargetable() {return false;} //Targetable no matter what range they're at
+simulated function bool GetIsInteractable(PlayerController PC) {return false;} //Are we ever interactable?
+simulated function bool GetCurrentlyInteractable(PlayerController RxPC) {return false;} //Are we interactable right now? 
+simulated function bool GetIsValidLocalTarget(Controller PC) {return true;} //Are we a valid target for our local playercontroller?  (Buildings are always valid to look at (maybe stealthed buildings aren't?))
+simulated function bool HasDestroyedState() {return true;} //Do we have a destroyed state where we won't have health, but can't come back? (Buildings in particular have this)
+simulated function bool UseDefaultBBox() {return true;} //We're big AF so don't use our bounding box 
+simulated function bool IsStickyTarget() {return false;} //Does our target box 'stick' even after we're untargeted for awhile 
+simulated function bool HasVeterancy() {return (BuildingVisuals != None && BuildingVisuals.HasVeterancy());}
+
+//Spotting
+simulated function bool IsSpottable() {return true;}
+simulated function bool IsCommandSpottable() {return false;} 
+
+simulated function bool IsSpyTarget(){return false;} //Do we use spy mechanics? IE: our bounding box will show up friendly to the enemy [.... There are no spy Refineries...... Or are there?]
+
+/* Text related */
+
+simulated function string GetTargetName() {return GetBuildingName();} //Get our targeted name 
+simulated function string GetInteractText(Controller C, string BindKey) {return "";} //Get the text for our interaction 
+simulated function string GetTargetedDescription(PlayerController PlayerPerspectiv) {return "";} //Get any special description we might have when targeted 
+
+//Actions
+simulated function SetTargeted(bool bTargeted) ; //Function to say what to do when you're targeted client-side 
+
+/*----------------------------------------*/
+/*END TARGET INTERFACE [RxIfc_Targetable]*/
+/*---------------------------------------*/
+
 
 DefaultProperties
 {
@@ -340,4 +429,5 @@ DefaultProperties
 	CollisionComponent = BuildingSkeletalMeshComponent
 	Components.Add(BuildingSkeletalMeshComponent)
 		
+	BuybackRange = 250
 }

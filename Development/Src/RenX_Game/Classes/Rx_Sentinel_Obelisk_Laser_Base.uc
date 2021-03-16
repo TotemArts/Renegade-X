@@ -26,7 +26,7 @@ simulated function Tick(float DeltaTime)
  */
 function bool IsOutsideMinimalDistToOwner(Pawn possibleTarget)
 {
-	return (VSizeSq(possibleTarget.Location - Owner.Location) > Square(MinimumRange) );//800);
+	return (VSizeSq(possibleTarget.Location - Owner.Location) > Square(MinimumRange) );
 }
 
 function bool IsVisibleFromGuns(Pawn possibleTarget)
@@ -71,7 +71,6 @@ simulated function bool IsSameTeam(Pawn Other)
          bSameTeam = (Other.GetTeamNum() == GetTeamNum());
     }
 
-     //return false;           // zum Testen, wenn Obelisk auf alles feuern soll
     return bSameTeam;
 }
 
@@ -88,27 +87,20 @@ defaultproperties
 	Team = 1 // NOD Obelisk Laser
 
 	MinimumRange = 1100
-	
-	//bNeverReplicateRotation=true
-
-    //MenuName="Obelisk Laser"
-	//ShortMenuName="Obelisk Laser"
 
 	DefaultWeaponClass=class'Rx_SentinelWeapon_Obelisk'
 
 	MaxRotationSpeed=(Pitch=50000,Yaw=50000)
 	RotationDampingThreshold=4096
 
-    AutoRotateRate=1000     /** Speed that Sentinel will rotate when it has no target. */
+    AutoRotateRate=1000
 
-	// ~ -85deg.
 	ViewPitchMax=30000
 	ViewPitchMin=-30000
 
-	AimAhead=0.0       // wohl besser runter oder auf 0 setzen
+	AimAhead=0.0
 	HearingThreshold=1500.0
 	SightRadius=11000.0
-//	PeripheralVision=0.71 //90 degree FOV
 	PeripheralVision=-1.0
 	BaseEyeHeight=6.4
 	EyeHeight=6.4
@@ -117,7 +109,6 @@ defaultproperties
 
 	bHidden=false
 
-	// Possibilitys for more custom sounds:
 	TargetingSound=None
 	WaitingSound=None
 
@@ -129,21 +120,11 @@ defaultproperties
 	End Object
 
 	Begin Object Name=BaseComponent0
-		//SpawnMaterial=MaterialInstance'Sentinel_Resources.Materials.Sentinel.MI_Sentinel_Spawn'
-		//DeadMaterial=MaterialInstance'Sentinel_Resources.Materials.Sentinel.MI_Sentinel_Dead'
-		//SkeletalMesh=SkeletalMesh'Sentinel_Resources.Meshes.Sentinel.SK_Base_Floor'
-		//Materials[0]=MaterialInstance'Sentinel_Resources.Materials.Sentinel.MI_Sentinel'
-		//PhysicsAsset=PhysicsAsset'Sentinel_Resources.Physics.SK_Base_Floor_Physics'
 		Scale=0.0
 		Translation=(X=0.0,Y=0.0,Z=-32.0)
 	End Object
 
 	Begin Object Name=RotatorComponent0
-		//SpawnMaterial=MaterialInstance'Sentinel_Resources.Materials.Sentinel.MI_Sentinel_Spawn'
-		//DeadMaterial=MaterialInstance'Sentinel_Resources.Materials.Sentinel.MI_Sentinel_Dead'
-		//SkeletalMesh=SkeletalMesh'Sentinel_Resources.Meshes.Sentinel.SK_Rotator'
-		//Materials[0]=MaterialInstance'Sentinel_Resources.Materials.Sentinel.MI_Sentinel'
-		//PhysicsAsset=PhysicsAsset'Sentinel_Resources.Physics.SK_Rotator_Physics'
 		Scale=0.0
 		Translation=(X=0.0,Y=0.0,Z=-32.0)
 	End Object

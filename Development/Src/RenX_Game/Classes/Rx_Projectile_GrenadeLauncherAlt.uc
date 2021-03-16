@@ -67,21 +67,16 @@ simulated event HitWall(vector HitNormal, Actor Wall, PrimitiveComponent WallCom
     }
 }
 
-simulated function SetExplosionEffectParameters(ParticleSystemComponent ProjExplosion)
-{
-    Super.SetExplosionEffectParameters(ProjExplosion);
-
-    ProjExplosion.SetScale(1.1);
-}
 
 
 DefaultProperties
 {
 //	TossZ=150.0
-//	Speed=1100
-//	MaxSpeed=2000
-//	LifeSpan=8.0
+	Speed=2000
+    MaxSpeed=2000
+    TerminalVelocity=2000.0
+	LifeSpan=2.0
 
-Damage = 40
-DamageRadius = 400
+// Damage = 40
+// DamageRadius = 400
 }

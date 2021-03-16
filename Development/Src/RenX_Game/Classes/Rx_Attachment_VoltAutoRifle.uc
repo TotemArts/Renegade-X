@@ -136,7 +136,7 @@ DefaultProperties
     WeaponClass = class'Rx_Weapon_VoltAutoRifle'
     MuzzleFlashSocket=MuzzleFlashSocket
     MuzzleFlashPSCTemplate=ParticleSystem'RX_WP_VoltAutoRifle.Effects.P_VoltRifle_MuzzleFlash_3P'
-    MuzzleFlashLightClass=class'UTGame.UTShockMuzzleFlashLight'
+    MuzzleFlashLightClass=class'RenX_Game.Rx_Light_VoltRifle_MuzzleFlash'
     MuzzleFlashDuration=0.1
     
     AimProfileName = AutoRifle

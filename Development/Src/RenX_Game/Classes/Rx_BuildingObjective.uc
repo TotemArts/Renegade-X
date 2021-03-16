@@ -238,7 +238,7 @@ function bool TellBotHowToDisable(UTBot B)
 	}
 	
 	if (myBuilding.GetTeamNum() != B.GetTeamNum() && Vehicle(B.Pawn) == None 
-		&& (Rx_Weapon(B.Pawn.InvManager.FindInventoryType(Class'Rx_Weapon_TimedC4', true)).HasAnyAmmo() 
+		&& ((Rx_Weapon(B.Pawn.InvManager.FindInventoryType(Class'Rx_Weapon_TimedC4', true)) != None && Rx_Weapon(B.Pawn.InvManager.FindInventoryType(Class'Rx_Weapon_TimedC4', true)).HasAnyAmmo() )
 		|| Rx_Weapon(B.Pawn.Weapon).bOkAgainstBuildings))
 	
 	{

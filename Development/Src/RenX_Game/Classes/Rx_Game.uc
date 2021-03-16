@@ -19,7 +19,6 @@ var float VoteTeamCooldown_GDI, VoteTeamCoolDown_Nod, NextChangeMapTime_GDI, Nex
 var bool IgnoreGameServerVersionCheck;
 
 var config bool bFixedMapRotation;
-
 var Rx_LANBroadcast LANBroadcast;
 var OnlineGameSettings GameSettings;
 
@@ -55,8 +54,8 @@ enum TEAM
 
 struct TeamCreditStruct 
 {
-	var array<Rx_Building_Refinery>    Refinery;
-	var array<Rx_PRI>           	   PlayerRI;
+	var array<RxIfc_Refinery> Refinery;
+	var array<Rx_PRI> PlayerRI;
 };
 	
 var class<UTHudBase>					HudClass;
@@ -103,6 +102,21 @@ var int SurrenderStartTime ;
 var config int SurrenderLength; //How long till a surrender vote actually ends the game. 
 var bool bCountingToSurrender; //Are we counting down rapidly now?
 
+//Bounty Variables
+
+struct BountyList
+{
+	var string RankName;
+	var int Threshold;
+	var float CreditsBase;
+	var float CreditsMult;
+	var float VPBase;
+	var float VPMult;
+};
+
+var config Array<BountyList> BountyRankList;
+var config int BountyPermaspotRank;
+
 var class<Rx_PurchaseSystem>			PurchaseSystemClass, HelipadPurchaseSystemClass;
 var Rx_PurchaseSystem                   PurchaseSystem;
 var class<Rx_VehicleManager>			VehicleManagerClass, HelipadVehicleManagerClass;
@@ -110,6 +124,8 @@ var Rx_VehicleManager                   VehicleManager;
 var class<Rx_TeamInfo>					TeamInfoClass;
 var Rx_PlayerMonitor					PlayerMonitor;
 var class<Rx_PlayerMonitor>				PlayerMonitorClass;
+var Rx_FPSMonitor                       FPSMonitor;
+var class<Rx_FPSMonitor>                FPSMonitorClass;
 var bool							    bCanPlayEvaBuildingUnderAttackGDI;
 var bool							    bCanPlayEvaBuildingUnderAttackNOD;
 var byte						        WinnerTeamNum;
@@ -166,6 +182,8 @@ var int buildingArmorPercentage; //Always 50 if enabled
 var bool UsePurchaseSystem; //Should gamemode setup the purchase system
 
 var config bool bListed;
+var config string TravelURL;
+var config bool bFailover;
 
 var int RTC_TimeLimit;
 
@@ -251,7 +269,8 @@ var array<TC_Request> RTC_GDI, RTC_Nod;
 *Remember the Commander stuff?? Okay let's finally do that (2+ years later)
 ******************************************/
 
-var config bool bEnableCommanders ; //, bEnableSupportPowers, bEnableSquads, bEnableObjectives ; //Self explanatory 
+var config bool bEnableCommanders; //, bEnableSupportPowers, bEnableSquads, bEnableObjectives ; //Self explanatory
+var config int CommanderTeamLockTime;
 var Rx_PRI Commander_PRI[2]; //Hold the PRI of the commander(s?) 0 for Geeds 1 for Nod 
 var config int		InitialCP, Max_CP; 
 var array<PlayerReplicationInfo> TargetedPlayers_GDI, TargetedPlayers_Nod; 
@@ -261,15 +280,9 @@ var int			CPReward_Emplacement, CPReward_Infantry, CPReward_Vehicle;
 
 var config bool bUseStaticCommanders;
 
-var int			DestroyedBuildings_Nod, DestroyedBuildings_GDI; 
+var int DestroyedBuildings_Nod, DestroyedBuildings_GDI; 
 
-//Control Groups [Not currently in use]
-struct ControlGroup 
-{
-	var string 			GroupTitle; //Title, has a default value set but can be changed 
-	var Rx_PRI 			LeaderPRI; // Squad leader; everyone can see what they're targeting? Or something like that 
-	var array<Rx_PRI>	Members; 
-};
+
 
 //Optimizations 
 var config bool bVehiclesAlwaysRelevant, bInfantryAlwaysRelevant; 
@@ -277,7 +290,7 @@ var config bool bVehiclesAlwaysRelevant, bInfantryAlwaysRelevant;
 var Rx_StatAPI StatAPI;
 
 
-var ControlGroup GDIControlGroups[6], NodControlGroups[6];  
+
  
 /*****************************************
 *End of significantly less complicated Commander things
@@ -340,7 +353,12 @@ function PreBeginPlay()
 	{
 		LANBroadcast.start(true);
 		SetTimer(1, true, 'SendLANBroadcast');
-	}		
+	}
+
+	if(WorldInfo.NetMode == NM_DedicatedServer || WorldInfo.NetMode == NM_ListenServer)
+	{
+		FPSMonitor = Spawn(FPSMonitorClass, self,'FPSMonitor',Location,Rotation);
+	}	
 
 	if ( Role == ROLE_Authority )
 	{
@@ -359,13 +377,6 @@ function PreBeginPlay()
 		PurchaseSystem.SetVehicleManager(VehicleManager);
 
 		PlayerMonitor = spawn(PlayerMonitorClass, self,'PlayerMonitor',Location,Rotation);
-	}
-
-	if(Rx_MapInfo(WorldInfo.GetMapInfo()).MapBotType == navmesh)
-	{
-		Teams[TEAM_GDI].AI.SquadType = class'RenX_Game.Rx_SquadAI_Mesh';
-		Teams[TEAM_NOD].AI.SquadType = class'RenX_Game.Rx_SquadAI_Mesh';
-		BotClass = class'RenX_Game.Rx_Bot_Mesh';
 	}
 
 	`log("Rx_Game::PreBeginPlay"@`showvar(BotClass) @ bInfantryAlwaysRelevant);
@@ -417,6 +428,30 @@ function PreBeginPlay()
 
 	//Get out map info here
 	SetupMapDataList();
+}
+
+function GoToWarmupStandy()
+{
+	local Actor A;
+
+	ForEach WorldInfo.AllActors(class'Actor', A)
+	{
+		if (Rx_Vehicle(A) != None && Rx_Defence(A) == None)
+			A.Destroy();
+
+		if (Rx_Weapon_DeployedActor(A) != None)
+			A.Destroy();
+	}
+}
+
+function WarmupStandbyComplete()
+{
+	local Rx_Building_Refinery Ref;
+
+	ForEach WorldInfo.AllActors(class'Rx_Building_Refinery', Ref)
+	{
+		Ref.RequestHarvester();
+	}
 }
 
 function SendLANBroadcast()
@@ -706,6 +741,7 @@ function bool ChangeTeam(Controller Other, int num, bool bNewTeam)
 	
 	if (super.ChangeTeam(Other, num, bNewTeam))
 	{
+
 		if (Rx_Controller(Other) != None)
 		{
 			Rx_Controller(Other).BindVehicle(None);
@@ -713,6 +749,8 @@ function bool ChangeTeam(Controller Other, int num, bool bNewTeam)
 		}
 		if (Rx_PRI(Other.PlayerReplicationInfo) != None )
 		{
+			PenalizeBounty(Rx_PRI(Other.PlayerReplicationInfo),AntiTeamByte);
+
 			if(Rx_PRI(Other.PlayerReplicationInfo) == Commander_PRI[AntiTeamByte]) 
 				RemoveCommander(AntiTeamByte);  
 			
@@ -833,18 +871,17 @@ function bool AllowedName(string playername)
 function ChangeName(Controller Other, string S, bool bNameChange)
 {
     local Controller APlayer;
-	
 	if(bIsCompetitive && bNameChange)
 	{
 
-		PlayerController(Other).ClientMessage("Can not change name during competitive play");
+		Rx_Controller(Other).CTextMessage("Can not change name in competitive play.", 'Red');
 
 		return; 	
 	}	
 	
 	if (bNameChange && Rx_Controller(Other) != None && WorldInfo.TimeSeconds < Rx_Controller(Other).NextNameChangeTime)
 	{
-		PlayerController(Other).ClientMessage("Name change rejected - you changed name too recently.");
+		Rx_Controller(Other).CTextMessage("Name change available in " $ Max(Int(Rx_Controller(Other).NextNameChangeTime - WorldInfo.TimeSeconds), 1) $ " seconds.", 'Red');
 		return;
 	}
 
@@ -998,7 +1035,7 @@ function Array<string> BuildClientList(string seperator)
 
 		if (SteamID == `BlankSteamID)
 			SteamID = "-----NO-STEAM-----";
-		List.AddItem(C.PlayerReplicationInfo.PlayerID$seperator$C.GetPlayerNetworkAddress()$seperator$SteamID$seperator$AdminStatus$seperator$class'Rx_Game'.static.GetTeamName(C.PlayerReplicationInfo.Team.TeamIndex)$seperator$C.PlayerReplicationInfo.PlayerName);
+		List.AddItem(C.PlayerReplicationInfo.PlayerID$seperator$C.GetPlayerNetworkAddress()$seperator$SteamID$seperator$AdminStatus$seperator$Class.static.GetTeamName(C.PlayerReplicationInfo.Team.TeamIndex)$seperator$C.PlayerReplicationInfo.PlayerName);
 	}
 	return List;
 }
@@ -1143,7 +1180,7 @@ function ClientRequestDemoRec(Rx_Controller who)
 	{
 		ClientDemoInProgress = true;
 		RxLog("DEMO"`s"Record;"`s"client request by"`s`PlayerLog(who.PlayerReplicationInfo));
-		ConsoleCommand("demorec" @ string(WorldInfo.GetPackageName()) $ "-%td");
+		ConsoleCommand("demorec" @ GameVersionNumber $ "-" $ string(WorldInfo.GetPackageName()) $ "-%td");
 		SetTimer(120,false,'StopDemoRecording');
 	}
 }
@@ -1169,7 +1206,7 @@ function AdminRecord(Rx_Controller who)
 		RxLog("DEMO"`s"Record;"`s"admin command by"`s`PlayerLog(who.PlayerReplicationInfo));
 	else
 		RxLog("DEMO"`s"Record;"`s"rcon command");
-	ConsoleCommand("demorec" @ string(WorldInfo.GetPackageName()) $ "-%td");
+	ConsoleCommand("demorec" @ GameVersionNumber $ "-" $ string(WorldInfo.GetPackageName()) $ "-%td");
 }
 
 function StopDemoRecording()
@@ -1208,9 +1245,29 @@ function GenericPlayerInitialization(Controller C)
 	super(GameInfo).GenericPlayerInitialization(C);
 }		
 
+function PostLoginCommon(PlayerController NewPlayer) {
+	local string SteamID;
+	
+	SteamID = OnlineSub.UniqueNetIdToString(NewPlayer.PlayerReplicationInfo.UniqueId);
+	
+	if (SteamID == `BlankSteamID || SteamID == "") { // Non-steam users
+		RxLog("PLAYER" `s "Enter;" `s `PlayerLog(NewPlayer.PlayerReplicationInfo) `s "from" `s NewPlayer.GetPlayerNetworkAddress() `s "hwid" `s Rx_Controller(NewPlayer).PlayerUUID `s "nosteam");
+	}
+	else { // Steam users
+		RxLog("PLAYER" `s "Enter;" `s `PlayerLog(NewPlayer.PlayerReplicationInfo) `s "from" `s NewPlayer.GetPlayerNetworkAddress() `s "hwid" `s Rx_Controller(NewPlayer).PlayerUUID `s "steamid"`s SteamID);
+
+		// Attempt auto-auth
+		Rx_AccessControl(AccessControl).AuthPlayer(NewPlayer.PlayerReplicationInfo);
+
+		// Mark player as a developer if they're in the dev manager
+		if (class'Rx_DevManager'.static.IsDev(SteamID)) {
+			Rx_Controller(NewPlayer).SetIsDev(true);
+		}
+	}
+}
+
 event PostLogin( PlayerController NewPlayer )
 {
-	local string SteamID;
 	local int AvgVeterancy; 
 	local PlayerReplicationInfo PRI;
 	local int num; 
@@ -1246,15 +1303,7 @@ event PostLogin( PlayerController NewPlayer )
 		if(bUseStaticCommanders && `RxEngineObject.IsPlayerCommander(NewPlayer.PlayerReplicationInfo) ) ChangeCommander(NewPlayer.GetTeamNum(), NewPRI, true); 
 	}
 
-	SteamID = OnlineSub.UniqueNetIdToString(NewPlayer.PlayerReplicationInfo.UniqueId);
-	
-	if (SteamID == `BlankSteamID || SteamID == "")
-		RxLog("PLAYER" `s "Enter;" `s `PlayerLog(NewPlayer.PlayerReplicationInfo) `s "from" `s NewPlayer.GetPlayerNetworkAddress() `s "hwid" `s Rx_Controller(NewPlayer).PlayerUUID `s "nosteam");
-	else
-	{
-		RxLog("PLAYER" `s "Enter;" `s `PlayerLog(NewPlayer.PlayerReplicationInfo) `s "from" `s NewPlayer.GetPlayerNetworkAddress() `s "hwid" `s Rx_Controller(NewPlayer).PlayerUUID `s "steamid"`s SteamID);
-		if (class'Rx_DevManager'.static.IsDev(SteamID)) Rx_Controller(NewPlayer).SetIsDev(true);
-	}
+	PostLoginCommon(NewPlayer);
 	
 	AnnounceTeamJoin(NewPlayer.PlayerReplicationInfo, NewPlayer.PlayerReplicationInfo.Team, None, false);
 
@@ -1362,7 +1411,12 @@ event PostLogin( PlayerController NewPlayer )
 	Rx_Mut = GetBaseRXMutator();
 	if (Rx_Mut != None)
 	{
-		Rx_Mut.OnPlayerConnect(NewPlayer, SteamID);
+		// Why are we passing steam ID here? It's already available through NewPlayer
+		Rx_Mut.OnPlayerConnect(NewPlayer, OnlineSub.UniqueNetIdToString(NewPlayer.PlayerReplicationInfo.UniqueId));
+	}
+
+	if (bFailover) {
+		Rx_Controller(NewPlayer).SetFailoverURL(TravelURL);
 	}
 
 	UpdateDiscordPresence();
@@ -1400,6 +1454,8 @@ function Logout( Controller Exiting )
 	}
 	if (Rx_PRI(Exiting.PlayerReplicationInfo) != None && Rx_Bot_Scripted(Exiting) == None)
 	{
+
+		PenalizeBounty(Rx_PRI(Exiting.PlayerReplicationInfo),Exiting.GetTeamNum());
 		
 		for(i=0;i<2;i++)
 		{
@@ -2000,6 +2056,9 @@ function Killed( Controller Killer, Controller KilledPlayer, Pawn KilledPawn, cl
 
 	bPlayerDeath = Rx_Bot_Scripted(KilledPlayer) == None;
 
+	if(BountyRankList.Length > 0)
+		UpdatePlayerBounty(Killer, KilledPlayer, KilledPawn);
+
 	Rx_Mut = GetBaseRXMutator();
 	if (Rx_Mut != None)
 	{
@@ -2012,7 +2071,7 @@ function Killed( Controller Killer, Controller KilledPlayer, Pawn KilledPawn, cl
 
 		// Adds logging for AIControllers, but passes objects with a PRI on to normal logging.
 		if (AIController(Killer) != None && Killer.PlayerReplicationInfo == None)
-			KillerLogStr = class'Rx_Game'.static.GetTeamName(Killer.GetTeamNum()) $ ",ai," $ Killer.Pawn.Class.name;
+			KillerLogStr = Class.static.GetTeamName(Killer.GetTeamNum()) $ ",ai," $ Killer.Pawn.Class.name;
 		else
 			KillerLogStr = `PlayerLog(Killer.PlayerReplicationInfo);
 
@@ -2225,6 +2284,149 @@ function HandleScriptedDeath(Rx_Bot_Scripted B)
 	{
 		BCust.MySpawner.NotifyPawnDeath(BCust);
 	}	
+}
+
+function UpdatePlayerBounty(Controller Killer, Controller Victim, Pawn KilledPawn)
+{
+	local Rx_PRI KillerPRI, VictimPRI;
+
+	if(Vehicle(KilledPawn) == None && Rx_PRI(Victim.PlayerReplicationInfo) != None)
+	{
+		KillerPRI = Rx_PRI(Killer.PlayerReplicationInfo);
+		VictimPRI = Rx_PRI(Victim.PlayerReplicationInfo);
+
+		if(Killer != None && Victim.GetTeamNum() != Killer.GetTeamNum())
+			IncrementBounty(KillerPRI);
+
+
+		if(KillerPRI != None && KillerPRI != VictimPRI && KillerPRI.GetTeamNum() != VictimPRI.GetTeamNum())
+			RewardBounty(KillerPRI, VictimPRI);
+		else
+			PenalizeBounty(VictimPRI, VictimPRI.GetTeamNum());
+	}	
+}
+
+function IncrementBounty(Rx_PRI KillerPRI)
+{
+	local int i;
+
+	KillerPRI.BountyKill++;
+
+	for(i=0;i<BountyRankList.Length;i++)
+	{
+		if(KillerPRI.BountyKill >= BountyRankList[i].Threshold && KillerPRI.BountyRank < i)
+		{
+			KillerPRI.BountyRank = i;
+			KillerPRI.BountyName = BountyRankList[i].RankName;
+			if(BountyPermaspotRank >= 0 && KillerPRI.BountyRank >= BountyPermaspotRank && !KillerPRI.IsTimerActive('BountySpot'))
+			{
+				KillerPRI.SetTimer(1.0, true, 'BountySpot');
+			}
+			if(BountyPermaspotRank >= 0 && KillerPRI.BountyRank == BountyPermaspotRank && Rx_Controller(KillerPRI.Owner) != None)
+			{
+				Rx_Controller(KillerPRI.Owner).CTextMessage("WARNING - You are being tracked as priority target",'Red',120,,true);
+			}
+
+			AnnounceBounty(KillerPRI);
+			break;
+		}
+	}
+
+	if(KillerPRI.BountyRank >= 0)
+	{
+		KillerPRI.BountyCredits =  BountyRankList[KillerPRI.BountyRank].CreditsBase + (BountyRankList[KillerPRI.BountyRank].CreditsMult * KillerPRI.BountyKill);
+		KillerPRI.BountyVP = BountyRankList[KillerPRI.BountyRank].VPBase + (BountyRankList[KillerPRI.BountyRank].VPMult * KillerPRI.BountyKill);
+	}
+}
+
+function RewardBounty(Rx_PRI Killer, Rx_PRI Victim)
+{
+	if(Victim.BountyRank >= 0) //non-ranked doesn't get bounty
+	{
+		Killer.AddCredits(Victim.BountyCredits);
+		if(Rx_Controller(Killer.Owner) != None)
+		{
+			Rx_Controller(Killer.Owner).DisseminateVPString("["$Victim.PlayerName@"Bounty - "$Victim.BountyName$"]&"$Round(Victim.BountyVP)$"&");
+		}
+		else
+			Killer.AddVP(Victim.BountyVP);
+
+		AnnounceClaim(Killer,Victim);
+
+	}
+
+	ResetBounty(Victim);
+}
+
+function PenalizeBounty(Rx_PRI PenalizedPRI, byte PenalizedTeam)
+{
+	local int TeamSize;
+	local Rx_PRI RxPRI;
+	local Controller C;
+
+	if(PenalizedPRI.BountyRank < 0)
+		return;
+
+	TeamSize = Teams[1 - PenalizedTeam].Size;
+
+	foreach WorldInfo.AllControllers(class'Controller', c)
+	{
+		RxPRI = Rx_PRI(c.PlayerReplicationInfo);
+
+		if(RxPRI == None || RxPRI == PenalizedPRI || c.GetTeamNum() == PenalizedTeam)
+			continue;
+
+		RxPRI.AddCredits(PenalizedPRI.BountyCredits * 2 / TeamSize);
+		if(Rx_Controller(c) != None)
+		{
+			Rx_Controller(c).DisseminateVPString("["$PenalizedPRI.PlayerName@"Humiliation - "$PenalizedPRI.BountyName$"]&"$Round(PenalizedPRI.BountyVP * 2 / TeamSize)$"&");
+		}
+		else
+			RxPRI.AddVP(PenalizedPRI.BountyVP  * 2 / TeamSize);
+
+	}
+	AnnounceClaim(None,PenalizedPRI, true, PenalizedTeam);
+
+	ResetBounty(PenalizedPRI);
+}
+
+function ResetBounty(Rx_PRI Victim)
+{
+	Victim.BountyRank = -1;
+	Victim.BountyName = "";
+	Victim.BountyKill = 0;
+	Victim.BountyCredits = 0;
+	Victim.BountyVP = 0;
+
+	if(Victim.IsTimerActive('BountySpot'))
+	{
+		Victim.ClearTimer('BountySpot');
+	}
+}
+
+function AnnounceBounty(Rx_PRI Killer)
+{
+	local string Announcement;
+
+	Announcement = Killer.PlayerName @ "is now ranked"@ Killer.BountyName$"!";
+
+	CTextBroadcast(255, Announcement,'Yellow',120);
+}
+
+function AnnounceClaim(Rx_PRI Killer, Rx_PRI Victim, optional bool bHumiliation, optional int VictimTeam = -1)
+{
+	local string Announcement;
+
+	if(VictimTeam < 0)
+		VictimTeam = Victim.GetTeamNum();
+
+	if(!bHumiliation)
+		Announcement = Killer.PlayerName @ "has claimed"@ Victim.PlayerName$"'s bounty! ("$Round(Victim.BountyCredits)$")";
+	else
+		Announcement = Victim.PlayerName@"has died. Their bounty ("$Round(Victim.BountyCredits)$") was split!";
+
+	CTextBroadcast(VictimTeam, Announcement,'Red',120);
+	CTextBroadcast(1 - VictimTeam, Announcement,'Green',120);
 }
 
 function GameEventsPoll()
@@ -2555,9 +2757,9 @@ function CheckBuildingsDestroyed(Actor destroyedBuilding, Rx_Controller StarPC)
 			}
 		}
 		
-		if (Rx_Building_Nod_VehicleFactory(destroyedBuilding) != None || Rx_Building_AirTower(destroyedBuilding) != none && Rx_Building_Helipad_Nod(destroyedBuilding) == None)
+		if (RxIfc_FactoryVehicle(destroyedBuilding) != None || Rx_Building_AirTower(destroyedBuilding) != none && (Rx_Building_Helipad_Nod(destroyedBuilding) == None && Rx_Building_Helipad_GDI(destroyedBuilding) == None))
 		{
-			if(PurchaseSystem.AreTeamFactoriesDestroyed(TEAM_NOD))
+			if(destroyedBuilding.GetTeamNum() == 1 && PurchaseSystem.AreTeamFactoriesDestroyed(TEAM_NOD))
 			{
 				foreach WorldInfo.GRI.PRIArray(pri)
 				{
@@ -2570,10 +2772,7 @@ function CheckBuildingsDestroyed(Actor destroyedBuilding, Rx_Controller StarPC)
 				VehicleManager.bNodIsUsingAirdrops = true;
 				VehicleManager.NodAdditionalAirdropProductionDelay = 20.0;
 			}
-		}
-		else if (Rx_Building_GDI_VehicleFactory(destroyedBuilding) != None && Rx_Building_Helipad_GDI(destroyedBuilding) == None)
-		{
-			if(PurchaseSystem.AreTeamFactoriesDestroyed(TEAM_GDI))
+			else if(destroyedBuilding.GetTeamNum() == 0 && PurchaseSystem.AreTeamFactoriesDestroyed(TEAM_GDI))
 			{
 				foreach WorldInfo.GRI.PRIArray(pri)
 				{
@@ -2717,21 +2916,23 @@ State MatchInProgress
 
 function FindRefineries()
 {
-	local Rx_Building_Refinery ref;
+	local Rx_Building ref;
 
-	foreach AllActors(class'Rx_Building_Refinery', ref)
+	foreach AllActors(class'Rx_Building', ref,class'RxIfc_Refinery')
 	{
 //		if(!ref.ShouldSpawnHarvester())
 //			continue;
 
+
 		if (ref.GetTeamNum() == TEAM_GDI ) // GDI
 		{
-			TeamCredits[TEAM_GDI].Refinery.AddItem(ref);
+			TeamCredits[TEAM_GDI].Refinery.AddItem(RxIfc_Refinery(ref));
 		}
 		else if (ref.GetTeamNum() == TEAM_NOD ) // Nod
 		{
-			TeamCredits[TEAM_NOD].Refinery.AddItem(ref);
+			TeamCredits[TEAM_NOD].Refinery.AddItem(RxIfc_Refinery(ref));
 		}
+
 	}
 }
 
@@ -3017,7 +3218,7 @@ function EndRxGame(string Reason, byte WinningTeamNum )
 	
 	// Make sure end game is a valid reason, and then verify the game is over.
 	//Yosh: Added Surrender on the off chance we can get that built into the flash for the end-game screen
-	if ( ((Reason ~= "Buildings") || (Reason ~= "TimeLimit") || (Reason ~= "triggered") || (Reason ~="Surrender")) && !bGameEnded) {
+	if ( ((Reason ~= "Buildings") || (Reason ~= "TimeLimit") || (Reason ~= "triggered") || (Reason ~="Surrender")  || (Reason ~= "Domination")) && !bGameEnded) {
 		// From super(), manualy integrated.
 		bGameEnded = true;
 		//EndTime = WorldInfo.RealTimeSeconds + EndTimeDelay;
@@ -3173,8 +3374,8 @@ then wait a second or two before ending the game
 function BeginSurrender(int TeamI)
 {
 	local Rx_Controller P;
-	local string HR_Team;
 	local Rx_Mutator Rx_Mut;
+	local string TeamName;
 	
 	if(bGDIHasSurrendered || bNodHasSurrendered) return; //Catch any surrenders that get through after a team's already happened.
 	
@@ -3183,25 +3384,23 @@ function BeginSurrender(int TeamI)
 	{
 		Rx_Mut.OnTeamSurrender(TeamI);
 	}
-	
-	switch (TeamI) 
-	{
-		case 0:
-		HR_Team = "NOD" ;
-		break;
-		
-		case 1:
-		HR_Team = "GDI" ;
-		break;
-		
-	}
-	
+
 	Rx_GRI(WorldInfo.GRI).WinnerReason = "By Surrender";
 	Rx_GRI(WorldInfo.GRI).WinBySurrender=true;
+
+	switch (TeamI)
+	{
+		case 0:
+			TeamName = GetTeamName(1);
+		break;
+		case 1:
+			TeamName = GetTeamName(0);
+		break;
+	}
 	
 	foreach WorldInfo.AllControllers(class'Rx_Controller', P)
 	{
-		P.CTextMessage(HR_Team @ "TEAM SURRENDERED!",,120, 1.0) ;
+		P.CTextMessage(Caps(TeamName) @ "SURRENDERED!",,120, 1.0) ;
 	}
 	SetGameSpeed(0.5);//fancy... but we'll see how it holds up online
 	/*Both of these play the appropriate surrender Announcement AND start the small countdown to end the game. The delay for sounds make it a bit more obvious a team surrendered. */
@@ -3692,18 +3891,7 @@ function bool FindInactivePRI(PlayerController PC)
 		if (oldId != PC.PlayerReplicationInfo.PlayerID)
 			`LogRx("PLAYER" `s "ChangeID;" `s "to" `s PC.PlayerReplicationInfo.PlayerID `s "from" `s oldId);
 		
-		if((PC.GetTeamNum() == TEAM_GDI && (Rx_Game(Worldinfo.Game).Teams[TEAM_NOD].Size - Rx_Game(Worldinfo.Game).Teams[TEAM_GDI].Size < 2))
-			|| (PC.GetTeamNum() == TEAM_NOD && (Rx_Game(Worldinfo.Game).Teams[TEAM_GDI].Size - Rx_Game(Worldinfo.Game).Teams[TEAM_NOD].Size < 2)))
-		{
-			if(Rx_PRI(PC.PlayerReplicationInfo).GetCredits() > InitialCredits)
-				TeamDonate(Rx_Controller(PC),Rx_PRI(PC.PlayerReplicationInfo).GetCredits() - InitialCredits);
-
-			Rx_PRI(PC.PlayerReplicationInfo).SetCredits(InitialCredits ); 	
-		}
 		Rx_PRI(PC.PlayerReplicationInfo).bDonateOnDelete = false;
-
-
-			
 	}
 	return ret;
 }
@@ -3773,11 +3961,28 @@ function Actor GetAGT()
 function RestartPlayer(Controller NewPlayer)
 {
 	local Rx_Hud RxHUD;
+	local Rx_PRI RxPRI;
 
 	if(bPedestalDetonated)
 		return;
 
-	super.RestartPlayer(NewPlayer);
+	RxPRI = Rx_PRI(NewPlayer.PlayerReplicationInfo);
+
+	// Restore lingering Pawn (if there is one)
+	if (RxPRI != None // Is human player
+		&& RxPRI.lingeringPawn != None // Has lingering pawn from last 5 mins
+		&& RxPRI.lingeringPawn.Health > 0 // Pawn is actually alive
+		&& RxPRI.GetTeamNum() == RxPRI.OldTeamID // Same team as before; last thing we need is people buying hotwires, reconnecting, and killing a building
+		&& RxPRI.lingeringPawn.GetTeam() == None) { // Pawn (i.e: a vehicle) isn't possessed by another player already
+		NewPlayer.Possess(RxPRI.lingeringPawn, false);
+	}
+	else {
+		super.RestartPlayer(NewPlayer);
+	}
+
+	if (RxPRI != None) {
+		RxPRI.lingeringPawn = None;
+	}
 
 	if(Rx_Bot(NewPlayer) != None) {
 	
@@ -3808,9 +4013,9 @@ function RestartPlayer(Controller NewPlayer)
 		if(Rx_Controller(NewPlayer) != None)
 			Rx_Controller(NewPlayer).RefillCooldownTime=0;	
 	}
-	if(TeamCredits[NewPlayer.GetTeamNum()].PlayerRI.Find(Rx_PRI(NewPlayer.PlayerReplicationInfo)) < 0) {
-		TeamCredits[NewPlayer.GetTeamNum()].PlayerRI.AddItem(Rx_PRI(NewPlayer.PlayerReplicationInfo));
-		Rx_PRI(NewPlayer.PlayerReplicationInfo).SetCredits( Rx_Game(WorldInfo.Game).InitialCredits ); 
+	if(TeamCredits[NewPlayer.GetTeamNum()].PlayerRI.Find(RxPRI) < 0) {
+		TeamCredits[NewPlayer.GetTeamNum()].PlayerRI.AddItem(RxPRI);
+		RxPRI.SetCredits( Rx_Game(WorldInfo.Game).InitialCredits ); 
 	}	
 
 	if(GetALocalPlayerController() != none && GetALocalPlayerController().Player != none)
@@ -3897,7 +4102,7 @@ function array<string> BuildMapVoteList()
 	local array<string> MapPool;
 	local int i;
 
-	MapPool = class'UTGame'.default.GameSpecificMapCycles[class'UTGame'.default.GameSpecificMapCycles.Find('GameClassName', class'Rx_Game'.Name)].Maps;
+	MapPool = class'UTGame'.default.GameSpecificMapCycles[class'UTGame'.default.GameSpecificMapCycles.Find('GameClassName', Class.Name)].Maps;
 	for (i=0; i<RecentMapsToExclude && i<MapHistory.Length; ++i)
 		MapPool.RemoveItem(MapHistory[i]);	
 
@@ -3920,7 +4125,7 @@ exec function bool AddMapToRotation(string MapName) /*Return if the given map na
 {	
 	local array<string> MapPool;
 	
-	MapPool = class'UTGame'.default.GameSpecificMapCycles[class'UTGame'.default.GameSpecificMapCycles.Find('GameClassName', class'Rx_Game'.Name)].Maps;	
+	MapPool = class'UTGame'.default.GameSpecificMapCycles[class'UTGame'.default.GameSpecificMapCycles.Find('GameClassName', Class.Name)].Maps;	
 	
 	if(bDoesMapExist(MapName))
 	{
@@ -3940,7 +4145,7 @@ exec function bool RemoveMapFromRotation(string MapName) /*Return if the given m
 {
 	local array<string> MapPool;
 	
-	MapPool = class'UTGame'.default.GameSpecificMapCycles[class'UTGame'.default.GameSpecificMapCycles.Find('GameClassName', class'Rx_Game'.Name)].Maps;	
+	MapPool = class'UTGame'.default.GameSpecificMapCycles[class'UTGame'.default.GameSpecificMapCycles.Find('GameClassName', Class.Name)].Maps;	
 	
 	if(bDoesMapExist(MapName))
 	{
@@ -3958,7 +4163,7 @@ function bool bDoesMapExist(string MapName)
 {
 	local array<string> MapPool;
 	
-	MapPool = class'UTGame'.default.GameSpecificMapCycles[class'UTGame'.default.GameSpecificMapCycles.Find('GameClassName', class'Rx_Game'.Name)].Maps;	
+	MapPool = class'UTGame'.default.GameSpecificMapCycles[class'UTGame'.default.GameSpecificMapCycles.Find('GameClassName', Class.Name)].Maps;	
 
 	if (MapPool.Find(MapName) != -1)
 	{
@@ -3973,12 +4178,12 @@ function EditMapArray(array<string> NewMapList)
 {
 	local int i; 
 	
-	GameSpecificMapCycles[GameSpecificMapCycles.Find('GameClassName', class'Rx_Game'.Name)].Maps.Length=0; //Delete the old map list
+	GameSpecificMapCycles[GameSpecificMapCycles.Find('GameClassName', Class.Name)].Maps.Length=0; //Delete the old map list
 	
 	for(i = 0; i < NewMapList.Length; i++)
 	{
 		`log("Adding item" @ NewMapList[i]) ;
-		GameSpecificMapCycles[GameSpecificMapCycles.Find('GameClassName', class'Rx_Game'.Name)].Maps.AddItem(NewMapList[i]) ; //create the new map list
+		GameSpecificMapCycles[GameSpecificMapCycles.Find('GameClassName', Class.Name)].Maps.AddItem(NewMapList[i]) ; //create the new map list
 	}
 }
 
@@ -3987,7 +4192,7 @@ exec function GetMapRotation() //Obviously get the map-rotation
 	local array<string> MapPool;
 	local int i;
 		
-	MapPool = default.GameSpecificMapCycles[default.GameSpecificMapCycles.Find('GameClassName', class'Rx_Game'.Name)].Maps;	
+	MapPool = default.GameSpecificMapCycles[default.GameSpecificMapCycles.Find('GameClassName', Class.Name)].Maps;	
 	
 		RxLog("Generating Map List");
 		for(i = 0; i < MapPool.Length; i++)
@@ -4061,7 +4266,12 @@ function ProcessServerTravel(string URL, optional bool bAbsolute)
 	KillBots();
 
 	// Notify clients we're switching level and give them time to receive.
-	LocalPlayer = ProcessClientTravel(URL, NextMapGuid, bSeamless, bAbsolute);
+	if (TravelURL != "") {
+		LocalPlayer = ProcessClientTravel(TravelURL, NextMapGuid, false, bAbsolute);
+	}
+	else {
+		LocalPlayer = ProcessClientTravel(URL, NextMapGuid, bSeamless, bAbsolute);
+	}
 
 	`log("ProcessServerTravel:"@URL);
 	WorldInfo.NextURL = URL;
@@ -4138,33 +4348,11 @@ function bool AreTeamRefineriesDestroyed(byte teamNum) // a check for harvy spaw
 
 	for(i=0; i<TeamCredits[teamNum].Refinery.length; i++)
 	{
-		if(!TeamCredits[teamNum].Refinery[i].IsDestroyed() && TeamCredits[teamNum].Refinery[i].ShouldSpawnHarvester())
+		if(!Rx_Building(TeamCredits[teamNum].Refinery[i]).IsDestroyed() && TeamCredits[teamNum].Refinery[i].ShouldSpawnHarvester())
 			return false;
 	}
 
 	return true;
-}
-
-function ReassignHarvester(Rx_Vehicle_Harvester Harv)
-{
-	local Rx_Vehicle_HarvesterController HC;
-	local int teamnum, i;
-
-	HC = Rx_Vehicle_HarvesterController(Harv.Controller);
-
-	if(HC == None)
-		return;
-
-	teamnum = Harv.GetTeamNum();
-
-	// technically AreTeamRefineriesDestroyed should return true when this is called, so skip checking
-	for(i=0; i<TeamCredits[teamnum].Refinery.length; i++)
-	{
-		if(!TeamCredits[teamNum].Refinery[i].IsDestroyed() && TeamCredits[teamNum].Refinery[i].ShouldSpawnHarvester())
-		{
-			HC.ReassignRefinery(TeamCredits[teamNum].Refinery[i]);
-		}
-	}	
 }
 
 function float GetTeamRefineryCreditsSum(byte teamNum)
@@ -4177,8 +4365,9 @@ function float GetTeamRefineryCreditsSum(byte teamNum)
 
 	for(i=0; i<TeamCredits[teamNum].Refinery.length; i++)
 	{
-		if(!TeamCredits[teamNum].Refinery[i].IsDestroyed())
-			Credits += TeamCredits[teamNum].Refinery[i].CreditsPerTick;
+
+		if(!Rx_Building(TeamCredits[teamNum].Refinery[i]).IsDestroyed())
+			Credits += TeamCredits[teamNum].Refinery[i].GetCreditsPerTick();
 
 	}
 	return Credits;
@@ -4373,7 +4562,7 @@ function AddTeamChangeRequest(Rx_PRI PRI)
 	
 	if(RTC_GDI.Find('PPRI', PRI) != -1) bCanSwitch = false; 
 	else
-	if(RTC_Nod.Find('PPRI', PRI) != -1) bCanSwitch = false; 
+	if(RTC_Nod.Find('PPRI', PRI) != -1) bCanSwitch = false;
 	
 	if(!bCanSwitch) 
 	{
@@ -4384,18 +4573,18 @@ function AddTeamChangeRequest(Rx_PRI PRI)
 	if(PRI.GetTeamNum() == 0) 
 	{
 		RTC_GDI.AddItem(RTC_Ticket); 
-		TeamString = "To Nod"; 
+		TeamString = "to"@(GetTeamName(0)); 
 	}
 	else
 	{
 		RTC_Nod.AddItem(RTC_Ticket); 
-		TeamString = "To GDI"; 
+		TeamString = "to"@(GetTeamName(1)); 
 	}
 	
 	
 	foreach WorldInfo.AllControllers(class'Rx_Controller', RxC)
 	{
-		RxC.CTextMessage(PRI.PlayerName @ "Wants to swap" @ TeamString, 'Orange', 80); 
+		RxC.CTextMessage(class'Rx_HUD'.static.CleanHTMLMessage(PRI.PlayerName) @ "Wants to swap" @ TeamString, 'Orange', 80); 
 	}
 	
 	CleanupRTC(); 
@@ -4515,23 +4704,6 @@ function CTextBroadcast(byte TeamByte,string TEXT, optional name Colour = 'Light
 			P.CTextMessage(TEXT,Colour,TIME, Size,,bWarning) ;
 		}
 	}
-}
-
-function CTextSquadBroadcast(byte TeamByte, byte SquadNumber,string TEXT, optional name Colour = 'LightBlue', optional float TIME = 60.0, optional float Size = 1.0)
-{
-	local Rx_Controller P; 
-	
-	if(TeamByte == 0 || TeamByte == 1)
-	{
-		foreach WorldInfo.AllControllers(class'Rx_Controller', P)
-		{
-			if(P.GetTeamNum() == TeamByte && Rx_PRI(P.PlayerReplicationInfo).CurrentControlGroup == SquadNumber)  P.CTextMessage(TEXT,Colour,TIME, Size) ;
-			else
-			continue;
-		}
-	}
-	else
-	return; 
 }
 
 function bool TeamHasSurrendered()
@@ -4683,7 +4855,7 @@ function RemoveTarget(byte TeamByte, PlayerReplicationInfo RxPRI, optional byte 
 	local int i;
 	local bool bPlayDecayMsg; //Don't spam decay messages. We get it, Yosh! We done fucked up! 
 
-	bPlayDecayMsg = (WorldInfo.TimeSeconds - LastDecayMsgTime[TeamByte]) >= 3.0 ; 
+	bPlayDecayMsg = false;//(WorldInfo.TimeSeconds - LastDecayMsgTime[TeamByte]) >= 3.0 ; 
 	 
 	if(TeamByte == 0 ) 
 	{ 
@@ -4702,7 +4874,7 @@ function RemoveTarget(byte TeamByte, PlayerReplicationInfo RxPRI, optional byte 
 			}  
 			break; 
 			case 1: 
-				CTextBroadcast(1,"--Infantry Target Eliminated--",'Green'); 
+				//CTextBroadcast(1,"--Infantry Target Eliminated--",'Green'); 
 				Rx_TeamInfo(Teams[1]).AddCommandPoints(CPReward_Infantry, "Command Target Elimination&" $ CPReward_Infantry $ "&") ; 
 				break;
 			
@@ -4717,7 +4889,7 @@ function RemoveTarget(byte TeamByte, PlayerReplicationInfo RxPRI, optional byte 
 				break;
 			
 			case 11:			
-				CTextBroadcast(1,"--Vehicle Target Eliminated--",'Green');
+				//CTextBroadcast(1,"--Vehicle Target Eliminated--",'Green');
 				Rx_TeamInfo(Teams[1]).AddCommandPoints(CPReward_Vehicle, "Command Target Elimination&" $ CPReward_Vehicle $ "&") ;
 				break;
 			
@@ -4732,7 +4904,7 @@ function RemoveTarget(byte TeamByte, PlayerReplicationInfo RxPRI, optional byte 
 				break;
 			
 			case 31 :
-				CTextBroadcast(1,"--Emplacement Target Destroyed--",'Green');
+				//CTextBroadcast(1,"--Emplacement Target Destroyed--",'Green');
 				Rx_TeamInfo(Teams[1]).AddCommandPoints(CPReward_Emplacement, "Command Target Elimination&" $ CPReward_Emplacement $ "&") ;
 				break;
 			
@@ -4747,7 +4919,7 @@ function RemoveTarget(byte TeamByte, PlayerReplicationInfo RxPRI, optional byte 
 				break;
 			
 			case 41 :
-				CTextBroadcast(1,"--Aircraft Target Destroyed--",'Green');
+				//CTextBroadcast(1,"--Aircraft Target Destroyed--",'Green');
 				Rx_TeamInfo(Teams[1]).AddCommandPoints(CPReward_Vehicle, "Command Target Elimination&" $ CPReward_Vehicle $ "&") ;			
 				break;
 				
@@ -4755,7 +4927,7 @@ function RemoveTarget(byte TeamByte, PlayerReplicationInfo RxPRI, optional byte 
 			case 100: 
 				if(bPlayDecayMsg) 
 				{
-					CTextBroadcast(1,"--Stealth Target Lost--",'LightBlue'); 
+					//CTextBroadcast(1,"--Stealth Target Lost--",'LightBlue'); 
 					LastDecayMsgTime[TeamByte] = WorldInfo.TimeSeconds; 
 				}
 			
@@ -4785,7 +4957,7 @@ function RemoveTarget(byte TeamByte, PlayerReplicationInfo RxPRI, optional byte 
 			break; 
 			
 			case 1:
-				CTextBroadcast(0,"--Infantry Target Eliminated--",'Green'); 
+				//CTextBroadcast(0,"--Infantry Target Eliminated--",'Green'); 
 				Rx_TeamInfo(Teams[0]).AddCommandPoints(CPReward_Infantry, "Command Target Elimination&" $ CPReward_Infantry $ "&") ;
 				break;
 				
@@ -4800,7 +4972,7 @@ function RemoveTarget(byte TeamByte, PlayerReplicationInfo RxPRI, optional byte 
 				break;
 			
 			case 11:			
-				CTextBroadcast(0,"--Vehicle Target Eliminated--",'Green');
+				//CTextBroadcast(0,"--Vehicle Target Eliminated--",'Green');
 				Rx_TeamInfo(Teams[0]).AddCommandPoints(CPReward_Vehicle, "Command Target Elimination&" $ CPReward_Vehicle $ "&") ;
 				break;
 			
@@ -4815,7 +4987,7 @@ function RemoveTarget(byte TeamByte, PlayerReplicationInfo RxPRI, optional byte 
 				break;
 			
 			case 31 :
-				CTextBroadcast(0,"--Emplacement Target Destroyed--",'Green');
+				//CTextBroadcast(0,"--Emplacement Target Destroyed--",'Green');
 				Rx_TeamInfo(Teams[0]).AddCommandPoints(CPReward_Emplacement, "Command Target Elimination&" $ CPReward_Emplacement $ "&") ;
 				break;
 				
@@ -4829,13 +5001,13 @@ function RemoveTarget(byte TeamByte, PlayerReplicationInfo RxPRI, optional byte 
 				break;
 			
 			case 41 :
-				CTextBroadcast(0,"--Aircraft Target Destroyed--",'Green');
+				//CTextBroadcast(0,"--Aircraft Target Destroyed--",'Green');
 				Rx_TeamInfo(Teams[0]).AddCommandPoints(CPReward_Vehicle, "Command Target Elimination&" $ CPReward_Vehicle $ "&") ;
 				break;
 				
 				//100+ for special messages 
 			case 100: 
-				CTextBroadcast(0,"--Stealth Target Lost--",'LightBlue'); 
+				//CTextBroadcast(0,"--Stealth Target Lost--",'LightBlue'); 
 				break;
 			
 			default: 
@@ -4859,115 +5031,6 @@ function int GetScriptedID() //basically the same deal as above. About the 10 bi
 {
 	Scripted_IDs++;
 	return Scripted_IDs; 
-	
-}
-
-/*Squad Stuff*/
-
-function bool AddPlayerToSquad(Rx_PRI RxPRI, byte TeamByte, byte SquadNumber)
-{
-	
-	//Geeds
-	if(TeamByte == 0)
-	{
-		if(GDIControlGroups[SquadNumber].Members.Length == 0) 
-		{
-			GDIControlGroups[SquadNumber].Members.AddItem(RxPRI); 
-			return true; //Added successfully 	
-		}
-		else //Find a number that isn't being used, or add one.
-		{
-			if(GDIControlGroups[SquadNumber].Members.Find(RxPRI) != -1) 
-			{
-				return false ; //User Already In This Squad
-			}
-			else
-			{
-				GDIControlGroups[SquadNumber].Members.AddItem(RxPRI);
-				RxPRI.SetControlGroup(SquadNumber);
-				CTextSquadBroadcast(TeamByte, SquadNumber, RxPRI.PlayerName @ "joined group" @ GDIControlGroups[SquadNumber].GroupTitle, 'LightBlue'); 			
-				return true; 
-			}
-		}
-	}
-	
-	else
-	//NAHD!
-	if(TeamByte == 1)
-	{
-		if(NodControlGroups[SquadNumber].Members.Length == 0) 
-		{
-			NodControlGroups[SquadNumber].Members.AddItem(RxPRI); 
-			return true; //Added successfully 	
-		}
-		else //Find a number that isn't being used, or add one.
-		{
-			if(NodControlGroups[SquadNumber].Members.Find(RxPRI) != -1) 
-			{
-				return false ; //User Already In This Squad
-			}
-			else
-			{
-				NodControlGroups[SquadNumber].Members.AddItem(RxPRI); 
-				RxPRI.SetControlGroup(SquadNumber);
-				CTextSquadBroadcast(TeamByte, SquadNumber, RxPRI.PlayerName @ "joined group" @ NodControlGroups[SquadNumber].GroupTitle, 'LightBlue'); 
-				return true; 
-			}
-		}
-	}
-	
-	return false; 
-	
-}
-
-function bool RemovePlayerFromSquad(Rx_PRI RxPRI, byte TeamByte, byte SquadNumber)
-{
-
-local int PRIPosition; 
-	
-	//Geeds
-	if(TeamByte == 0)
-	{
-		if(GDIControlGroups[SquadNumber].Members.Length == 0) return false; 
-		else
-		{
-			PRIPosition=GDIControlGroups[SquadNumber].Members.Find(RxPRI); 
-			
-			if(PRIPosition == -1) return false; 
-			else
-			{
-				GDIControlGroups[SquadNumber].Members.Remove(PRIPosition, 1);
-				RxPRI.SetControlGroup(255);
-				CTextSquadBroadcast(TeamByte, SquadNumber, RxPRI.PlayerName @ "left group" @ GDIControlGroups[SquadNumber].GroupTitle, 'LightBlue' ); 
-				return true; 
-			}
-			
-		}
-		
-	}
-	else
-	//NAHD!
-	if(TeamByte == 1)
-	{
-		if(NodControlGroups[SquadNumber].Members.Length == 0) return false; 
-		else
-		{
-			PRIPosition=NodControlGroups[SquadNumber].Members.Find(RxPRI); 
-			
-			if(PRIPosition == -1) return false; 
-			else
-			{
-				NodControlGroups[SquadNumber].Members.Remove(PRIPosition, 1);
-				RxPRI.SetControlGroup(255);
-				CTextSquadBroadcast(TeamByte, SquadNumber, RxPRI.PlayerName @ "left group" @ NodControlGroups[SquadNumber].GroupTitle, 'LightBlue' ); 
-				return true; 
-			}
-			
-		}
-		
-	}
-	
-	return false; 
 	
 }
 
@@ -5003,9 +5066,10 @@ function AddInactivePRI(PlayerReplicationInfo PRI, PlayerController PC)
 
 		// delete after 5 minutes (EDIT: This is fu**ing Renegade... Give them an hour)
 		NewPRI.LifeSpan = 3600; //300;
-		if(Rx_PRI(PRI) != None)
-		{
-			Rx_PRI(NewPRI).OldTeamID = PRI.GetTeamNum(); // save team ID for when the credits get donated or not....
+		if(Rx_PRI(PRI) != None // Player is human and can store a lingeringPawn
+			&& PC.Pawn != None
+			&& (PC.Pawn.IsA('Rx_Pawn') || PC.Pawn.IsA('Rx_Vehicle'))) { // Pawn is a character or vehicle (i.e: not a camera))
+			Rx_PRI(NewPRI).lingeringPawn = PC.Pawn;
 			Rx_PRI(NewPRI).bDonateOnDelete = true;
 		}
 		// On console, we have to check the unique net id as network address isn't valid
@@ -5028,7 +5092,6 @@ function AddInactivePRI(PlayerReplicationInfo PRI, PlayerController PC)
 		// cap at 16 saved PRIs [What is this plebian nonsense?] we'll make it 64.. and probably crash servers
 		if ( InactivePRIArray.Length > 64 )
 		{
-			InactivePRIArray[0].LifeSpan = 10; // schedule for immediate removal
 			InactivePRIArray.Remove(0, InactivePRIArray.Length - 64);
 		}
 	}
@@ -5188,6 +5251,7 @@ DefaultProperties
 	VehicleManagerClass        = class'Rx_VehicleManager'
 	HelipadVehicleManagerClass = class'Rx_HelipadVehicleManager'
 	CommanderControllerClass   = class'Rx_CommanderController'
+	FPSMonitorClass            = class'Rx_FPSMonitor'
 
 	PlayerMonitorClass		   = class'Rx_PlayerMonitor'
 	
@@ -5241,21 +5305,5 @@ DefaultProperties
 	CPReward_Emplacement= 50 
 	CPReward_Infantry	= 10
 	CPReward_Vehicle	= 10
-	
-	/*Squad Default Naming Conventions*/
-	
-	GDIControlGroups(0) = (GroupTitle = "Offense-1") 
-	GDIControlGroups(1) = (GroupTitle = "Offense-2") 
-	GDIControlGroups(2) = (GroupTitle = "Offense-3") 
-	GDIControlGroups(3) = (GroupTitle = "Support-1") 
-	GDIControlGroups(4) = (GroupTitle = "Support-2") 
-	GDIControlGroups(5) = (GroupTitle = "Defense-1")
-	
-	NodControlGroups(0) = (GroupTitle = "Offense-1") 
-	NodControlGroups(1) = (GroupTitle = "Offense-2") 
-	NodControlGroups(2) = (GroupTitle = "Offense-3") 
-	NodControlGroups(3) = (GroupTitle = "Support-1") 
-	NodControlGroups(4) = (GroupTitle = "Support-2") 
-	NodControlGroups(5) = (GroupTitle = "Defense-1") 
 
 }

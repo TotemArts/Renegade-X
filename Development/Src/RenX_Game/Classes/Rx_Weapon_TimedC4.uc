@@ -56,6 +56,8 @@ DefaultProperties
 {
 	DeployedActorClass=class'Rx_Weapon_DeployedTimedC4'
 
+	bCanGetAmmo=false
+
 	// Weapon SkeletalMesh
 	Begin Object class=AnimNodeSequence Name=MeshSequenceA
 	End Object

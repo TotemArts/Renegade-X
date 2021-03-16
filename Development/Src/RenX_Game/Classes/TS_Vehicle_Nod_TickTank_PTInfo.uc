@@ -5,7 +5,7 @@ class TS_Vehicle_Nod_TickTank_PTInfo extends Rx_Vehicle_PTInfo
 
 DefaultProperties
 {
-		PTIconTexture	=	Texture2D'TSPurchaseMenu.T_Icon_Veh_Nod_TickTank'
+		PTIconTexture	=	Texture2D'RenXPurchaseMenu.T_Icon_Veh_Nod_TickTank'
 		title	    	=	"TICK TANK"
 		cost	    	=	"900"
 		iconID			=	22
@@ -14,5 +14,5 @@ DefaultProperties
 		VehicleClass	= 	class'TS_Vehicle_TickTank'
 		
 		GDIVehicleAnnouncment = SoundNodeWave'RX_EVA_VoiceClips_Extra.gdi_eva.S_EVA_GDI_TankReady'
-		NodVehicleAnnouncment = SoundNodeWave'RX_EVA_VoiceClips_Extra.Nod_EVA.S_EVA_Nod_TankReady'
+		NodVehicleAnnouncment = SoundNodeWave'RX_EVA_VoiceClips_Extra.Nod_EVA.S_TS_CABAL_UnitReady_TickTank'
 }

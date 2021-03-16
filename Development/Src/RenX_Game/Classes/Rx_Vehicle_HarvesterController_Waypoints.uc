@@ -248,7 +248,7 @@ function NavigationPoint FindBetterPathToward(Actor Destination)
 
 	foreach WorldInfo.RadiusNavigationPoints(class'NavigationPoint',N,Pawn.Location,5000.F)
 	{
-		if((Rx_BlockedForHarvesterPathnode(N) != None && !bIgnoreBlockHarvNodes) || !ActorReachable(N) || Pawn.Anchor == N)
+		if((Rx_BlockedForHarvesterPathnode(N) != None && !bIgnoreBlockHarvNodes) || FindPathToward(N) == None || Pawn.Anchor == N)
 			continue;
 
 		CurrentDist = VSizeSq(Destination.Location - N.Location);
@@ -260,7 +260,7 @@ function NavigationPoint FindBetterPathToward(Actor Destination)
 		}
 	}
 
-	return BestN;
+	return NavigationPoint(FindPathToward(BestN));
 }
 
 
@@ -299,7 +299,7 @@ state Harvesting
 	{
 		 if (bLogTripTimes)
 		{
-			`log(((TeamNum == 0)? "GDI" : "Nod") @ " harvester took " @ refinery.HarvesterHarvestTime @ " to harvest from tiberium field.");
+			`log(((TeamNum == 0)? "GDI" : "Nod") @ " harvester took " @ refinery.GetHarvesterHarvestTime() @ " to harvest from tiberium field.");
 			tripTimer = 0;
 		}
 		if (tibNode != none)
@@ -323,7 +323,7 @@ Begin:
 	if(WorldInfo.NetMode != NM_DedicatedServer)
 		Pawn.Mesh.PlayAnim('Harvesting',,true);
 
-	SetTimer(refinery.HarvesterHarvestTime,,'finishHarvesting');   
+	SetTimer(refinery.GetHarvesterHarvestTime(),,'finishHarvesting');   
 }
 
 state MovingToTib
@@ -412,7 +412,7 @@ Begin:
    if(Pawn.ReachedDestination(refNode))
    {
 	    
-	  refinery.BuildingInternals.BuildingSkeleton.GetSocketWorldLocationAndRotation('RefNodeSocket', refineryLoc, refineryRot);      
+	  Rx_Building(refinery).BuildingInternals.BuildingSkeleton.GetSocketWorldLocationAndRotation('RefNodeSocket', refineryLoc, refineryRot);      
 	  if (refNode != none)
 	  {
 		refNode.bBlocked = true;
@@ -421,11 +421,11 @@ Begin:
       loc = refineryLoc;
       loc.z -= 70;
       
-	  foreach refinery.BuildingInternals.BuildingAttachments(DockingStation) 
+	  foreach Rx_Building(refinery).BuildingInternals.BuildingAttachments(DockingStation) 
 	  	if(DockingStation.isA('Rx_BuildingAttachment_RefDockingStation')) 
 	  		break;  
       
-	  if(class'Rx_Utils'.static.LeftRightOrientationOfAtoB(refinery, Pawn) < 0.0)
+	  if(class'Rx_Utils'.static.LeftRightOrientationOfAtoB(Actor(refinery), Pawn) < 0.0)
 	  	bTurnLeftToFaceRef = true;
 	  if(bTurnLeftToFaceRef)	      
       	harv_vehicle.Steering = 1.0;
@@ -438,13 +438,10 @@ Begin:
 
 simulated function GetRefinery()
 {
-	foreach AllActors(class'Rx_Building_Refinery', refinery)
-	  {
-		if (refinery.GetTeamNum() == TeamNum)
-		{
-			break;
-		}
-	  }
+	if(Rx_Vehicle_Harvester(Pawn) != None)
+	{
+		refinery = Rx_Vehicle_Harvester(Pawn).MyRefinery;
+	}
 }
 
 function CheckIfOrientedRight()
@@ -477,7 +474,7 @@ function Tick(float DeltaTime)
 			harv_vehicle.Steering = 0.0;
 			harv_vehicle.Throttle = -1.0;
 			
-			foreach refinery.BuildingInternals.BuildingAttachments(ba) 
+			foreach Rx_Building(refinery).BuildingInternals.BuildingAttachments(ba) 
 				if(ba.isA('Rx_BuildingAttachment_RefDockingStation'))
 			{
 					Rx_BuildingAttachment_RefDockingStation(ba).Activate(true);
@@ -500,7 +497,9 @@ function StartUnload()
 	if (refNode != none)
 		refNode.bBlocked = false;
 	refinery.HarvesterDocked(self);
-
+	if(harv_vehicle != none)
+		harv_vehicle.AddTripNumber();
+	
 	if (bLogTripTimes)
 	{
 		`log(((TeamNum == 0)? "GDI" : "Nod")  @ " harvester took " @ tripTimer @ " to return to refinery.");
@@ -515,7 +514,7 @@ function GotoTib2()
 	local Rx_BuildingAttachment ba;
 	
 	harv_vehicle.Throttle = 0.0;
-	foreach refinery.BuildingInternals.BuildingAttachments(ba) 
+	foreach Rx_Building(refinery).BuildingInternals.BuildingAttachments(ba) 
 		if(ba.isA('Rx_BuildingAttachment_RefGarageDoor'))
 			Rx_BuildingAttachment_RefGarageDoor(ba).Close();
 		else if(ba.isA('Rx_BuildingAttachment_RefDockingStation'))
@@ -526,20 +525,37 @@ function GotoTib2()
 
 function Rx_Tib_NavigationPoint GetTibNode()
 {
-   local Rx_Tib_NavigationPoint Node;
-   local byte Num;
+   	local Rx_Tib_NavigationPoint Node,BestNode;
+    local float BestDist, CurrentDist;
 
-   foreach AllActors(class'Rx_Tib_NavigationPoint', Node)
-   {
-      Num++;
-      if (Node.TeamNum == TeamNum)
-      {
-         return Node;
-      }
+   	local Actor Ref;
 
-      if (Num == 3)
-         `Log ("Warning: there are more than 2 Rx_Tib_NavigationPoint <Harvester could get Problems> !!!!");
-   }
+   	Ref = Actor(Refinery);
+
+   	foreach AllActors(class'Rx_Tib_NavigationPoint', Node)
+   	{
+     	if (Node.TeamNum != TeamNum && Node.TeamNum != 255)
+      	{
+  			continue;
+        }
+        if(BestNode == None)
+        {
+        	BestNode = Node;
+        	BestDist = VSizeSq(Node.Location - Ref.Location);
+        }
+        else
+        {
+        	CurrentDist = VSizeSq(Node.Location - Ref.Location);
+        	if(BestDist > CurrentDist)
+        	{
+        		BestDist = CurrentDist;
+        		BestNode = Node;
+        	}
+        }
+   	}
+   	if(BestNode != None)
+    	return BestNode;
+    	
    `Log ("Warning: no RenX_Tib_Nodes found! harvester won't work!!!!!");
    return none;
 }
@@ -550,23 +566,43 @@ function destroyIfHarvSeemsToBeStuck() {
 
 function Rx_Ref_NavigationPoint GetRefNode()
 {
-   local Rx_Ref_NavigationPoint Node;
-   local byte Num;
+    local Rx_Ref_NavigationPoint Node, BestNode;
+    local Actor Ref;
+    local float BestDist, CurrentDist;
 
-   if(Refinery != None)
-   		return Refinery.RefNode;
+    if(Refinery.GetRefNavPoint() != None)
+   		return Refinery.GetRefNavPoint();
 
-   foreach AllActors(class'Rx_Ref_NavigationPoint', Node)
-   {
-      Num++;
-      if (Node.TeamNum == TeamNum)
-      {
-         return Node;
-      }
+   	else
+   		Ref = Actor(Refinery);
 
-      if (Num == 3)
-         `Log ("Warning: there are more than 2 Rx_Ref_NavigationPoint <Harvester could get Problems> !!!!");
-   }
+    foreach AllActors(class'Rx_Ref_NavigationPoint', Node)
+    {
+      	if (Node.TeamNum != TeamNum)
+      	{
+  			continue;
+        }
+        if(BestNode == None)
+        {
+        	BestNode = Node;
+        	BestDist = VSizeSq(Node.Location - Ref.Location);
+        }
+        else
+        {
+        	CurrentDist = VSizeSq(Node.Location - Ref.Location);
+        	if(BestDist > CurrentDist)
+        	{
+        		BestDist = CurrentDist;
+        		BestNode = Node;
+        	}
+        }
+
+
+    }
+    if(BestNode != None)
+    	return BestNode;
+      		
+
    `Log ("Warning: no RenX_Tib_Nodes found! harvester won't work!!!!!");
    return none;
 }
@@ -580,7 +616,7 @@ state HarvesterHalted
 	{
 		if (Pawn != None)
 		{
-			harv_vehicle.SetFriendlyStateName("Stopped");
+			harv_vehicle.SetFriendlyStateName("Stopped by Commander");
 			StopMovement();
 			//SetTimer(1.0,true,'CloseToHaltedWaypoint');
 			//UpdateHaltedHarvWaypoint(true);
@@ -600,7 +636,7 @@ state HarvesterHalted
 		
 		//SetTimer(1.0,true,'TimerLogState');
 		
-		harv_vehicle.SetFriendlyStateName("Stopped");
+		harv_vehicle.SetFriendlyStateName("Stopped by Commander");
 		UpdateHaltedHarvWaypoint(false);
 		
 		//SetTimer(1.0,true,'CloseToHaltedWaypoint');
@@ -648,14 +684,14 @@ state HarvesterHalted
 			{
 				StopMovement(); 
 				ClearTimer('CloseToHaltedWaypoint');
-				harv_vehicle.SetFriendlyStateName("Standing by");
+				harv_vehicle.SetFriendlyStateName("Stopped by Commander");
 				//if(IsTimerActive('UpdateHaltedHarvWaypoint')) ClearTimer('UpdateHaltedHarvWaypoint'); 
 			}
 			else
 			if(Halted_Waypoint == none) 
 			{
 				StopMovement();
-				harv_vehicle.SetFriendlyStateName("Standing by");
+				harv_vehicle.SetFriendlyStateName("Stopped by Commander");
 				ClearTimer('CloseToHaltedWaypoint');				
 			}
 	}
@@ -694,14 +730,14 @@ function TimerLogState()
 function CloseToHaltedWaypoint() 
 {} 
 
-function ReassignRefinery(Rx_Building_Refinery Ref)
+function ReassignRefinery(RxIfc_Refinery Ref)
 {
 	Super.ReassignRefinery(Ref);
 
 	if(ScriptedMoveTarget == refNode)
-		ScriptedMoveTarget = Ref.RefNode;
+		ScriptedMoveTarget = Ref.GetRefNavPoint();
 
-	refNode = Ref.RefNode;
+	refNode = Ref.GetRefNavPoint();
 }
 
 

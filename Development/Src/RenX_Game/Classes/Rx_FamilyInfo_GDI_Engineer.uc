@@ -5,6 +5,11 @@ static function bool IsEngi()
 	return true;
 }
 
+static function bool CanPickupDeployedActor(class<Rx_Weapon_DeployedActor> Deployed)
+{
+	return Deployed == class'Rx_Weapon_DeployedRemoteC4';
+}
+
 DefaultProperties
 {
 	FamilyID="GDI"

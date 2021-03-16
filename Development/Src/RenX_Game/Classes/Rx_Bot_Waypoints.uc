@@ -888,6 +888,7 @@ Begin:
 
 	SwitchToBestWeapon();
 	// Report problem!!
+	GoalString = "Defending";
 
 	if(GetNearbyDeployables(true) != None)
 	{

@@ -206,7 +206,7 @@ function TickHUD()
 	{
 		foreach RxGRI.PRIArray(pri)
 		{
-			if(Rx_Pri(pri) == None || Rx_PRI(pri).bIsScripted)	// skip if the bot is a scripted one
+			if(Rx_Pri(pri) == None || Rx_PRI(pri).bIsScripted || pri.bIsSpectator)	// skip if the bot is a scripted one
 				continue;
 
 			PRIList.AddItem(pri);

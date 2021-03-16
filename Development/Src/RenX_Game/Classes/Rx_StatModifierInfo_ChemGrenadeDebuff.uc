@@ -23,7 +23,7 @@ DefaultProperties
 	EffectColor		= (R=0.0.0,G=0.025,B=0.0,A=1.0)
 	EffectOpacity	= 0.10
 	EffectInflation	= 0.25
-	EffectPriority	= 4
+	EffectPriority	= 5
 
 	PawnMIC = MaterialInstanceConstant'RenX_AssetBase.Stealth.MI_PowerUp_Poisoned'
 }

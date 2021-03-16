@@ -35,7 +35,7 @@ simulated function SetChargeStrength( float OverChargePercentage )
         ProjEffects.SetScale(BaseDrawScale + BonusDrawScale*OverChargePercentage);
 }
 
-simulated function CallServerALHit(Actor Target, vector HitLocation, TraceHitInfo ProjHitInfo, bool mctDamage)
+simulated function CallServerALHit(Actor Target, vector HitLocation, TraceHitInfo ProjHitInfo, bool mctDamage, optional float DmgReduction = 1.0)
 {
     if (Rx_Weapon_VoltAutoRifle(Instigator.Weapon) != None) 
         Rx_Weapon_VoltAutoRifle(Instigator.Weapon).ServerALHitCharged(Target,HitLocation,ProjHitInfo,mctDamage,OverCharge);
@@ -88,12 +88,12 @@ DefaultProperties
     MaxSpeed=3000
     AccelRate=0
     LifeSpan=2.0
-    Damage=40
+    Damage=30
     DamageRadius=100
 	HeadShotDamageMult=1.25
     MomentumTransfer=100000
 
-    BonusDamage=190
+    BonusDamage=120
     BonusDamageRadius=200
 
 /*	

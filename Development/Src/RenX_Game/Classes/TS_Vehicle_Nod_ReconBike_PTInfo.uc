@@ -5,7 +5,7 @@ class TS_Vehicle_Nod_ReconBike_PTInfo extends Rx_Vehicle_PTInfo
 
 DefaultProperties
 {
-		PTIconTexture	=	Texture2D'TSPurchaseMenu.T_Icon_Veh_Nod_AttackCycle'
+		PTIconTexture	=	Texture2D'RenXPurchaseMenu.T_Icon_Veh_Nod_AttackCycle'
 		title	    	=	"ATTACK CYCLE"
 		cost	    	=	"500"
 		iconID			=	11
@@ -14,5 +14,5 @@ DefaultProperties
 		VehicleClass	= 	class'TS_Vehicle_ReconBike'
 		
 		GDIVehicleAnnouncment = SoundNodeWave'RX_EVA_VoiceClips.Nod_EVA.S_EVA_Nod_UnitReady_ReconBike'
-		NodVehicleAnnouncment = SoundNodeWave'RX_EVA_VoiceClips.Nod_EVA.S_EVA_Nod_UnitReady_ReconBike'
+		NodVehicleAnnouncment = SoundNodeWave'RX_EVA_VoiceClips_Extra.Nod_EVA.S_TS_CABAL_UnitReady_AttackCycle'
 }

@@ -16,7 +16,7 @@ var bool bSold;
 replication
 {
 	if (bNetDirty && Role == ROLE_Authority)
-		bAIControl, Deployer, bOwnedDefence, SellTime, ai;
+		bAIControl, Deployer, bOwnedDefence, SellTime, ai, bSold;
 
 }
 
@@ -234,7 +234,6 @@ function bool DriverEnter(Pawn P)
 
 simulated function Destroyed()
 {
-	loginternal("Turret destroyed");
 	if(ai != none)
 		ai.UnPossess();
 	super.Destroyed();

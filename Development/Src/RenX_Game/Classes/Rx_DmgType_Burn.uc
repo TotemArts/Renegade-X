@@ -42,4 +42,6 @@ DefaultProperties
 	bAnimateHipsForDeathAnim=FALSE
 	MotorDecayTime=1.0
 	bUnsourcedDamage=true
+	
+	HitColour = (R = 0.9, G = 0.6, B = 0.0, A = 1.0)
 }

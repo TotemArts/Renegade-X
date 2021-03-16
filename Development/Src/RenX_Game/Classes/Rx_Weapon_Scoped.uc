@@ -16,6 +16,20 @@ var bool  bCanUseZeroSpread; //Can we use zero spread now?
 var PostProcessChain NightVisionEffect;
 var CameraAnim NightVisionAnim;
 var() vector	FireOffsetZoomed;
+var() vector CameraOffsetZoomed;
+var() bool bInstantZoom;
+
+// canvas texture editor
+var float ZoomRecoilValue;
+var int ZoomRecoilStatus; // 0 - Normal, 1 - Recoil In, 2 - Recoil Out
+
+var float ZoomRecoilMaxIntensity;
+var float ZoomRecoilRecoveryRate;
+var float ZoomRecoilRate;
+
+var() Array<float> MovingAndScopedAddedSpread;
+
+var bool bIsScoping;
 
 /** LastZoomPlaySoundTimeThreshold is used to avoid spamming of zoom sounds when fast zooming */
 var float LastZoomPlaySoundTime, LastZoomPlaySoundTimeThreshold;
@@ -25,13 +39,14 @@ var SoundCue NightVisionTurnOnSound, NightVisionTurnOffSound;
 
 simulated function DrawZoomedOverlay( HUD H )
 {
-    local float ScaleX, ScaleY, StartX;
+    local float ScaleX, ScaleY, StartX, StartY;
 	local float HMScale; 
     bDisplayCrosshair = false;
 
-    ScaleY = H.Canvas.SizeY/768.0;
+    ScaleY = H.Canvas.SizeY/768.0 + (ZoomRecoilValue/100.f) * ZoomRecoilMaxIntensity;
     ScaleX = ScaleY;
     StartX = (H.Canvas.SizeX - (1024 * ScaleX)) / 2;
+    StartY = (H.Canvas.SizeY - (768 * ScaleY)) / 2;
 	HMScale= 	Fmax(H.Canvas.SizeX/1920.0, 0.73); 
 
 
@@ -45,13 +60,13 @@ simulated function DrawZoomedOverlay( HUD H )
     // Draw the crosshair
     if (HudMaterial != none)
     {
-        H.Canvas.SetPos(StartX, 0);
+        H.Canvas.SetPos(StartX, StartY);
         H.Canvas.DrawMaterialTile(HudMaterial, 1024 * ScaleX, 1024 * ScaleY);
     }
     else 
     {
         // For backwards compatibility
-        H.Canvas.SetPos(StartX, 0);
+        H.Canvas.SetPos(StartX, StartY);
         H.Canvas.DrawTile(HudTexture, 1024 * ScaleX, 768 * ScaleY, 0, 0, 1024, 768);
     }
     
@@ -104,6 +119,7 @@ simulated function StartZoom(UTPlayerController PC)
     {
         //If we zoom, start walking
         Rx_Pawn(Instigator).StartWalking();
+		Rx_Pawn(Instigator).WeaponFired(self, false);
         
         if(PC != None)    
             PC.StartZoom(ZoomedTargetFOV, ZoomedRate);
@@ -130,31 +146,57 @@ simulated function StartZoom(UTPlayerController PC)
                 Rx_Controller(PC).SetOurCameraMode(FirstPerson);
         }
 
+        NormalViewOffset = default.PlayerViewOffset;
+
         bDisplayCrosshair = false;
+
+
+        //Start Walking while zoomed
+        Rx_Pawn(Instigator).StartWalking();
+
+        if(!bInstantZoom)
+        {
+            ClearTimer('MoveWeaponOutOfIronSight');
+            SetTimer((0.005 / 100 * AimRate),true,'MoveWeaponToIronSight');  
+        } 
+        else
+            StopZoom();
+    }
+}
+/*
+simulated function SetZeroSpreadTimer()
+{
+	bCanUseZeroSpread = true ; 
+}
+*/
+simulated function StopZoom()
+{
+    local UTPlayerController PC;
+
+    Super.StopZoom();
+	
+    if(PlayerViewOffset.y >= IronsightViewOffset.y && !bIsScoping)
+    {
+        bIsScoping = true;
+        PC = UTPlayerController(Instigator.Controller);
 
         // Set manually, because otherwise the scope gets stuck on the wrong FOV when you bring it up
         if(PC != None)
         {
             PC.SetFOV( ZoomedTargetFOV ); 
             PC.StartZoom(ZoomedTargetFOV, ZoomedRate);
-        }
-        //Start Walking while zoomed
-        Rx_Pawn(Instigator).StartWalking();
-               
+        }    
+
         if (ZoomInSound != none && bPlayZoomSoundWhenShowOverlay)
             PlaySound(ZoomInSound, true);
 
         if (bNightVisionEnabledLast)
             ToggleNightVision();
 
-		SetTimer(0.1,false,'SetZeroSpreadTimer');
-        ChangeVisibility(false);        
+        ChangeVisibility(false); 
+ //       SetTimer(0.1,false,'SetZeroSpreadTimer');   
+        bCanUseZeroSpread = true; 
     }
-}
-
-simulated function SetZeroSpreadTimer()
-{
-	bCanUseZeroSpread = true ; 
 }
 
 /*
@@ -163,18 +205,29 @@ simulated function SetZeroSpreadTimer()
 simulated function EndZoom(UTPlayerController PC)
 {
     bDisplayCrosshair = true;
-    bNightVisionEnabledLast = bNightVisionEnabled;
-    ToggleNightVision(true);
+    
+
+
+    if(bIsScoping)
+    {
+        bNightVisionEnabledLast = bNightVisionEnabled;
+        ToggleNightVision(true);
+   
+        if (ZoomOutSound != none && bPlayZoomSoundWhenHideOverlay)
+            PlaySound(ZoomOutSound, true);
+
+        //Hack to put hand back on gun after zooming out. Need real zoom out animations.
+        PlayWeaponAnimation(WeaponFireAnim[0], 0.01,,BaseSkelComponent);
+        bIsScoping = false;
+    }
     
     //Stop walking
     if(PC != None)
-      PC.EndZoom();
+        PC.EndZoom();
 
-    if (ZoomOutSound != none && bPlayZoomSoundWhenHideOverlay)
-        PlaySound(ZoomOutSound, true);
-    
-    //Hack to put hand back on gun after zooming out. Need real zoom out animations.
-    PlayWeaponAnimation(WeaponFireAnim[0], 0.01,,BaseSkelComponent);
+    ClearTimer('MoveWeaponToIronSight');
+    SetTimer((0.005 / 100 * AimRate),true,'MoveWeaponOutOfIronSight');
+
     
     if (Instigator.IsFirstPerson() == true)
     {
@@ -189,8 +242,8 @@ simulated function EndZoom(UTPlayerController PC)
     }
 	
 	  Rx_Pawn(Instigator).StopWalking();
-	  
-	  ClearTimer('SetZeroSpreadTimer');
+	  Rx_Pawn(Instigator).WeaponStoppedFiring(self, false);
+//	  ClearTimer('SetZeroSpreadTimer');
 	  bCanUseZeroSpread = false; 
 	
 }
@@ -205,7 +258,7 @@ simulated function PutDownWeapon()
         EndZoom(UTPlayerController(Instigator.Controller));
     }
     super.PutDownWeapon();
-	ClearTimer('SetZeroSpreadTimer');
+//	ClearTimer('SetZeroSpreadTimer');
 	bCanUseZeroSpread = false;
 }
 
@@ -257,6 +310,9 @@ reliable client function ToggleNightVision(optional bool bDisable)
         return;
 
     if (NightVisionEffect == none)
+        return;
+
+    if (!Rx_MapInfo(WorldInfo.GetMapInfo()).bNightVisionEnabled)
         return;
 
     PC = UTPlayerController(Instigator.Controller);
@@ -362,25 +418,6 @@ simulated state Reloading
     }
 }
 
-simulated state BoltActionReloading
-{
-    simulated function BeginState( name PreviousState )
-    {
-        /**
-        if (GetZoomedState() == ZST_Zoomed)
-        {
-            EndZoom(UTPlayerController(Instigator.Controller));
-        }
-        */
-        if(WorldInfo.NetMode == NM_StandAlone)
-        {
-        	PlayWeaponBoltReloadAnim();
-        	PlaySound( BoltReloadSound[CurrentFireMode], false,true);
-        }
-        super.BeginState(PreviousState);
-    }
-}
-
 simulated event vector GetMuzzleLoc()
 {
 	if (GetZoomedState() != ZST_NotZoomed) {
@@ -395,50 +432,130 @@ simulated event vector GetMuzzleLoc()
 
 simulated function rotator AddSpread(rotator BaseAim)
 {
-	local vector X, Y, Z;
-	local rotator ret;
-	local float RecoilSpreadTemp, RandY, RandZ;
+    local vector X, Y, Z;
+    local rotator ret;
+    local float RecoilSpreadTemp, RandY, RandZ;
 
-	if(IronSightAndScopedSpread.Length > 0 && (bIronsightActivated || GetZoomedState() != ZST_NotZoomed) && bCanUseZeroSpread) 
-	{
-		CurrentSpread = IronSightAndScopedSpread[CurrentFireMode];
-	} else 
-	{
-		CurrentSpread = Spread[CurrentFireMode];
-	}
-	if (CurrentSpread == 0 )
-	{
-		return BaseAim;
-	}
-	else
-	{
-		if(RecoilSpreadIncreasePerShot == 0.0 && Spread[CurrentFireMode] == 0.0 && Rx_Bot(Pawn(owner).controller) == None) 
-		{
-			ret = BaseAim;
-		} 
-		else 
-		{
-			GetAxes(BaseAim, X, Y, Z);
-			RandY = FRand() - 0.5;
-			RandZ = Sqrt(0.5 - Square(RandY)) * (FRand() - 0.5);
-			CurrentSpread += RecoilSpread;
-			ret = rotator(X + RandY * CurrentSpread * Y + RandZ * CurrentSpread * Z);
-		}
-		
-		if(RecoilSpreadDecreaseDelay != default.RecoilSpreadDecreaseDelay && RecoilSpreadIncreasePerShot != 0.0) {
-			RecoilSpreadTemp = RecoilSpread;
-			RecoilSpread += RecoilSpreadIncreasePerShot;
-			if(CurrentSpread + RecoilSpread >= MaxSpread) {
-				RecoilSpread = RecoilSpreadTemp;
-			}
-		}
-		return ret;
-	}
+    if(IronSightAndScopedSpread.Length > 0 && (bIronsightActivated || GetZoomedState() != ZST_NotZoomed) && bCanUseZeroSpread) 
+    {
+        CurrentSpread = IronSightAndScopedSpread[CurrentFireMode];
+
+        if(VSize(Instigator.Velocity) >= 20) //This if and the code in it is the only thing added. Deadeye is about 80 when scoped and moving, gives a little wiggle room in case you are moving very slowly from just having stopped or something.
+        {
+            CurrentSpread += MovingAndScopedAddedSpread[CurrentFireMode];
+        }
+    } else 
+    {
+        CurrentSpread = Spread[CurrentFireMode];
+    }
+    if (CurrentSpread == 0 )
+    {
+        return BaseAim;
+    }
+    else
+    {
+        if(RecoilSpreadIncreasePerShot == 0.0 && Spread[CurrentFireMode] == 0.0 && Rx_Bot(Pawn(owner).controller) == None) 
+        {
+            ret = BaseAim;
+        } 
+        else 
+        {
+            GetAxes(BaseAim, X, Y, Z);
+            RandY = FRand() - 0.5;
+            RandZ = Sqrt(0.5 - Square(RandY)) * (FRand() - 0.5);
+            CurrentSpread += RecoilSpread;
+            ret = rotator(X + RandY * CurrentSpread * Y + RandZ * CurrentSpread * Z);
+        }
+        
+        if(RecoilSpreadDecreaseDelay != default.RecoilSpreadDecreaseDelay && RecoilSpreadIncreasePerShot != 0.0) {
+            RecoilSpreadTemp = RecoilSpread;
+            RecoilSpread += RecoilSpreadIncreasePerShot;
+            if(CurrentSpread + RecoilSpread >= MaxSpread) {
+                RecoilSpread = RecoilSpreadTemp;
+            }
+        }
+        return ret;
+    }
+}
+
+simulated function WeaponCalcCamera(float fDeltaTime, out vector out_CamLoc, out rotator out_CamRot)
+{
+    if(GetZoomedState() != ZST_NotZoomed)
+       out_CamLoc += CameraOffsetZoomed;
+}
+
+simulated function vector InstantFireStartTrace()
+{
+    local vector R;
+
+    R = super.InstantFireStartTrace();
+
+    if(GetZoomedState() != ZST_NotZoomed)
+       R += CameraOffsetZoomed;
+
+    return R;
+
+}
+
+simulated function FireAmmunition()
+{
+    super.FireAmmunition();
+
+    if(WorldInfo.NetMode == NM_DedicatedServer || Instigator.Controller == None || !Instigator.Controller.IsLocalPlayerController())
+        return;
+
+    if(ZoomRecoilStatus == 2)
+    {
+        ZoomRecoilStatus = 1;
+        if(ZoomRecoilValue > 50.f)
+        {
+            ZoomRecoilValue = 50.f;
+        }
+    }
+    else if(ZoomRecoilStatus == 1)
+    {
+        if(ZoomRecoilValue > 50.f)
+        {
+            ZoomRecoilValue = 50.f;
+        }
+    }
+    else
+    {
+        ZoomRecoilStatus = 1;
+    }
+}
+
+simulated function ProcessViewRotation( float DeltaTime, out rotator out_ViewRotation, out Rotator out_DeltaRot )
+{
+    super.ProcessViewRotation(DeltaTime, out_ViewRotation, out_DeltaRot);
+
+    if(ZoomRecoilStatus == 1)
+    {
+        ZoomRecoilValue = FInterpTo(ZoomRecoilValue,100.f,DeltaTime,ZoomRecoilRate);
+        if(ZoomRecoilValue >= 100.f)
+        {
+            ZoomRecoilStatus = 2;
+            ZoomRecoilValue = 100.f;
+        }
+    }
+    else if(ZoomRecoilStatus == 2)
+    {
+        ZoomRecoilValue = FInterpTo(ZoomRecoilValue,0.f,DeltaTime,ZoomRecoilRecoveryRate);
+        if(ZoomRecoilValue <= 0.f)
+        {
+            ZoomRecoilStatus = 0;
+            ZoomRecoilValue = 0.f;
+        }
+    }
+//    `log(Self@"ZoomRecoilValue :"@ ZoomRecoilValue);
 }
 
 DefaultProperties
 {
     FireOffsetZoomed=(X=0,Y=0,Z=0)
+    CameraOffsetZoomed = (X=0, Y=0, Z=-10)
+
+    MovingAndScopedAddedSpread(0)=0.002
     
     NightVisionEffect=PostProcessChain'RenX_AssetBase.PostProcess.PP_NightVisionChain'
     NightVisionAnim=CameraAnim'RenX_AssetBase.PostProcess.C_NightVision'
@@ -451,6 +568,8 @@ DefaultProperties
     HudTexture=none // Texture2D'RenX_AssetBase.PostProcess.T_SniperScope'
     HudMaterial=Material'RenX_AssetBase.PostProcess.M_SniperScope'
 
+    AimRate = 45.f
+
     NightVisionTurnOnSound = SoundCue'RX_WP_SniperRifle.Sounds.SC_NightVision_On'
     NightVisionTurnOffSound = SoundCue'RX_WP_SniperRifle.Sounds.SC_NightVision_Off'
     bPlayZoomSoundWhenShowOverlay = true
@@ -461,6 +580,11 @@ DefaultProperties
     ZoomedFOVMin = 10.0 // Lower is more zoomed
     ZoomedFOVMax = 25.0 // Higher is less zoomed
     ZoomedTargetFOV = 25.0
+
+    ZoomRecoilMaxIntensity = 0.25
+    ZoomRecoilRecoveryRate = 10
+    ZoomRecoilRate = 75
+
 
     bNightVisionEnabled = false // For maintaining current state due to complexity of finding this out
     bNightVisionEnabledLast = false // For remembering if

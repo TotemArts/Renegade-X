@@ -9,6 +9,11 @@ var bool bDestroyed;
 var Controller Planter;
 var bool bIsRemoteC4;
 
+replication
+{
+	if (bNetInitial)
+		Planter;
+}
 
 simulated function PostBeginPlay()
 {
@@ -19,10 +24,10 @@ simulated function PostBeginPlay()
 
 function KillCheck()
 {
-	if( Role == ROLE_Authority )
+	if (Role == ROLE_Authority)
 	{
 		// Destroy when player dies
-		if( Instigator == None || Instigator.Health <= 0 )
+		if (Instigator == None || Instigator.Health <= 0)
 			Destroy();
 	}
 }
@@ -33,9 +38,10 @@ function Landed(vector HitNormal, Actor FloorActor)
 	SetTimer(1.0, true, 'KillCheck');
 }
 
-simulated function Destroyed() {
-	if(!bDestroyed) { // bugfix because destroyed sometimes gets called more than once
-	
+simulated function Destroyed() 
+{
+	if (!bDestroyed) 
+	{ 
 		if (Role == ROLE_Authority && bUsesMineLimit)
 			Rx_TeamInfo(Rx_Game(WorldInfo.Game).Teams[GetTeamNum()]).mineCount--;	
 	
@@ -48,9 +54,9 @@ simulated function Destroyed() {
 
 function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser)
 {
-	if( (Rx_Pawn(Base) !=none || Rx_Vehicle(base) !=none) && EventInstigator.GetTeamNum() != GetTeamNum()) 
+	if ((Rx_Pawn(Base) !=none || Rx_Vehicle(base) !=none) && EventInstigator.GetTeamNum() != GetTeamNum() && Base.GetTeamNum() == EventInstigator.GetTeamNum()) 
 	{
-	super(Actor).TakeDamage(DamageAmount,EventInstigator,HitLocation,Momentum,DamageType,HitInfo,DamageCauser);	
+		super(Actor).TakeDamage(DamageAmount,EventInstigator,HitLocation,Momentum,DamageType,HitInfo,DamageCauser);	
 
 		if (DamageAmount <= 0 || HP <= 0 || bDisarmed )
 		  return;
@@ -59,7 +65,7 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 
 		if (HP <= 0)
 		{
-			if(EventInstigator != InstigatorController) 
+			if (EventInstigator != InstigatorController) 
 			{
 				InstigatorController = EventInstigator; 
 				TeamNum = InstigatorController.GetTeamNum();
@@ -71,11 +77,33 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 	super.TakeDamage(DamageAmount,EventInstigator,HitLocation,Momentum,DamageType,HitInfo,DamageCauser);	
 }
 
+reliable server function bool CanPickup(Rx_Controller InController)
+{
+    return InController == Planter && HP == MaxHP && !bDisarmed && !bDestroyed && !bExplode && DistanceFrom(InController.Pawn) < PickupDistance && GetTeamNum() == InController.GetTeamNum();
+}
+
+simulated function bool CanPickupClient()
+{
+	local Rx_Pawn P;
+
+	if (Planter == None) return false;
+
+	P = Rx_Pawn(GetALocalPlayerController().Pawn);
+
+    return P.Controller == Planter && HP == MaxHP && DistanceFrom(P) < PickupDistance && P.GetRxFamilyInfo().static.CanPickupDeployedActor(Class);
+}
+
+function float DistanceFrom(Actor A)
+{
+	if (A != None)
+		return VSize(Location - A.Location);
+	return 9999999;
+}
+
 defaultproperties
 {
-   
     DeployableName="Remote C4"
-    HP = 200
+    HP=200
     Damage=200
 	DmgRadius=300
 	DamageMomentum=8000.0
@@ -86,6 +114,9 @@ defaultproperties
 	ExplosionSound=SoundCue'RX_SoundEffects.Explosions.SC_Explosion_C4'
 	ImpactSound=SoundCue'RX_WP_TimedC4.Sounds.SC_TimedC4_Disarm'	
 	ChargeDamageType=class'Rx_DmgType_RemoteC4'
+
+	WeaponClass=class'Rx_Weapon_RemoteC4'
+	PickupDistance=400
 	
 	ExplosionShake=CameraAnim'Envy_Effects.Camera_Shakes.C_VH_Death_Shake'
 	InnerExplosionShakeRadius=100.0
@@ -98,6 +129,4 @@ defaultproperties
 		PhysicsAsset=PhysicsAsset'RX_WP_RemoteC4.Mesh.WP_RemoteC4_Physics'
 		Scale=1.0
 	End Object
-	
-	
 }

@@ -31,6 +31,7 @@ function GetAttackPoints()
 
 defaultproperties
 {
+    MineLimit=3
 	TeamID                  = TEAM_NOD
 	BuildingInternalsClass  = Rx_Building_AirTower_Internals
 

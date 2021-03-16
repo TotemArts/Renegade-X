@@ -5,7 +5,7 @@ class TS_Vehicle_Nod_Buggy_PTInfo extends Rx_Vehicle_PTInfo
 
 DefaultProperties
 {
-		PTIconTexture	=	Texture2D'TSPurchaseMenu.T_Icon_Veh_Nod_AttackBuggy'
+		PTIconTexture	=	Texture2D'RenXPurchaseMenu.T_Icon_Veh_Nod_AttackBuggy'
 		title	    	=	"ATTACK BUGGY"
 		cost	    	=	"350"
 		iconID			=	11
@@ -14,7 +14,7 @@ DefaultProperties
 		VehicleClass	= 	class'TS_Vehicle_Buggy'
 		
 		GDIVehicleAnnouncment = SoundNodeWave'RX_EVA_VoiceClips_Extra.gdi_eva.S_EVA_GDI_TankReady'
-		NodVehicleAnnouncment = SoundNodeWave'RX_EVA_VoiceClips_Extra.Nod_EVA.S_EVA_Nod_TankReady'
+		NodVehicleAnnouncment = SoundNodeWave'RX_EVA_VoiceClips_Extra.Nod_EVA.S_TS_CABAL_UnitReady_AttackBuggy'
 		
 		
 		

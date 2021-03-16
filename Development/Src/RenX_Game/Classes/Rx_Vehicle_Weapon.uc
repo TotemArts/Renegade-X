@@ -20,7 +20,7 @@ class Rx_Vehicle_Weapon extends UTVehicleWeapon
 
 var MaterialInstanceConstant CrosshairMIC;
 var MaterialInstanceConstant LockedOnCrosshairMIC;
-var MaterialInstanceConstant HitIndicatorCrosshairMIC,HitIndicatorCrosshairMIC2,CrosshairMIC2,DotCrosshairMIC,DotCrosshairMIC2;
+var MaterialInstanceConstant HitIndicatorCrosshairMIC, LockedOnCrosshairMIC2,HitIndicatorCrosshairMIC2,CrosshairMIC2,DotCrosshairMIC,DotCrosshairMIC2;
 var float CrosshairWidth, CrosshairHeight;
 
 var name FireSocket;
@@ -46,7 +46,7 @@ var bool bHasRecoil;
 var bool                   bLockedOnTarget;           /* When true, this weapon is locked on target */
 var bool                   bTargetLockingActive;      /* If true, weapon will try to lock onto targets */
 var Actor                  LastPendingTarget;         /* What last tick test "target" is current pending to be locked on to */
-var Actor                  PendingLockedTarget;       /* What "target" is current pending to be locked on to */
+var repnotify Actor        PendingLockedTarget;       /* What "target" is current pending to be locked on to */
 var Actor                  LockedTarget;              /* What "target" is this weapon locked on to */
 var PlayerReplicationInfo  LockedTargetPRI;           /* if player is targeted then his PRI will be stored here */
 var(Locking) float         LockTolerance;
@@ -70,6 +70,8 @@ var bool 				   CurrentlyReloadingClientside;
 var bool				   bReloadAfterEveryShot;
 var float				   TossZ_Mod, TrackingMod; //Used for missiles that drop on their target. 
 var bool bDrawCrosshair;
+
+var array< class<Projectile> > WeaponProjectilesAir;
 
 /**
  * For reload capable weapons. Reload time and Reload Anim name's 
@@ -139,6 +141,10 @@ var float CloseRangeAimAdjustment;
 //Temporarily hold the client side actor we should be locking on to
 var Actor LastClientLockonTarget; 
 
+var MaterialInstanceConstant TargetMIC;
+var MaterialInstanceConstant TargetMIC2;
+var float LockOnSize;
+
 replication
 {
     if (Role == ROLE_Authority && bNetDirty)
@@ -150,6 +156,22 @@ replication
 * Putting UpdateHeroicEffects here does nothing for Rx_Vehicle_MultiWeapon or Reloadable ones*
 */ 
 
+simulated function ReplicatedEvent(name VarName)
+{
+	if(VarName == 'PendingLockedTarget')
+	{
+		if(PendingLockedTarget != None)
+			PendingLockedTargetTime = ((Vehicle(PendingLockedTarget) != None) && (UDKPlayerController(Instigator.Controller) != None) && UDKPlayerController(Instigator.Controller).bConsolePlayer)
+									? WorldInfo.TimeSeconds + 0.5*LockAcquireTime
+									: WorldInfo.TimeSeconds + LockAcquireTime;
+		else
+			PendingLockedTargetTime = 0.0;
+
+	}
+	else
+		super.ReplicatedEvent(VarName);
+}
+
 
 simulated function PostBeginPlay()
 {
@@ -159,7 +181,11 @@ simulated function PostBeginPlay()
 	HitIndicatorCrosshairMIC2 = new(Outer) class'MaterialInstanceConstant';
 	HitIndicatorCrosshairMIC2.SetParent(HitIndicatorCrosshairMIC);	
 	DotCrosshairMIC2 = new(Outer) class'MaterialInstanceConstant';
-	DotCrosshairMIC2.SetParent(DotCrosshairMIC);	
+	DotCrosshairMIC2.SetParent(DotCrosshairMIC);
+	LockedOnCrosshairMIC2 = new(Outer) class'MaterialInstanceConstant';
+	LockedOnCrosshairMIC2.SetParent(LockedOnCrosshairMIC);	
+	TargetMIC2 = new(Outer) class'MaterialInstanceConstant';
+	TargetMIC2.SetParent(TargetMIC);
 	bCanReplicationFire = true;										
 }
 
@@ -173,12 +199,26 @@ simulated function DrawCrosshair( Hud HUD )
 	local Pawn MyPawnOwner;
 	local actor TargetActor;
 	local int targetTeam;
-	local LinearColor LC, LockColor, TempLC; //nBab
+	local LinearColor LC; //nBab
 	local vector ScreenLoc;
 	local bool	bTargetBehindUs; 
 	local float XResScale;
+	local float TweenPercentage;
+
+	local Rotator LockOnRotation;
+	local Vector LockPosNormal;
+	local Vector LockPos[4];
+	local int i;
 
 	if (!bDrawCrosshair) return;
+
+	if(PendingLockedTargetTime == 0.0)
+		TweenPercentage = 0.f;
+	else
+	{
+		TweenPercentage = 1.f - FClamp(((PendingLockedTargetTime - WorldInfo.TimeSeconds) / LockAcquireTime), 0.0, 1.0);
+
+	}	
 	
 	//set initial color based on settings (nBab)
 	LC.A = 1.f;
@@ -286,31 +326,47 @@ simulated function DrawCrosshair( Hud HUD )
 	}
 
 	//nBab
-	CrosshairMIC2.GetVectorParameterValue('Reticle_Colour', TempLC);
-	if (TempLC != LC)
-		CrosshairMIC2.SetVectorParameterValue('Reticle_Colour', LC);
+	CrosshairMIC2.SetVectorParameterValue('Reticle_Colour', LC);
 	
-	if ( CrosshairMIC2 != none )
+	if ( CrosshairMIC2 != none)
 	{
 		//H.Canvas.SetPos( X+1, Y+1 );
 		H.Canvas.SetPos( X, Y );
 		H.Canvas.DrawMaterialTile(CrosshairMIC2,CrosshairSize.X, CrosshairSize.Y,0.0,0.0,1.0,1.0);
-		if(PendingLockedTarget != none)
-			{
-				bTargetBehindUs = class'Rx_Utils'.static.OrientationOfLocAndRotToBLocation(Rx_Controller(Instigator.Controller).ViewTarget.Location,Instigator.Controller.Rotation,PendingLockedTarget.location) < -0.5;
+		if(PendingLockedTarget != none && TargetMIC2 != None)
+		{
+			bTargetBehindUs = class'Rx_Utils'.static.OrientationOfLocAndRotToBLocation(Rx_Controller(Instigator.Controller).ViewTarget.Location,Instigator.Controller.Rotation,PendingLockedTarget.location) < -0.5;
 			
-				if(!bTargetBehindUs)
-				{
-				LockColor.R = 0.f;
-				LockColor.G = 5.f;
-				LockColor.B = 5.f;
-				CrosshairMIC2.SetVectorParameterValue('Reticle_Colour', LockColor);
-				ScreenLoc = PendingLockedTarget.location; 
+			if(!bTargetBehindUs)
+			{
+				LC.R = 0.f;
+				LC.G = 5.f;
+				LC.B = 5.f;
+				CrosshairMIC2.SetVectorParameterValue('Reticle_Colour', LC);
+
+				LC.R = 1.f;
+				LC.G = 1.f;
+				LC.B = 1.f;
+				TargetMIC2.SetVectorParameterValue('Reticle_Colour', LC);
+				ScreenLoc = PendingLockedTarget.GetTargetLocation(); 
 				ScreenLoc = H.Canvas.Project(ScreenLoc);
-				H.Canvas.SetPos( ScreenLoc.X - CrosshairWidth/2, ScreenLoc.Y - CrosshairWidth/2 );
-				H.Canvas.DrawMaterialTile(CrosshairMIC2, CrosshairWidth, CrosshairHeight);
-				}
+				for(i=0;i<4;i++)
+				{
+					LockOnRotation.Pitch = 0.f;
+					LockOnRotation.Roll = 0.f;
+					LockOnRotation.Yaw = ((45.f + (90.f * i)) * DegToUnrRot) + (Lerp(-90.0 * DegToUnrRot, 0, TweenPercentage));
+					LockPosNormal = Vector(LockOnRotation);
+
+					LockPos[i].X = ScreenLoc.X + (-1 * LockOnSize/2) + (-0.72 * LockOnSize * LockPosNormal.X) + (-1 * (LockOnSize * (1.0 - TweenPercentage)) * LockPosNormal.X);
+					LockPos[i].Y = ScreenLoc.Y + (-1 * LockOnSize/2) + (-0.72 * LockOnSize * LockPosNormal.Y) + (-1 * (LockOnSize * (1.0 - TweenPercentage)) * LockPosNormal.Y);
+
+					LockOnRotation.Yaw -= (45.f * DegToUnrRot);
+
+					H.Canvas.SetPos( LockPos[i].X, LockPos[i].Y );
+					H.Canvas.DrawRotatedMaterialTile(TargetMIC2, LockOnRotation,LockOnSize, LockOnSize);	
+				}					
 			}
+		}
 		DrawHitIndicator(H,x,y);
 	}
 	
@@ -320,10 +376,22 @@ simulated function DrawLockedOn( HUD H )
 {
     local vector2d CrosshairSize;
     local float x, y;
-    local LinearColor LC, TempLC; //nBab
+    local LinearColor LC; //nBab
 	local vector ScreenLoc; 
 	local bool bTargetBehindUs; 
 	local float XResScale; 
+	local float TweenPercentage;
+	local Rotator LockOnRotation;
+	local Vector LockPosNormal;
+	local Vector LockPos[4];
+	local int i;
+
+	if(PendingLockedTargetTime == 0.0)
+		TweenPercentage = 1.f;
+	else
+	{
+		TweenPercentage = 1.f - FClamp(((PendingLockedTargetTime - WorldInfo.TimeSeconds) / LockAcquireTime), 0.0, 1.0);
+	}	
 
 	//set initial color based on settings (nBab)
 	LC.A = 1.f;
@@ -361,13 +429,9 @@ simulated function DrawLockedOn( HUD H )
 			break;	
 	}
 	
-	CrosshairMIC2.GetVectorParameterValue('Reticle_Colour', TempLC);
-	if (TempLC != LC)
-		CrosshairMIC2.SetVectorParameterValue('Reticle_Colour', LC);
+	CrosshairMIC2.SetVectorParameterValue('Reticle_Colour', LC);
 
-	LockedOnCrosshairMIC.GetVectorParameterValue('Reticle_Colour', TempLC);
-	if (TempLC != LC)
-		LockedOnCrosshairMIC.SetVectorParameterValue('Reticle_Colour', LC);
+	LockedOnCrosshairMIC2.SetVectorParameterValue('Reticle_Colour', LC);
 	
    	if (H == none || H.Canvas == none)
       	return;
@@ -386,22 +450,36 @@ simulated function DrawLockedOn( HUD H )
         H.Canvas.DrawMaterialTile(CrosshairMIC,CrosshairSize.X, CrosshairSize.Y,0.0,0.0,1.0,1.0);
         H.Canvas.SetPos(x, y);
         H.Canvas.DrawMaterialTile(LockedOnCrosshairMIC,CrosshairSize.X, CrosshairSize.Y,0.0,0.0,1.0,1.0);
-		if(LockedTarget != none)
-			{
-				bTargetBehindUs = class'Rx_Utils'.static.OrientationOfLocAndRotToBLocation(Rx_Controller(Instigator.Controller).ViewTarget.Location,Instigator.Controller.Rotation,LockedTarget.location) < -0.5;
+		if(LockedTarget != none && TargetMIC2 != None && CrosshairMIC2 != None)
+		{
+			bTargetBehindUs = class'Rx_Utils'.static.OrientationOfLocAndRotToBLocation(Rx_Controller(Instigator.Controller).ViewTarget.Location,Instigator.Controller.Rotation,LockedTarget.location) < -0.5;
 			
-				if(!bTargetBehindUs)
-				{
+			if(!bTargetBehindUs)
+			{
 				LC.R = 10.f;
 				LC.G = 0.f;
 				LC.B = 0.f;
-				CrosshairMIC.SetVectorParameterValue('Reticle_Colour', LC);
-				ScreenLoc = LockedTarget.location; 
+				TargetMIC2.SetVectorParameterValue('Reticle_Colour', LC);
+				CrosshairMIC2.SetVectorParameterValue('Reticle_Colour', LC);
+				ScreenLoc = LockedTarget.GetTargetLocation(); 
 				ScreenLoc = H.Canvas.Project(ScreenLoc);
-				H.Canvas.SetPos( ScreenLoc.X - CrosshairWidth/2, ScreenLoc.Y - CrosshairWidth/2 );
-				H.Canvas.DrawMaterialTile(CrosshairMIC, CrosshairWidth, CrosshairHeight);	
-				}
+				for(i=0;i<4;i++)
+				{
+					LockOnRotation.Pitch = 0.f;
+					LockOnRotation.Roll = 0.f;
+					LockOnRotation.Yaw = ((45.f + (90.f * i)) * DegToUnrRot) + (Lerp(-90.0 * DegToUnrRot, 0, TweenPercentage));
+					LockPosNormal = Vector(LockOnRotation);
+
+					LockPos[i].X = ScreenLoc.X + (-1 * LockOnSize/2) + (-0.72 * LockOnSize * LockPosNormal.X) + (-1 * (LockOnSize * (1.0 - TweenPercentage)) * LockPosNormal.X);
+					LockPos[i].Y = ScreenLoc.Y + (-1 * LockOnSize/2) + (-0.72 * LockOnSize * LockPosNormal.Y) + (-1 * (LockOnSize * (1.0 - TweenPercentage)) * LockPosNormal.Y);
+
+					LockOnRotation.Yaw -= (45.f * DegToUnrRot);
+
+					H.Canvas.SetPos( LockPos[i].X, LockPos[i].Y );
+					H.Canvas.DrawRotatedMaterialTile(TargetMIC2, LockOnRotation,LockOnSize, LockOnSize);	
+				}	
 			}
+		}
         DrawHitIndicator(H,x,y);
     }
 }
@@ -723,8 +801,8 @@ simulated function Projectile ProjectileFire()	// Add impulse on the vehicle eve
 	}
 	
 	IncrementFlashCount();
-	//`log("Using New PF"); 
-	if(bCheckIfBarrelInsideWorldGeomBeforeFiring && IsBarrelInGeometry()) 
+	//Barrel is in a door or wall, so spawn our projectile further back so it doesn't go through 
+	if(bCheckIfBarrelInsideWorldGeomBeforeFiring && (IsBarrelInGeometry() || GetNearDoor()) ) 
 		SpawnedProjectile = UDKProjectile(Spawn(GetProjectileClassSimulated(),,, Rx_Vehicle(MyVehicle).GetAdjustedPhysicalFireStartLoc(self)));
 	else
 		SpawnedProjectile = UDKProjectile(Spawn(GetProjectileClassSimulated(),,, MyVehicle.GetPhysicalFireStartLoc(self)));
@@ -732,7 +810,7 @@ simulated function Projectile ProjectileFire()	// Add impulse on the vehicle eve
 	if ( SpawnedProjectile != None )
 	{
 		RxProj = Rx_Projectile(SpawnedProjectile); 
-		SpawnedProjectile.Init( vector(AddSpread(MyVehicle.GetWeaponAim(self))) );
+		
 		if(RxProj != none ) 
 		{
 			RxProj.SetWeaponInstigator(self);
@@ -740,6 +818,9 @@ simulated function Projectile ProjectileFire()	// Add impulse on the vehicle eve
 			RxProj.FMTag=CurrentFireMode;
 			//Rx_Projectile(SpawnedProjectile).RxInitLifeSpan();
 		}
+		
+		SpawnedProjectile.Init( vector(AddSpread(MyVehicle.GetWeaponAim(self))) );
+		
 		
 		if ( Role==ROLE_Authority && MyVehicle != none && MyVehicle.Mesh != none)
 		{
@@ -807,7 +888,7 @@ simulated function Projectile ProjectileFireOld()
 	if (Role == ROLE_Authority && bTargetLockingActive && RxRocket != None)
     {
 		SetRocketTarget(RxRocket);
-    }    
+    }
     return SpawnedProjectile;
 }
 
@@ -953,7 +1034,7 @@ simulated function bool CanLockOnTo(Actor TA)
         return false;
     }
 
-    return ( (WorldInfo.Game == None) || !WorldInfo.Game.bTeamGame || (WorldInfo.GRI == None) || !WorldInfo.GRI.OnSameTeam(Instigator,TA) );
+    return ( (WorldInfo.Game == None) || !WorldInfo.Game.bTeamGame || (WorldInfo.GRI == None) || Instigator.GetTeamNum() != TA.GetTeamNum() );
 }
 
 
@@ -1256,7 +1337,7 @@ simulated function bool TryHeadshot(byte FiringMode, ImpactInfo Impact)
 		HeadDamage = InstantHitDamage[FiringMode] * GetDamageModifier() * HeadShotDamageMult;
 		
 		//`log("TryHS" @ WeaponFireTypes[FiringMode] == EWFT_InstantHit @ HeadDamage );
-		if ( (Rx_Pawn(Impact.HitActor) != None && Rx_Pawn(Impact.HitActor).TakeHeadShot(Impact, HeadShotDamageType, HeadDamage, Scaling, Instigator.Controller, false)))
+		if ( (Rx_Pawn(Impact.HitActor) != None && Rx_Pawn(Impact.HitActor).TakeHeadShot(Impact, HeadShotDamageType, HeadDamage, Scaling, Instigator.Controller, false,,,,FiringMode)))
 		{
 			SetFlashLocation(Impact.HitLocation);
 		//	`log("True");
@@ -1354,7 +1435,7 @@ reliable server function ServerALInstanthitHit( byte FiringMode, ImpactInfo Impa
 	SetFlashLocation(RealImpactLocation);
 }
 
-reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, TraceHitInfo HitInfo)
+reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, TraceHitInfo HitInfo, optional float DmgReduction = 1.0, optional byte FMTag = 255)
 {
 	local class<Rx_Projectile>	ProjectileClass;
 	local class<Rx_Projectile_Rocket> ProjectileClassRocket; 
@@ -1370,8 +1451,12 @@ reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, T
 	Shooter = Rx_Vehicle(Owner);
 	if(Shooter == None && UTWeaponPawn(Owner) != None)
 		Shooter = Rx_Vehicle(UTWeaponPawn(Owner).MyVehicle); 
-	
-	ProjectileClass = class<Rx_Projectile>(GetProjectileClass());
+
+	if(Rx_Vehicle_MultiWeapon(self) != none && FMTag != 255) 
+		ProjectileClass=class<Rx_Projectile>(WeaponProjectiles[FMTag]) ;
+	else
+		ProjectileClass = class<Rx_Projectile>(GetProjectileClass());
+
 	//If it is a rocket it won't be an Rx_Projectile
 	if(ProjectileClass == none) ProjectileClassRocket = class<Rx_Projectile_Rocket>(GetProjectileClass());
 	
@@ -1483,8 +1568,10 @@ reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, T
 		ArmorMultiplier=1;
 	}
 	
-		Damage*=ArmorMultiplier;
+	Damage*=ArmorMultiplier;
 
+	if(DmgReduction <= 1.0)
+		Damage*=DmgReduction; //Used for effective range manipulation. Should never be higher than 1
 	
 	if(WorldInfo.Netmode == NM_DedicatedServer)
 	{
@@ -1494,7 +1581,7 @@ reliable server function ServerALHeadshotHit(Actor Target, vector HitLocation, T
 	Target.TakeDamage(Damage, Instigator.Controller, HitLocation, Momentum, DamageType, HitInfo, self);	
 }
 
-reliable server function ServerALHit(Actor Target, vector HitLocation, TraceHitInfo HitInfo, bool mctDamage, byte FMTag)
+reliable server function ServerALHit(Actor Target, vector HitLocation, TraceHitInfo HitInfo, bool mctDamage, byte FMTag, optional float DmgReduction = 1.0)
 {
 	local class<Rx_Projectile>	ProjectileClass;
 	local class<DamageType> 	DamageType;
@@ -1503,15 +1590,14 @@ reliable server function ServerALHit(Actor Target, vector HitLocation, TraceHitI
 	local float 				Damage;
 	local float 				HitDistDiff;
 
-	//`log("Process ServerALHit");
-	
 	Shooter = Rx_Vehicle(Owner);
 	if(Shooter == None && UTWeaponPawn(Owner) != None)
 		Shooter = Rx_Vehicle(UTWeaponPawn(Owner).MyVehicle); 
 
-	if(Rx_Vehicle_MultiWeapon(self) != none) ProjectileClass=class<Rx_Projectile>(WeaponProjectiles[FMTag]) ;
+	if(Rx_Vehicle_MultiWeapon(self) != none) 
+		ProjectileClass=class<Rx_Projectile>(WeaponProjectiles[FMTag]) ;
 	else
-	ProjectileClass = class<Rx_Projectile>(GetProjectileClass());
+		ProjectileClass = class<Rx_Projectile>(GetProjectileClass());
 	//`log("ProjectileClass IS: " @ ProjectileClass @ CurrentFireMode @ Shooter);
 	
 	/**
@@ -1531,12 +1617,8 @@ reliable server function ServerALHit(Actor Target, vector HitLocation, TraceHitI
 		} 
 	}
 
-	
-	
 	if (Shooter == none || Target == none || ProjectileClass == none)
 	{
-		
-		
 		return;  
 	}
 	if (Target != none)
@@ -1563,7 +1645,10 @@ reliable server function ServerALHit(Actor Target, vector HitLocation, TraceHitI
 	if(mctDamage) {
 		Damage = Damage * class<Rx_DmgType>(DamageType).static.MCTDamageScalingFor();
 	}
-		
+	
+	if(DmgReduction <= 1.0)
+		Damage*=DmgReduction; //Used for effective range manipulation. Should never be higher than 1
+	
 	//SetFlashLocation(HitLocation);
 	//SetReplicatedImpact(HitLocation, FireDir, Shooter.Location, class, 0.0, true );
 
@@ -1852,6 +1937,30 @@ simulated function bool IsBarrelInAnotherVehicle()
 		return false; 
 }
 
+simulated function bool IsBarrelInDoor()//Stupidly specific... but kinda' needed
+{
+	local Rx_BuildingAttachment_Door door;
+	
+ 	    foreach CollidingActors(class'Rx_BuildingAttachment_Door', door, 3, Owner.location, true)
+   		{
+			return true; 
+		}
+		return false; 
+	
+}
+
+//Stupidly specific... but kinda' needed so you don't shoot projectiles through doors [Which aren't geo]
+simulated function bool GetNearDoor()
+{
+	local Rx_Buildings_DoorSensor door;
+	
+ 	    foreach Owner.TouchingActors( class'Rx_Buildings_DoorSensor', door )
+   		{
+			return true; 
+		}
+	return false; 
+}
+
 simulated function SetCurrentlyReloadingClientside(bool NewValue)	
 {
 	CurrentlyReloadingClientside = NewValue;	
@@ -2118,6 +2227,11 @@ simulated function int GetRProjectileYaw(){
 	return 1.0; //Modifier... usually 1.0 or -1.0 
 }
 
+/*Gives our projectile our Velocity*/ 
+simulated function vector GetParentVelocity(){
+	return MyVehicle.Velocity;
+}
+
 DefaultProperties
 {
 	InventoryGroup=0
@@ -2133,7 +2247,9 @@ DefaultProperties
 	LockedOnCrosshairMIC = MaterialInstanceConstant'RenX_AssetBase.UI.MI_Reticle_MissileLock'
 	HitIndicatorCrosshairMIC = MaterialInstanceConstant'RenX_AssetBase.UI.MI_Reticle_HitMarker'
 	DotCrosshairMIC = MaterialInstanceConstant'RenX_AssetBase.UI.MI_Reticle_Simple'
-	
+	TargetMIC = MaterialInstanceConstant'RenX_AssetBase.UI.MI_Reticle_LockOnStripe'
+	LockOnSize = 32.f;
+
 	SecondaryLockingDisabled = true
 	
 	CrosshairWidth = 256

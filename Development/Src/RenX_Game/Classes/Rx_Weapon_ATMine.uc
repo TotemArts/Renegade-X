@@ -15,7 +15,7 @@ class Rx_Weapon_ATMine extends Rx_Weapon_Beacon;
 
 function bool Deploy()
 {
-	if ( super.Deploy() )
+	if (super.Deploy())
 	{
 		if (Rx_PRI(Pawn(Owner).Controller.PlayerReplicationInfo) != None)
 			Rx_PRI(Pawn(Owner).Controller.PlayerReplicationInfo).AddATMine(Rx_Weapon_DeployedATMine(DeployedActor));

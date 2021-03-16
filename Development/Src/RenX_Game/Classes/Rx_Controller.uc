@@ -61,6 +61,8 @@ var bool bVehicleLockPressed;
 var int     NameChanges;
 var float   NextNameChangeTime;
 
+var config string CustomKillsound;
+
 /** one1: Vote related stuff. */
 var string VoteCommandText;
 var class<Rx_VoteMenuHandler> VoteHandlerClass;
@@ -174,6 +176,10 @@ var float RespawnTimeModifier;
 var vector LastHitLoc;
 var float LastHitLocBlendPct;
 
+var vector LastDeadCamLoc;
+
+var int BuildingReviveCreditAmount;
+
 /*Begin Commander Variables [in a severely less convoluted manner than the actual Commander Mod]*/
 
 struct AttackTarget 
@@ -211,9 +217,10 @@ var Vector Potential_Waypoint;
 
 var Rx_Hud_ObjectiveVisuals HudVisuals;
 var Rx_ORI myORI; 
-//var byte PlayerControlGroup; Possibly add in functionality to have squads. 
+
 var float MaxCommanderSpottingRange; 
 
+var bool bUseDevFlag;
 
 /*End Commander variables*/
 
@@ -223,7 +230,9 @@ var bool		  bCanThrowSF_Flag;
 var int			  StartFire_FLAGs;
 var int			  StartFiresThisSecond, LastStartFireTime;
 var int			  LastHitSomethingTime;
- 
+
+var float TestGrav; 
+
 struct K_Log
 {
 	var string KillInputs;  
@@ -285,7 +294,9 @@ struct ActiveModifier
 {
 	var class<Rx_StatModifierInfo> ModInfo; 
 	var float				EndTime; 
-	var bool				Permanent; 
+	var bool				Permanent;
+	var Controller			ModifierSource; //Optionally used to give a source to the modifier 
+	var class<DamageType>	ModifierDamageType; //Optional damage type is this modifier regenerates/hurts people
 };
 
 var array<ActiveModifier> ActiveModifications; 
@@ -300,6 +311,18 @@ var Actor ActorToSell;
 
 var repnotify Rx_CapturePoint CapturePoint;
 
+var float LastSetFOV;
+
+var bool bForceClientSync; 
+
+//Better flight support
+var bool bPoweredFlight; //If there's a passive ability (or what have you) adding to our flight abilities in state PlayerFlying
+var private vector PoweredFlightVector; 
+
+var vector ResidualVelocity, ResidualAcceleration; //Acceleration and such that should follow through to Walking state
+
+var bool bUseKey;
+
 replication
 {
 	// Things the server should send to the client.
@@ -308,7 +331,7 @@ replication
 
 	if (bNetDirty)
 		VoteTopString, VotesYes, VotesNo, VoteTimeLeft, VotersTotal, bSuspect, YesVotesNeeded, bIsDev, bCanThrowSF_Flag, RefillCooldownTime, RadarVisibility,
-		Misc_SpeedModifier, Misc_RateOfFireMod, Misc_ReloadSpeedMod, RespawnTimeModifier, CapturePoint; //The ones the Client actually needs to know 
+		Misc_SpeedModifier, Misc_RateOfFireMod, Misc_ReloadSpeedMod, RespawnTimeModifier, CapturePoint, NextNameChangeTime, NameChanges; //The ones the Client actually needs to know 
 }
 
 event ClearOnlineDelegates()
@@ -318,37 +341,121 @@ event ClearOnlineDelegates()
 	super.ClearOnlineDelegates();
 }
 
+simulated function SetPoweredFlightVector(vector V)
+{
+	PoweredFlightVector = V; 
+}
+
 state PlayerFlying
 {
-	ignores SeePlayer, HearNoise, Bump;
+	ignores SeePlayer, HearNoise;
 	
-		function PlayerMove(float DeltaTime)
+	event EndState(Name NextStateName)
+	{
+		//bPoweredFlight = false;
+		super.EndState(NextStateName);
+	}
+	
+	event NotifyPhysicsVolumeChange( PhysicsVolume NewVolume )
+	{
+		if(RxIfc_PassiveAbility(Pawn) != none)
+				RxIfc_PassiveAbility(Pawn).NotifyPassivesPhysicsVolumeChanged(NewVolume);
+		
+		if ( NewVolume.bWaterVolume && Pawn.bCollideWorld )
 		{
-			local vector X,Y,Z;
+			GotoState(Pawn.WaterMovementState);
+		}
+	}
+	
+	function PlayerMove(float DeltaTime)
+	{
+		local vector X,Y,Z, NewAccel;
+		local rotator OldRotation;
+		
+		if(!IsSpectating() && (Pawn == None) || Pawn.Health <= 0)
+		{
+			GoToState('Dead'); // we're in the wrong state, move over
+			return;
+		}
 
-			if (Pawn.AirSpeed != 1000) Pawn.AirSpeed = 1000;
-	
-			GetAxes(Rotation,X,Y,Z);
-	
-			Pawn.Acceleration = PlayerInput.aForward*X + PlayerInput.aStrafe*Y + PlayerInput.aUp*vect(0,0,1);;
-			Pawn.Acceleration = (Pawn.AccelRate + 2500) * Normal(Pawn.Acceleration);
-	
-			if (bCheatFlying && (Pawn.Acceleration == vect(0,0,0)))
-				Pawn.Velocity = vect(0,0,0);
-			// Update rotation.
-			UpdateRotation(DeltaTime);
-	
-			if (Role < ROLE_Authority) // then save this move and replicate it
-				ReplicateMove(DeltaTime, Pawn.Acceleration, DCLICK_None, rot(0,0,0));
-			else
-				ProcessMove(DeltaTime, Pawn.Acceleration, DCLICK_None, rot(0,0,0));
-		}
-	
-		event BeginState(Name PreviousStateName)
+		GetAxes(Rotation,X,Y,Z);			
+		
+		//Handle cheat flying differently than normal flying
+		if (bCheatFlying)
 		{
-			Pawn.SetPhysics(PHYS_Flying);
-			Pawn.AirSpeed = 1000;
+			NewAccel = PlayerInput.aForward*X + PlayerInput.aStrafe*Y + PlayerInput.aUp*vect(0,0,1);
+			//NewAccel = (Pawn.AccelRate + 2500) * Normal(Pawn.Acceleration);
+			Pawn.AirSpeed = 2500;
+			//CheckJumpOrDuck();	
+			
+			if (NewAccel == vect(0,0,0))
+				Pawn.Velocity = vect(0,0,0);
+			
+			OldRotation = Rotation;
+			UpdateRotation(DeltaTime);
+		}		
+		else //Only take the X/Y axis then. Whatever's making us fly can handle Z 
+		{
+			if(bPoweredFlight && RxIfc_PassiveAbility(Pawn) != none)
+			{
+				PoweredFlightVector = vect(0,0,0); //Clear additional flight vectors 
+				
+				OldRotation = Rotation;
+				UpdateRotation(DeltaTime);
+				
+				NewAccel = PlayerInput.aForward*X + PlayerInput.aStrafe*Y;
+				NewAccel.Z = 0;
+
+				//Notify in Passives (or whatever else is powering us) should give us a vector 
+				RxIfc_PassiveAbility(Pawn).NotifyPassivesPlayerMove(GetStateName(),NewAccel,DeltaTime);
+				
+				NewAccel = PoweredFlightVector;
+
+			}
+			else //We're just.... in the air.... so fall without resorting to PHYS_Falling (Which would make us lose velocity and such)
+			{
+				OldRotation = Rotation;
+				UpdateRotation(DeltaTime);
+				
+				NewAccel = PlayerInput.aForward*X + PlayerInput.aStrafe*Y;
+				NewAccel = NewAccel * 0.0001;
+				//Pawn.AccelRate = 520;
+				NewAccel.Z = -520; //You're just falling at this point
+			}
+	}
+		
+		CheckJumpOrDuck();
+		// Update rotation.
+		if (Role < ROLE_Authority) // then save this move and replicate it
+			ReplicateMove(DeltaTime, NewAccel, DCLICK_None, OldRotation - Rotation);//rot(0,0,0));
+		else
+			ProcessMove(DeltaTime,NewAccel, DCLICK_None, OldRotation - Rotation);//rot(0,0,0));
+		
+		SetPoweredFlightVector(vect(0,0,0));
+		bPressedJump = false;
+}
+
+	event BeginState(Name PreviousStateName)
+	{
+		if(!IsSpectating() && (Pawn == None) || Pawn.Health <= 0)
+		{
+			GoToState('Dead'); // we're in the wrong state, move over
+			return;
 		}
+		
+		Pawn.SetPhysics(PHYS_Flying);
+		//Pawn.AirSpeed = 1000;
+	}
+	
+	function ProcessMove( float DeltaTime, vector newAccel, eDoubleClickDir DoubleClickMove, rotator DeltaRot)
+	{
+		if( (Pawn != None) && (Pawn.Acceleration != newAccel) )
+		{
+			Pawn.Acceleration = newAccel;
+		}
+	}
+		
+
 }
 
 simulated event ReplicatedEvent(name VarName)
@@ -389,15 +496,41 @@ exec function ToggleADSSens()
 	Rx_PlayerInput(PlayerInput).ToggleADSSens();
 }
 
+/**************************************************/
+/*Stupidly large number of functions for Dev Flags*/
+/**************************************************/
 exec function ToggleDevFlag()
 {
 	Rx_PlayerInput(PlayerInput).ToggleDevFlag();
+	
+	bUseDevFlag = Rx_PlayerInput(PlayerInput).UseDevFlag; 
+	
+	if(WorldInfo.NetMode == NM_Client)
+		ServerSetUseDevFlag(bUseDevFlag); 
 }
 
-reliable client function bool UseDevFlag()
+simulated function SetInitialUseDevFlag(bool bUse)
 {
-	return Rx_PlayerInput(PlayerInput).UseDevFlag;
+	bUseDevFlag = bUse;
+	
+	if(WorldInfo.NetMode == NM_Client)
+		ServerSetUseDevFlag(bUseDevFlag); 
+	
 }
+
+function bool UseDevFlag()
+{
+	return bUseDevFlag; //Rx_PlayerInput(PlayerInput).UseDevFlag;
+}
+
+reliable server function ServerSetUseDevFlag(bool bUse)
+{
+	bUseDevFlag = bUse;
+	if(Rx_Vehicle(Pawn) != none)
+		Rx_Vehicle(Pawn).UpdateDevFlare(self);
+}
+
+/********Setting Dev Flags Complete*********/
 
 function PlayHitMarkerSound(bool bIsHeadshot, float Damage)
 {
@@ -427,6 +560,33 @@ function OnEMPHit(Controller InstigatedByController, Actor EMPCausingActor, opti
 function OnEMPBleed(bool finish=false)
 {
 
+}
+
+exec function DumpAudioLog()
+{
+	local AudioDevice Audio;
+
+	Audio = class'Engine'.static.GetEngine().GetAudioDevice();
+
+	`log(`showvar(Audio.MaxChannels));
+	`log(`showvar(Audio.CommonAudioPoolSize));
+	//`log(Audio.CommonAudioPool);
+	`log(`showvar(Audio.CommonAudioPoolFreeBytes));
+	`log(`showvar(Audio.AudioComponents.length));
+	`log(`showvar(Audio.bGameWasTicking));
+	`log(`showvar(Audio.Listeners.length));
+	`log("Current tick:"@Audio.CurrentTick.A @ Audio.CurrentTick.B);
+	`log(`showvar(Audio.CurrentMode));
+	`log(`showvar(Audio.BaseSoundModeName));
+	//`log(Audio.SoundModeStartTime);
+	//`log(`showvar(Audio.SoundModeFadeInStartTime));
+	//`log(`showvar(Audio.SoundModeFadeInEndTime));
+	//`log(`showvar(Audio.SoundModeEndTime));
+	`log(`showvar(Audio.TestAudioComponent));
+	`log(`showvar(Audio.DebugState));
+	`log(`showvar(Audio.TransientMasterVolume));
+	`log(`showvar(Audio.LastUpdateTime));
+	`log(`showvar(Audio.bSoundSpawningEnabled));
 }
 
 function SetRadarVisibility(byte Visibility)
@@ -466,25 +626,34 @@ reliable client function GetConsole();
 function UpdateDiscordPresence(int InMaxPlayers) {
 	local int elapsedTime,currentPlayers;
 	local PlayerReplicationInfo aPRI;
+	local string ServerName;
+	local int MyTeamNum;
 
 	// Set MaxPlayers if provided
-	if (InMaxPlayers != 0) {
+	if (InMaxPlayers != 0)
 		MaxPlayers = InMaxPlayers;
-	}
 
 	// If the match has begun, include elapsed time
-	if (WorldInfo.GRI.bMatchHasBegun) {
+	if (WorldInfo.GRI.bMatchHasBegun)
 		elapsedTime = WorldInfo.GRI.ElapsedTime;
-	}
 
+	// Count players, only count bots if this is skirmish
 	ForEach WorldInfo.GRI.PRIArray(aPRI)
-		if(Rx_PRI(aPRI) != None && !aPRI.bBot) // Remove sentinels and bots from the player count
+		if (Rx_PRI(aPRI) != None && (WorldInfo.NetMode == NM_Standalone || !aPRI.bBot))
 			currentPlayers++;
 
-	if(WorldInfo.IsPlayInEditor())
-		`RxEngineObject.DllCore.UpdateDiscordRPC("Software Development Kit", WorldInfo.GetMapName(), currentPlayers, MaxPlayers, GetTeamNum(), elapsedTime, WorldInfo.GRI.RemainingTime);
+	if (WorldInfo.NetMode == NM_Standalone)
+		ServerName = "Skirmish";
 	else
-		`RxEngineObject.DllCore.UpdateDiscordRPC(WorldInfo.GRI.ServerName, WorldInfo.GetMapName(), currentPlayers, MaxPlayers, GetTeamNum(), elapsedTime, WorldInfo.GRI.RemainingTime);
+		ServerName = WorldInfo.GRI.ServerName;
+
+	MyTeamNum = GetTeamNum();
+
+	// for when DLL is updated
+	//if (MyTeamNum == 0 && (Left(WorldInfo.GetMapName(true), 2) == "BH"))
+	//	MyTeamNum = 2;
+
+	`RxEngineObject.DllCore.UpdateDiscordRPC(ServerName, WorldInfo.GetMapName(), currentPlayers, MaxPlayers, MyTeamNum, elapsedTime, WorldInfo.GRI.RemainingTime, 0, "");
 }
 
 reliable client function ClientUpdateDiscordPresence(int InMaxPlayers) {
@@ -504,6 +673,8 @@ simulated function PostBeginPlay()
 			WorldWeatherParticleSystem.SetIgnoreOwnerHidden(true);
 			SetTimer(0.5, true, nameof(CheckPrecipitationVolume));
 		}
+
+		LastSetFOV = OnFootDefaultFOV;
 	}
 
 	if(WorldInfo.NetMode != NM_Client)
@@ -521,6 +692,17 @@ simulated function PostBeginPlay()
 		Rx_PRI(PlayerReplicationInfo).ResetAFKTimer();
 	
 	UpdateDiscordPresence(0);
+}
+
+reliable client function ClientSetHUD(class<HUD> newHUDType)
+{
+	super.ClientSetHUD(newHUDType);
+
+	//	loading colors from Rx_HUD
+	GDIColor = Rx_HUD(myHUD).default.GDIColor;
+	NodColor = Rx_HUD(myHUD).default.NodColor;
+	NeutralColor = Rx_HUD(myHUD).default.NeutralColor;
+	HostColor = Rx_HUD(myHUD).default.HostColor;
 }
 
 //exec function FogDensity()
@@ -630,9 +812,9 @@ simulated function CheckTouchingCapturePoints()
 
 event KickWarning()
 {
-	if ( WorldInfo.TimeSeconds - LastKickWarningTime > 1 )
+	if (WorldInfo.TimeSeconds - LastKickWarningTime > 1)
 	{
-		ClientMessage("AFK WARNING - You are about to be kicked for being idle unless you show activity!");
+		Rx_BroadcastHandler(WorldInfo.Game.BroadcastHandler).BroadcastPM(self, self, "You are about to be kicked for being idle unless you show activity!", 'PM_AdminWarn');
 		LastKickWarningTime = WorldInfo.TimeSeconds;
 	}
 }
@@ -653,35 +835,110 @@ function CleanupPawn()
 	local Vehicle	DrivenVehicle;
 	local Pawn		Driver;
 
-	if(Vet_Menu != none)
-		{
-			DestroyOldVetMenu(); //Kill Vet menu on death
-		}
+	// Does this actually belong here?
+	if(Vet_Menu != none) {
+		DestroyOldVetMenu(); //Kill Vet menu on death
+	}
 	
-	if(Com_Menu != none)
-		{
-			DestroyOldComMenu(); //Kill Vet menu on death
-		}
-	
+	if(Com_Menu != none) {
+		DestroyOldComMenu(); //Kill Vet menu on death
+	}
+
 	// If its a vehicle, just destroy the driver, otherwise do the normal.
 	DrivenVehicle = Vehicle(Pawn);
 	if (DrivenVehicle != None)
 	{
 		Driver = DrivenVehicle.Driver;
-		DrivenVehicle.DriverLeave(TRUE); // Force the driver out of the car
-		if ( Driver != None )
-		{
+
+		if ( Rx_Pawn(Driver) != None ) {
+			// Delay vehicle exit & death if it's not Rx_Pawn
+			Rx_Pawn(Pawn).PawnOwnerLeft();
+		}
+		else if (Driver != None) {
+			// Insta exit & kill Pawn if it's not Rx_Pawn
+			DrivenVehicle.DriverLeave(TRUE);
 			Driver.Health = 0;
 			Driver.Died(None, class'DamageType', Driver.Location);
 		}
 	}
+	else if (Rx_Pawn(Pawn) != None) {
+		// Delay death for infantry
+		Rx_Pawn(Pawn).PawnOwnerLeft();
+	}
 	else if (Pawn != None)
 	{
+		// Insta-kill Pawn if it's not Rx_Pawn
 		Pawn.Health = 0;
 		Pawn.Died(None, class'DamageType', Pawn.Location);
 	}
 }
 
+reliable client function ClientRestart(Pawn NewPawn)
+{
+	local Rx_Vehicle V;
+
+	Super(UDKPlayerController).ClientRestart(NewPawn);
+	ServerPlayerPreferences(WeaponHandPreference, bAutoTaunt, bCenteredWeaponFire, AutoObjectivePreference, VehicleControlType);
+
+	if (NewPawn != None)
+	{
+		// FIXMESTEVE - do this by calling simulated function in Pawn (in base PlayerController version)
+		// apply vehicle FOV
+		V = Rx_Vehicle(NewPawn);
+		if (V == None && NewPawn.IsA('UTWeaponPawn'))
+		{
+			V = Rx_Vehicle(NewPawn.GetVehicleBase());
+		}
+		if (V != None)
+		{
+			V.UpdateFOV(DefaultFOV*0.2);
+			/*DefaultFOV = GetFOVAngle() * V.FOVMultiplier;
+			DesiredFOV = DefaultFOV;
+			FOVAngle = DesiredFOV;*/
+		}
+		else
+		{
+			FixFOV();
+		}
+		// if new pawn has empty weapon, autoswitch to new one
+		// (happens when switching from Redeemer remote control, for example)
+		if (NewPawn.Weapon != None && !NewPawn.Weapon.HasAnyAmmo())
+		{
+			SwitchToBestWeapon();
+		}
+	}
+	else
+	{
+		FixFOV();
+	}
+}
+
+exec function FOV(float F)
+{
+	LastSetFOV = FClamp(F, 40, 120);
+
+	if( (F >= 40.0) || (WorldInfo.NetMode==NM_Standalone) || PlayerReplicationInfo.bOnlySpectator )
+	{
+		OnFootDefaultFOV = FClamp(F, 40, 120);
+		FixFOV();
+		SaveConfig();
+	}
+}
+
+function FixFOV()
+{
+	if (OnFootDefaultFOV < 40)
+	{
+		OnFootDefaultFOV = 90.0;
+	}
+	OnFootDefaultFOV = FClamp(LastSetFOV, 40, 120);
+	FOVAngle = OnFootDefaultFOV;
+	DesiredFOV = OnFootDefaultFOV;
+	DefaultFOV = OnFootDefaultFOV;
+
+	if (Rx_Vehicle(Pawn) != None)
+		Rx_Vehicle(Pawn).UpdateFOV();
+}
 
 /** one1: Donations. */
 exec function DonateCredits(int playerID, float amount)
@@ -1096,7 +1353,7 @@ exec function SwitchWeapon(byte T)
 	}
 	else //&& Rx_Weapon(Pawn.Weapon).InventoryGroup != T
 	if(!Rx_PlayerInput(PlayerInput).bRadio1Pressed && !Rx_PlayerInput(PlayerInput).bRadio0Pressed ) {
-	super.SwitchWeapon(T);
+		super.SwitchWeapon(T);
 	}
 }
 
@@ -1446,10 +1703,60 @@ exec function StartSlashCommand() {
 	StartTyping("/");
 }
 
+exec function StartPMHostSay()
+{
+	if (myHUD != None)
+		Rx_HUD(myHUD).starthostprivatechat();
+}
+
+exec function PMHost(coerce string SayInput)
+{
+	if (WorldInfo.NetMode == NM_Client)
+		ServerPMHost(SayInput);
+}
+
+reliable server function ServerPMHost(string SayInput)
+{
+	if (isTimerActive('PMHostCooldown')) return;
+
+	SetTimer(2.5, false, 'PMHostCooldown');
+
+	`LogRx("CHAT"`s "PMToHost;" `s `PlayerLog(PlayerReplicationinfo) `s SayInput);
+	PMHostLoopback(SayInput);
+}
+
+reliable client function PMHostLoopback(string SayInput)
+{
+	local string S;
+	local string fMsg;
+
+	S = "Private to Host:"@SayInput;
+
+	if (myHUD == None) return;
+
+	LocalPlayer( Player ).ViewportClient.ViewportConsole.OutputText( S );
+
+	fMsg = "<font color='"$Rx_HUD(myHUD).HostColor$"'>"@ S @"</font>";
+	Rx_HUD(myHUD).PrivateChatMessageLog $= fMsg $ "\n";
+	Rx_HUD(myHUD).HudMovie.AddChatMessage(fMsg, S);
+}
+
+function PMHostCooldown()
+{
+
+}
+
 exec function PrivateSay(String Recipient, String Message)
 {
 	local PlayerReplicationInfo PRI;
 	local string error;
+
+	if (Recipient ~= "Host")
+	{
+		ServerPMHost(Message);
+		return;
+	}
+
 	PRI = ParsePlayer(Recipient, error);
 	if (PRI != None)
 		PrivateMessage(PRI.PlayerID, Message);
@@ -1987,6 +2294,8 @@ event InitInputSystem()
 	super.InitInputSystem();
 	SetOurCameraMode(camMode);
 	
+	if(Rx_PlayerInput(PlayerInput) != none)
+		SetInitialUseDevFlag(Rx_PlayerInput(PlayerInput).UseDevFlag);
 	
 }
 
@@ -2083,6 +2392,28 @@ state PlayerClimbing
 
 state PlayerWalking
 {
+	
+	event bool NotifyLanded(vector HitNormal, Actor FloorActor)
+	{
+		//`log("Notify Landed");
+		if (DoubleClickDir == DCLICK_Active)
+		{
+			DoubleClickDir = DCLICK_Done;
+			ClearDoubleClick();
+		}
+		else
+		{
+			DoubleClickDir = DCLICK_None;
+		}
+
+		if (Global.NotifyLanded(HitNormal, FloorActor))
+		{
+			return true;
+		}
+
+		return false;
+	}
+	
 	exec function StartFire( optional byte FireModeNum )
 	{
 		LogStartFire();
@@ -2178,8 +2509,7 @@ state PlayerWalking
 			{
 				Super.ProcessMove(DeltaTime,NewAccel,DCLICK_None,DeltaRot);
 				bDodgePressed = false; 
-			}
-				
+			}				
 		}
 	}	
 	
@@ -2199,17 +2529,18 @@ state PlayerWalking
 		else
 		{
 			GetAxes(Pawn.Rotation,X,Y,Z);
-
+			
 			// Update acceleration.
 			NewAccel = PlayerInput.aForward*X + PlayerInput.aStrafe*Y;
-			NewAccel.Z	= 0;
-			NewAccel = Pawn.AccelRate * Normal(NewAccel);
-
+			NewAccel.Z = 0;
+			
 			if (IsLocalPlayerController())
 			{
 				AdjustPlayerWalkingMoveAccel(NewAccel);
 			}
 			
+			NewAccel = Pawn.AccelRate * Normal(NewAccel);
+
 			DoubleClickMove = CheckForOneClickDodge();
 			
 			if(DoubleClickMove == DCLICK_None)
@@ -2249,6 +2580,16 @@ state PlayerWalking
 			
 		}
 	}
+	
+	
+	function AdjustPlayerWalkingMoveAccel(out vector NewAccel)
+	{
+		if(ResidualVelocity != vect(0,0,0)){
+			NewAccel = NewAccel + (ResidualVelocity * Pawn.AccelRate);
+			ResidualVelocity = VSizeSq(ResidualVelocity) >= 100 ? ResidualVelocity*0.9 : vect(0,0,0); 
+		}			
+	}
+	
 }
 
 /******************** Driving *******************/
@@ -2365,7 +2706,7 @@ state Dead
 		{
 			Rx_HUD(myHUD).HudMovie.GameplayTipsText.SetString("htmlText", "");
 			Rx_HUD(myHUD).HudMovie.GameplayTipsText.SetVisible(false);
-		} 	
+		} 
 	}
 
 	/** one: added. */
@@ -2377,6 +2718,12 @@ state Dead
 		local rotator targetRot;
 
 		super.GetPlayerViewPoint(POVLocation, POVRotation);
+
+		if(ViewTarget == None && !IsSpectating())
+		{
+			POVLocation = LastDeadCamLoc;
+			return;
+		}
 
         if(LastHitLoc != vect(0,0,0))
         {
@@ -2403,6 +2750,8 @@ state Dead
 		if (a == none) HitLocation = off;
 
 		POVLocation = HitLocation - (0.1f * (HitLocation - POVLocation));
+
+		LastDeadCamLoc = POVLocation;
 	}
 
 	function FindGoodView()
@@ -2516,6 +2865,7 @@ state Dead
 		local UTWeaponLocker WL;
 		local UTWeaponPickupFactory WF;
 
+
 		if(Vet_Menu != none) 
 		{
 			DestroyOldVetMenu(); //Kill Vet menu on death 
@@ -2600,6 +2950,7 @@ state Dead
 		bUsePhysicsRotation = false;
 		Super.EndState(NextStateName);
 		SetBehindView(false);
+		LastHitLoc = vect(0,0,0);
 		StopViewShaking();
 		ClearTimer('DoForcedRespawn');
 	}
@@ -2891,6 +3242,8 @@ function ConfirmPawnSwitchFromSBHTimer()
 
 exec function FreeView(bool bEnabled)
 {
+	// disable for now
+	return;
 	// not usable in first person
 	if (bEnabled && UsingFirstPersonCamera())
 		return;
@@ -3478,7 +3831,7 @@ function BroadcastBuildingSpotMessages(Rx_Building Building)
 			if(Building.GetHealth() == Building.GetMaxHealth() || Rx_Building_Techbuilding(Building) != none) {
 				TextIndex = 37;
 			
-				if(Rx_Building_Refinery(Building) != None)
+				if(RxIfc_Refinery(Building) != None)
 					SoundIndex = 28;
 				else if(Rx_Building_PowerPlant(Building) != None)
 					SoundIndex = 29;
@@ -3551,7 +3904,7 @@ function BroadcastBuildingSpotMessages(Rx_Building Building)
 			TextIndex = 40; // Attack the {CONTEXT}!
 		}
 
-		if(Rx_Building_Refinery(Building) != None)
+		if(RxIfc_Refinery(Building) != None)
 			SoundIndex = 23;
 		else if(Rx_Building_PowerPlant(Building) != None)
 			SoundIndex = 24;
@@ -3626,57 +3979,8 @@ function BroadcastEnemySpotMessages()
 			continue;	
 		if(Rx_Vehicle(SpotTarget) != None && Rx_Vehicle_Harvester(SpotTarget) == None)
 		{
-//			NumVehicles++;
-			
 			//Tell the spot target to activate its controller and set its visibility 
 			Rx_Vehicle(SpotTarget).SetSpotted(10.0);
-/*			
-			if(Rx_Vehicle_Humvee(SpotTarget) != None) {
-				SpottedVehicles[0]++;
-			} else if(Rx_Vehicle_APC_GDI(SpotTarget) != None) {
-				SpottedVehicles[1]++;
-			} else if(Rx_Vehicle_MRLS(SpotTarget) != None) {
-				SpottedVehicles[2]++;
-			} else if(Rx_Vehicle_MediumTank(SpotTarget) != None) {
-				SpottedVehicles[3]++;
-			} else if(Rx_Vehicle_MammothTank(SpotTarget) != None) {
-				SpottedVehicles[4]++;
-			} else if(Rx_Vehicle_Chinook_GDI(SpotTarget) != None) {
-				SpottedVehicles[5]++;
-			} else if(Rx_Vehicle_Orca(SpotTarget) != None) {
-				SpottedVehicles[6]++;
-			} else if(Rx_Vehicle_Buggy(SpotTarget) != None) {
-				SpottedVehicles[7]++;
-			} else if(Rx_Vehicle_APC_Nod(SpotTarget) != None) {
-				SpottedVehicles[8]++;
-			} else if(Rx_Vehicle_Artillery(SpotTarget) != None) {
-				SpottedVehicles[9]++;
-			} else if(Rx_Vehicle_LightTank(SpotTarget) != None) {
-				SpottedVehicles[10]++;
-			} else if(Rx_Vehicle_FlameTank(SpotTarget) != None) {
-				SpottedVehicles[11]++;
-			} else if(Rx_Vehicle_StealthTank(SpotTarget) != None) {
-				SpottedVehicles[12]++;
-			} else if(Rx_Vehicle_Chinook_Nod(SpotTarget) != None) {
-				SpottedVehicles[13]++;
-			} else if(Rx_Vehicle_Apache(SpotTarget) != None) {
-				SpottedVehicles[14]++;
-			} else if(TS_Vehicle_Buggy(SpotTarget) != None) {
-				SpottedVehicles[15]++;
-			} else if(TS_Vehicle_ReconBike(SpotTarget) != None) {
-				SpottedVehicles[16]++;
-			} else if(TS_Vehicle_TickTank(SpotTarget) != None) {
-				SpottedVehicles[17]++;
-			} else if(TS_Vehicle_HoverMRLS(SpotTarget) != None) {
-				SpottedVehicles[18]++;
-			} else if(TS_Vehicle_Wolverine(SpotTarget) != None) {
-				SpottedVehicles[19]++;
-			} else if(TS_Vehicle_Titan(SpotTarget) != None) {
-				SpottedVehicles[20]++;
-			} else if(Rx_Vehicle_M2Bradley(SpotTarget) != None) {
-				SpottedVehicles[21]++;
-			}
-*/
 
 			if(SpottedList.length <= 0)
 			{
@@ -4507,6 +4811,9 @@ exec function ToggleCam()
 	local vector ViewLocationTemp;
 	local rotator ViewRotationTemp;	
 	local float fov;
+
+	if(Rx_Pawn(Pawn) != None && Rx_Pawn(Pawn).bDoingDodge)
+		return;
 	
 	LocationLookedAtBeforeSwitch = LookedAtLocation();
 	vehicle = Rx_Vehicle(Pawn);
@@ -4551,7 +4858,6 @@ function SetOurCameraMode(CameraMode newCameraMode) {
 	}
 	ResetRepGunEmitters();
 }
-
 
 function Vector LookedAtLocation()
 {
@@ -4689,19 +4995,6 @@ simulated function UTWeapon GetWeapon(int Direction)
 	return None;	
 }
 
-function FixFOV()
-{
-	//`log('---RUN FIX FOV---');
-	if ( OnFootDefaultFOV < 40 )
-	{
-		OnFootDefaultFOV = 80.0;
-	}
-	OnFootDefaultFOV = FClamp(OnFootDefaultFOV, 40, 120);
-	FOVAngle = OnFootDefaultFOV;
-	DesiredFOV = OnFootDefaultFOV;
-	DefaultFOV = OnFootDefaultFOV;
-}
-
 // Conduit to access the purchase system server side
 reliable server function ServerPurchaseCharacter(class<Rx_FamilyInfo> CharacterClass, Rx_BuildingAttachment_PT PT)
 {
@@ -4818,7 +5111,7 @@ function SetPlayerCommandSpotted( int playerID , optional bool bIsScriptedBot)
 
 reliable server function ServerSetPlayerCommandSpotted(int playerID , optional bool bIsScriptedBot) //Use Defence_ID for RX_Defences, since they don't have player IDs
 {
-		local int i;
+	local int i;
 
 	//loginternal("server Command spotted"$playerID);
 	
@@ -4959,6 +5252,7 @@ unreliable client function ClientPlayTakeHit(vector HitLoc, byte Damage, class<D
 	DamageShake(Damage, DamageType);
 	
 	HitLoc += Pawn.Location;
+
 	if(class<Rx_DmgType_Explosive>(damageType) == None && VSize(Pawn.location - HitLoc) > 500)
 	    LastHitLoc = HitLoc;
 	else
@@ -4970,6 +5264,19 @@ unreliable client function ClientPlayTakeHit(vector HitLoc, byte Damage, class<D
 	}
 }
 
+//Heals [Requires a lot less information ]
+function NotifyTakeHeals(int HealAmount, class<DamageType> damageType)
+{
+	ClientPlayGetHeals(HealAmount, damageType);
+}
+
+unreliable client function ClientPlayGetHeals(int HealAmount, class<DamageType> damageType)
+{
+	if ( Rx_Hud(MyHUD) != None )
+	{
+		Rx_Hud(MyHUD).DisplayHeals(HealAmount, DamageType);
+	}
+}
 
 function InitDamagePPC()
 {
@@ -5130,18 +5437,22 @@ function bool ValidPTUse(Rx_BuildingAttachment_PT PT)
 
 exec function Use()
 {
+	local Rx_HackableInterface hackable;
+
+	bUseKey = true;
+
 	//Inject for E / May make this more customizable. 
 	if(IsCommanderMenuEnabled() && Com_Menu.MenuTab != none && Com_Menu.MenuTab.bQCast)
-		{
-			Com_Menu.MenuTab.PerformEFunction(); 
-			return; 
-		}
-		else
-		if(IsCommanderMenuEnabled()) 
-		{
-			Com_Menu.CancelSelection();	
-			return; 
-		}
+	{
+		Com_Menu.MenuTab.PerformEFunction(); 
+		return; 
+	}
+	
+	if(IsCommanderMenuEnabled()) 
+	{
+		Com_Menu.CancelSelection();	
+		return; 
+	}
 		
 	if(IsVoteMenuEnabled()) 
 	{
@@ -5150,24 +5461,58 @@ exec function Use()
 	}
 	
 	if (AttemptOpenPT())
-		return;
-	else
 	{
-		if(Rx_Vehicle(Pawn) != none)
-			Rx_vehicle(Pawn).StopSprinting();
-		super.Use();
+		return;
 	}
-		
+
+	if (Rx_BuildingAttachment_MCT(Rx_HUD(myHUD).WeaponAimingActor) != None)
+	{
+		ContributeToRevivePool(Rx_BuildingAttachment_MCT(Rx_HUD(myHUD).WeaponAimingActor));
+	}
+	else if(Rx_Vehicle(Pawn) != none) 
+	{
+		Rx_vehicle(Pawn).StopSprinting();
+	}
+
+	hackable = Rx_HackableInterface(Rx_HUD(myHUD).ScreenCentreActor);
+	if (hackable != None) {
+		hackable.hack();
+	}
+
+	super.Use();
+}
+
+exec function UnUse()
+{
+	bUseKey = false;
+	ServerUnUse();
+}
+
+function bool IsUsePressed() 
+{
+	return bUseKey;
+}
+
+reliable server private function ContributeToRevivePool(Rx_BuildingAttachment_MCT MCT)
+{
+	local int ToAdd;
+
+	if (MCT.OwnerBuilding == None) return;
+
+	if (MCT.OwnerBuilding.CanContributeToRevivePool(self))
+	{
+		ToAdd = BuildingReviveCreditAmount;
+
+		// Never send more than necessary to complete revive
+		ToAdd = Min(MCT.OwnerBuilding.GetRemainingCreditsForRevive(), ToAdd);
+
+		MCT.OwnerBuilding.AddCreditsToRevivePool(self, ToAdd);
+	}
 }
 
 function SellDefTimer()
 {
 	SellThisDefence();
-}
-
-exec function UnUse()
-{
-	ServerUnUse();
 }
 
 reliable server function ServerUnUse()
@@ -5193,13 +5538,14 @@ function bool SellThisDefence() // Sell the building, not just defense. This is 
 	if(ActorToSell == None || !IsTargetSellable(ActorToSell))
 		return false;
 
-	Rx_PRI(PlayerReplicationInfo).AttemptToSell(Rx_Defence(Rx_HUD(myHUD).TargetingBox.TargetedActor));
+	Rx_PRI(PlayerReplicationInfo).AttemptToSell(Rx_Defence(Rx_HUD(myHUD).TargetingBox.TargetedActor.GetActualTarget()));
 	return true;
 }
 
 exec function SellBuilding()
 {
-	ServerSellBuilding(Rx_HUD(myHUD).TargetingBox.TargetedActor);
+	if(Rx_HUD(myHUD).TargetingBox.TargetedActor.GetActualTarget() != None)
+		ServerSellBuilding(Rx_HUD(myHUD).TargetingBox.TargetedActor.GetActualTarget());
 }
 
 unreliable server function ServerSellBuilding(Actor SoldActor)
@@ -5484,7 +5830,7 @@ unreliable server function BroadCastSpotMessage(int SoundIndex, int TextIndex, S
 	
 	// Disallow "Enemy spotted!" spam if we just played it
 	if(SoundIndex == 9 && bBroadcastSound) {
-		bBroadcastSound = false;
+		bCanPlayEnemySpotted = false;
 		SetTimer(EnemySpotSndCooldown, false, 'ResetEnemySpottedCooldown');
 	}
 }
@@ -5820,7 +6166,7 @@ reliable server function ServerRTC()
 
 	else
 	{
-		if ( (PlayerReplicationInfo.Team == None) || (PlayerReplicationInfo.Team.TeamIndex == 1) )
+		if ((PlayerReplicationInfo.Team == None) || (PlayerReplicationInfo.Team.TeamIndex == 1) )
 		{
 			ServerChangeTeam(0);
 		}
@@ -5888,29 +6234,62 @@ reliable server function ServerChangeTeam(int NewTeam)
 	}	
 }
 
+function int TimeSinceCommander() {
+	if (bPlayerIsCommander()) {
+		return 0;
+	}
+
+	return WorldInfo.TimeSeconds - Rx_PRI(PlayerReplicationInfo).LastCommanderTime;
+}
+
+function bool WasPreviouslyCommander() {
+	return Rx_PRI(PlayerReplicationInfo).LastCommanderTime != 0;
+}
+
 function bool IsTeamChangeEnabled()
 {
-	local Rx_Game RxG; 
+	local Rx_Game RxG;
+	local int CommanderTeamLockTime;
 	
 	RxG = Rx_Game(WorldInfo.Game);
+	CommanderTeamLockTime = RxG.CommanderTeamLockTime;
 	
-	if(!WorldInfo.GRI.bMatchHasBegun)
-	{
+	if (!WorldInfo.GRI.bMatchHasBegun) {
 		CTextMessage("Can not switch teams during warm-up"); 
 		return false; 	
 	}
-	else
-		if(RxG.TeamHasSurrendered()) 
-		{
-			CTextMessage("Teams Are Locked After Surrender"); 
-			return false; 	
+
+	if (RxG.NumPlayers <= 1) {
+		// Allow more lenient switching when this is the only player
+		return true;
+	}
+
+	if (RxG.TeamHasSurrendered()) {
+		CTextMessage("Teams Are Locked After Surrender"); 
+		return false; 	
+	}
+
+	if (bPlayerIsCommander()) {
+		CTextMessage("Cannot change teams while commander"); 
+		return false; 	
+	}
+
+	if (WasPreviouslyCommander()) {
+		if (CommanderTeamLockTime == 0) {
+			CTextMessage("Team changing for former commanders is disabled"); 
+			return false;
 		}
-	else
-		if(RxG.RTCDisabled())
-		{
-			CTextMessage("Team Change Unlocks In" @ RxG.GetRTCDisabledTimeString()); 
-			return false; 	
+
+		if (TimeSinceCommander() < CommanderTeamLockTime) {
+			CTextMessage("Team change unlocks in" @ (CommanderTeamLockTime - TimeSinceCommander())); 
+			return false;
 		}
+	}
+
+	if (RxG.RTCDisabled()) {
+		CTextMessage("Team Change Unlocks In" @ RxG.GetRTCDisabledTimeString()); 
+		return false; 	
+	}
 		
 	return true; 
 }
@@ -5985,24 +6364,37 @@ simulated event GetPlayerViewPoint( out vector POVLocation, out Rotator POVRotat
 	local vector CalcViewLocationTemp;
 	local rotator CalcViewRotationTemp;
 	
-	if(bIsInPurchaseTerminal) {
-		if(ptPlayerCamera == None || (!bIsInPurchaseTerminalVehicleSection && ptPlayerCamera.bVehicleCam) || ptPlayerCamera.TeamNum != GetTeamNum()) {
-			foreach AllActors(class'Rx_CameraActor', ptPlayerCamera) {
-				if(ptPlayerCamera.TeamNum == GetTeamNum() && !ptPlayerCamera.bVehicleCam) {
+	if(myHUD != None && !Rx_HUD(myHUD).SystemSettingsHandler.bDisablePTScene && bIsInPurchaseTerminal) 
+	{
+		if(ptPlayerCamera == None || (!bIsInPurchaseTerminalVehicleSection && ptPlayerCamera.bVehicleCam) || ptPlayerCamera.TeamNum != GetTeamNum()) 
+		{
+			foreach AllActors(class'Rx_CameraActor', ptPlayerCamera) 
+			{
+				if(ptPlayerCamera.TeamNum == GetTeamNum() && !ptPlayerCamera.bVehicleCam) 
+				{
 					break;
 				}	
 			}
-		} else if(ptPlayerCamera != None && !ptPlayerCamera.bVehicleCam && bIsInPurchaseTerminalVehicleSection) {
-			foreach AllActors(class'Rx_CameraActor', ptPlayerCamera) {
-				if(ptPlayerCamera.TeamNum == GetTeamNum() && ptPlayerCamera.bVehicleCam) {
+		} 
+		else if(ptPlayerCamera != None && !ptPlayerCamera.bVehicleCam && bIsInPurchaseTerminalVehicleSection) 
+		{
+			foreach AllActors(class'Rx_CameraActor', ptPlayerCamera) 
+			{
+				if(ptPlayerCamera.TeamNum == GetTeamNum() && ptPlayerCamera.bVehicleCam) 
+				{
 					break;
 				}	
 			}	
 		}
+	} 
+	if(myHUD != None && !Rx_HUD(myHUD).SystemSettingsHandler.bDisablePTScene && bIsInPurchaseTerminal && ptPlayerCamera != None && ptPlayerCamera.TeamNum == GetTeamNum())
+	{
 		POVLocation = ptPlayerCamera.location;
 		POVRotation = ptPlayerCamera.rotation;
 		SetFOV(ptPlayerCamera.FOVAngle);
-	} else {
+	}
+	else 
+	{
 		if(ptPlayerCamera != None) {
 			ptPlayerCamera = None;
 			ResetFOV();
@@ -6120,13 +6512,15 @@ function CheckPrecipitationVolume()
 
 	if (WorldWeatherParticleSystem == None) return;
 
-	ForEach Pawn.TouchingActors(class'Rx_Volume_DisableWeatherParticles', V)
+	if (Pawn != None)
 	{
-		WorldWeatherParticleSystem.SetActive(false);
+		ForEach Pawn.TouchingActors(class'Rx_Volume_DisableWeatherParticles', V)
+		{
+			WorldWeatherParticleSystem.SetActive(false);
 
-		return;
+			return;
+		}
 	}
-
 	WorldWeatherParticleSystem.SetActive(true);
 }
 
@@ -6175,10 +6569,10 @@ reliable client function ClientResetVignette()
 function PawnDied(Pawn P)
 {
 	if(Vet_Menu != none) 
-		{
+	{
 		DestroyOldVetMenu(); //Kill Vet menu on death
 		//`log("Kill VP Menu in Pawn Died") ;
-		}
+	}
 		
 	if(Com_Menu != none)
 	{
@@ -6229,6 +6623,7 @@ reliable client simulated function ClientPawnDied()
 		Rx_Hud(myHUD).ClearPlayAreaAnnouncement();
 		Rx_HUD(myHUD).CloseOverviewMap();
 		Rx_HUD(myHUD).ClearCapturePoint();
+		Rx_HUD(myHUD).ResetVignette();
 	}
 		
 	super.ClientPawnDied();
@@ -6367,11 +6762,14 @@ function AdjustFOV(float DeltaTime)
 		//	Rx_Weapon_Airstrike(Rx_Pawn(Pawn).Weapon).SetFOV(self, DeltaTime);
 
 		weap = Rx_Weapon(Rx_Pawn(Pawn).weapon);
-		if(weap != None && weap.IsTimerActive('MoveWeaponToIronSight')) {
+		if(weap != None && weap.IsTimerActive('MoveWeaponToIronSight')) 
+		{
 			v = weap.IronSightViewOffset - weap.PlayerViewOffset;
-			if(weap.PlayerViewOffset.y >= weap.IronSightViewOffset.y) {
-				weap.PlayerViewOffset = weap.PlayerViewOffset + Normal(v)*100.0*DeltaTime;
-				if(weap.PlayerViewOffset.y < weap.IronSightViewOffset.y) {
+			if(weap.PlayerViewOffset.y >= weap.IronSightViewOffset.y) 
+			{
+				weap.PlayerViewOffset = weap.PlayerViewOffset + Normal(v)*weap.AimRate*DeltaTime;
+				if(weap.PlayerViewOffset.y <= weap.IronSightViewOffset.y) 
+				{
 					weap.PlayerViewOffset = weap.IronSightViewOffset;
 					
 					weap.ClearTimer('MoveWeaponToIronSight');
@@ -6388,12 +6786,15 @@ function AdjustFOV(float DeltaTime)
 				WeaponFOVAngle = FInterpConstantTo(UDKSkeletalMeshComponent(weap.Mesh).FOV, weap.ZoomedWeaponFov, DeltaTime, 200.0);
 				UDKSkeletalMeshComponent(weap.Mesh).setFov(WeaponFOVAngle);	
 				UTPawn(pawn).ArmsMesh[0].setFov(WeaponFOVAngle);
+				Rx_Pawn(pawn).ArmsOverlayMesh[0].setFov(WeaponFOVAngle);
 			}
-		} else if(weap != None && weap.IsTimerActive('MoveWeaponOutOfIronSight')) {
+		} 
+		else if(weap != None && weap.IsTimerActive('MoveWeaponOutOfIronSight')) 
+		{
 			v = weap.NormalViewOffset - weap.PlayerViewOffset;
 			if(weap.PlayerViewOffset.y <= weap.NormalViewOffset.y) {
-				weap.PlayerViewOffset = weap.PlayerViewOffset + Normal(v)*100.0*DeltaTime;
-				if(weap.PlayerViewOffset.y > weap.NormalViewOffset.y) {
+				weap.PlayerViewOffset = weap.PlayerViewOffset + Normal(v)*weap.AimRate*DeltaTime;
+				if(weap.PlayerViewOffset.y >= weap.NormalViewOffset.y) {
 					weap.ClearTimer('MoveWeaponOutOfIronSight');		
 					weap.PlayerViewOffset = weap.NormalViewOffset;
 					
@@ -6404,10 +6805,12 @@ function AdjustFOV(float DeltaTime)
 					}
 				}
 			}	
-			if(UDKSkeletalMeshComponent(weap.Mesh).FOV < UDKSkeletalMeshComponent(weap.Mesh).default.FOV) { 
+			if(UDKSkeletalMeshComponent(weap.Mesh).FOV < UDKSkeletalMeshComponent(weap.Mesh).default.FOV) 
+			{ 
 				WeaponFOVAngle = FInterpConstantTo(UDKSkeletalMeshComponent(weap.Mesh).FOV, UDKSkeletalMeshComponent(weap.Mesh).default.FOV, DeltaTime, 200.0);
 				UDKSkeletalMeshComponent(weap.Mesh).setFov(WeaponFOVAngle);	
 				UTPawn(pawn).ArmsMesh[0].setFov(WeaponFOVAngle);
+				Rx_Pawn(pawn).ArmsOverlayMesh[0].setFov(WeaponFOVAngle);
 			}
 		} 
 		
@@ -6663,6 +7066,9 @@ reliable server function ServerSetNetSpeed(int NewSpeed)
 
 function ServerMoveHandleClientError(float TimeStamp, vector Accel, vector ClientLoc)
 {
+	if(Pawn == none)
+		return; 
+		
 	super(PlayerController).ServerMoveHandleClientError(TimeStamp,Accel,ClientLoc);
 	if(PendingAdjustment.bAckGoodMove == 0 && WorldInfo.TimeSeconds == LastUpdateTime)
 	{
@@ -6678,8 +7084,9 @@ function ServerMoveHandleClientError(float TimeStamp, vector Accel, vector Clien
 
 function CheckClientpositionUpdates()
 {
-	if(LastClientpositionUpdates > 8 && VSize(Pawn.Location - ClientLocTemp) > 150 && ClientLocErrorDuration >= 2.0)
-	{	
+	if(LastClientpositionUpdates > 8 && VSizeSq(Pawn.Location - ClientLocTemp) > 22500 && ClientLocErrorDuration >= 2.0)
+	{
+		`log(VSize(Pawn.Location - ClientLocTemp));
 		Pawn.TakeDamage(15, none, Pawn.Location, vect(0,0,1), class'UTDmgType_LinkBeam');
 	}
 	else if(LastClientpositionUpdates > 8 && VSizeSq(Pawn.Location - ClientLocTemp) > 22500)
@@ -6764,6 +7171,103 @@ reliable client function ClearPlayAreaAnnouncementClient()
 {
 	if(Rx_Hud(myHUD) != None)
 		Rx_Hud(myHUD).ClearPlayAreaAnnouncement();
+}
+
+/* ServerMove()
+- replicated function sent by client to server - contains client movement and firing info.
+*/
+unreliable server function ServerMove(float TimeStamp, vector InAccel, vector ClientLoc, byte MoveFlags, byte ClientRoll, int View)
+{
+	local float DeltaTime;
+	local rotator DeltaRot, Rot, ViewRot;
+	local vector Accel;
+	local int maxPitch, ViewPitch, ViewYaw;
+
+	// If this move is outdated, discard it.
+	if( CurrentTimeStamp >= TimeStamp )
+	{
+		return;
+	}
+
+	if( AcknowledgedPawn != Pawn )
+	{
+		InAccel = vect(0,0,0);
+		GivePawn(Pawn);
+	}
+
+	// View components
+	ViewPitch	= (View & 65535);
+	ViewYaw		= (View >> 16);
+
+	// Acceleration was scaled by 10x for replication, to keep more precision since vectors are rounded for replication
+	Accel = InAccel * 0.1;
+	// Save move parameters.
+	DeltaTime = GetServerMoveDeltaTime(TimeStamp);
+
+	CurrentTimeStamp = TimeStamp;
+	ServerTimeStamp = WorldInfo.TimeSeconds;
+	ViewRot.Pitch = ViewPitch;
+	ViewRot.Yaw = ViewYaw;
+	ViewRot.Roll = 0;
+	
+	/*Inject to tell movement passives on server what DeltaTime to use for pawn movement*/
+	if(RxIfc_PassiveAbility(Pawn) != none)
+		RxIfc_PassiveAbility(Pawn).NotifyPassivesServerMove(DeltaTime);//Used for passives that need to update movement on the server 
+	
+	if( InAccel != vect(0,0,0) )
+	{
+		LastActiveTime = WorldInfo.TimeSeconds;
+	}
+
+	SetRotation(ViewRot);
+
+	if( AcknowledgedPawn != Pawn )
+	{
+		return;
+	}
+
+	if( Pawn != None )
+	{
+		Rot.Roll	= 256 * ClientRoll;
+		Rot.Yaw		= ViewYaw;
+		if( (Pawn.Physics == PHYS_Swimming) || (Pawn.Physics == PHYS_Flying) )
+		{
+			maxPitch = 2;
+		}
+		else
+		{
+			maxPitch = 0;
+		}
+
+		if( (ViewPitch > maxPitch * Pawn.MaxPitchLimit) && (ViewPitch < 65536 - maxPitch * Pawn.MaxPitchLimit) )
+		{
+			if( ViewPitch < 32768 )
+			{
+				Rot.Pitch = maxPitch * Pawn.MaxPitchLimit;
+			}
+			else
+			{
+				Rot.Pitch = 65536 - maxPitch * Pawn.MaxPitchLimit;
+			}
+		}
+		else
+		{
+			Rot.Pitch = ViewPitch;
+		}
+		DeltaRot = (Rotation - Rot);
+		Pawn.FaceRotation(Rot, DeltaTime);
+	}
+
+	// Perform actual movement
+	if( (WorldInfo.Pauser == None) && (DeltaTime > 0) )
+	{
+		MoveAutonomous(DeltaTime, MoveFlags, Accel, DeltaRot);
+	}
+	
+	/**if(Pawn.Physics == PHYS_CUSTOM)
+		`log("Client Err" @ "L:" $ VSize(Pawn.location - ClientLoc) @"A:" $ Pawn.Acceleration.Z @ "V:" $ Pawn.Velocity.Z);*/
+	ServerMoveHandleClientError(TimeStamp, Accel, ClientLoc);
+	//`log("Server moved stamp "$TimeStamp$" location "$Pawn.Location$" Acceleration "$Pawn.Acceleration$" Velocity "$Pawn.Velocity);
 }
 
 // Copied from PlayerController to change log type to LogRx
@@ -6865,8 +7369,9 @@ function SetRank(int in_rank)
 	`LogRx("PLAYER" `s "Rank;" `s `PlayerLog(PlayerReplicationInfo) `s string(in_rank));
 }
 
-/** Dev Commands */
 
+
+/** Dev Skin Commands */
 final exec function FutureSoldier()
 {
 	if (Pawn != None && Vehicle(Pawn) == None)
@@ -6907,6 +7412,8 @@ final reliable client function FutureSoldierClient(Pawn P, SkeletalMesh skel)
 {
 	P.Mesh.SetSkeletalMesh(skel);
 }
+
+/** Dev Commands */
 
 final exec function ReconnectDevBot()
 {
@@ -7088,6 +7595,10 @@ reliable server function SendRconOutCommand(string Command)
 
 reliable client function PlayKillSound()
 {
+	local SoundCue CustomSound;
+
+	CustomSound = SoundCue(DynamicLoadObject(CustomKillsound, class'SoundCue'));
+
 	//play kill sound based on settings (nBab)
 	switch (Rx_HUD(myHUD).SystemSettingsHandler.GetKillSound())
 	{
@@ -7124,6 +7635,9 @@ reliable client function PlayKillSound()
 		case 10:
 			ClientPlaySound(SoundCue'RX_SoundEffects.Kill_Sounds.S_Goat_Cue');
 			break;
+		case 11:
+			if (CustomSound != None)
+				ClientPlaySound(CustomSound);
 		default:
 			//no sound
 			break;
@@ -7393,11 +7907,56 @@ simulated function bool bPlayerIsCommander()
 }
 */
 
-exec function ToggleAbility(optional byte AbilityNumber = 0) 
-{	
-	if(Pawn != none && Rx_Weapon(Pawn.weapon).AttachedWeaponAbility != none) 
+exec function ToggleAbility(optional bool bReleased = false) 
+{
+	local RxIfc_PassiveAbility PassivesPawn; 
+	local byte AbilityNumber; 
+	
+	if(Pawn == none || Pawn.Weapon == none || Vehicle(Pawn) != None)
+		return;
+	else
+	{		
+		//Check for passive abilities tied to Ability 1
+		
+		AbilityNumber = 0; 
+		
+		if(RxIfc_PassiveAbility(Pawn) != none)
+			PassivesPawn = RxIfc_PassiveAbility(Pawn);
+		
+		if(PassivesPawn != none)
+		{
+			PassivesPawn.ActivateAbility0(!bReleased);
+		}
+
+		//Check for active abilities on weapons second 
+		if(Rx_Weapon(Pawn.weapon).AttachedWeaponAbility != none)
+		{
 			AbilityNumber = Rx_Weapon(Pawn.weapon).AttachedWeaponAbility.AssignedSlot;
-	Rx_InventoryManager(Pawn.InvManager).ClientSwitchToWeaponAbility(AbilityNumber) ; 
+		}
+		
+		if (!bReleased)		
+			Rx_InventoryManager(Pawn.InvManager).ClientSwitchToWeaponAbility(AbilityNumber) ; //Last call. If nothing changed, just look for regular abilities like grenades
+	}	
+	
+}
+
+exec function ToggleAltAbility(optional bool bReleased = false)
+{
+	local RxIfc_PassiveAbility PassivesPawn; 
+	
+	if(Pawn == none || Pawn.Weapon == none || Vehicle(Pawn) != None)
+		return;
+	else
+	{		
+		//Check for passive abilities tied to Ability 2
+		if(RxIfc_PassiveAbility(Pawn) != none)
+			PassivesPawn = RxIfc_PassiveAbility(Pawn);
+		
+		if(PassivesPawn != none)
+		{
+			PassivesPawn.ActivateAbility1(!bReleased);
+		}
+	}	
 } 
 
 /***************************************
@@ -7942,7 +8501,7 @@ exec function BumpGrenadeMC(int B)
 
 /**Set modifiers**/
 
-function AddActiveModifier(class<Rx_StatModifierInfo> Info)//class<Rx_StatModifierInfo> Info) 
+function AddActiveModifier(class<Rx_StatModifierInfo> Info, optional Controller Source = none)//class<Rx_StatModifierInfo> Info) 
 {
 	local int FindI; 
 	local ActiveModifier TempModifier; 
@@ -7950,13 +8509,16 @@ function AddActiveModifier(class<Rx_StatModifierInfo> Info)//class<Rx_StatModifi
 	
 	//Info = class'Rx_StatModifierInfo_Nod_PTP';
 	
-	FindI = ActiveModifications.Find('ModInfo', Info);
-	
+	if(ActiveModifications.Length > 0)
+		FindI = ActiveModifications.Find('ModInfo', Info);
+	else
+		FindI = -1; 
 	//Do not allow stacking of the same modification. Instead, reset the end time of said modification
 	if(FindI != -1) 
 	{
 		//`log("Found in array");
-		ActiveModifications[FindI].EndTime = WorldInfo.TimeSeconds+Info.default.Mod_Length; 
+		ActiveModifications[FindI].EndTime = WorldInfo.TimeSeconds+Info.default.Mod_Length;
+		ActiveModifications[FindI].ModifierSource = Source; //Delete or update the modifier source
 		//return; 	
 	}
 	else //New modifier, so add it in and re-update modification numbers
@@ -7965,13 +8527,22 @@ function AddActiveModifier(class<Rx_StatModifierInfo> Info)//class<Rx_StatModifi
 		
 		//`log("Adding to array"); 
 		TempModifier.ModInfo = Info; 
-		if(Info.default.Mod_Length > 0) TempModifier.EndTime = WorldInfo.TimeSeconds+Info.default.Mod_Length;
+		if(Info.default.Mod_Length > 0) 
+			TempModifier.EndTime = WorldInfo.TimeSeconds+Info.default.Mod_Length;
 		else
-		TempModifier.Permanent = true; 
+			TempModifier.Permanent = true; 
+		
+		TempModifier.ModifierSource = Source; //Whether that be none or something
+		
 		ActiveModifications.AddItem(TempModifier);	
 	}
 	
 	UpdateModifiedStats();
+}
+
+function bool HasActiveModifier(class<Rx_StatModifierInfo> Info)
+{	
+	return ActiveModifications.Find('ModInfo', Info) != -1;
 }
 
 function UpdateModifiedStats()
@@ -7981,23 +8552,33 @@ function UpdateModifiedStats()
 	//local LinearColor	 PriorityColor; 
 	local bool			 bAffectsWeapon;
 	local class<Rx_StatModifierInfo> PriorityModClass; /*Highest priority modifier class (For deciding what overlay to use)*/
+	local Rx_Pawn RxP; 
+	local Rx_Vehicle RxV; 
 	
 	ClearAllModifications(); //start from scratch
 	HighestPriority = 255 ; // 255 for none
 	
+	if(Rx_Pawn(Pawn) != none)
+		RxP = Rx_Pawn(Pawn);
+	else if(Rx_Vehicle(Pawn) != none)
+		RxV = Rx_Vehicle(Pawn);
+		
+	
 	if(ActiveModifications.Length < 1) 
 	{
+		NotifySpecialVignette(none); //Remove any vignette effects if there are no modifiers  
+
 		if(Rx_Pawn(Pawn) != none) 
 		{
 			//In case speed was modified. Update animation info
-			Rx_Pawn(Pawn).SetSpeedUpgradeMod(0.0);
-			Rx_Pawn(Pawn).UpdateRunSpeedNode(); 
-			Rx_Pawn(Pawn).SetGroundSpeed();
-			Rx_Pawn(Pawn).ClearOverlay();
+			RxP.SetSpeedUpgradeMod(0.0);
+			RxP.UpdateRunSpeedNode(); 
+			RxP.SetGroundSpeed();
+			RxP.ClearOverlay();
 		}
-		else if(Rx_Vehicle(Pawn) != none)
+		else if(RxV != none)
 		{
-			Rx_Vehicle(Pawn).ClearOverlay();
+			RxV.ClearOverlay();
 		}
 		//TODO: Insert code to handle vehicles 
 		return; 	
@@ -8005,6 +8586,9 @@ function UpdateModifiedStats()
 	
 	foreach ActiveModifications(TempMod) //Build all buffs
 	{
+		if((!TempMod.ModInfo.default.bAffectInfantry && RxP != none) || (!TempMod.ModInfo.default.bAffectVehicles && RxV != none) )
+				continue; 
+		
 		Misc_SpeedModifier+=TempMod.ModInfo.default.SpeedModifier;	
 		Misc_DamageBoostMod+=TempMod.ModInfo.default.DamageBoostMod;	
 		Misc_RateOfFireMod-=TempMod.ModInfo.default.RateOfFireMod;
@@ -8020,27 +8604,47 @@ function UpdateModifiedStats()
 		}
 	}
 	
-	
-	if(Rx_Pawn(Pawn) != none) 
+	if(RxP != none) 
 	{
 		//In case speed was modified. Update animation info
-		Rx_Pawn(Pawn).SetSpeedUpgradeMod(Misc_SpeedModifier);
-		Rx_Pawn(Pawn).UpdateRunSpeedNode();
-		Rx_Pawn(Pawn).SetGroundSpeed();
-		Rx_Pawn(Pawn).SetOverlay(PriorityModClass, bAffectsWeapon) ; 
+		RxP.SetSpeedUpgradeMod(Misc_SpeedModifier);
+		RxP.UpdateRunSpeedNode();
+		RxP.SetGroundSpeed();
+		RxP.SetOverlay(PriorityModClass, bAffectsWeapon) ; 
 		
 		if(Rx_Weapon(Pawn.Weapon) != none) Rx_Weapon(Pawn.Weapon).SetROFChanged(true);	
 	}
-	else if(Rx_Vehicle(Pawn) != none) 
+	else if(RxV != none) 
 	{
 		//Misc_SpeedModifier+=1.0; //Add one to account for vehicles not operating like Rx_Pawn 
-		Rx_Vehicle(Pawn).UpdateThrottleAndTorqueVars();
-		Rx_Vehicle(Pawn).SetOverlay(PriorityModClass.default.EffectColor) ; 
+		RxV.UpdateThrottleAndTorqueVars();
+		RxV.SetOverlay(PriorityModClass.default.EffectColor) ; 
 		
 		if(Rx_Vehicle_Weapon(Pawn.Weapon) != none) Rx_Vehicle_Weapon(Pawn.Weapon).SetROFChanged(true);	
 	}
 	
-	ClientPlaySound(SoundCue'Rx_Pickups.Sounds.SC_Pickup_Health'); 
+	/*Specific to player controller*/
+	if(PriorityModClass.default.bUseVignette)
+	{
+		NotifySpecialVignette(PriorityModClass); 
+	}
+	else
+		NotifySpecialVignette(none); 
+	
+	if(Misc_RegenerationMod > 0.0)
+		SetTimer(0.1, true, 'ApplyModifierHealing');//Usually quick bursts of healing 
+	
+	ClientPlaySound(PriorityModClass.default.AcquisitionSound); 
+}
+
+function NotifySpecialVignette(class<Rx_StatModifierInfo> Info)
+{
+	ClientNotifySpecialVignette(Info); 
+}
+
+reliable client function ClientNotifySpecialVignette(class<Rx_StatModifierInfo> Info)
+{
+	Rx_HUD(MyHUD).NotifySpecialVignette(Info);
 }
 
 function ClearAllModifications()
@@ -8055,7 +8659,9 @@ function ClearAllModifications()
 
 	//Survivablity
 	Misc_DamageResistanceMod 	= default.Misc_DamageResistanceMod;
-	Misc_RegenerationMod 		= default.Misc_RegenerationMod; 	
+	Misc_RegenerationMod 		= default.Misc_RegenerationMod; 
+
+	ClearTimer('ApplyModifierHealing');
 }
 
 function RemoveAllEffects()
@@ -8086,6 +8692,21 @@ function CheckActiveModifiers()
 	}
 }
 
+function ApplyModifierHealing()
+{
+	local ActiveModifier TempMod;
+	
+	foreach ActiveModifications(TempMod) //Build all buffs
+	{
+		if(TempMod.ModInfo.default.RegenerationMod > 0.0)
+		{
+			if(Rx_Pawn(Pawn) != none && TempMod.ModInfo.default.bAffectInfantry)
+					Rx_Pawn(Pawn).HealDamage(TempMod.ModInfo.default.RegenerationMod, TempMod.ModifierSource, TempMod.ModInfo.default.DmgType); 
+			else if(Rx_Vehicle(Pawn) != none && TempMod.ModInfo.default.bAffectVehicles)
+				Rx_Vehicle(Pawn).HealDamage(TempMod.ModInfo.default.RegenerationMod, TempMod.ModifierSource, TempMod.ModInfo.default.DmgType); 
+		}
+	}		
+}
 
 state Spectating
 {
@@ -8093,6 +8714,11 @@ state Spectating
 	exec function ViewPlayerByName(string PlayerName)
 	{
 		ServerViewPlayerByName(PlayerName);
+	}
+
+	event bool IsSpectating()
+	{
+		return true;
 	}
 	
 	event BeginState(Name PreviousStateName)
@@ -8122,6 +8748,8 @@ state Spectating
 				TargetViewRotation = ViewTarget.Rotation;
 				TargetViewRotation.Pitch = Pawn(ViewTarget).RemoteViewPitch << 8;
 			}
+
+
 		}
 	}	
 	
@@ -8377,7 +9005,7 @@ function CheckJumpOrDuck()
 	
 	if(RxIfc_PassiveAbility(Pawn) != none)
 		PassivesPawn = RxIfc_PassiveAbility(Pawn);
-	if(PassivesPawn != none)
+	if(PassivesPawn != none && WorldInfo.NetMode != NM_DedicatedServer)
 	{
 		if(bPressedJump)
 		{
@@ -8389,16 +9017,7 @@ function CheckJumpOrDuck()
 			PassivesPawn.ActivateJumpAbility(false);
 		}	
 		
-		//Check for abilities tied to crouching 
-		if(bDuck !=0)
-		{
-			PassivesPawn.NotifyPassivesCrouched(true);
-		}
-			
-		if(bDuck == 1)
-		{
-			PassivesPawn.NotifyPassivesCrouched(false); 
-		}	
+		//Crouching/Duck passives are handled in Rx_PlayerInput
 	}
 	
 	
@@ -8483,6 +9102,18 @@ reliable server function ServerWarnPlayer(string Recipient, string Message) {
 	Rx_BroadcastHandler(WorldInfo.Game.BroadcastHandler).BroadcastPM(self, Rx_Controller(PRI.Owner), Message, 'PM_AdminWarn');
 }
 
+exec function PickupDeployedActor() 
+{
+	PickupDeployedActorServer(Rx_Weapon_DeployedActor(Rx_Hud(MyHUD).GetActorWeaponIsAimingAt()));
+}
+
+reliable server function PickupDeployedActorServer(Rx_Weapon_DeployedActor DeployedActor)
+{
+	if (DeployedActor == None) return;
+	
+	DeployedActor.Pickup(self);
+}
+
 /** Properties */
 
 /**
@@ -8510,13 +9141,224 @@ exec function SetPawnActorCollision(bool bCollide, bool bBlock, bool bAlwaysChec
 	}
 }
 
+simulated event Destroyed() {
+	Rx_PRI(PlayerReplicationInfo).OldTeamID = GetTeamNum();
+	Super.Destroyed();
+}
 
+reliable client function SetFailoverURL(string URL) {
+	local LocalPlayer LP;
+
+	LP = LocalPlayer(Player);
+	if (LP != None && Rx_GameViewportClient(LP.ViewportClient) != None) {
+		Rx_GameViewportClient(LP.ViewportClient).FailoverURL = URL;
+	}
+}
+
+function BTBWarn()
+{
+	
+}
+
+exec function BumpPawn(float Force)
+{
+	if(Pawn != none)
+	{
+		if(UTPawn(Pawn) != none)
+		{
+			Pawn.Velocity.X += Force; 
+			Pawn.Velocity.Y += Force; 
+			Pawn.Velocity.Z += Force; 
+			Pawn.SetPhysics(PHYS_Falling); 
+			
+			UTPawn(Pawn).ForceRagdoll();	
+		}
+	}
+}
+
+function SetForceClientSync(bool bForce)
+{
+	bForceClientSync = bForce; 
+}
+
+simulated function SetFlying(bool bPowered)
+{
+	local vector ResVelocity; 
+	
+	ResVelocity = Pawn.Velocity;
+	if(GetStateName() != 'PlayerFlying')
+		GotoState('PlayerFlying');
+	else
+	{
+		if(bPowered)
+		{
+			Pawn.SetPhysics(PHYS_Flying);
+		}
+	}
+	
+	Pawn.Velocity = ResVelocity;
+	//bPoweredFlight = bPowered; 
+	if(ROLE < ROLE_Authority)
+		ServerSetFlying(bPowered);
+}
+
+reliable server function ServerSetFlying(bool bPowered)
+{
+	//local vector ResVelocity; //Redacted, as it interferes with the general movement code
+	
+	if(GetStateName() != 'PlayerFlying')
+		GotoState('PlayerFlying');
+	else
+	{
+		if(bPowered && Pawn.Physics != PHYS_Flying)
+		{
+			Pawn.SetPhysics(PHYS_Flying);
+		}
+	}
+	
+	//Pawn.Velocity = ResVelocity;
+	
+	bPoweredFlight = bPowered; 
+}
+
+simulated function CancelFlight(vector ResVelocity)
+{
+	if(Pawn.Physics == PHYS_RIGIDBODY)
+		return; 
+	
+	Pawn.SetPhysics(PHYS_Falling);
+	
+	Pawn.Velocity = ResVelocity;
+	//bPoweredFlight = false; 
+	//`log("Res/Real" @ ResVelocity @ Pawn.Velocity);
+	if(ROLE < ROLE_Authority)
+		ServerCancelFlight(ResVelocity);
+}
+
+reliable server function ServerCancelFlight(vector ResVelocity)
+{
+	if(Pawn.Physics == PHYS_RIGIDBODY)
+		return; 
+	
+	Pawn.SetPhysics(PHYS_Falling);
+	Pawn.Velocity = ResVelocity;
+	//bPoweredFlight = false; 
+	/**if(GetStateName() != 'PlayerWalking')
+		GotoState('PlayerWalking');*/
+}
+
+/*Mostly set by phys flying*/
+simulated function DoHardLanding(vector ResVelocity, vector ResAcceleration)
+{
+	if(Pawn.Physics == PHYS_RIGIDBODY) //Only the client calcs this, as it's part of the move action (Server would double down on it)
+		return; 
+
+	if(WorldInfo.NetMode != NM_DedicatedServer){
+		ResidualAcceleration = ResAcceleration;
+		ResidualVelocity = ResVelocity * vect(10.0,10.0,0.0); //Cancel Z	
+	}
+		
+	if(GetStateName() != 'PlayerWalking')
+		GotoState('PlayerWalking');
+	
+	//`log("Hit ground with" @ ResVelocity @ ResAcceleration);
+}
+
+/* Called on server at end of tick when PendingAdjustment has been set.
+Done this way to avoid ever sending more than one ClientAdjustment per server tick.
+*/
+event SendClientAdjustment()
+{
+	if( AcknowledgedPawn != Pawn )
+	{
+		PendingAdjustment.TimeStamp = 0;
+		return;
+	}
+
+	if( PendingAdjustment.bAckGoodMove == 1 )
+	{
+		// just notify client this move was received
+		ClientAckGoodMove(PendingAdjustment.TimeStamp);
+	}
+	else if( (Pawn == None) || (Pawn.Physics != PHYS_Spider) )
+	{
+		if( PendingAdjustment.NewVel == vect(0,0,0) )
+		{
+			if (GetStateName() == 'PlayerWalking' && Pawn != None && Pawn.Physics == PHYS_Walking)
+			{
+				//`log("Send Client Adjustment Very Short:" @ PendingAdjustment.NewVel);
+				VeryShortClientAdjustPosition
+				(
+					PendingAdjustment.TimeStamp,
+					PendingAdjustment.NewLoc.X,
+					PendingAdjustment.NewLoc.Y,
+					PendingAdjustment.NewLoc.Z,
+					PendingAdjustment.NewBase
+				);
+			}
+			else
+			{
+				//`log("Send Client Adjustment Short:" @ PendingAdjustment.NewVel);
+				ShortClientAdjustPosition
+				(
+					PendingAdjustment.TimeStamp,
+					GetStateName(),
+					PendingAdjustment.newPhysics,
+					PendingAdjustment.NewLoc.X,
+					PendingAdjustment.NewLoc.Y,
+					PendingAdjustment.NewLoc.Z,
+					PendingAdjustment.NewBase
+				);
+			}
+		}
+		else
+		{
+			//`log("Send Client Adjustment Normal:");
+			ClientAdjustPosition
+			(
+				PendingAdjustment.TimeStamp,
+				GetStateName(),
+				PendingAdjustment.newPhysics,
+				PendingAdjustment.NewLoc.X,
+				PendingAdjustment.NewLoc.Y,
+				PendingAdjustment.NewLoc.Z,
+				PendingAdjustment.NewVel.X,
+				PendingAdjustment.NewVel.Y,
+				PendingAdjustment.NewVel.Z,
+				PendingAdjustment.NewBase
+			);
+		}
+    }
+	else
+	{
+		//`log("Send Client Adjustment LONG:" @ PendingAdjustment.NewVel);
+		LongClientAdjustPosition
+		(
+			PendingAdjustment.TimeStamp,
+			GetStateName(),
+			PendingAdjustment.newPhysics,
+			PendingAdjustment.NewLoc.X,
+			PendingAdjustment.NewLoc.Y,
+			PendingAdjustment.NewLoc.Z,
+			PendingAdjustment.NewVel.X,
+			PendingAdjustment.NewVel.Y,
+			PendingAdjustment.NewVel.Z,
+			PendingAdjustment.NewBase,
+			PendingAdjustment.NewFloor.X,
+			PendingAdjustment.NewFloor.Y,
+			PendingAdjustment.NewFloor.Z
+		);
+	}
+
+	PendingAdjustment.TimeStamp = 0;
+	PendingAdjustment.bAckGoodMove = 0;
+}
 
 DefaultProperties
 {
 	DamagePostProcessChain=PostProcessChain'RenXHud.PostProcess.PPC_HitEffect'
-	MinRespawnDelay=3.0
-	MaxRespawnDelay=8.0
+	MinRespawnDelay=3.f
+	MaxRespawnDelay=8.f
 	TimeSecondsTillMaxRespawnTime=2400 // 40 mins	
 	RefillCooldownTime=8
 	bRotateMiniMap=true
@@ -8546,6 +9388,8 @@ DefaultProperties
 	IsInPlayArea = true
 
 	EndgameScoreboardDelay = 10.0
+
+	BuildingReviveCreditAmount = 250
 	
 	//--------------Radio commands	
 	// CTRL + Number
@@ -8613,10 +9457,6 @@ DefaultProperties
 	bCanTaunt=true;
 	bCanThrowSF_Flag=true
 	
-	NeutralColor		= "#00FF00"
-	NodColor            = "#FF0000"
-	GDIColor            = "#FFC600"
-	HostColor           = "#22BBFF"
 	ArmourColor         = "#05DAFD"
 	
 	MaxCommanderSpottingRange = 99999
@@ -8642,5 +9482,7 @@ DefaultProperties
 	DamageCameraAnim = CameraAnim'RX_FX_Munitions2.Camera_FX.DamageViewShake'
 	
 	bUseDoubleClickDodge = false
+	
+	bPoweredFlight = true
 }
 

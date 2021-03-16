@@ -103,7 +103,7 @@ function PlayImpactEffects(Vector FireLocation, Vector HitLocation, Actor Impact
 			}
 
 			//Pawns handle their own hit effects
-			if(P == none || V != none)
+			if(P != none || V != none)
 			{
 				if(!WI.bDropDetail && (P == none) && (WI.GetDetailMode() != DM_Low))
 				{

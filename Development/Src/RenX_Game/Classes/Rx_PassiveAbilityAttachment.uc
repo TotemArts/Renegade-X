@@ -20,14 +20,28 @@ function InitAttachment(Pawn OwningPawn){
 
 //Same as Passive Abilities 
 function NotifyMeshChanged();
+function NotifyOverlayChanged(MaterialInterface NewMIC); 
+function NotifyMaterialsChanged(); 
+function NotifyTookDamage();
+function NotifyWeaponAttachmentsChanged();
+function NotifyBackWeaponAttachmentsChanged();
+function NotifyDriveVehicle(bool bDriving);
+
+function NotifyOwnerDied(){DestroyAttachment();}
+function NotifyWeaponFired(byte FireModeNum); 
+function NotifyPhysicsVolumeChange(PhysicsVolume NewVolume);
+
 
 function DestroyAttachment()
 {
-	OwnerPawn = none;
+	`log("-----Kill off attachment--------" @ self);
 	StopEffects(); 
+	OwnerPawn = none;
 	bDestroyed = true; 
 	Destroy(); 
 }
+
+
 
 function PlayEffects(); 
 function StopEffects(); 

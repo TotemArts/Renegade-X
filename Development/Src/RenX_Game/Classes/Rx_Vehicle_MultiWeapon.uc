@@ -401,7 +401,7 @@ simulated state WeaponFiring
 			ClearFlashLocation();
 			//Still check if we need to reload 
 			if( !IsReloading(1) && !HasAmmo(1) && !SecondaryReloading){
-				PrimaryReload();	
+				SecondaryReload();	
 			}
 			
 			ClearTimer( nameof(SecondaryRefireCheckTimer) );
@@ -768,7 +768,24 @@ simulated function DrawCrosshair( Hud HUD )
 	local LinearColor LC; //nBab	
 	local float XResScale; 
 
+	local vector ScreenLoc;
+	local bool bTargetBehindUs;
+
+	local float TweenPercentage;
+	local Rotator LockOnRotation;
+	local Vector LockPosNormal;
+	local Vector LockPos[4];
+	local int i;
+
 	if (!bDrawCrosshair) return;
+
+	if(PendingLockedTargetTime == 0.0)
+		TweenPercentage = 0.f;
+	else
+	{
+		TweenPercentage = 1.f - FClamp(((PendingLockedTargetTime - WorldInfo.TimeSeconds) / LockAcquireTime), 0.0, 1.0);
+
+	}	
 	
 	//set initial color based on settings (nBab)
 	LC.A = 1.f;
@@ -871,6 +888,40 @@ simulated function DrawCrosshair( Hud HUD )
 		//H.Canvas.SetPos( X+1, Y+1 );
 		H.Canvas.SetPos( X, Y );
 		H.Canvas.DrawMaterialTile(CrosshairMIC2,CrosshairSize.X, CrosshairSize.Y,0.0,0.0,1.0,1.0);
+		if(PendingLockedTarget != none)
+		{
+			bTargetBehindUs = class'Rx_Utils'.static.OrientationOfLocAndRotToBLocation(Rx_Controller(Instigator.Controller).ViewTarget.Location,Instigator.Controller.Rotation,PendingLockedTarget.location) < -0.5;
+			
+			if(!bTargetBehindUs)
+			{
+				LC.R = 0.f;
+				LC.G = 5.f;
+				LC.B = 5.f;
+				CrosshairMIC2.SetVectorParameterValue('Reticle_Colour', LC);
+
+				LC.R = 1.f;
+				LC.G = 1.f;
+				LC.B = 1.f;
+				TargetMIC2.SetVectorParameterValue('Reticle_Colour', LC);
+				ScreenLoc = PendingLockedTarget.GetTargetLocation(); 
+				ScreenLoc = H.Canvas.Project(ScreenLoc);
+				for(i=0;i<4;i++)
+				{
+					LockOnRotation.Pitch = 0.f;
+					LockOnRotation.Roll = 0.f;
+					LockOnRotation.Yaw = ((45.f + (90.f * i)) * DegToUnrRot) + (Lerp(-90.0 * DegToUnrRot, 0, TweenPercentage));
+					LockPosNormal = Vector(LockOnRotation);
+
+					LockPos[i].X = ScreenLoc.X + (-1 * LockOnSize/2) + (-0.72 * LockOnSize * LockPosNormal.X) + (-1 * (LockOnSize * (1.0 - TweenPercentage)) * LockPosNormal.X);
+					LockPos[i].Y = ScreenLoc.Y + (-1 * LockOnSize/2) + (-0.72 * LockOnSize * LockPosNormal.Y) + (-1 * (LockOnSize * (1.0 - TweenPercentage)) * LockPosNormal.Y);
+
+					LockOnRotation.Yaw -= (45.f * DegToUnrRot);
+
+					H.Canvas.SetPos( LockPos[i].X, LockPos[i].Y );
+					H.Canvas.DrawRotatedMaterialTile(TargetMIC2, LockOnRotation,LockOnSize, LockOnSize);	
+				}					
+			}			
+		}
 		DrawHitIndicator(H,x,y);
 	}
 	if(bDebugWeapon)

@@ -1,4 +1,6 @@
-class Rx_GFxOverviewMap extends GFxMoviePlayer;
+class Rx_GFxOverviewMap extends GFxMoviePlayer
+	dependson(Rx_GFxUIScoreboard); 
+	// uses the struct from this class, and thus necessary to build after this
 
 
 var		 Rx_GfxHUD               RxHUD;
@@ -32,6 +34,7 @@ var GFxObject buildingsHp[10];
 var GFxObject buildingsAp[10];
 var GFxObject buildingsStatus[10];
 
+var GFxObject StatsGDI, StatsNod;
 
 //_root.overview_map.icons_nav
 var		 GFxObject               icons_NavMarker;
@@ -88,6 +91,11 @@ var     Texture                 DebugBlipTexture;
 
 var     int MyTeam;
 
+// refer to GFxUIScoreboard
+var vector BuildingDistanceAverage;
+var Array<Buildings> GDIBuilding;
+var Array<Buildings> NodBuilding;
+
 function bool Start(optional bool StartPaused = false)
 {
 	super.Start();
@@ -107,15 +115,8 @@ function bool Start(optional bool StartPaused = false)
 
 function RunOnce()
 {
-	local Rx_Building_Techbuilding B;
-
 	if (!HasRunOnce) 
 	{
-		foreach class'WorldInfo'.static.GetWorldInfo().AllActors(class'Rx_Building_TechBuilding',B)
-		{
-			Rx_HUD(RxPC.myHUD).TechBuildings.AddItem(B);
-		}
-
 		MyTeam = RxPC.PlayerReplicationInfo.GetTeamNum();
 		HasRunOnce = true;
 		RootMC = GetVariableObject("_root");
@@ -149,10 +150,10 @@ function SetUnitsTeamFrame()
 
 function Update() 
 {
-	local byte i;
-	local Rx_Building B;
-	local int health;
-	local int armor;
+//	local byte i;
+//	local Rx_Building B;
+//	local int health;
+//	local int armor;
 
 	if (!bMovieIsOpen) {
 		return;
@@ -163,7 +164,7 @@ function Update()
 		MyTeam = RxPC.PlayerReplicationInfo.GetTeamNum();
 		SetUnitsTeamFrame();
 	}
-
+/*
 	for (i = 0; i < 10 ; i++) {
 		buildings[i].SetVisible(false);
 	}
@@ -178,7 +179,7 @@ function Update()
 		if (B.GetMaxArmor() != 0) {
 			armor = Float(B.GetArmor())/Float(B.GetMaxArmor())*100.0; 
 		}
-		if(health <= 0 && Armor <=0) {
+		if(B.IsDestroyed()) {
 			buildings[GetBuildingIndex(B)].GotoAndStopI(2);
 		} else {
 			buildingsHp[GetBuildingIndex(B)].GotoAndStopI(health);
@@ -186,7 +187,9 @@ function Update()
 		}
 		buildingsStatus[GetBuildingIndex(B)].GotoAndStopI(GetBuildingPicIndex(B));
 	}	
-
+*/
+	UpdateBuildings(GDIBuilding, 0);
+	UpdateBuildings(NodBuilding, 1);
 
 	//HasRunDelayTick = true;
 	UpdateMapTexture();
@@ -201,6 +204,60 @@ function Update()
 //	else
 //		`log("failed to get tech building list");
 	// Generate markers for other pawns
+}
+
+function UpdateBuildings(Array<Buildings> BList, int BTeam)
+{
+	local int health, armor, i;
+	local Buildings TempBuilding;
+
+	foreach BList(TempBuilding, i)
+	{
+		if(TempBuilding.building == none) //building doesnt exist on map.
+			continue;
+
+		// Get health and armor levels as percentage
+		health = float(TempBuilding.building.GetHealth())/float(TempBuilding.building.GetTrueMaxHealth())*100.0;
+		if(TempBuilding.building.GetMaxArmor() != 0)
+			armor = float(TempBuilding.building.GetArmor())/float(TempBuilding.building.GetMaxArmor())*100.0; 
+
+		health = Max(1,health);
+		armor = Max(1,armor);
+
+
+		if(TempBuilding.building.IsDestroyed() && (TempBuilding.hp > 0)) // Building is destroyed, if TempBuilding.hp is already 0, we have already updated flash.
+		{
+			TempBuilding.hp = 0;
+			TempBuilding.containerMC.GotoAndStopI(2); //swap building symbol to destroyed frame.
+			
+			// regrab icon movie clip & reset icon, as we have changed frame.
+			TempBuilding.iconMC = TempBuilding.containerMC.GetObject("status");	
+			TempBuilding.iconMC.GotoAndStopI(TempBuilding.iconIndex);
+		}
+		else if (!TempBuilding.building.IsDestroyed()) // Update health and armor levels on UI.
+		{
+			 //check our cached health to see if it has changed.
+			if(health != TempBuilding.hp)
+			{
+				TempBuilding.hp = Health; // we get here only because we're alive. if the hp is 0, that means we're dead
+				TempBuilding.hpMC.GotoAndStopI(TempBuilding.hp);
+			}
+			if(armor != TempBuilding.armor)
+			{
+				TempBuilding.armor = armor;
+				TempBuilding.armorMC.GotoAndStopI(TempBuilding.armor);
+			}
+		}
+
+		if(BTeam == 0)
+		{
+			GDIBuilding[i] = TempBuilding;
+		}
+		else if(BTeam == 1)
+		{
+			NodBuilding[i] = TempBuilding;
+		}
+	}		
 }
 
 function TestIconmatrix() 
@@ -505,22 +562,33 @@ function UpdateActorBlips()
 
 }
 
-function array<GFxObject> GenGDIIcons(int IconCount)
+function array<GFxObject> GenGDIIcons(int IconCount, optional bool bSquad)
 {
    	local array<GFxObject> Icons;
    	local GFxObject IconMC;
     local int i;
+	local ASColorTransform ColorTransform;
 	for (i = 0; i < IconCount; i++)
     {
         IconMC = icons_Friendly.AttachMovie("FriendlyBlips", "GDI_Player"$IconsFriendlyCount++);
 		//@roxez: Debugging blips
         //IconMC = icons_Friendly.AttachMovie("DebugBlips", "GDI_Player"$IconsFriendlyCount++);
+		if(bSquad)
+		{
+			ColorTransform.multiply.R = 0.25;
+			ColorTransform.multiply.G = 0.25;
+			ColorTransform.multiply.B = 0.25;
+			ColorTransform.add.R = 0.0;
+			ColorTransform.add.G = 0.75;
+			ColorTransform.add.B = 0.75;
+			IconMC.SetColorTransform(ColorTransform);
+		}
         Icons[i] = IconMC;
     }
     return Icons;
 }
 
-function array<GFxObject> GenGDIVehicleIcons(int IconCount)
+function array<GFxObject> GenGDIVehicleIcons(int IconCount, optional bool bSquad)
 {
 	local ASColorTransform ColorTransform;
    	local array<GFxObject> Icons;
@@ -529,34 +597,61 @@ function array<GFxObject> GenGDIVehicleIcons(int IconCount)
 	for (i = 0; i < IconCount; i++)
     {
         IconMC = icons_Friendly.AttachMovie("VehicleMarker", "GDI_Vehicle"$IconsVehicleFriendlyCount++);
-		ColorTransform.multiply.R = 0.25;
-		ColorTransform.multiply.G = 0.25;
-		ColorTransform.multiply.B = 0.25;
-		ColorTransform.add.R = 0.75;
-		ColorTransform.add.G = 0.58;
-		ColorTransform.add.B = 0;
+		
+		if(bSquad)
+		{
+			ColorTransform.multiply.R = 0.25;
+			ColorTransform.multiply.G = 0.25;
+			ColorTransform.multiply.B = 0.25;
+			ColorTransform.add.R = 0.0;
+			ColorTransform.add.G = 0.75;
+			ColorTransform.add.B = 0.75;
+			IconMC.SetColorTransform(ColorTransform);
+		}
+		else
+		{
+			ColorTransform.multiply.R = 0.25;
+			ColorTransform.multiply.G = 0.25;
+			ColorTransform.multiply.B = 0.25;
+			ColorTransform.add.R = 0.75;
+			ColorTransform.add.G = 0.58;
+			ColorTransform.add.B = 0;
 		IconMC.SetColorTransform(ColorTransform);
+		}
+		
         Icons[i] = IconMC;
     }
     return Icons;
 }
 
-function array<GFxObject> GenNodIcons(int IconCount)
+function array<GFxObject> GenNodIcons(int IconCount, optional bool bSquad)
 {
 	local array<GFxObject> Icons;
 	local GFxObject IconMC;
     local int i;
+	local ASColorTransform ColorTransform;
+	
 	for (i = 0; i < IconCount; i++)
     {
         IconMC = icons_Enemy.AttachMovie("EnemyBlips", "Nod_Player" $IconsEnemyCount++);
 		//@roxez: Debugging blips
         //IconMC = icons_Enemy.AttachMovie("DebugBlips", "Nod_Player" $IconsEnemyCount++);
+		if(bSquad)
+		{
+			ColorTransform.multiply.R = 0.25;
+			ColorTransform.multiply.G = 0.25;
+			ColorTransform.multiply.B = 0.25;
+			ColorTransform.add.R = 0.0;
+			ColorTransform.add.G = 0.75;
+			ColorTransform.add.B = 0.75;
+			IconMC.SetColorTransform(ColorTransform);
+		}
         Icons[i] = IconMC;
     }
     return Icons;
 }
 
-function array<GFxObject> GenNodVehicleIcons(int IconCount)
+function array<GFxObject> GenNodVehicleIcons(int IconCount, optional bool bSquad)
 {
 	local ASColorTransform ColorTransform;
 	local array<GFxObject> Icons;
@@ -564,14 +659,28 @@ function array<GFxObject> GenNodVehicleIcons(int IconCount)
     local int i;
 	for (i = 0; i < IconCount; i++)
     {
-        IconMC = icons_Friendly.AttachMovie("VehicleMarker", "Nod_Vehicle"$IconsVehicleEnemyCount++);
-		ColorTransform.multiply.R = 0.25;
-		ColorTransform.multiply.G = 0.25;
-		ColorTransform.multiply.B = 0.25;
-		ColorTransform.add.R = 0.75;
-		ColorTransform.add.G = 0;
-		ColorTransform.add.B = 0;
-		IconMC.SetColorTransform(ColorTransform);
+		IconMC = icons_Friendly.AttachMovie("VehicleMarker", "Nod_Vehicle"$IconsVehicleEnemyCount++);
+		if(bSquad)
+		{
+			ColorTransform.multiply.R = 0.25;
+			ColorTransform.multiply.G = 0.25;
+			ColorTransform.multiply.B = 0.25;
+			ColorTransform.add.R = 0.0;
+			ColorTransform.add.G = 0.75;
+			ColorTransform.add.B = 0.75;
+			IconMC.SetColorTransform(ColorTransform);
+		}
+		else
+		{
+			ColorTransform.multiply.R = 0.25;
+			ColorTransform.multiply.G = 0.25;
+			ColorTransform.multiply.B = 0.25;
+			ColorTransform.add.R = 0.75;
+			ColorTransform.add.G = 0;
+			ColorTransform.add.B = 0;
+			IconMC.SetColorTransform(ColorTransform);
+		}
+        
         Icons[i] = IconMC;
     }
     return Icons;
@@ -701,7 +810,7 @@ function UpdatePlayerBlip()
 
 }
 
-function UpdateIcons(out array<Actor> Actors, out array<GFxObject> ActorIcons, TEAM TeamInfo, bool bVehicle)
+function UpdateIcons(out array<Actor> Actors, out array<GFxObject> ActorIcons, TEAM TeamInfo, bool bVehicle, optional bool bSquad = false)
 {
 	// HARDCODED: Radius = 124
 
@@ -735,10 +844,10 @@ function UpdateIcons(out array<Actor> Actors, out array<GFxObject> ActorIcons, T
 		switch (TeamInfo) 
 		{
 			case TEAM_GDI:
-				Icons = bVehicle ? GenGDIVehicleIcons(Actors.Length - ActorIcons.Length) : GenGDIIcons(Actors.Length - ActorIcons.Length);
+				Icons = bVehicle ? GenGDIVehicleIcons(Actors.Length - ActorIcons.Length, bSquad) : GenGDIIcons(Actors.Length - ActorIcons.Length, bSquad);
 				break;
 			case TEAM_NOD:
-				Icons = bVehicle ? GenNodVehicleIcons(Actors.Length - ActorIcons.Length) : GenNodIcons(Actors.Length - ActorIcons.Length);
+				Icons = bVehicle ? GenNodVehicleIcons(Actors.Length - ActorIcons.Length, bSquad) : GenNodIcons(Actors.Length - ActorIcons.Length, bSquad);
 				break;
 			default:
 				Icons = bVehicle ? GenNeutralVehicleIcons(Actors.Length - ActorIcons.Length) : GenNeutralIcons(Actors.Length - ActorIcons.Length);
@@ -755,6 +864,14 @@ function UpdateIcons(out array<Actor> Actors, out array<GFxObject> ActorIcons, T
 		}
 	}
 
+	
+	if(bSquad)
+	{
+		displayInfo.HasXScale = true;
+		displayInfo.HasYScale = true;
+		displayInfo.XScale = 133.f;
+		displayInfo.YScale = 133.f;
+	}
 
 	//sets the Blips Visibility condition here
 	for (i = 0; i < Actors.Length; i++) {
@@ -780,7 +897,6 @@ function UpdateIcons(out array<Actor> Actors, out array<GFxObject> ActorIcons, T
 		
 		//IMPLEMENTATION #2
 		V = TransformVector(IconMatrix, CurrentMarker.GetRadarActorLocation());
-
 
 		// Display only within the range of the minimap radius
 		//displayInfo.Visible = (VSize2d(V) < RxMapInfo.MinimapRadius);
@@ -808,12 +924,8 @@ function UpdateIcons(out array<Actor> Actors, out array<GFxObject> ActorIcons, T
 			
 				displayInfo.Visible = false; // init false, as most instances will be false.
 				
-				if(CurrentMarker.ForceVisible())
-				{
-						displayInfo.Visible = true;		
-				}
-				
-				if (RxHUD.RenxHud.TargetingBox.TargetedActor == Actors[i]) 
+				if (RxHUD.RenxHud.TargetingBox.TargetedActor != none &&
+					RxHUD.RenxHud.TargetingBox.TargetedActor.GetActualTarget() == Actors[i]) 
 				{
 					displayInfo.Visible = true;
 				}
@@ -822,7 +934,11 @@ function UpdateIcons(out array<Actor> Actors, out array<GFxObject> ActorIcons, T
 				displayInfo.Visible = false;
 			}
 		}
-
+		
+		if(CurrentMarker.ForceVisible())
+			{
+				displayInfo.Visible = true;		
+			}
 
 		if(displayInfo.Visible && bVehicle)
 		{
@@ -850,35 +966,6 @@ function UpdateIcons(out array<Actor> Actors, out array<GFxObject> ActorIcons, T
 	}
 
 }
-/**
-function string GetVehicleIconName(Actor marker)
-{
-	local Rx_Vehicle RxV;
-
-	RxV = Rx_Vehicle(marker);
-	if (RxV == none) return "default";
-
-	if(Rx_Vehicle_A10(RxV) != none) return "A-10";
-	else if(Rx_Vehicle_Apache(RxV) != none) return "Apache";
-	else if(Rx_Vehicle_APC_GDI(RxV) != none) return "APC GDI";
-	else if(Rx_Vehicle_APC_Nod(RxV) != none) return "APC Nod";
-	else if(Rx_Vehicle_Artillery(RxV) != none) return "Artillery";
-	else if(Rx_Vehicle_Buggy(RxV) != none) return "Buggy";
-	else if(Rx_Vehicle_C130(RxV) != none) return "C-130";
-	else if(Rx_Vehicle_Chinook_GDI(RxV) != none) return "Chinook";
-	else if(Rx_Vehicle_Chinook_Nod(RxV) != none) return "Chinook";
-	else if(Rx_Vehicle_FlameTank(RxV) != none) return "Flame Tank";
-	else if(Rx_Defence(RxV) != none) return "Gun Emplacement"; 
-	else if(Rx_Vehicle_Harvester(RxV) != none) return "Harvester";
-	else if(Rx_Vehicle_Humvee(RxV) != none) return "Humvee";
-	else if(Rx_Vehicle_LightTank(RxV) != none) return "Light Tank";
-	else if(Rx_Vehicle_MammothTank(RxV) != none) return "Mammoth Tank";
-	else if(Rx_Vehicle_MediumTank(RxV) != none) return "Medium Tank";
-	else if(Rx_Vehicle_MRLS(RxV) != none) return "MLRS";
-	else if(Rx_Vehicle_Orca(RxV) != none) return "Orca";
-	else if(Rx_Vehicle_StealthTank(RxV) != none) return "Stealth Tank";
-	else return "default";
-}*/
 
 //toggle beacon star (nBab)
 function togglebeaconstar ()
@@ -895,6 +982,7 @@ function UpdateTechIcons()
 	local ASColorTransform CT;
 	local int i;
 	local ASDisplayInfo DI;
+	local byte TeamNum;
 
 	DI.HasY = true;
 	DI.HasX = true;
@@ -907,36 +995,35 @@ function UpdateTechIcons()
 	{
 		TempIconLoc = TransformVector(IconMatrix, TechList[i].Building.Location);
 
-
-
 		if(TechList[i].IconLoc.X != TempIconLoc.X || TechList[i].IconLoc.Y != TempIconLoc.Y)
 		{
-			TechList[i].IconLoc.X = TempIconLoc.X;
-			TechList[i].IconLoc.Y = TempIconLoc.Y;
-			DI.X = TempIconLoc.X;
-			DI.Y = TempIconLoc.Y;
+			TechList[i].IconLoc.X = TempIconLoc.X - (Texture2D(TechList[i].Building.IconTexture).SizeX/(2 * DI.XScale / 100.f));
+			TechList[i].IconLoc.Y = TempIconLoc.Y - (Texture2D(TechList[i].Building.IconTexture).SizeY/(2 * DI.YScale / 100.f));
+			DI.X = TechList[i].IconLoc.X;
+			DI.Y = TechList[i].IconLoc.Y;
 
-			`log(TechList[i].Building@"icon replaced on coordinate X:"$(TempIconLoc.X)$"Y"$(TempIconLoc.Y));
+			//`log(TechList[i].Building@"icon replaced on coordinate X:"$(TempIconLoc.X)$"Y"$(TempIconLoc.Y));
 			TechList[i].TechIcon.SetDisplayInfo(DI);
 			TechList[i].TechIcon.SetVisible(True);
 
 			LoadTexture("img://" $ PathName(TechList[i].Building.IconTexture), TechList[i].TechIcon);
 		}
 
+		TeamNum = TechList[i].Building.GetTeamNum();
 
-		if(TechList[i].Building.GetTeamNum() != TechList[i].TeamOwner)
+		if(TeamNum != TechList[i].TeamOwner)
 		{
-			if(TechList[i].Building.GetTeamNum() == 0)
+			if(TeamNum == 0)
 			{
-				CT.multiply.R = 1;
-				CT.multiply.G = 0.f;
-				CT.multiply.B = 0.f;
-				CT.add.R = 0.f;
-				CT.add.G = 1.f;
-				CT.add.B = 0.f;			
+				CT.multiply.R = 0.18;
+				CT.multiply.G = 0.18;
+				CT.multiply.B = 0.18;
+				CT.add.R = 0.75;
+				CT.add.G = 0.58;
+				CT.add.B = 0;			
 				TechList[i].TechIcon.SetColorTransform(CT);
 			}
-			else if(TechList[i].Building.GetTeamNum() == 1)
+			else if(TeamNum == 1)
 			{
 				CT.multiply.R = 1.f;
 				CT.multiply.G = 0.f;
@@ -955,7 +1042,9 @@ function UpdateTechIcons()
 				CT.add.G = 0.f;
 				CT.add.B = 0.f;
 				TechList[i].TechIcon.SetColorTransform(CT);
-			}			
+			}
+
+			TechList[i].TeamOwner = TechList[i].Building.GetTeamNum();
 		}
 	}
 }
@@ -967,17 +1056,22 @@ function int GetBuildingIndex(Rx_Building B)
 	if(Rx_Building_GDI_MoneyFactory(B) != None) return 2;
 	if(Rx_Building_GDI_PowerFactory(B) != None) return 3;
 	if(Rx_Building_GDI_Defense(B) != None) return 4;
+	if(Rx_Building_RepairFacility_GDI(B) != None) return 5;
 	
-	if(Rx_Building_Nod_InfantryFactory(B) != None) return 5;
-	if(Rx_Building_Nod_VehicleFactory(B) != None) return 6;
-	if(Rx_Building_Nod_MoneyFactory(B) != None) return 7;
-	if(Rx_Building_Nod_PowerFactory(B) != None) return 8;
-	if(Rx_Building_Nod_Defense(B) != None) return 9;
+	if(Rx_Building_Nod_InfantryFactory(B) != None) return 6;
+	if(Rx_Building_Nod_VehicleFactory(B) != None) return 7;
+	if(Rx_Building_Nod_MoneyFactory(B) != None) return 8;
+	if(Rx_Building_Nod_PowerFactory(B) != None) return 9;
+	if(Rx_Building_Nod_Defense(B) != None) return 10;
+
+	if(Rx_Building_RepairFacility_Nod(B) != None) return 11;
 	return -1;
 }
 
 function int GetBuildingPicIndex(Rx_Building B)
 {
+	if(Rx_Building_Helipad_GDI(B) != None || Rx_Building_Helipad_Nod(B) != None) return 10;
+
 	if(Rx_Building_GDI_InfantryFactory(B) != None) return 3;
 	if(Rx_Building_GDI_VehicleFactory(B) != None) return 8;
 	if(Rx_Building_GDI_MoneyFactory(B) != None) return 7;
@@ -989,11 +1083,139 @@ function int GetBuildingPicIndex(Rx_Building B)
 	if(Rx_Building_Nod_MoneyFactory(B) != None) return 7;
 	if(Rx_Building_Nod_PowerFactory(B) != None) return 6;
 	if(Rx_Building_Nod_Defense(B) != None) return 5;
+
+	if(Rx_Building_RepairFacility(B) != None) return 9;
+
 	return -1;
+}
+
+function int SortBuildingDelegate( coerce Rx_Building B1, coerce Rx_Building B2 )
+{
+	if (B1.myBuildingType > B2.myBuildingType)
+		return 1;
+	else if (B1.myBuildingType == B2.myBuildingType)
+	{
+		if(VSizeSq(BuildingDistanceAverage - B1.Location) > VSizeSq(BuildingDistanceAverage - B2.Location))
+			return 1;
+
+		else
+			return -1;
+	}
+	else
+		return -1;
+
+
+	return 0;
 }
 
 function SetBuildingGfxObjects()
 {
+	local Rx_Building B;
+	local Array<Rx_Building> BList;
+	local Buildings TempBuilding;
+	local Array<Buildings> LastGDIBuilding, LastNodBuilding;
+	local float GDIYPos, NodYPos;
+	local Vector BLocs;
+	local int buildingIndex;
+
+	if(GDIBuilding.Length > 0)
+		LastGDIBuilding = GDIBuilding;	
+	GDIBuilding.Length = 0;
+
+	if(NodBuilding.Length > 0)
+		LastNodBuilding = NodBuilding;	
+	NodBuilding.Length = 0;
+
+	StatsGDI = GetVariableObject("_root.Stats_GDI");
+	StatsNod = GetVariableObject("_root.Stats_Nod");
+
+
+	foreach RxPC.AllActors(class'Rx_Building', B)
+	{
+		if(!B.bSignificant)
+			continue;
+
+		BList.AddItem(B);
+		BLocs += B.Location;
+	}
+
+	BuildingDistanceAverage = BLocs / BList.Length;
+	BList.Sort(SortBuildingDelegate);
+
+	foreach BList(B)
+	{
+		BuildingIndex = GetBuildingIndex(B);
+		if(buildingIndex == -1)
+			continue;
+
+		if(B.GetTeamNum() == 0)
+		{
+			if(StatsGDI == None) // if there's no movie here, drop
+				continue;
+
+			if(LastGDIBuilding.Length > GDIBuilding.Length && LastGDIBuilding[GDIBuilding.Length].containerMC != None)
+				TempBuilding.containerMC = LastGDIBuilding[GDIBuilding.Length].containerMC;
+			else
+				TempBuilding.containerMC = StatsGDI.AttachMovie("StatsBuilding","Building"$(GDIBuilding.Length + 1));
+
+
+			if(GDIBuilding.Length > 0)
+				GDIYPos += 100.45; 
+			else
+				GDIYPos = -200.30;
+
+			TempBuilding.containerMC.SetPosition(0.f,GDIYPos);
+
+			
+		}
+		else if(B.GetTeamNum() == 1)
+		{
+			if(StatsNod == None) // if there's no movie here, drop
+				continue;			
+
+			if(LastNodBuilding.Length > NodBuilding.Length && LastNodBuilding[NodBuilding.Length].containerMC != None)
+				TempBuilding.containerMC = LastNodBuilding[NodBuilding.Length].containerMC;
+			else			
+				TempBuilding.containerMC = StatsNod.AttachMovie("StatsBuilding","Building"$(NodBuilding.Length + 1));
+
+			
+			if(NodBuilding.Length > 0)
+				NodYPos += 100.45; 
+			else
+				NodYPos = -200.30;
+
+			TempBuilding.containerMC.SetPosition(0.f,NodYPos);
+
+			
+		}
+
+		TempBuilding.building = B;
+
+		TempBuilding.hpMC = TempBuilding.containerMC.GetObject("hp");
+		TempBuilding.armorMC = TempBuilding.containerMC.GetObject("ap");
+		TempBuilding.iconMC = TempBuilding.containerMC.GetObject("status");	
+
+		TempBuilding.iconIndex = GetBuildingPicIndex(B);
+		TempBuilding.iconMC.GotoAndStopI(TempBuilding.iconIndex);
+
+		TempBuilding.hp = 100;
+		TempBuilding.hpMC.GotoAndStopI(TempBuilding.hp);
+		TempBuilding.armor = 100;
+		TempBuilding.armorMC.GotoAndStopI(TempBuilding.armor);
+
+		if(B.GetTeamNum() == 0)
+		{
+			GDIBuilding.AddItem(TempBuilding);
+		}
+		else
+		{
+			NodBuilding.AddItem(TempBuilding);
+		}
+	}
+
+
+/*
+
 	local byte i, j, k;
 	for (i = 0; i < 10; i++) {
 		j = i / 5;
@@ -1012,6 +1234,8 @@ function SetBuildingGfxObjects()
 			buildingsStatus[i] = GetVariableObject("_root.Stats_Nod.building"$ k $".status");	
 		}	
 	}
+
+*/
 }
 
 function SetInfrantryGfxObjects()
@@ -1188,6 +1412,10 @@ var		 GFxObject               map;
 		LoadMapTexture("img://" $PathName(RxMapInfo.MapTexture));
 		//UpdateMapTexture();
 	}
+	if(MapTexSize <= 0)
+	{
+		MapTexSize = 1024.f;
+	}
 	
 	player_icon          =  GetVariableObject("_root.overview_map.player");
 	icons_Enemy          =  GetVariableObject("_root.overview_map.icons_Nod");
@@ -1289,6 +1517,8 @@ function SetTechBuildingMapGfxObjects()
 	local TechStatus TempTechStatus;
 	local ASColorTransform CT;
 
+	Rx_HUD(RxPC.myHUD).AttemptCacheBuildings();
+
 	if(Rx_HUD(RxPC.myHUD).TechBuildings.Length <= 0)
 	{
 		`log("Map cannot find tech buildings, aborting");
@@ -1309,7 +1539,7 @@ function SetTechBuildingMapGfxObjects()
 			CT.multiply.B = 0.25;
 			CT.add.R = 0.75;
 			CT.add.G = 0.58;
-			CT.add.B = 0;			
+			CT.add.B = 0;	
 			TempTechStatus.TechIcon.SetColorTransform(CT);
 		}
 		else if(TempTechStatus.Building.GetTeamNum() == 1)

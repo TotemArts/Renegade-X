@@ -16,6 +16,13 @@
 
 class Rx_Volume_Tiberium extends PhysicsVolume;
 
+var() Rx_Tib_NavigationPoint TibNavPoint;
+
+replication
+{
+	if (bNetInitial)
+		TibNavPoint;
+}
 
 simulated event PostBeginPlay()
 {

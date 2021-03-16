@@ -35,6 +35,8 @@ struct RxJukeBoxStruct
 };
 
 var config array<RxJukeBoxStruct> JukeBoxList;
+var array<RxJukeBoxStruct> ShuffledTracks;
+var RxJukeBoxStruct LastShuffledTrack;
 var RxJukeBoxStruct CurrentTrack;
 
 var AudioComponent MusicComp;
@@ -57,7 +59,7 @@ function Init()
 	if (initTracks)
 	{
 		JukeBoxList[0].TrackName="Full Stop"; JukeBoxList[0].TheSoundCue=SoundCue'RX_jukebox_03.Cue.Full_Stop';
-		JukeBoxList[1].TrackName="Just do it up"; JukeBoxList[1].TheSoundCue=SoundCue'RX_jukebox_03.Cue.Just_do_it_up';
+		JukeBoxList[1].TrackName="Just Do It Up"; JukeBoxList[1].TheSoundCue=SoundCue'RX_jukebox_03.Cue.Just_do_it_up';
 		JukeBoxList[2].TrackName="Rampage"; JukeBoxList[2].TheSoundCue=SoundCue'RX_jukebox_03.Cue.Rampage';
 		JukeBoxList[3].TrackName="Serenity"; JukeBoxList[3].TheSoundCue=SoundCue'RX_jukebox_03.Cue.Serenity';
 		JukeBoxList[4].TrackName="Stomp"; JukeBoxList[4].TheSoundCue=SoundCue'RX_jukebox_03.Cue.Stomp';
@@ -85,7 +87,7 @@ function Init()
 	}
 	
 	//MusicComp.AdjustVolume(1,0.75f);
-	`log("MusicComp.CurrentVolume? " $ MusicComp.CurrentVolume);
+	//`log("MusicComp.CurrentVolume? " $ MusicComp.CurrentVolume);
 	MusicComp.bAutoDestroy = false;
 	//MusicComp.AdjustVolume(1,0.75f);
 
@@ -97,8 +99,20 @@ function Init()
 		if (i >= 0)
 			CurrentTrack = JukeBoxList[i];
 	}
+
+	ShuffledTracks = JukeBoxList;
+
+	ShuffledTracks.Sort(Shuffle);
+	ShuffledTracks.Sort(Shuffle);
+	ShuffledTracks.Sort(Shuffle);
+
+	LastShuffledTrack = ShuffledTracks[0];
 }
 
+function int Shuffle(RxJukeBoxStruct A, RxJukeBoxStruct B)
+{
+	return Rand(2) * -1;
+}
 
 function Play(int index) 
 {
@@ -148,6 +162,34 @@ function Play(int index)
 	bStopped = false;
 	MusicComp.SoundCue = CurrentTrack.TheSoundCue;
 	MusicComp.Play();
+}
+
+function PlayShuffled()
+{
+	local int TrackInt;
+
+	TrackInt = ShuffledTracks.Find('TrackName', LastShuffledTrack.TrackName);
+
+	if (TrackInt == INDEX_NONE)
+	{
+		`warn("Jukebox :: Failed to shuffle tracks properly");
+		Play(0);
+		bShuffled = false;
+		return;
+	}
+	else
+	{
+		if (TrackInt++ > ShuffledTracks.length)
+			CurrentTrack = ShuffledTracks[0];
+		else
+			CurrentTrack = ShuffledTracks[TrackInt++];
+	}
+
+	bStopped = false;
+	MusicComp.SoundCue = CurrentTrack.TheSoundCue;
+	MusicComp.Play();
+
+	LastShuffledTrack = CurrentTrack;
 }
 
 function Stop()

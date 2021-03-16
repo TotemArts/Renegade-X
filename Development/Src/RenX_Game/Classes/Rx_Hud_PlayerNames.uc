@@ -90,8 +90,7 @@ function DrawVehicleSeats()
 	{
 		if (OtherVehicle == None)
 			continue;
-		
-		
+
 		AntiTeamByte = GetAntiTeamByte(RenxHud.PlayerOwner.GetTeamNum());
 		
 		//Reset these per iteration
@@ -158,7 +157,7 @@ function DrawVehicleSeats()
 			DrawAttackT(OtherVehicle, OtherPRI.Unit_TargetNumber[AntiTeamByte], OtherPRI.ClientTargetUpdatedTime ); 		
 		
 		// Fade based on display radius.
-		if (RenxHud.TargetingBox.TargetedActor == OtherVehicle)
+		if (Actor(RenxHud.TargetingBox.TargetedActor) == OtherVehicle)
 		{
 			if(GetStance(OtherVehicle) == STANCE_FRIENDLY)
 				NameAlpha = GetAlphaForDistance(OtherPawnDistance,FriendlyTargetedVehicleDisplayNamesRadius);
@@ -243,7 +242,9 @@ function DrawPlayerNames()
 			continue;
 		if (IsStealthedEnemyUnit(OtherPawn) || IsEnemySpy(OtherPawn))
 			continue;
-
+		if(GetStance(OtherPawn) == STANCE_ENEMY && !OtherPawn.bTargetable)
+			continue;
+		
 		aPRI = Rx_PRI(OtherPawn.PlayerReplicationInfo);
 		sPRI = Rx_ScriptedBotPRI(OtherPawn.PlayerReplicationInfo);
 		
@@ -268,7 +269,7 @@ function DrawPlayerNames()
 			OtherPawnDistance = VSize(OurPawn.Location-OtherPawn.location);
 
 		// Fade based on display radius.
-		if (RenxHud.TargetingBox.TargetedActor == OtherPawn)
+		if (Actor(RenxHud.TargetingBox.TargetedActor) == OtherPawn)
 		{
 			if(GetStance(OtherPawn) == STANCE_FRIENDLY)
 				NameAlpha = GetAlphaForDistance(OtherPawnDistance,FriendlyTargetedDisplayNamesRadius);
@@ -524,24 +525,6 @@ protected function DrawFocusedIcon(Actor inActor)
 	Canvas.DrawIcon(Icon,X,Y,scale);
 }
 
-function float GetAlphaForDistance(float distance, float maxDistance)
-{
-	local float Alpha;
-
-	if (distance <maxDistance)
-	{
-		if(distance >= maxDistance * 4/5)
-		{
-			Alpha = distance - 4.0/5.0*maxDistance;
-			Alpha = Alpha/(maxDistance/5.0/100.0);
-			Alpha = FMin(1.0,1.0-(1.0*Alpha/100.0));
-			return Alpha;
-		}
-		else return 1;
-	}
-	else return 0;
-}
-
 simulated function DrawAttackT(Pawn P, byte TNumber, float InitialTime)
 {
 	local Rx_HUD HUD ;
@@ -726,46 +709,43 @@ function DrawSupportPawns()
 function DrawCommanderSupportBeacons()
 {
 	
-local Rx_HUD HUD ;
-local Vector WayPointVector, MidscreenVector;
-local bool bIsBehindMe; //Handy thing I didn't come up with for finding orientation. Yosh can't take credit for that math stuff in Rx_Utils
-local CanvasIcon MyIcon;
-local float IconScale, DistanceFade, MinFadeAlpha; //Distance from crosshair for drawing alpha
-local Rx_CommanderSupportBeacon Waypoint; 
-local string FullWayPointStr; 
-local float XLen, YLen ; 
-local float ResScaleX, ResScaleY; 
-// ResScaleX, ResScaleY
-HUD=RenxHud; 
-MyIcon = TI_Defend;
-IconScale=HUD.Canvas.SizeY/720.0; 
-MidscreenVector.X=HUD.Canvas.SizeX/2;
-MidscreenVector.Y=HUD.Canvas.SizeY/2;
+	local Rx_HUD HUD ;
+	local Vector WayPointVector, MidscreenVector;
+	local bool bIsBehindMe; //Handy thing I didn't come up with for finding orientation. Yosh can't take credit for that math stuff in Rx_Utils
+	local CanvasIcon MyIcon;
+	local float IconScale, DistanceFade, MinFadeAlpha; //Distance from crosshair for drawing alpha
+	local Rx_CommanderSupportBeacon Waypoint; 
+	local string FullWayPointStr; 
+	local float XLen, YLen ; 
+	local float ResScaleX, ResScaleY; 
+	// ResScaleX, ResScaleY
+	HUD=RenxHud; 
+	MyIcon = TI_Defend;
+	IconScale=HUD.Canvas.SizeY/720.0; 
+	MidscreenVector.X=HUD.Canvas.SizeX/2;
+	MidscreenVector.Y=HUD.Canvas.SizeY/2;
 
-ResScaleX = HUD.Canvas.SizeX/1280.0;
-ResScaleY = HUD.Canvas.SizeY/720.0;
+	ResScaleX = HUD.Canvas.SizeX/1280.0;
+	ResScaleY = HUD.Canvas.SizeY/720.0;
 
-MinFadeAlpha=180; 
+	MinFadeAlpha=120; 
 	
 	foreach Renxhud.WorldInfo.AllActors(class'Rx_CommanderSupportBeacon', Waypoint)
 	{
 		if(Waypoint.GetTeamNum() != HUD.PlayerOwner.GetTeamNum()) return; //TODO : Edit this to draw either red or green depending on team
 					
-				bIsBehindMe = class'Rx_Utils'.static.OrientationOfLocAndRotToBLocation(RenxHud.PlayerOwner.ViewTarget.Location,RenxHud.PlayerOwner.Rotation,Waypoint.location) < -0.5;
-				if(!bIsBehindMe) 
-					{
-					
+			bIsBehindMe = class'Rx_Utils'.static.OrientationOfLocAndRotToBLocation(RenxHud.PlayerOwner.ViewTarget.Location,RenxHud.PlayerOwner.Rotation,Waypoint.location) < -0.5;
+			if(!bIsBehindMe) 
+			{
+
 				WayPointVector=HUD.Canvas.Project(Waypoint.location) ;
 				DistanceFade = abs(round(Vsize(MidscreenVector-WayPointVector)))/(MidscreenVector.X) ; //Distance from the center of the screen.. Divided by the horizontal length of the screen, as it is USUALLY more than the vertical length
 				WayPointVector.y+=24*ResScaleY; 
 				HUD.Canvas.SetPos(WayPointVector.x, WayPointVector.y);
 				//Insert functionality for fading with distance/ Scrap, fade is based on proximity of crosshair to target.
 				
-				
-				
 				FullWayPointStr = WayPoint.GetName();  // @ "[" $ Waypoint.GetTimeLeft() $ "s]" ; 
-				
-				
+	
 				
 				//Set our color for everything
 				HUD.Canvas.DrawColor.R=255;
@@ -783,7 +763,7 @@ MinFadeAlpha=180;
 				HUD.Canvas.DrawColor.A=96			;
 				
 				HUD.Canvas.SetPos(((WayPointVector.x)-(XLen*0.5))-8*ResScaleX,WayPointVector.y-MyIcon.VL/4*IconScale)		; //Draw off to the left edge of where the text will be.  
-
+	
 				Canvas.DrawRect((XLen*IconScale+(16*ResScaleX) ),YLen*IconScale+(2*ResScaleY)) ; //Rectangle should hang off of both sides.
 				
 				HUD.Canvas.SetPos((WayPointVector.x)-(XLen*0.5), WayPointVector.y-MyIcon.VL/4*IconScale);
@@ -796,15 +776,12 @@ MinFadeAlpha=180;
 			
 				HUD.Canvas.DrawText( FullWayPointStr ,true,IconScale,IconScale);
 				//HUD.Canvas.DrawIcon(TI_Defend,WayPointVector.X-32,WayPointVector.Y-32); //Icon is 64x64; needs to be drawn at half of that to hit sit dead center of the target.
-					}
-		}		
-			
-			
-	}
+		}
+	}				
+}
 
 function DrawTeamWaypoints()
 {
-	
 	local Rx_HUD HUD ;
 	local Vector WayPointVector, MidscreenVector;
 	local bool bIsBehindMe; //Handy thing I didn't come up with for finding orientation. Yosh can't take credit for that math stuff in Rx_Utils
@@ -831,44 +808,40 @@ function DrawTeamWaypoints()
 	
 	foreach Renxhud.WorldInfo.AllActors(class'Rx_CommanderWaypoint', Waypoint)
 	{
-		if(Waypoint.GetTeamNum() != HUD.PlayerOwner.GetTeamNum() || RenxHud.PlayerOwner.Pawn == none) continue; 
+		if(Waypoint.GetTeamNum() != HUD.PlayerOwner.GetTeamNum() || RenxHud.PlayerOwner.Pawn == none) continue;
+
+		// Dont draw harvester waypoint for non-commanders if harv isnt stopped
+		if (InStr(WayPoint.GetName(), "Harvester") != INDEX_NONE && !Rx_TeamInfo(RenXHud.WorldInfo.GRI.Teams[HUD.PlayerOwner.GetTeamNum()]).bHarvesterStopped && !Rx_PRI(HUD.PlayerOwner.PlayerReplicationInfo).bIsCommander) continue;
 					
-				bIsBehindMe = class'Rx_Utils'.static.OrientationOfLocAndRotToBLocation(RenxHud.PlayerOwner.ViewTarget.Location,RenxHud.PlayerOwner.Rotation,Waypoint.location) < -0.5;
-				if(!bIsBehindMe) 
-					{
-					
-				WayPointVector=HUD.Canvas.Project(Waypoint.location) ;
-				DistanceFade = abs(round(Vsize(MidscreenVector-WayPointVector)))/(MidscreenVector.X) ; //Distance from the center of the screen.. Divided by the horizontal length of the screen, as it is USUALLY more than the vertical length
-				HUD.Canvas.SetPos(WayPointVector.x, WayPointVector.y);
-				//Insert functionality for fading with distance/ Scrap, fade is based on proximity of crosshair to target.
-				
-				FullWayPointStr = WayPoint.GetName() @ "[" $ round(VSize(RenxHud.PlayerOwner.Pawn.location - Waypoint.location)/52.5)$"m]%"  ; 
-				
-				FinalAlpha = Fmax(MinFadeAlpha, Fmin(255*DistanceFade*5,255));
-				
-				//Set our color for the box
-				HUD.Canvas.DrawColor.R=255;
-				HUD.Canvas.DrawColor.G=255;
-				HUD.Canvas.DrawColor.B=255;
-				HUD.Canvas.DrawColor.A=FinalAlpha; 
-				//HUD.Canvas.DrawColor.A=Fmax(255-(GDI_Targets[i].T_Defend[j].T_Age*80)-50,0);
-				HUD.Canvas.DrawIcon(MyIcon,WayPointVector.X-((MyIcon.UL/2)*IconScale),WayPointVector.Y-((MyIcon.UL/2)*IconScale),IconScale);
-				
-				HUD.Canvas.Font = Font'RenXHud.Font.ScoreBoard_Small';
-				HUD.Canvas.StrLen(FullWayPointStr, XLen, YLen);
-				HUD.Canvas.SetPos((WayPointVector.x-MyIcon.UL/4*IconScale)-(XLen*0.25), WayPointVector.y-MyIcon.VL/4*IconScale-12);
-				HUD.DrawDelimitedText(FullWayPointStr,"%", (WayPointVector.x-MyIcon.UL/4*IconScale)-(XLen*0.25) , WayPointVector.y-MyIcon.VL/4*IconScale-12, true, BackgroundColor,,0.6);
-				
-				//HUD.Canvas.DrawCenteredText(FullWayPointStr, (WayPointVector.x-MyIcon.UL/4*IconScale), WayPointVector.y-MyIcon.VL/4*IconScale) ;
-				
-				//HUD.Canvas.DrawText( FullWayPointStr ,true,IconScale,IconScale);
-				//HUD.Canvas.DrawIcon(TI_Defend,WayPointVector.X-32,WayPointVector.Y-32); //Icon is 64x64; needs to be drawn at half of that to hit sit dead center of the target.
-					}
-				
-		}		
+		bIsBehindMe = class'Rx_Utils'.static.OrientationOfLocAndRotToBLocation(RenxHud.PlayerOwner.ViewTarget.Location,RenxHud.PlayerOwner.Rotation,Waypoint.location) < -0.5;
+
+		if(!bIsBehindMe) 
+		{
+			WayPointVector=HUD.Canvas.Project(Waypoint.location) ;
+			DistanceFade = abs(round(Vsize(MidscreenVector-WayPointVector)))/(MidscreenVector.X) ; //Distance from the center of the screen.. Divided by the horizontal length of the screen, as it is USUALLY more than the vertical length
+			HUD.Canvas.SetPos(WayPointVector.x, WayPointVector.y);
+			//Insert functionality for fading with distance/ Scrap, fade is based on proximity of crosshair to target.
 			
+			FullWayPointStr = WayPoint.GetName() @ "[" $ round(VSize(RenxHud.PlayerOwner.Pawn.location - Waypoint.location)/52.5)$"m]%"  ; 
 			
-	}	
+			FinalAlpha = Fmax(MinFadeAlpha, Fmin(255*DistanceFade*5,255));
+			
+			//Set our color for the box
+			HUD.Canvas.DrawColor.R=255;
+			HUD.Canvas.DrawColor.G=255;
+			HUD.Canvas.DrawColor.B=255;
+			HUD.Canvas.DrawColor.A=FinalAlpha; 
+			//HUD.Canvas.DrawColor.A=Fmax(255-(GDI_Targets[i].T_Defend[j].T_Age*80)-50,0);
+			HUD.Canvas.DrawIcon(MyIcon,WayPointVector.X-((MyIcon.UL/2)*IconScale),WayPointVector.Y-((MyIcon.UL/2)*IconScale),IconScale);
+			
+			HUD.Canvas.Font = Font'RenXHud.Font.ScoreBoard_Small';
+			HUD.Canvas.StrLen(FullWayPointStr, XLen, YLen);
+			HUD.Canvas.SetPos((WayPointVector.x-MyIcon.UL/4*IconScale)-(XLen*0.25), WayPointVector.y-MyIcon.VL/4*IconScale-12);
+			HUD.DrawDelimitedText(FullWayPointStr,"%", (WayPointVector.x-MyIcon.UL/4*IconScale)-(XLen*0.25) , WayPointVector.y-MyIcon.VL/4*IconScale-12, true, BackgroundColor,,0.6);
+		}
+	}		
+				
+}	
 	
 
 function DrawCommanderIcon(Pawn CommanderPawn)

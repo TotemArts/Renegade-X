@@ -16,6 +16,7 @@ simulated function string GetTargetedDescription(PlayerController PlayerPerspect
 
 defaultproperties
 {
+	MineLimit=3
 	TeamID                 = TEAM_GDI
 	BuildingInternalsClass = Rx_Building_AdvancedGuardTower_Internals
 

@@ -18,6 +18,8 @@ var Texture2D IconTexture;
 var bool bUnsourcedDamage;
 var localized string WeaponName;
 
+var LinearColor HitColour; //Colour to display on the damage vignette when a target is hit by this 
+
 static function float VehicleDamageScalingFor(Vehicle V)
 {
 	//Light Armor
@@ -90,6 +92,11 @@ static function bool IsUnsourcedDamage() ////HANDEPSILON - Whether to flare the 
 	return Default.bUnsourcedDamage;
 }
 
+static function LinearColor GetHitColour() ////HANDEPSILON - Whether to flare the entire indicator or not
+{	
+	return Default.HitColour;
+}
+
 defaultproperties
 {
 	MCTDamageScaling=2.0 // stacks with BuildingDamageScaling
@@ -119,4 +126,6 @@ defaultproperties
 	KDeathUpKick=200
 
 	IconTexture=Texture2D'RenX_AssetBase.DeathIcons.T_DeathIcon_GenericSkull'
+	
+	HitColour = (R = 0.33, G = 0.0, B = 0.0, A = 1.0)
 } 

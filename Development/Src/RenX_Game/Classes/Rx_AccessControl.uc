@@ -13,6 +13,9 @@ var config bool bBroadcastAdminIdentity;
 /** If admins/moderators need to be on the SteamID auth lists. */
 var config bool bSteamAuthAdmins;
 
+/** If admins/moderators can auto-auth when on the SteamID auth lists */
+var config bool bSteamAutoAuthAdmins;
+
 /** List of SteamIDs authorised for Administator. */
 var config Array<string> AdministratorSteamIDs;
 
@@ -224,15 +227,22 @@ function AddAdmin( PlayerController Caller, PlayerReplicationInfo NewAdmin, bool
 			return;
 		}
 
+		// Add Moderator
 		ModeratorSteamIDs[ModeratorSteamIDs.Length] = SteamID;
+
+		// Save the config
 		SaveConfig();
+
+		// Log it
 		`LogRx("ADMIN"`s "Granted;"`s `PlayerLog(NewAdmin)`s "as"`s "moderator");
 		Caller.ClientMessage(NewAdmin.Name@" successfully added as a Moderator.");
 	}
 	else
 	{
+		// Add Administrator
 		AdministratorSteamIDs[AdministratorSteamIDs.Length] = SteamID;
 
+		// Remove any previous matching moderator entry
 		for (i=0; i<ModeratorSteamIDs.Length; ++i)
 		{
 			if (ModeratorSteamIDs[i] == SteamID)
@@ -241,10 +251,44 @@ function AddAdmin( PlayerController Caller, PlayerReplicationInfo NewAdmin, bool
 				break;
 			}
 		}
+
+		// Save config
 		SaveConfig();
+
+		// Log it
 		`LogRx("ADMIN"`s "Granted;"`s `PlayerLog(NewAdmin)`s "as"`s "administrator");
 		Caller.ClientMessage(NewAdmin.Name@" successfully added as an Administrator.");
 	}
+
+	AuthPlayer(NewAdmin);
+}
+
+function bool AuthPlayer(PlayerReplicationInfo Player) {
+	local string SteamID;
+
+	if (!bSteamAutoAuthAdmins // If auto auth is disabled, don't allow auto auth
+		|| !Player.IsA('PlayerController')) { // Only auth humans
+		return false;
+	}
+
+	SteamID = OnlineSub.UniqueNetIdToString(Player.UniqueId);
+
+	// Try admin auth
+	if (IsAdminSteamID(SteamID)) {
+		Player.bAdmin = true;
+		AdminEntered(PlayerController(Player.Owner));
+		return true;
+	}
+
+	// Try moderator auth
+	if (IsModSteamID(SteamID)) {
+		Player.bAdmin = true;
+		Rx_PRI(Player).bModeratorOnly = true;
+		ModEntered(PlayerController(Player.Owner));
+		return true;
+	}
+
+	return false;
 }
 
 // ForceKickPlayer copied from AccessControl -- adds ability to pass KickReason to client

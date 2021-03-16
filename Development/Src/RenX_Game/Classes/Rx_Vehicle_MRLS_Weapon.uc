@@ -60,22 +60,23 @@ simulated function SetRocketTarget(Rx_Projectile_Rocket Rocket)
  
 simulated function FireAmmunition()
 {
-	/**if(GetTurretLockState())
-	{
-		 WeaponProjectiles[0] = Class'Rx_Vehicle_MRLS_Projectile_Arc';
-		 WeaponProjectiles[1] = Class'Rx_Vehicle_MRLS_Projectile_Arc';
-		 WeaponProjectiles_Heroic[0] = Class'Rx_Vehicle_MRLS_Projectile_Arc';
-		 WeaponProjectiles_Heroic[1] = Class'Rx_Vehicle_MRLS_Projectile_Arc';
-	}
-	else{
-		 WeaponProjectiles[0] = default.WeaponProjectiles[0];
-		 WeaponProjectiles[1] =  default.WeaponProjectiles[1];
-		 WeaponProjectiles_Heroic[0] = default.WeaponProjectiles_Heroic[0];
-		 WeaponProjectiles_Heroic[1] = default.WeaponProjectiles_Heroic[1];
-	}*/
-	
+    if (bLockedOnTarget)
+    {
+        WeaponProjectiles[0] = default.WeaponProjectiles[0];
+        WeaponProjectiles[1] = default.WeaponProjectiles[1];
+        WeaponProjectiles_Heroic[0] = default.WeaponProjectiles_Heroic[0];
+        WeaponProjectiles_Heroic[1] = default.WeaponProjectiles_Heroic[1];
+    }
+    else
+    {
+        WeaponProjectiles[0] = Class'Rx_Vehicle_MRLS_Projectile_Unguided';
+        WeaponProjectiles[1] = Class'Rx_Vehicle_MRLS_Projectile_Unguided';
+        WeaponProjectiles_Heroic[0] = Class'Rx_Vehicle_MRLS_Projectile_Unguided_Heroic';
+        WeaponProjectiles_Heroic[1] = Class'Rx_Vehicle_MRLS_Projectile_Unguided_Heroic';
+    }
+    
     Super.FireAmmunition();
-	WeaponPlaySound( WeaponDistantFireSnd );
+    WeaponPlaySound(WeaponDistantFireSnd);
 }
 
 simulated function bool UsesClientSideProjectiles(byte CurrFireMode)
@@ -253,11 +254,13 @@ DefaultProperties
 
     WeaponFireSnd(1)     = SoundCue'RX_VH_MRLS.Sounds.MRLS_FireCue'
     WeaponFireTypes(1)   = EWFT_Projectile
-    WeaponProjectiles(1) = Class'Rx_Vehicle_MRLS_Projectile'
+    WeaponProjectiles(1) = Class'Rx_Vehicle_MRLS_Projectile_Unguided'
 	
 	//Heroic Modifiers
+    WeaponFireSounds_Heroic(0)    = SoundCue'RX_VH_MRLS.Sounds.MRLS_FireCue_Heroic'
+    WeaponFireSounds_Heroic(1)    = SoundCue'RX_VH_MRLS.Sounds.MRLS_FireCue_Heroic'
 	WeaponProjectiles_Heroic(0)= Class'Rx_Vehicle_MRLS_Projectile_Heroic'
-	WeaponProjectiles_Heroic(1)= Class'Rx_Vehicle_MRLS_Projectile_Heroic'
+	WeaponProjectiles_Heroic(1)= Class'Rx_Vehicle_MRLS_Projectile_Unguided_Heroic'
 	
 	ReloadSound(0)=SoundCue'RX_VH_Apache.Sounds.SC_Reload_Missiles'
     ReloadSound(1)=SoundCue'RX_VH_Apache.Sounds.SC_Reload_Missiles'

@@ -22,7 +22,18 @@ var float		EffectOpacity;
 var float		EffectInflation; 
 var byte		EffectPriority; //Lower is higher priority 
 
+var bool		bAffectInfantry; 
+var bool		bAffectVehicles; 
+
 var MaterialInstanceConstant PawnMIC; //MIC to use for infantry pawns affected by this. Vehicles use a different overlay system
+
+//Vignette effect
+var bool bUseVignette; //IF we affect the HUD vignette (The one that's used for taking damage and whatnot)
+var int  VignetteIntensity; 
+
+var class<DamageType> DmgType; 
+
+var SoundCue AcquisitionSound;
 
 //static function ProcessSpecial(); //Processed if it contains anything
 
@@ -33,26 +44,35 @@ static function bool bAffectsWeapons() //Should this modify what our weapon look
 
 DefaultProperties
 {
-//Buff/Debuff modifiers//
-SpeedModifier 	= 0.0 //*X Higher = spood beast
+	//Buff/Debuff modifiers//
+	SpeedModifier 	= 0.0 //*X Higher = spood beast
 
-//Weapons
-DamageBoostMod 	= 0.0  //*X Higher is faster
-RateOfFireMod 	= 0.0 //*X Higher = faster
-ReloadSpeedMod 	= 0.0 //*X Higher is faster
+	//Weapons
+	DamageBoostMod 	= 0.0  //*X Higher is faster
+	RateOfFireMod 	= 0.0 //*X Higher = faster
+	ReloadSpeedMod 	= 0.0 //*X Higher is faster
 
-//Survivablity
-DamageResistanceMod = 0.0 //*X (Yes, higher is MORE damage resistance)
-RegenerationMod 	= 0.0  //+X
+	//Survivablity
+	DamageResistanceMod = 0.0 //*X (Yes, higher is MORE damage resistance)
+	RegenerationMod 	= 0.0  //+X
 
-//Modifier stats
-Mod_Length = 60.0
-ModificationName = "Default Name"
+	//Modifier stats
+	Mod_Length = 60.0
+	ModificationName = "Default Name"
 
-EffectColor		= (R=1.0,G=1.0,B=1.0,A=10.0)
-EffectOpacity	= 1.0
-EffectInflation	= 1.0
-EffectPriority	= 255
+	EffectColor		= (R=1.0,G=1.0,B=1.0,A=10.0)
+	EffectOpacity	= 1.0
+	EffectInflation	= 1.0
+	EffectPriority	= 255
 
-PawnMIC = MaterialInstanceConstant'RenX_AssetBase.Stealth.MI_PowerUp_Main'
+	bAffectInfantry = true
+	bAffectVehicles = true 
+
+	DmgType = none 
+	
+	PawnMIC = MaterialInstanceConstant'RenX_AssetBase.Stealth.MI_PowerUp_Main'
+	
+	VignetteIntensity = 50 //Standard 
+	
+	AcquisitionSound = SoundCue'Rx_Pickups.Sounds.SC_Pickup_Health'
 }

@@ -17,7 +17,7 @@ class Rx_Vehicle_ReconBike_Projectile extends Rx_Vehicle_Projectile_SeekingRocke
 
 simulated static function float GetRange() //Wasn't working correctly with the acceleration set, so I just set it manually.-Yosh
 {
-	return 6000 ;	
+	return 7000 ;	
 }
 
 DefaultProperties
@@ -58,19 +58,19 @@ DefaultProperties
 
 	ExplosionLightClass=Class'Rx_Light_Tank_MuzzleFlash'
 	MaxExplosionLightDistance=7000.000000
-	Speed=1500 //500
-	MaxSpeed=5000
-	AccelRate=500.0
+	Speed=1000 //500
+	MaxSpeed=3000
+	AccelRate=1000.0
 	TossZ=100
 
-	LifeSpan=1.5
+	LifeSpan=2.5
 	Damage=	45
 	DamageRadius=380 //250
 	MomentumTransfer=100000.000000
    
 	LockWarningInterval			= 1.5
-	BaseTrackingStrength		= 8.0	// 0.7
-	HomingTrackingStrength		= 10.0 //2.0 		// 0.7
+	BaseTrackingStrength		= 25	// 0.7
+	HomingTrackingStrength		= 25 //2.0 		// 0.7
 
 	MyDamageType=Class'Rx_Vehicle_ReconBike_DmgType'
 

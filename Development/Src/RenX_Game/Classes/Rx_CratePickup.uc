@@ -1,5 +1,6 @@
 class Rx_CratePickup extends Rx_Pickup
-   config(RenegadeX);
+   config(RenegadeX)
+   implements(RxIfc_Targetable);
 
 `include(RenX_Game\RenXStats.uci);
 
@@ -165,6 +166,62 @@ function bool DelayRespawn()
    return !bRespawn;
 }
 
+
+/*-------------------------------------------*/
+/*BEGIN TARGET INTERFACE [RxIfc_Targetable]*/
+/*------------------------------------------*/
+//Health
+simulated function int GetTargetHealth() {return 0;} //Return the current health of this target
+simulated function int GetTargetHealthMax() {return 0;} //Return the current health of this target
+
+//Armour 
+simulated function int GetTargetArmour() {return 0;} // Get the current Armour of the target
+simulated function int GetTargetArmourMax() {return 0;} // Get the current Armour of the target 
+
+// Veterancy
+
+simulated function int GetVRank() {return 0;}
+
+
+/*Get Health/Armour Percents*/
+simulated function float GetTargetHealthPct() {return 0 ;}
+simulated function float GetTargetArmourPct() {return 0;}
+simulated function float GetTargetMaxHealthPct() {return 0;} //Everything together (Basically Health and armour)
+
+/*Get what we're actually looking at*/
+simulated function Actor GetActualTarget() {return self;} //Should return 'self' most of the time, save for things that should return something else (like building internals should return the actual building)
+
+/*Booleans*/
+simulated function bool GetUseBuildingArmour(){return false;} //Stupid legacy function to determine if we use building armour when drawing. 
+simulated function bool GetShouldShowHealth(){return false;} //If we need to draw health on this 
+simulated function bool AlwaysTargetable() {return false;} //Targetable no matter what range they're at
+simulated function bool GetIsInteractable(PlayerController PC) {return false;} //Are we ever interactable?
+simulated function bool GetCurrentlyInteractable(PlayerController RxPC) {return false;} //Are we interactable right now? 
+simulated function bool GetIsValidLocalTarget(Controller PC) {return !bPickupHidden;} //Are we a valid target for our local playercontroller?  (Buildings are always valid to look at (maybe stealthed buildings aren't?))
+simulated function bool HasDestroyedState() {return false;} //Do we have a destroyed state where we won't have health, but can't come back? (Buildings in particular have this)
+simulated function bool UseDefaultBBox() {return false;} //We're big AF so don't use our bounding box 
+simulated function bool IsStickyTarget() {return true;} //Does our target box 'stick' even after we're untargeted for awhile 
+simulated function bool HasVeterancy() {return false;} 
+
+//Spotting
+simulated function bool IsSpottable() {return true;}
+simulated function bool IsCommandSpottable() {return false;} 
+
+simulated function bool IsSpyTarget(){return false;} //Do we use spy mechanics? IE: our bounding box will show up friendly to the enemy [.... There are no spy Refineries...... Or are there?]
+
+/* Text related */
+
+simulated function string GetTargetName() {return GetHumanReadableName();} //Get our targeted name 
+simulated function string GetInteractText(Controller C, string BindKey) {return "";} //Get the text for our interaction 
+simulated function string GetTargetedDescription(PlayerController PlayerPerspectiv) {return "";} //Get any special description we might have when targeted 
+
+//Actions
+simulated function SetTargeted(bool bTargeted) ; //Function to say what to do when you're targeted client-side 
+
+/*----------------------------------------*/
+/*END TARGET INTERFACE [RxIfc_Targetable]*/
+/*---------------------------------------*/
+
 DefaultProperties
 {
    RespawnTime=2.0000f
@@ -193,28 +250,25 @@ DefaultProperties
    bHasLocationSpeech=true
    LocationSpeech(0)=SoundNodeWave'A_Character_IGMale.BotStatus.A_BotStatus_IGMale_HeadingForTheSuperHealth'
 
-	DefaultCrateTypes[0] = class'Rx_CrateType_Money'
-	DefaultCrateTypes[1] = class'Rx_CrateType_Spy'
-	DefaultCrateTypes[2] = class'Rx_CrateType_Refill'
-	DefaultCrateTypes[3] = class'Rx_CrateType_Vehicle'
-	DefaultCrateTypes[4] = class'Rx_CrateType_Suicide'
-	DefaultCrateTypes[5] = class'Rx_CrateType_Character'
-	DefaultCrateTypes[6] = class'Rx_CrateType_TimeBomb'
-	DefaultCrateTypes[7] = class'Rx_CrateType_Nuke'
-	DefaultCrateTypes[8] = class'Rx_CrateType_Speed'
-	DefaultCrateTypes[9] = class'Rx_CrateType_Abduction'
-	DefaultCrateTypes[10] = class'Rx_CrateType_TSVehicle'
-	DefaultCrateTypes[11] = class'Rx_CrateType_Veterancy'
-	DefaultCrateTypes[12] = class'Rx_CrateType_DamageResistance'
-	DefaultCrateTypes[13] = class'Rx_CrateType_ClassicVehicle'
-	DefaultCrateTypes[14] = class'Rx_CrateType_EpicCharacter'
-	DefaultCrateTypes[15] = class'Rx_CrateType_Kamikaze'
-	DefaultCrateTypes[16] = class'Rx_CrateType_Teleport'	
-	DefaultCrateTypes[17] = class'Rx_CrateType_DMRandomWeapon'
-	DefaultCrateTypes[18] = class'Rx_CrateType_RandomWeapon'
-	DefaultCrateTypes[19] = class'Rx_CrateType_MegaSpeed'
-	DefaultCrateTypes[20] = class'Rx_CrateType_SuperMoney'
-	DefaultCrateTypes[21] = class'Rx_CrateType_RadarSweep'
-	DefaultCrateTypes[22] = class'Rx_CrateType_SlowDown'
-	DefaultCrateTypes[23] = class'Rx_CrateType_BasePower'
+	DefaultCrateTypes.Add(class'Rx_CrateType_Money')
+	DefaultCrateTypes.Add(class'Rx_CrateType_Spy')
+	DefaultCrateTypes.Add(class'Rx_CrateType_Refill')
+	DefaultCrateTypes.Add(class'Rx_CrateType_Vehicle')
+	DefaultCrateTypes.Add(class'Rx_CrateType_Suicide')
+	DefaultCrateTypes.Add(class'Rx_CrateType_Character')
+	DefaultCrateTypes.Add(class'Rx_CrateType_TimeBomb')
+	DefaultCrateTypes.Add(class'Rx_CrateType_Nuke')
+	DefaultCrateTypes.Add(class'Rx_CrateType_Speed')
+	DefaultCrateTypes.Add(class'Rx_CrateType_Abduction')
+	DefaultCrateTypes.Add(class'Rx_CrateType_TSVehicle')
+	DefaultCrateTypes.Add(class'Rx_CrateType_Veterancy')
+	DefaultCrateTypes.Add(class'Rx_CrateType_DamageResistance')
+	DefaultCrateTypes.Add(class'Rx_CrateType_ClassicVehicle')
+	DefaultCrateTypes.Add(class'Rx_CrateType_EpicCharacter')
+	DefaultCrateTypes.Add(class'Rx_CrateType_Teleport')
+	DefaultCrateTypes.Add(class'Rx_CrateType_DMRandomWeapon')
+	DefaultCrateTypes.Add(class'Rx_CrateType_RandomWeapon')
+	DefaultCrateTypes.Add(class'Rx_CrateType_SuperMoney')
+	DefaultCrateTypes.Add(class'Rx_CrateType_RadarSweep')
+	DefaultCrateTypes.Add(class'Rx_CrateType_SlowDown')
 }

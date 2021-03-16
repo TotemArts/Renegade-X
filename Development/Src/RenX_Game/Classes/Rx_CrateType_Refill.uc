@@ -35,18 +35,7 @@ function bool CanUseRefill(Rx_Pawn Recipient)
 
 function ExecuteCrateBehaviour(Rx_Pawn Recipient, Rx_PRI RecipientPRI, Rx_CratePickup CratePickup)
 {
-	Recipient.Health = Recipient.HealthMax;
-	Recipient.DamageRate = 0;
-	Recipient.Armor  = Recipient.ArmorMax;
-	Recipient.ClientSetStamina(Recipient.MaxStamina);
-
-	if(Rx_Pawn_SBH(Recipient) != None)
-			Rx_Pawn_SBH(Recipient).ChangeState('WaitForSt');
-	
-	if(Rx_InventoryManager(Recipient.InvManager) != none )
-    {
-		Rx_InventoryManager(Recipient.InvManager).PerformWeaponRefill();
-    }
+	Recipient.PerformRefill();
 }
 
 DefaultProperties

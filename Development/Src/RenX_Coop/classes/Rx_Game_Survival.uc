@@ -90,6 +90,7 @@ function CheckBuildingsDestroyed(Actor destroyedBuilding, Rx_Controller StarPC)
 {
 	local BuildingCheck Check;
 	local Rx_CoopObjective O;
+	local int ObjIndex;
 
 	if (Role == ROLE_Authority && destroyedBuilding.GetTeamNum() == GetPlayerTeam())
 	{
@@ -119,6 +120,12 @@ function CheckBuildingsDestroyed(Actor destroyedBuilding, Rx_Controller StarPC)
 			{
 				O.FinishObjective(StarPC);
 			}
+		}
+
+		ObjIndex = BuildingObjectives.Find(Rx_Building(destroyedBuilding).myObjective);
+		if(ObjIndex != -1)
+		{
+			BuildingObjectives.Remove(ObjIndex,1); // remove so that the survival AI will not target this building anymore
 		}
 	}
 	

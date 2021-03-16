@@ -279,6 +279,8 @@ state Running
         {
             targetedActor = HitActor;
 			HitActor.TakeDamage(FireInfo.Damage, Cannon.InstigatorController, HitLocation, FireInfo.Momentum * Normal(End - Start), FireInfo.DamageType,, Cannon);
+            HitActor.HurtRadius(FireInfo.Damage, 400, FireInfo.DamageType, FireInfo.Momentum, HitLocation,, Cannon.InstigatorController, false);
+
         } else {
             return false;
         }

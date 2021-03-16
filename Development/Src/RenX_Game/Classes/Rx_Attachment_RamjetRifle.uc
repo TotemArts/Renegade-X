@@ -101,7 +101,7 @@ DefaultProperties
 	ImpactEffects(19)=(MaterialType=SnowStone, ParticleTemplate=ParticleSystem'RX_FX_Munitions2.Particles.bullets.P_Bullet_Impact_Snow_Heavy',Sound=SoundCue'RX_SoundEffects.Bullet_Impact.SC_BulletImpact_Stone')
 
 	
-	BulletWhip=SoundCue'RX_SoundEffects.Bullet_WhizBy.SC_Bullet_WhizBy'
+	BulletWhip=SoundCue'RX_SoundEffects.Bullet_WhizBy.SC_Sniper_Crackle_Heavy'
     BeamTemplate=ParticleSystem'RX_FX_Munitions.Beams.P_InstantHit_Tracer_Ramjet'
 
     WeaponClass = class'Rx_Weapon_RamjetRifle'

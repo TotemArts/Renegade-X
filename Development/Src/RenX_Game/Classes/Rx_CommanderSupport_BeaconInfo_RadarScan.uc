@@ -86,11 +86,11 @@ EntryAngleLengthRequirment 	= 0
 EntryAngleRotation 			= (Pitch=0, Roll=0, Yaw=32768) //Most support powers come from behind their rotation
 EntryAngleStartLocation 	= (X=0, Y=0, Z=0)
 
-AbilityCallTime 	= 2.0
+AbilityCallTime 	= 3.0
 LingerTime			= 0.5
 bPlayWarningSiren 	= false
 bBroadcastToEnemy 	= true
 
 PowerName			= "RADAR SCAN"
-CPCost				= 100 //200
+CPCost				= 150 //200
 }

@@ -48,14 +48,14 @@ defaultproperties
 	
 	//-------------- Recoil
 	RecoilDelay = 0.02
-	MinRecoil = 80.0
-	MaxRecoil = 100.0
+	MinRecoil = 90.0
+	MaxRecoil = 140.0
 	MaxTotalRecoil = 5000.0
 	RecoilYawModifier = 0.5 // will be a random value between 0 and this value for every shot
 	RecoilInterpSpeed = 15.0
 	RecoilDeclinePct = 0.4
 	RecoilDeclineSpeed = 3.0
-	MaxSpread = 0.04
+	MaxSpread = 0.1
 	RecoilSpreadIncreasePerShot = 0.00075
 	RecoilSpreadDeclineSpeed = 0.1
 	RecoilSpreadDecreaseDelay = 0.3
@@ -85,10 +85,11 @@ defaultproperties
 	WeaponFireTypes(0)=EWFT_Projectile
 	
 	WeaponProjectiles(0)=class'Rx_Projectile_TiberiumAutoRifle'
+	WeaponProjectiles_Heroic(0)=class'Rx_Projectile_TiberiumAutoRifle_Heroic'
 
 	FiringStatesArray(1)=Active
 
-	ClipSize = 30
+	ClipSize = 20
 	InitalNumClips = 7
 	MaxClips = 7
 	bHasInfiniteAmmo = true
@@ -118,6 +119,9 @@ defaultproperties
 	MuzzleFlashPSCTemplate=ParticleSystem'RX_WP_TiberiumFlechetteRifle.Effects.P_MuzzleFlash_1P'
 	MuzzleFlashDuration=0.1
 	MuzzleFlashLightClass=class'Rx_Light_TiberiumFlechetteRifle_MuzzleFlash'
+
+	MuzzleFlashLightClass_Heroic=class'Rx_Light_TiberiumFlechetteRifle_MuzzleFlashRed'
+	MuzzleFlashPSCTemplate_Heroic=ParticleSystem'RX_WP_TiberiumAutoRifle.Effects.P_MuzzleFlash_1P_Red'
 
     // CrosshairMIC = MaterialInstanceConstant'RenXHud.MI_Reticle_AutoRifle'
 	

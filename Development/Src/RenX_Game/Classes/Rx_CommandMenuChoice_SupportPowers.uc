@@ -180,7 +180,7 @@ DefaultProperties
 	//SubChoices(4) = (Title = "Finest Hour", bChoiceSelected = false, bInstant = false, BeaconInfo = class'Rx_CommanderSupport_BeaconInfo_HumveeDrop') 
 
 	//TeamSpecific support powers
-	GDI_SP(0) = (Title = "Radar Scan", bChoiceSelected = false, bInstant = false, BeaconInfo = class'Rx_CommanderSupport_BeaconInfo_RadarScan', CPCost = 100)
+	GDI_SP(0) = (Title = "Radar Scan", bChoiceSelected = false, bInstant = false, BeaconInfo = class'Rx_CommanderSupport_BeaconInfo_RadarScan', CPCost = 150)
 	GDI_SP(1) = (Title = "Smoke Screen", bChoiceSelected = false, bInstant = false, BeaconInfo = class'Rx_CommanderSupport_BeaconInfo_SmokeDrop', CPCost = 200) 
 	GDI_SP(2) = (Title = "EMP Strike", bChoiceSelected = false, bInstant = false, BeaconInfo = class'Rx_CommanderSupport_BeaconInfo_EMPMissile', CPCost = 500)
 	GDI_SP(3) = (Title = "Cruise Missile", bChoiceSelected = false, bInstant = false, BeaconInfo = class'Rx_CommanderSupport_BeaconInfo_CruiseMissile', CPCost = 800)

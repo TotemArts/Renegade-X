@@ -20,7 +20,8 @@ protected event ExecuteWhatToDoNext()
 
 	if(Pawn.GetTeamNum() != GetTeamNum())
 	{
-		Rx_Pawn_Scripted(Pawn).TeamNum = GetTeamNum();
+		if(Rx_Pawn_Scripted(Pawn) != None)
+			Rx_Pawn_Scripted(Pawn).TeamNum = GetTeamNum();
 	}
 
 	if(MySpawner != None)
@@ -37,7 +38,7 @@ protected event ExecuteWhatToDoNext()
 		bGodMode = MySpawner.bInvulnerableBots;
 		bDriverSurvives = MySpawner.bDriverSurvives;
 	}
-	if(Rx_Pawn_Scripted(Pawn).ScriptedSpeedModifier != SpeedModifier)
+	if(Rx_Pawn_Scripted(Pawn) != None && Rx_Pawn_Scripted(Pawn).ScriptedSpeedModifier != SpeedModifier)
 	{
 		Rx_Pawn_Scripted(Pawn).ScriptedSpeedModifier = SpeedModifier;
 	}

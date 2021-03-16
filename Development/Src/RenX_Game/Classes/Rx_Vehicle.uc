@@ -17,7 +17,8 @@ class Rx_Vehicle extends UTVehicle
 	implements(RxIfc_ClientSideInstantHitRadius)
 	implements(RxIfc_SeekableTarget)
 	implements(RxIfc_EMPable)
-	implements(RxIfc_TargetedDescription)
+	implements(RxIfc_Targetable)
+	//implements(RxIfc_TargetedDescription)
 	implements(RxIfc_Airlift)
 	implements(RxIfC_RadarMarker);
 
@@ -45,6 +46,11 @@ var bool bBindable;
 var float ReservationLength;
 var float oldMaxEngineTorque, oldThrottleSpeed;
 var interpCurveFloat oldTorqueVSpeedCurve;
+var float VehicleResetTime;
+
+var bool bCanCapture;
+
+var bool bCountTowardsVehicleLimit;
 
 // UTVehicle only replicates driver and 1st passenger PRI. We need more of them.
 var PlayerReplicationInfo Passenger2PRI;
@@ -205,8 +211,6 @@ var rotator DestroyedRotatorAddend;
 var float 	DestroyedImpulseOffset; //location + this is where the death impulse is applied (along the Y-axis)
 var bool	bStayUprightOnDeath;
 
-var float TestFric; 
-
 // Vars for Transitioning between vehicle and pawn cam when entering/exiting vehicles
 var vector VehiclePawnTransitionStartLoc;
 var float BlendPct;
@@ -220,6 +224,9 @@ var SkeletalMeshComponent DevFlag;
 var AudioComponent FlagAmbient;
 var repnotify Texture2D DevFlagTexture;
 var MaterialInstanceConstant FlagMIC;
+var vector SpawnOffset;
+
+var float FOVMultiplier, FOVZoomedMultiplier, FOVChangeRate;
 
 replication
 {
@@ -241,52 +248,7 @@ replication
 	if (bNetDirty)
         DevFlagTexture;
 }
-/**DEPRACATED FUNCTIONS
-static function int ClassToIndex() {
-	local int Index;
-	ScriptTrace();
-	
-	Index = `RxGameObject.PurchaseSystem.GDIVehicleClasses.find(default.Class);
-	if (Index >= 0)
-		return Index;
 
-	return `RxGameObject.PurchaseSystem.NodVehicleClasses.find(default.Class);
-	
-}
-
-// Purchasing
-static function Purchase(Rx_PRI Context) {
-	local int RealCost;
-	local Rx_Controller ContextController;
-
-	ScriptTrace();
-	
-	if (Available(Context) == PURCHASE_AVAILABLE) {
-		// The class is purchasable
-		RealCost = Cost(Context);
-		if (FFloor(Context.GetCredits()) >= Cost(Context)) {
-			ContextController = Rx_Controller(Context.Owner);
-			
-			// We have enough credits; purchase the vehicle
-			if (`RxGameObject.PurchaseSystem.VehicleManager.QueueVehicle(default.Class, Context, ClassToIndex())) {
-				Context.RemoveCredits(RealCost);
-			
-				if (Context.AirdropCounter > 0) {
-					Context.AirdropCounter++;
-					if (`WorldInfoObject.NetMode == NM_Standalone)
-						Context.LastAirdropTime = `WorldInfoObject.TimeSeconds;
-				}
-
-				//return true;
-			} 
-			else {
-				ContextController.clientmessage("You have reached the queue limit, vehicle not added to the queue!", 'Vehicle');				
-				//return false;
-			}
-		}
-	} 
-}
-*/
 static function int Cost(Rx_PRI Context) {
 	local float Multiplier;
 	
@@ -312,44 +274,7 @@ static function EAvailability Available(Rx_PRI Context)
 	return PURCHASE_AVAILABLE;
 }
 
-/**DEPRACATED - Remove at will-
- 
-// Block Data
-static function string Title() {
-	return default.PT_Title;
-}
-
-static function string Description() {
-	return default.PT_Description;
-}
-
-static function Texture Icon() {
-	return default.PT_Icon;
-}
-
-// Metadata
-static function int StatType() {
-	return 3;
-}
-
-static function int DamageOutOfSix() {
-	return 0;
-}
-
-static function int RangeOutOfSix() {
-	return 0;
-}
-
-static function int RateOfFireOutOfSix() {
-	return 0;
-}
-
-static function int MagazineCapacityOutOfSize() {
-	return 0;
-}
-*/ 
-
-static function Rx_Building_VehicleFactory GetVehicleFactory(byte TeamNum) {
+static function RxIfc_FactoryVehicle GetVehicleFactory(byte TeamNum) {
 	if (TeamNum == TEAM_GDI)
 		return `RxGameObject.PurchaseSystem.WeaponsFactory[0];
 	
@@ -448,6 +373,15 @@ simulated event ReplicatedEvent(name VarName)
 
 }
 
+simulated function float GetStamina()
+{
+	return -1.0f;
+}
+
+simulated function string GetStaminaName()
+{
+	return "Stamina";
+}
 
 simulated function SetRadarVisibility(byte Visibility)
 {
@@ -471,17 +405,15 @@ reliable server function ServerSetRadarSpotted()
 {
 	if(Rx_Controller(Controller) != none )
 	{
-	Rx_Controller(Controller).SetSpottedRadarVisibility();
+		Rx_Controller(Controller).SetSpottedRadarVisibility();
 	}
-	else
-	if(Rx_Bot(Controller) != none )
+	else if(Rx_Bot(Controller) != none )
 	{
-	Rx_Bot(Controller).SetSpottedRadarVisibility();
+		Rx_Bot(Controller).SetSpottedRadarVisibility();
 	}
-	else
-	if(Rx_Vehicle_HarvesterController(Controller) != none )
+	else if(Rx_Vehicle_HarvesterController(Controller) != none )
 	{
-	Rx_Vehicle_HarvesterController(Controller).SetSpottedRadarVisibility();
+		Rx_Vehicle_HarvesterController(Controller).SetSpottedRadarVisibility();
 	}
 }
 
@@ -495,36 +427,35 @@ simulated function PlayerReplicationInfo GetSeatPRI(int SeatNum)
 	{
 		switch(seatNum)
 		{
-		case 0:
-			return PlayerReplicationInfo;
-		case 1:
-			return PassengerPRI;
-		case 2:
-			return Passenger2PRI;
-		case 3:
-			return Passenger3PRI;
-		case 4:
-			return Passenger4PRI;
-		case 5:
-			return Passenger5PRI;		
+			case 0:
+				return PlayerReplicationInfo;
+			case 1:
+				return PassengerPRI;
+			case 2:
+				return Passenger2PRI;
+			case 3:
+				return Passenger3PRI;
+			case 4:
+				return Passenger4PRI;
+			case 5:
+				return Passenger5PRI;		
 		}
 	}
 }
 
 function SetSeatStoragePawn(int SeatIndex, Pawn PawnToSit)
 {
-	//local Rx_Vehicle_Attacheable Tur;
 	
 	super.SetSeatStoragePawn(seatindex,pawntosit);
 	
 	switch(SeatIndex)
 	{
-	case 2:
-		 Passenger2PRI = (PawnToSit == None) ? None : Seats[SeatIndex].SeatPawn.PlayerReplicationInfo;	
-	case 3:
-		Passenger3PRI = (PawnToSit == None) ? None : Seats[SeatIndex].SeatPawn.PlayerReplicationInfo;
-	case 4:
-		Passenger4PRI = (PawnToSit == None) ? None : Seats[SeatIndex].SeatPawn.PlayerReplicationInfo;
+		case 2:
+			Passenger2PRI = (PawnToSit == None) ? None : Seats[SeatIndex].SeatPawn.PlayerReplicationInfo;	
+		case 3:
+			Passenger3PRI = (PawnToSit == None) ? None : Seats[SeatIndex].SeatPawn.PlayerReplicationInfo;
+		case 4:
+			Passenger4PRI = (PawnToSit == None) ? None : Seats[SeatIndex].SeatPawn.PlayerReplicationInfo;
 	}
 		
 }
@@ -543,6 +474,28 @@ function startUpDrivingWithDelay()
 	startTime = WorldInfo.TimeSeconds;
 }
 
+simulated function UpdateFOV(optional float ChangeRate)
+{
+	local Rx_Controller UTPC;
+
+	UTPC = Rx_Controller(Controller);
+
+	if(UTPC == None || Controller != GetALocalPlayerController()) // either AI or non-local player
+		return;
+
+	if(ChangeRate != 0)
+		FOVChangeRate = ChangeRate;
+	else
+		FOVChangeRate = default.FOVChangeRate;
+
+	if(fpCamera) {
+		UTPC.StartZoom(UTPC.DefaultFOV * FOVZoomedMultiplier, FOVChangeRate);
+	}
+	else {
+		UTPC.StartZoom(UTPC.DefaultFOV * FOVMultiplier, FOVChangeRate);
+	}
+}
+
 function ToggleCam()
 {
 	if(fpCamera)
@@ -550,15 +503,13 @@ function ToggleCam()
 		fpCamera = false;
 		Seats[0].CameraTag = tpCameraTag;
 		OldPositions.Length=0;
-		//Mesh.SetHidden(false);
-		UTPlayercontroller(Controller).setFOV(DefaultFOV);
+		UpdateFOV();
 	}
 	else
 	{
 		fpCamera = true;
 		Seats[0].CameraTag = fpCameraTag;
-		//Mesh.SetHidden(true);
-		UTPlayercontroller(Controller).setFOV(ZoomedFOV);
+		UpdateFOV();
 	}
 	ServerChangeFpCamera(fpCamera);
 }
@@ -566,6 +517,21 @@ function ToggleCam()
 reliable server function ServerChangeFpCamera(bool newFpCamera)
 {
 	fpCamera = newFpCamera;
+	
+	if(!newFpCamera)
+	{
+		fpCamera = false;
+		Seats[0].CameraTag = tpCameraTag;
+		OldPositions.Length=0;
+		UpdateFOV();
+	}
+	else
+	{
+		fpCamera = true;
+		Seats[0].CameraTag = fpCameraTag;
+		UpdateFOV();
+	}
+	
 }
 
 simulated event PostBeginPlay()
@@ -603,10 +569,12 @@ simulated event PostBeginPlay()
 			OldWheelParticleEffect = DefaultWheelPSCTemplate;
 		}
 	}
-	//if(ROLE == ROLE_Authority && Controller != none) RadarVisibility = Rx_Controller(Controller).GetRadarVisibility();
 
-	MaterialInstanceConstant(Mesh.GetMaterial(0)).SetScalarParameterValue('Camo_Offset_Seed', FRand());
-	MaterialInstanceConstant(Mesh.GetMaterial(0)).SetScalarParameterValue('Camo_Scale_Seed', (FRand() % 0.4) + 0.8);
+	if (WorldInfo.NetMode != NM_DedicatedServer)
+	{
+		MaterialInstanceConstant(Mesh.GetMaterial(0)).SetScalarParameterValue('Camo_Offset_Seed', FRand());
+		MaterialInstanceConstant(Mesh.GetMaterial(0)).SetScalarParameterValue('Camo_Scale_Seed', (FRand() % 0.4) + 0.8);
+	}
 
 	SetTimer(SpotUpdateTime,true,'UpdateSpotLocation');
 }
@@ -720,12 +688,12 @@ function StartSprint()
 		if(!IsTimerActive('IncreaseSprintSpeed'))
 		{
 	    
-			//if(MinSprintSpeedMultiplier*Vet_SprintSpeedMod[VRank] == Default.MinSprintSpeedMultiplier*Vet_SprintSpeedMod[VRank])
-				if(MinSprintSpeedMultiplier*GetSpeedModifier() == Default.MinSprintSpeedMultiplier*GetSpeedModifier())
+			if(MinSprintSpeedMultiplier*GetSpeedModifier() == Default.MinSprintSpeedMultiplier*GetSpeedModifier())
 				IncreaseSprintSpeed();
 			else
 				SetTimer(SprintTimeInterval, true, 'IncreaseSprintSpeed');
 		}
+
 		if(IsTimerActive('DecreaseSprintSpeed'))
 		{
 			ClearTimer('DecreaseSprintSpeed');
@@ -747,6 +715,7 @@ function StopSprinting()
 		{
 			SetTimer(0.25, true, 'DecreaseSprintSpeed');
 		}
+
 		if(IsTimerActive('IncreaseSprintSpeed'))
 		{
 			ClearTimer('IncreaseSprintSpeed');
@@ -770,6 +739,7 @@ reliable server function ServerSetGroundSpeed(float Speed)
 	{
 		bSprintingServer = false;
 	}
+
 	GroundSpeed = Speed;	
 }
 reliable server function ServerSetAirSpeed(float Speed)
@@ -824,10 +794,9 @@ reliable server function IncreaseSprintSpeed()
 	
 	if(bEMPd) return; 
 	
-	VGround_SprintSpeedMax = default.MaxSprintSpeedMultiplier*GetSpeedModifier() ;//*Vet_SprintSpeedMod[VRank] ;
-	//`log(VGround_SprintSpeedMax);
-	MinSprintSpeedMultiplier += SprintSpeedIncrement*GetSpeedModifier();//Vet_SprintSpeedMod[VRank];
-	//`log(SprintSpeedIncrement*Vet_SprintSpeedMod[VRank]);
+	VGround_SprintSpeedMax = default.MaxSprintSpeedMultiplier*GetSpeedModifier() ;
+
+	MinSprintSpeedMultiplier += SprintSpeedIncrement*GetSpeedModifier();
 	
 	if(MinSprintSpeedMultiplier >= VGround_SprintSpeedMax)
 	{
@@ -838,9 +807,9 @@ reliable server function IncreaseSprintSpeed()
 		}
 	}
 
-	SprintSpeed_Air = Default.AirSpeed * MinSprintSpeedMultiplier * GetSpeedModifier() * GetScriptedSpeedModifier();//Vet_SprintSpeedMod[VRank];
-	SprintSpeed_Ground = Default.GroundSpeed * MinSprintSpeedMultiplier * GetSpeedModifier() * GetScriptedSpeedModifier();//Vet_SprintSpeedMod[VRank];
-	SprintSpeed_Water = Default.WaterSpeed * MinSprintSpeedMultiplier * GetSpeedModifier() * GetScriptedSpeedModifier();//Vet_SprintSpeedMod[VRank];
+	SprintSpeed_Air = Default.AirSpeed * MinSprintSpeedMultiplier * GetSpeedModifier() * GetScriptedSpeedModifier();
+	SprintSpeed_Ground = Default.GroundSpeed * MinSprintSpeedMultiplier * GetSpeedModifier() * GetScriptedSpeedModifier();
+	SprintSpeed_Water = Default.WaterSpeed * MinSprintSpeedMultiplier * GetSpeedModifier() * GetScriptedSpeedModifier();
 
 	if(PlayerController(Controller) != None)
 	{
@@ -858,8 +827,6 @@ reliable server function IncreaseSprintSpeed()
 }
 reliable server function DecreaseSprintSpeed()
 {
-	
-	//`log("Tried to decrease");
 	MinSprintSpeedMultiplier -= SprintSpeedIncrement;
 	if(MinSprintSpeedMultiplier <= Default.MinSprintSpeedMultiplier)
 	{
@@ -887,8 +854,6 @@ reliable server function DecreaseSprintSpeed()
 
 reliable server function HardSprintStop()
 {
-	
-	//`log("Tried to decrease");
 	MinSprintSpeedMultiplier -= default.MinSprintSpeedMultiplier  * GetScriptedSpeedModifier();
 	if(IsTimerActive('DecreaseSprintSpeed'))
 	{
@@ -944,18 +909,12 @@ simulated function DrivingStatusChanged()
 			SetTimer(0.05,true,'FrontalCollisionGripReductionTimer');
 		}
 		if ( DrivingPhysicalMaterial != None )
-		{
-			DrivingPhysicalMaterial.friction=0.7;
-			DrivingPhysicalMaterial.bEnableAnisotropicFriction=true;
-			DrivingPhysicalMaterial.AnisoFrictionDir=vect(1.0,1.0,1.0); 			
+		{		
 			Mesh.SetPhysMaterialOverride(DrivingPhysicalMaterial);
 		}
 	}
 	else if ( DefaultPhysicalMaterial != None )
-	{
-		DefaultPhysicalMaterial.friction=0.7;
-		DefaultPhysicalMaterial.bEnableAnisotropicFriction=false;
-		DefaultPhysicalMaterial.AnisoFrictionDir=vect(0.0,0.0,0.0); 			
+	{			
 		Mesh.SetPhysMaterialOverride(DefaultPhysicalMaterial);
 	}
 
@@ -986,42 +945,12 @@ simulated function DrivingStatusChanged()
 	VehicleEvent(bDriving ? 'EngineStart' : 'EngineStop');
 }
 
-/**
-simulated function DrivingStatusChanged() 
-{
-
-	super.DrivingStatusChanged();
-	if(bDriving)
-	{
-		if(Role == ROLE_Authority && Rx_Vehicle_Treaded(self) != None)
-		{
-			SetTimer(0.05,true,'FrontalCollisionGripReductionTimer');
-		}
-		if ( DrivingPhysicalMaterial != None )
-		{
-			DrivingPhysicalMaterial.friction=0.7;
-			DrivingPhysicalMaterial.bEnableAnisotropicFriction=true;
-			DrivingPhysicalMaterial.AnisoFrictionDir=vect(1.0,1.0,1.0); 
-			Mesh.SetPhysMaterialOverride(DrivingPhysicalMaterial);
-		}		
-	}
-	else 
-	{
-		if(Role == ROLE_Authority)
-		{
-			ClearTimer('FrontalCollisionGripReductionTimer');
-		}
-	}
-}
-*/
-
 function FrontalCollisionGripReductionTimer()
 {
 	local int i;
 	
 	if(Rx_Vehicle_Harvester(self) == None && Rx_Vehicle_Treaded(self) != None)
 	{
-		
 
 		if(bFrontalCollision && !bIsReducingFrontalCollisionGrip)
 		{
@@ -1029,7 +958,7 @@ function FrontalCollisionGripReductionTimer()
 			{
 				if(UDKVehicleWheel(Wheels[i]) != None)
 				{
-					Wheels[i].LongSlipFactor = 0.1;
+					Wheels[i].LongSlipFactor = 0.85;
 				}
 			}
 			bIsReducingFrontalCollisionGrip = true;
@@ -1072,11 +1001,8 @@ simulated event PostInitAnimTree(SkeletalMeshComponent SkelComp)
  */
 event SetTeamNum(byte toTeam)
 {
-//	local byte from;
-
 	if ( toTeam != Team )
 	{
-//		from = Team;
 		Team = toTeam;
 		TeamChanged();
 	}
@@ -1193,8 +1119,6 @@ function bool TryToDrive(Pawn P)
 
 	PawnThatTrysToDrive = P;    
 
-	// Super call to UTVehicle:
-
 	// don't allow while playing spawn effect
 	if (bPlayingSpawnEffect)
 	{
@@ -1310,28 +1234,6 @@ function bool ChangeSeat(Controller ControllerToMove, int RequestedSeat)
 	return super.ChangeSeat(ControllerToMove, RequestedSeat);
 }
 
-/**
-function InitializeSeats()
-{
-	local int i;
-
-	for(i=0;i<Seats.Length;i++) {
-		if(i > 0) {
-			Seats[i].GunClass = Seats[0].GunClass; // just to avoid a Nullpointer in super.InitializeSeats(). 
-												   // Is resetted to None again after super has been called.
-		}
-	}
-	
-	super.InitializeSeats();
-	
-	for(i=0;i<Seats.Length;i++) {
-		if(i > 0) {
-			Seats[i].GunClass = None; 
-			Seats[i].Gun = None; 
-		}
-	}    
-}*/
-
 function InitializeSeats()
 {
 	local int i;
@@ -1344,8 +1246,6 @@ function InitializeSeats()
 
 	for(i=0;i<Seats.Length;i++)
 	{
-		// Seat 0 = Driver Seat.  It doesn't get a WeaponPawn
-
 		if (i>0)
 		{
 	   		Seats[i].SeatPawn = Spawn(class'Rx_VehicleSeatPawn');
@@ -1398,8 +1298,6 @@ function InitializeSeats()
 			UTVehicleWeapon(Seats[i].Gun).SeatIndex = i;
 			UTVehicleWeapon(Seats[i].Gun).MyVehicle = self;
 		}
-
-		// Cache the names used to access various variables
    	}
 }
 
@@ -1411,7 +1309,7 @@ function bool PassengerEnter(Pawn P, int SeatIndex)
 	FromTeam = GetTeamNum();
 
 	// Restrict someone not on the same team
-	if ( WorldInfo.Game.bTeamGame && GetTeamNum() != 255 && !WorldInfo.GRI.OnSameTeam(P,self) )
+	if ( WorldInfo.Game.bTeamGame && GetTeamNum() != 255 && P.GetTeamNum() != GetTeamNum() )
 	{
 		return false;
 	}
@@ -1442,60 +1340,32 @@ function bool PassengerEnter(Pawn P, int SeatIndex)
 simulated function StopVehicleSounds()
 {
 	super.StopVehicleSounds();
-	//if (EMPSound != None)
-		EMPSound.Stop();
+	EMPSound.Stop();
 }
 
 simulated function StartEMPEffects()
 {
-	//if (EMPSound != None)
-		EMPSound.Play();
-
-	// If for whatever reason an existing component is still present, make sure it is removed.
-	/*if (EMPParticleComponent != None)
-	{
-		EMPParticleComponent.DeactivateSystem();
-		DetachComponent(EMPParticleComponent);
-		EMPParticleComponent = None;
-	}
-
-	if (EMPParticleTemplate != None)
-	{
-		EMPParticleComponent = new(self) class'ParticleSystemComponent';
-		EMPParticleComponent.SetTemplate(EMPParticleTemplate);
-		AttachComponent(EMPParticleComponent);
-	}*/
-	//if (EMPParticleComponent != None)
-		EMPParticleComponent.ActivateSystem();
+	EMPSound.Play();
+	EMPParticleComponent.ActivateSystem();
 }
 
 simulated function StopEMPEffects()
 {
-	//if (EMPSound != None)
-		EMPSound.Stop();
-	//if (EMPParticleComponent != None)
-	//{
-		EMPParticleComponent.DeactivateSystem();
-		//DetachComponent(EMPParticleComponent);
-		//EMPParticleComponent = None;
-	//}
+	EMPSound.Stop();
+	EMPParticleComponent.DeactivateSystem();
 }
 
 simulated function FallbackStopEMPEffects()
 {
-	//if (!bEMPd && EMPParticleComponent != None)
 	if (!bEMPd && EMPParticleComponent.bIsActive)
 	{
-		`log("EMP STOP EFFECTS FALLBACK UTILIZED!");
 		EMPParticleComponent.DeactivateSystem();
-		//DetachComponent(EMPParticleComponent);
-		//EMPParticleComponent = None;
 	}
 }
 
 simulated function bool IsEffectedByEMP()
 {
-	return  GetResistanceModifier() > 0.7;  //If damage resistance is more than 30% grant EMP immunity ;//true;
+	return  GetResistanceModifier() > 0.7; 
 }
 
 function EnteredEMPField(Rx_EMPField EMPCausingActor);
@@ -1507,8 +1377,6 @@ simulated function bool EMPHit(Controller InstigatedByController, Actor EMPCausi
 	if ((InstigatedByController != none && InstigatedByController.GetTeamNum() == GetTeamNum()) || bEMPd)
 		return false;
 
-	//`logd("Vehicle EMPd");
-
 	bEMPd = true;
 	
 	//This is done through replication in a client server environment
@@ -1517,14 +1385,9 @@ simulated function bool EMPHit(Controller InstigatedByController, Actor EMPCausi
 	
 	if(bSprinting) 
 		StopSprinting(); 
-	
-	
-	
-	//`logd(`showvar(simobj));
+
 	if(UDKVehicleSimCar(simobj) != none)
 	{
-		//oldTorqueVSpeedCurve = UDKVehicleSimCar(simobj).TorqueVSpeedCurve;
-		//UDKVehicleSimCar(simobj).TorqueVSpeedCurve = (Points=((InVal=0.0,OutVal=0.0),(InVal=0.0,OutVal=0.0),(InVal=0.0,OutVal=0.0)));
 		oldThrottleSpeed = UDKVehicleSimCar(simobj).ThrottleSpeed;
 		UDKVehicleSimCar(simobj).ThrottleSpeed = 0;
 	}
@@ -1535,8 +1398,6 @@ simulated function bool EMPHit(Controller InstigatedByController, Actor EMPCausi
 		SVehicleSimTank(simobj).MaxEngineTorque = 0;
 	}
 
-	//`logd(`showvar(controller));
-
 	if(Rx_Controller(controller) != none)
 		Rx_Controller(controller).OnEMPHit(InstigatedByController, EMPCausingActor, TimeModifier);
 	else if(Rx_Bot(controller) != none)
@@ -1545,9 +1406,8 @@ simulated function bool EMPHit(Controller InstigatedByController, Actor EMPCausi
 		Rx_Vehicle_HarvesterController(controller).OnEMPHit(InstigatedByController, EMPCausingActor, TimeModifier);
 	
 	if(WorldInfo.NetMode == NM_Client) 
-		return true; //Cut here for clients
+		return true; 
 	
-	//Knock Aircraft out of the sky
 	if(bIsAircraft)
 		SetDriving(false);
 	
@@ -1572,7 +1432,6 @@ simulated function bool EMPHit(Controller InstigatedByController, Actor EMPCausi
 
 simulated function  EMPBleed()
 {
-	`logd("EMPBleed start");
 	if (--EMPTimeLeft <= 0)
 	{
 		ClearTimer('EMPBleed');
@@ -1580,7 +1439,6 @@ simulated function  EMPBleed()
 		if(UDKVehicleSimCar(simobj) != none)
 		{
 			UDKVehicleSimCar(simobj).ThrottleSpeed = oldThrottleSpeed;
-			//UDKVehicleSimCar(simobj).TorqueVSpeedCurve = oldTorqueVSpeedCurve;
 		}
 		if(SVehicleSimTank(simobj) != none)
 			SVehicleSimTank(simobj).MaxEngineTorque = oldMaxEngineTorque;
@@ -1589,8 +1447,6 @@ simulated function  EMPBleed()
 		if(Role == ROLE_Authority) UpdateThrottleAndTorqueVars();
 		
 		StopEMPEffects();
-
-		`logd("EMPBleed no time left!");
 
 		if(Rx_Controller(controller) != none)
 			Rx_Controller(controller).OnEMPBleed(true);
@@ -1624,8 +1480,6 @@ simulated function  EMPBleed()
 		else if(Rx_Vehicle_HarvesterController(controller) != none)
 			Rx_Vehicle_HarvesterController(controller).OnEMPBleed();
 	}
-
-	//`logd("Rx_Vehicle EMPBleed"@`showvar(EMPTimeLeft)@`showvar(acceleration)@`showvar(velocity));
 }
 
 simulated function ClearEMP()
@@ -1671,8 +1525,7 @@ function bool Died(Controller Killer, class<DamageType> DamageType, vector HitLo
 				{
 				if(PRII.DamageDone >= 100 && PRII.PPRI.Owner != Killer) 
 					{
-						C=Controller(PRII.PPRI.Owner); 
-						//`log(PRII.PPRI.Owner @ EventInstigator @ PRII.DamageDone); 
+						C=Controller(PRII.PPRI.Owner);
 						
 						//Why's Unreal so keen on turning everything into integers... I swear 
 						TempAssistPoints = fmin(default.VPReward[VRank], fmax(1,default.VPReward[VRank]*( (1.0*PRII.DamageDone)/(HealthMax*1.0))))  ;//Damage_Taken)); // at least 2 points
@@ -1696,8 +1549,7 @@ function bool Died(Controller Killer, class<DamageType> DamageType, vector HitLo
 				{
 				if((WorldInfo.TimeSeconds - RPRII.LastRepairTime) <= 5.0) 
 					{
-						C=Controller(RPRII.PPRI.Owner); 
-						//`log(RPRII.PPRI.Owner @ EventInstigator @ RPRII.DamageDone); 
+						C=Controller(RPRII.PPRI.Owner);
 						TempAssistPoints=class'Rx_VeterancyModifiers'.default.Ev_VehicleRepairAssist;
 						if(Rx_Controller(C) != none ) Rx_Controller(C).DisseminateVPString("[" $ GetHumanReadableName() @ "Kill Repair Assist]&" $ TempAssistPoints $ "&"); 
 						else
@@ -1708,12 +1560,15 @@ function bool Died(Controller Killer, class<DamageType> DamageType, vector HitLo
 		}
 		
 		//Play kill taunt for killer if they're on foot
-		if(Rx_Pawn(Killer.Pawn) !=none && (DamageType != class'Rx_DmgType_ProxyC4' && DamageType !=class'Rx_DmgType_TimedC4' )) Rx_Pawn(Killer.Pawn).SetTimer(1.5,false,'PlayVehicleKillConfirmTimer');
-		else
-		if(Rx_Vehicle(Killer.Pawn) != none && Rx_Pawn( Rx_Vehicle(Killer.Pawn).Driver) != none && (DamageType != class'Rx_DmgType_ProxyC4' && DamageType !=class'Rx_DmgType_TimedC4' ))
+		if(Killer.Pawn != None && GetTeamNum() != Killer.GetTeamNum() && (BoundPRI == None || BoundPRI.GetTeamNum() != Killer.GetTeamNum()))
 		{
-			Rx_Pawn( Rx_Vehicle(Killer.Pawn).Driver).SetTimer(1.5,false,'PlayVehicleKillConfirmTimer'); 	
-		}			
+			if(Rx_Pawn(Killer.Pawn) !=none && (DamageType != class'Rx_DmgType_ProxyC4' && DamageType !=class'Rx_DmgType_TimedC4' )) 
+				Rx_Pawn(Killer.Pawn).SetTimer(1.5,false,'PlayVehicleKillConfirmTimer');
+			else if(Rx_Vehicle(Killer.Pawn) != none && Rx_Pawn( Rx_Vehicle(Killer.Pawn).Driver) != none && (DamageType != class'Rx_DmgType_ProxyC4' && DamageType !=class'Rx_DmgType_TimedC4' ))
+			{
+				Rx_Pawn( Rx_Vehicle(Killer.Pawn).Driver).SetTimer(1.5,false,'PlayVehicleKillConfirmTimer'); 	
+			}	
+		}		
 		
 		if(Rx_Controller(Killer) != None && GetTeamNum() != Killer.GetTeamNum()) Rx_Controller(Killer).DisseminateVPString(DeathVPString); 
 		else
@@ -1763,10 +1618,8 @@ function bool Died(Controller Killer, class<DamageType> DamageType, vector HitLo
 			}
 		}
 	}
-	
-	
-	
-	if( TeamBought != 255 && !ClassIsChildOf(self.Class, class'Rx_Vehicle_Harvester') )
+
+	if(bCountTowardsVehicleLimit && TeamBought != 255 && !ClassIsChildOf(self.Class, class'Rx_Vehicle_Harvester'))
 	{
 		Rx_TeamInfo(UTTeamGame(WorldInfo.Game).Teams[TeamBought]).DecreaseVehicleCount();
 	}
@@ -1832,12 +1685,7 @@ function bool RecommendCharge(UTBot B, Pawn Enemy)
 		/** check to see if the Enemy is blocked by a vehicle. If so then dont recommend charge */
 		ForEach CollidingActors(class'Vehicle', veh, 500, Enemy.location)
 		{
-			if(veh != self && class'Rx_Utils'.static.OrientationOfLocAndRotToB(Enemy.location,rotator(location - Enemy.location),veh) > 0.4) {     
-				/**
-				DrawDebugLine(location,Enemy.location,0,0,255,true);
-				DrawDebugSphere(Enemy.location,500,10,0,0,255,true);
-				DebugFreezeGame(veh);    
-				*/        
+			if(veh != self && class'Rx_Utils'.static.OrientationOfLocAndRotToB(Enemy.location,rotator(location - Enemy.location),veh) > 0.4) {            
 				return false;
 			}
 		}
@@ -1904,7 +1752,7 @@ simulated function bool CanEnterVehicle(Pawn P)
 	local Rx_Bot_Scripted SB;
 	local bool bPilotEmptyButLocked;
 
-	if (Rx_Pawn(P) != None && !Rx_Pawn(P).CanEnterVehicles)
+	if (Rx_Pawn(P) != None && (!Rx_Pawn(P).CanEnterVehicles || Rx_Pawn(P).bDodging || Rx_Pawn(P).bDoingDodge))
 		return false;
 
 	if(Rx_Pawn_Scripted(Driver) != None)
@@ -1926,7 +1774,7 @@ simulated function bool CanEnterVehicle(Pawn P)
 			return false;
 	}
 
-	if ( P.bIsCrouched || (P.DrivenVehicle != None) || (P.Controller == None) || !P.Controller.bIsPlayer
+	if ( (P.DrivenVehicle != None) || (P.Controller == None) || !P.Controller.bIsPlayer
 	     || Health <= 0 || bDeleteMe )
 	{
 		return false;
@@ -1992,7 +1840,6 @@ function VehicleStolen()
 	
 	if(bHijackBonus)
 	{
-	Rx_PRI(Seats[0].SeatPawn.PlayerReplicationInfo).AddVP(+10); 
 	Rx_PRI(Seats[0].SeatPawn.PlayerReplicationInfo).SetVehicleIsStolen (true);
 
 	if(Rx_Controller(Seats[0].SeatPawn.Controller) != none)
@@ -2038,143 +1885,125 @@ function VehicleStolen()
 }
 
 
-
 function bool DriverEnter(Pawn P)
 {
 	local Rx_Controller C;
 	local bool bWasBuyer;
-	local string SteamID;
-    local OnlineSubsystem OnlineSub;
-
+	local Rx_Controller RxC; 
+	
 	if (!super.DriverEnter(P))
 		return false;
 
-	if(Rx_Controller(Controller) != None)
+	if (Rx_Controller(Controller) != None)
 	{
-		//Dev horn stuff 
-		OnlineSub = Class'GameEngine'.static.GetOnlineSubsystem();
-	    SteamID = OnlineSub.UniqueNetIdToString(Controller.PlayerReplicationInfo.UniqueId);
+		RxC = Rx_Controller(Controller);
 		
-		//Replicated
-	    CurrentHornSound = class'Rx_DevManager'.static.GetHornSound(SteamID, Rx_Controller(Controller).bIsDev, default.HornSounds[HornIndex]);
-
-		HornSounds[0] = CurrentHornSound;
-		if(Controller != None)
-		{
-	    	DevFlagTexture = class'Rx_DevManager'.static.GetFlagTexture(SteamID, Rx_Controller(Controller).bIsDev);
-		
-	    	if (DevFlagTexture != None)
-	    	{
-	    	    UpdateDevFlag(DevFlagTexture);
-	    	}
-	    	else
-	    	{
-	    	    UpdateDevFlag(None);
-    		}
-    	}
+		//Make us fancier than the peasants!//
+		UpdateDevFlare(RxC);
 	}
 	
-	if(bSprintingServer || bSprinting) 
-		StopSprinting(); 
-	
-	if (bEMPd)
-		SetDriving(false);
-	if(Rx_VehRolloutController(Controller) == none)
-	{
-		if (buyerPri != None)
+		if (bSprintingServer || bSprinting) 
+			StopSprinting(); 
+		
+		if (bEMPd)
+			SetDriving(false);
+		
+		if (Rx_VehRolloutController(Controller) == none)
 		{
-			if (Controller.PlayerReplicationInfo == buyerPri)
-				bWasBuyer = true;
-			buyerPri = none;
-			bReservedToBuyer = false;
-		}
-	}
-	if (GetTeamNum() != LastTeamToUse)
-	{
-		if (LastTeamToUse != 255)
-			VehicleStolen();
-		LastTeamToUse = GetTeamNum();
-	}
-	if(Rx_Bot(Controller) != None)
-		Rx_Bot(Controller).EnteredVehicle();        
-	if (BoundPRI != None)
-	{
-		if (Seats[0].SeatPawn.PlayerReplicationInfo != BoundPRI)
-		{
-			foreach WorldInfo.AllControllers(class'Rx_Controller', C)
+			if (buyerPri != None)
 			{
-				if (C.PlayerReplicationInfo == BoundPRI)
+				if (Controller.PlayerReplicationInfo == buyerPri)
+					bWasBuyer = true;
+				buyerPri = none;
+				bReservedToBuyer = false;
+			}
+		}
+		if (GetTeamNum() != LastTeamToUse)
+		{
+			if (LastTeamToUse != 255)
+				VehicleStolen();
+			LastTeamToUse = GetTeamNum();
+		}
+		if(Rx_Bot(Controller) != None)
+			Rx_Bot(Controller).EnteredVehicle();        
+		if (BoundPRI != None)
+		{
+			if (Seats[0].SeatPawn.PlayerReplicationInfo != BoundPRI)
+			{
+				foreach WorldInfo.AllControllers(class'Rx_Controller', C)
 				{
-					C.ReceiveLocalizedMessage(class'Rx_Message_Vehicle',VM_TeammateEntered,,Seats[0].SeatPawn.PlayerReplicationInfo,Class);
-					break;
+					if (C.PlayerReplicationInfo == BoundPRI)
+					{
+						C.ReceiveLocalizedMessage(class'Rx_Message_Vehicle',VM_TeammateEntered,,Seats[0].SeatPawn.PlayerReplicationInfo,Class);
+						break;
+					}
 				}
 			}
 		}
-	}
-	else if (Rx_Controller(Controller) != None && bBindable)
-		Rx_Controller(Controller).NotifyBindAllowed(self, bWasBuyer);
-	
-	if(ROLE == ROLE_Authority && Rx_Controller(Controller) != none)
-	{
-		SetRadarVisibility(Rx_Controller(Controller).GetRadarVisibility()); 
-		PromoteUnit(Rx_PRI(Controller.PlayerReplicationInfo).VRank); 
-		TempVRank = Rx_PRI(Controller.PlayerReplicationInfo).VRank;
-		//Set appropriate overlays
-		Rx_Controller(Controller).UpdateModifiedStats(); 
-		Rx_PRI(Controller.PlayerReplicationInfo).UpdateVehicleClass(self.class); 
-		if(IsTimerActive('ResetTempVRank')) ClearTimer('ResetTempVRank'); 
-		if(WorldInfo.NetMode != NM_StandAlone && Rx_Vehicle_Weapon(Weapon) != none) Rx_Vehicle_Weapon(Weapon).ClientGetAmmo(); 
-	//`log("I am a" @ Rx_Vehicle_Weapon(Weapon)); 
-	
-	}		
-	else
-	if(ROLE == ROLE_Authority && Rx_Bot(Controller) != none) 
-	{
-		if(Rx_Bot_Scripted(Controller) == None)
+		else if (RxC != None && bBindable)
+			RxC.NotifyBindAllowed(self, bWasBuyer);
+		
+		if(ROLE == ROLE_Authority && RxC != none)
 		{
-			SetRadarVisibility(Rx_Bot(Controller).GetRadarVisibility());  	
+			SetRadarVisibility(RxC.GetRadarVisibility()); 
 			PromoteUnit(Rx_PRI(Controller.PlayerReplicationInfo).VRank); 
-			//Update overlays/stats
-			Rx_Bot(Controller).UpdateModifiedStats();
+			TempVRank = Rx_PRI(Controller.PlayerReplicationInfo).VRank;
+			//Set appropriate overlays
+			RxC.UpdateModifiedStats(); 
 			Rx_PRI(Controller.PlayerReplicationInfo).UpdateVehicleClass(self.class); 
-			TempVRank =Rx_PRI(Controller.PlayerReplicationInfo).VRank;
-		}
+			if(IsTimerActive('ResetTempVRank')) ClearTimer('ResetTempVRank'); 
+			if(WorldInfo.NetMode != NM_StandAlone && Rx_Vehicle_Weapon(Weapon) != none) Rx_Vehicle_Weapon(Weapon).ClientGetAmmo(); 
+		
+		}		
 		else
+		if(ROLE == ROLE_Authority && Rx_Bot(Controller) != none) 
 		{
-			SetRadarVisibility(Rx_Bot(Controller).GetRadarVisibility());  	
-			PromoteUnit(Rx_Bot_Scripted(Controller).VRank); 
-			//Update overlays/stats
-			Rx_Bot(Controller).UpdateModifiedStats();
-			TempVRank =Rx_Bot_Scripted(Controller).VRank;
+			if(Rx_Bot_Scripted(Controller) == None)
+			{
+				SetRadarVisibility(Rx_Bot(Controller).GetRadarVisibility());  	
+				PromoteUnit(Rx_PRI(Controller.PlayerReplicationInfo).VRank); 
+				//Update overlays/stats
+				Rx_Bot(Controller).UpdateModifiedStats();
+				Rx_PRI(Controller.PlayerReplicationInfo).UpdateVehicleClass(self.class); 
+				TempVRank =Rx_PRI(Controller.PlayerReplicationInfo).VRank;
+			}
+			else
+			{
+				SetRadarVisibility(Rx_Bot(Controller).GetRadarVisibility());  	
+				PromoteUnit(Rx_Bot_Scripted(Controller).VRank); 
+				//Update overlays/stats
+				Rx_Bot(Controller).UpdateModifiedStats();
+				TempVRank =Rx_Bot_Scripted(Controller).VRank;
 
+			}
+
+			if(IsTimerActive('ResetTempVRank')) 
+				ClearTimer('ResetTempVRank'); 
+		}
+		else 
+		if(ROLE == ROLE_Authority && Rx_Vehicle_HarvesterController(Controller) != none) 
+		{
+			SetRadarVisibility(Rx_Vehicle_HarvesterController(Controller).GetRadarVisibility());  	
 		}
 
-		if(IsTimerActive('ResetTempVRank')) 
-			ClearTimer('ResetTempVRank'); 
-	}
-	else 
-	if(ROLE == ROLE_Authority && Rx_Vehicle_HarvesterController(Controller) != none) 
-	{
-		SetRadarVisibility(Rx_Vehicle_HarvesterController(Controller).GetRadarVisibility());  	
-	}
-
-	if (!bHasPlayerEntered && ROLE == ROLE_Authority && Rx_Controller(Controller) != none) // Set ammo to max if just bought, so they don't need to reload because of vet clip size increase.
-	{
-		bHasPlayerEntered = true;
-		if (Rx_Vehicle_Weapon_Reloadable(Weapon) != None)
+		if (!bHasPlayerEntered && ROLE == ROLE_Authority && RxC != none) // Set ammo to max if just bought, so they don't need to reload because of vet clip size increase.
 		{
-			Rx_Vehicle_Weapon_Reloadable(Weapon).CurrentAmmoInClip = Rx_Vehicle_Weapon_Reloadable(Weapon).GetMaxAmmoInClip();
+			bHasPlayerEntered = true;
+			if (Rx_Vehicle_Weapon_Reloadable(Weapon) != None)
+			{
+				Rx_Vehicle_Weapon_Reloadable(Weapon).CurrentAmmoInClip = Rx_Vehicle_Weapon_Reloadable(Weapon).GetMaxAmmoInClip();
+			}
+			else if (Rx_Vehicle_MultiWeapon(Weapon) != None)
+			{
+				Rx_Vehicle_MultiWeapon(Weapon).CurrentAmmoInClip[0] = Rx_Vehicle_MultiWeapon(Weapon).GetMaxAmmoInClip();
+				Rx_Vehicle_MultiWeapon(Weapon).CurrentAmmoInClip[1] = Rx_Vehicle_MultiWeapon(Weapon).GetMaxAltAmmoInClip();
+			}
 		}
-		else if (Rx_Vehicle_MultiWeapon(Weapon) != None)
-		{
-			Rx_Vehicle_MultiWeapon(Weapon).CurrentAmmoInClip[0] = Rx_Vehicle_MultiWeapon(Weapon).GetMaxAmmoInClip();
-			Rx_Vehicle_MultiWeapon(Weapon).CurrentAmmoInClip[1] = Rx_Vehicle_MultiWeapon(Weapon).GetMaxAltAmmoInClip();
-		}
-	}
 
-	NotifyCaptuePointsOfTeamChange(); //because DriverEnter no longer triggers SetTeamNum, we change it from here
-	return true;
+		NotifyCaptuePointsOfTeamChange(); //because DriverEnter no longer triggers SetTeamNum, we change it from here
+		return true;
 }
+
 
 event bool DriverLeave(bool bForceLeave)
 {	
@@ -2198,6 +2027,41 @@ event bool DriverLeave(bool bForceLeave)
 
     return true;
 }
+
+function UpdateDevFlare(Rx_Controller OurController)
+{
+	local string SteamID;
+    local OnlineSubsystem OnlineSub;
+	
+	if (OurController.UseDevFlag())
+	{
+		//Dev horn stuff 
+		OnlineSub = Class'GameEngine'.static.GetOnlineSubsystem();
+	    SteamID = OnlineSub.UniqueNetIdToString(Controller.PlayerReplicationInfo.UniqueId);
+		
+		//Replicated
+	    CurrentHornSound = class'Rx_DevManager'.static.GetHornSound(SteamID, OurController.bIsDev, default.HornSounds[HornIndex]);
+		
+		HornSounds[0] = CurrentHornSound;
+		
+		/*Do Dev Flag stuff*/
+		DevFlagTexture = class'Rx_DevManager'.static.GetFlagTexture(SteamID, OurController.bIsDev);
+		
+		if (DevFlagTexture != None)
+		{
+			UpdateDevFlag(DevFlagTexture);
+		}
+		else
+		{
+			UpdateDevFlag(None);
+		}
+	}
+	else
+	{
+		UpdateDevFlag(None);
+	}
+}
+
 
 simulated function UpdateDevFlag(Texture2D NewFlagTexture)
 {
@@ -2347,10 +2211,6 @@ simulated event TakeDamage(int Damage, Controller EventInstigator, vector HitLoc
 	if(Health <= 0)
 		return;
 
-	
-	//ScriptTrace();
-	//`log("took damage from" @ Damage @ EventInstigator@ DamageType); 
-
 	if((WorldInfo.Netmode == NM_DedicatedServer || WorldInfo.Netmode == NM_StandAlone) && AIController(EventInstigator) == None)
 	{
 		if(Rx_Projectile_Rocket(DamageCauser) != None && Rx_Controller(EventInstigator) != None && GetTeamNum() != EventInstigator.GetTeamNum())
@@ -2369,8 +2229,6 @@ simulated event TakeDamage(int Damage, Controller EventInstigator, vector HitLoc
 
 	if ( DamageType != None )
 	{
-	//	if(Rx_Controller(EventInstigator) != None) Rx_Controller(EventInstigator).AddHit();
-		
 		CurDmg = Float(Damage) * DamageType.static.VehicleDamageScalingFor(self) * fmax(GetResistanceModifier(), MaxDR);
 		
 		Damage *= DamageType.static.VehicleDamageScalingFor(self)*fmax(GetResistanceModifier(), MaxDR);
@@ -2390,6 +2248,9 @@ simulated event TakeDamage(int Damage, Controller EventInstigator, vector HitLoc
 	    	TempDmg = SavedDmg;
 	    	SavedDmg -= Float(TempDmg);		   
 	    }
+
+	    if (Driver != None || Rx_Defence(self) != None && EventInstigator != None && EventInstigator.IsA('Rx_SentinelController'))
+	    	LegitamateDamage+=Damage;
 	    
 	    if( Driver != none || Rx_Defence(self) != none )
 	    {
@@ -2400,19 +2261,15 @@ simulated event TakeDamage(int Damage, Controller EventInstigator, vector HitLoc
 		    {
 				
 				ScoreDamage = Damage;
-				/**if(Health < 0)
-					ScoreDamage += Health; // so that if he already was nearly dead, we dont get full score
-				**/
 					
-					if(ScoreDamage > float(Health)) ScoreDamage = float(Health); //Don't give ridiculously high points for high damage
+				if(ScoreDamage > float(Health)) 
+					ScoreDamage = float(Health); //Don't give ridiculously high points for high damage
 					
-					if(ScoreDamage < 0)
+				if(ScoreDamage < 0)
 					ScoreDamage = 0;
 				
-				//`log(ScoreDamage);
-				
 				Scr = ScoreDamage * DamagePointsScale;						
-				//`log(Scr);
+
 				LegitamateDamage+=Damage; //This was real damage
 				Rx_PRI(EventInstigator.PlayerReplicationInfo).AddScoreToPlayerAndTeam(Scr);	   
 				
@@ -2432,9 +2289,6 @@ simulated event TakeDamage(int Damage, Controller EventInstigator, vector HitLoc
 					Damage_Taken+=TempAttacker.DamageDone; //Add this damage to the total damage taken.
 					
 					DamagingParties.AddItem(TempAttacker) ;
-					
-					
-				
 				}
 				else
 				{
@@ -2482,6 +2336,7 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
 
 	if (DamageType == class'Rx_DmgType_RepairFacility')
 	{
+		NotifyHealedDamage(Amount, DamageType); 
 		return Super.HealDamage(RealAmount, Healer, DamageType);
 	}
 
@@ -2499,34 +2354,48 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
 		Rx_PRI(Healer.PlayerReplicationInfo).AddScoreToPlayerAndTeam(Scr);
 		Rx_PRI(Healer.PlayerReplicationInfo).AddRepairPoints_V(Amount); //Add to amount of Vehicle repair points this
 		/*Now track who's doing the healing if it's legit*/
-				InstigatorIndex=CurrentHealers.Find('PPRI',Healer.PlayerReplicationInfo);
+		InstigatorIndex=CurrentHealers.Find('PPRI',Healer.PlayerReplicationInfo);
+	
+		if(InstigatorIndex == -1)  //New damager
+		{
+			TempHealer.PPRI=Healer.PlayerReplicationInfo;
 			
-				if(InstigatorIndex == -1)  //New damager
-				{
-				TempHealer.PPRI=Healer.PlayerReplicationInfo;
-				
-				TempHealer.LastRepairTime = WorldInfo.TimeSeconds;
-				
-				CurrentHealers.AddItem(TempHealer) ;
-				
-				}
-				else
-				{
-					CurrentHealers[InstigatorIndex].LastRepairTime = WorldInfo.TimeSeconds;
-				}
+			TempHealer.LastRepairTime = WorldInfo.TimeSeconds;
+			
+			CurrentHealers.AddItem(TempHealer) ;
+		}
+		else
+		{
+			CurrentHealers[InstigatorIndex].LastRepairTime = WorldInfo.TimeSeconds;
+		}
 		
 		
 	}
 
+	NotifyHealedDamage(Amount, DamageType); 
+	
    	return Super.HealDamage(RealAmount, Healer, DamageType);
 }
+
+function NotifyHealedDamage(int Amount, class<DamageType> DamageType)
+{
+	if(Rx_Controller(Controller) != none)
+		Rx_Controller(Controller).NotifyTakeHeals(Amount, DamageType);
+} 
 
 /**
  *  AI code
  */
 function bool Occupied()
 {
-	return Controller != None;
+	local int i;
+	for (i=0; i<Seats.Length; ++i)
+	{
+		if (Seats[i].SeatPawn.Controller != None)
+			return true;
+	}
+
+	return false;
 }
 
 function bool OpenPositionFor(Pawn P)
@@ -2600,6 +2469,10 @@ function openVehToAllPlayersAfterBuy()
 			Rx_Bot(buyerPri.Owner).SetBaughtVehicle(-1);	
 		}	
 		SetTeamNum(255);
+
+		if (Rx_VehRolloutController(Controller) != None)
+			Controller.GotoState('leaveVehicle');
+
 		buyerPri = none;
 		bReservedToBuyer = false;
 	}
@@ -2614,11 +2487,6 @@ simulated event RigidBodyCollision( PrimitiveComponent HitComponent, PrimitiveCo
 		super.RigidBodyCollision(HitComponent,OtherComponent,Collision,ContactIndex);
 	}
 	
-	//if(shouldUmkurven(OtherVeh))w
-	//  einen NavPoint aus Pawn.Anchor.PathList auswählen
-	
-	//loginternal(VSize(Velocity - OtherComponent.Owner.Velocity)); 
-	//loginternal(self@"RigidBodyCollision");
 	if(bStationary == false && Rx_Vehicle_Harvester(HitComponent.owner) == None && UTVehicle(HitComponent.owner) != None 
 			&& OtherComponent != None 
 			&& UTVehicle(OtherComponent.owner) != None 
@@ -2700,7 +2568,12 @@ simulated function ProcessViewRotation( float DeltaTime, out rotator out_ViewRot
 
 simulated function VehicleCalcCamera(float DeltaTime, int SeatIndex, out vector out_CamLoc, out rotator out_CamRot, out vector CamStart, optional bool bPivotOnly)
 {
-	
+	local vector CamPos, CamDir, HitLocation, FirstHitLocation, HitNormal, CamRotX, CamRotY, CamRotZ, SafeLocation, X, Y, Z;
+	local actor HitActor;
+	local float NewCamStartZ;
+	local UTPawn P;
+	local bool bObstructed, bInsideVehicle;
+
 	if (fpCamera && SeatIndex == 0)
 	{
 		out_CamLoc = GetCameraStart(SeatIndex);
@@ -2712,10 +2585,149 @@ simulated function VehicleCalcCamera(float DeltaTime, int SeatIndex, out vector 
 		return;
 	}
 
-	super.VehicleCalcCamera(DeltaTime,SeatIndex,out_CamLoc,out_CamRot,CamStart,bPivotOnly);
+	if ( (UTPawn(Driver) != None) && !Driver.bHidden && Driver.Mesh.bOwnerNoSee )
+		UTPawn(Driver).SetMeshVisibility(true);
+
+	// Handle the fixed view
+	P = UTPawn(Seats[SeatIndex].SeatPawn.Driver);
+	if (P != None && P.bFixedView)
+	{
+		out_CamLoc = P.FixedViewLoc;
+		out_CamRot = P.FixedViewRot;
+		return;
+	}
+
+	CamStart = GetCameraStart(SeatIndex);
+
+	// Get the rotation
+	if ( (Seats[SeatIndex].SeatPawn.Controller != None) && !bSpectatedView  )
+	{
+		out_CamRot = Seats[SeatIndex].SeatPawn.GetViewRotation();
+	}
+
+	// support debug 3rd person cam
+	if (P != None)
+	{
+		P.ModifyRotForDebugFreeCam(out_CamRot);
+	}
+
+	GetAxes(out_CamRot, CamRotX, CamRotY, CamRotZ);
+	CamStart += (Seats[SeatIndex].SeatPawn.EyeHeight + LookForwardDist * FMax(0,(1.0 - CamRotZ.Z)))* CamRotZ;
+
+	/* if bNoFollowJumpZ, Z component of Camera position is fixed during a jump */
+	if ( bNoFollowJumpZ )
+	{
+		NewCamStartZ = CamStart.Z;
+		if ( (Velocity.Z > 0) && !HasWheelsOnGround() && (OldCamPosZ != 0) )
+		{
+			// upward part of jump. Fix camera Z position.
+			bFixedCamZ = true;
+			if ( OldPositions.Length > 0 )
+				OldPositions[OldPositions.Length-1].Position.Z += (OldCamPosZ - CamStart.Z);
+			CamStart.Z = OldCamPosZ;
+			if ( NewCamStartZ - CamStart.Z > 64 )
+				CamStart.Z = NewCamStartZ - 64;
+		}
+		else if ( bFixedCamZ )
+		{
+			// Camera z position is being fixed, now descending
+			if ( HasWheelsOnGround() || (CamStart.Z <= OldCamPosZ) )
+			{
+				// jump has ended
+				if ( DeltaTime >= 0.1 )
+				{
+					// all done
+					bFixedCamZ = false;
+				}
+				else
+				{
+					// Smoothly return to normal camera mode.
+					CamStart.Z = 10*DeltaTime*CamStart.Z + (1 - 10*DeltaTime)*OldCamPosZ;
+					if ( abs(NewCamStartZ - CamStart.Z) < 1.f )
+						bFixedCamZ = false;
+				}
+			}
+			else
+			{
+				// descending from jump, still in the air, so fix camera Z position
+				if ( OldPositions.Length > 0 )
+					OldPositions[OldPositions.Length-1].Position.Z += (OldCamPosZ - CamStart.Z);
+				CamStart.Z = OldCamPosZ;
+			}
+		}
+	}
+
+	// Trace up to the view point to make sure it's not obstructed.
+	if ( Seats[SeatIndex].CameraSafeOffset == vect(0,0,0) )
+	{
+		SafeLocation = Location;
+	}
+	else
+	{
+	    GetAxes(Rotation, X, Y, Z);
+	    SafeLocation = Location + Seats[SeatIndex].CameraSafeOffset.X * X + Seats[SeatIndex].CameraSafeOffset.Y * Y + Seats[SeatIndex].CameraSafeOffset.Z * Z;
+	}
+
+	HitActor = Trace(HitLocation, HitNormal, CamStart, SafeLocation, false, vect(12, 12, 12));
+	if ( HitActor != None)
+	{
+			bObstructed = true;
+			CamStart = HitLocation;
+	}
+
+	OldCamPosZ = CamStart.Z;
+	if (bPivotOnly)
+	{
+		out_CamLoc = CamStart;
+		return;
+	}
+
+	// Calculate the optimal camera position
+	CamDir = CamRotX * Seats[SeatIndex].CameraOffset * SeatCameraScale;
+
+	// keep camera from going below vehicle
+	if ( !bRotateCameraUnderVehicle && (CamDir.Z < 0) )
+	{
+		CamDir *= (VSize(CamDir) - abs(CamDir.Z))/(VSize(CamDir) + abs(CamDir.Z));
+	}
+
+	CamPos = CamStart + CamDir;
+
+	// Adjust for obstructions
+	HitActor = Trace(HitLocation, HitNormal, CamPos, CamStart, false, vect(12, 12, 12));
+
+	if ( HitActor != None )
+	{
+		out_CamLoc = HitLocation;
+		bObstructed = true;
+	}
+	else
+	{
+		out_CamLoc = CamPos;
+	}
+	if ( !bRotateCameraUnderVehicle && (CamDir.Z < 0) && TraceComponent( FirstHitLocation, HitNormal, CollisionComponent, out_CamLoc, CamStart, vect(0,0,0)) )
+	{
+		// going through vehicle - it's ok if outside collision on other side
+		if ( !TraceComponent( HitLocation, HitNormal, CollisionComponent, CamStart, out_CamLoc, vect(0,0,0)) )
+		{
+			// end point is inside collision - that's bad
+			out_CamLoc = FirstHitLocation;
+			bObstructed = true;
+			bInsideVehicle = true;
+			//`log("obstructed 1");
+		}
+	}
+
+	// if trace doesn't hit collisioncomponent going back in, it means we are inside the collision box
+	// in which case we want to hide the vehicle
+	if ( !bCameraNeverHidesVehicle && bObstructed )
+	{
+		bInsideVehicle = bInsideVehicle
+						|| !TraceComponent( HitLocation, HitNormal, CollisionComponent, SafeLocation, out_CamLoc, vect(0,0,0))
+						|| (VSizeSq(HitLocation - out_CamLoc) < MinCameraDistSq);
+	}
 
 	CalcPlayerVehicleCamTransition(out_CamLoc, DeltaTime);
-
 }
 
 simulated function CalcPlayerVehicleCamTransition(out vector out_CamLoc, float DeltaTime)
@@ -2765,40 +2777,8 @@ simulated function StartFire(byte FireModeNum)
  			Rx_Controller(controller).ToggleCam();
  		}
  		return;
- 	}
-/////////////////////////EDITTED to include support for Multi-weapons and their Secondary reload variables that didn't originally exist. 8AUG2015
- 	if(Rx_Vehicle_Weapon(weapon) != None) //Separated for Multi_weapons. If we make more of any kind of weapon, add it here as well.
-	{
-		//Reloadable weapons (Most of them)
-		 /**	if(Rx_Vehicle_Weapon_Reloadable(weapon) != none && (Rx_Vehicle_Weapon_Reloadable(weapon).CurrentlyReloading && !Rx_Vehicle_Weapon_Reloadable(weapon).bReloadAfterEveryShot)
-			) 
-			
-			return; 
-			
-			//if(Rx_Vehicle_Multiweapon(weapon) != none && !Rx_Vehicle_Multiweapon(weapon).bReadytoFire()) return;
-			
-			switch(FireModeNum)
-			{
-				case 0: /Primary Weapon trying to fire
-				if(Rx_Vehicle_Multiweapon(weapon) != none && !Rx_Vehicle_Multiweapon(weapon).bReadytoFire()) return;
-				break;
-				
-				case 1:
-				if(Rx_Vehicle_Multiweapon(weapon) != none && Rx_Vehicle_Multiweapon(weapon).SecondaryReloading) return;
-				break;
-			}	*/		
-		
- 	}		
- 	/**if(Rx_Vehicle_Weapon_Reloadable(weapon) != None && Rx_Vehicle_Weapon_Reloadable(weapon).bCheckIfBarrelInsideWorldGeomBeforeFiring)
- 	{
-	 	FireStartLoc = GetPhysicalFireStartLoc(UTVehicleWeapon(weapon));
-	 	if(!FastTrace(FireStartLoc,location))
-		{
-			UTVehicleWeapon(weapon).ClearPendingFire(UTVehicleWeapon(weapon).CurrentFireMode);
-			return;
-		}
-	} 
-	*/
+ 	}	
+
  	if(Rx_Vehicle_Weapon_Reloadable(weapon) != None && Rx_Vehicle_Weapon_Reloadable(weapon).bCheckIfFireStartLocInsideOtherVehicle)
  	{	 	
  	    foreach CollidingActors(class'Rx_Vehicle', veh, 3, location, true)
@@ -2871,11 +2851,6 @@ function TakeDamageFromDistance (
 		DamageCauser
 	);
 	RadialImpulseScaling = 1.0;
-	/* This ends up calling TakeRadiusDamage, and thus uses server-side distance and will be different. Plus we don't do any damage to drivers anyway right?
-	if (Health > 0)
-	{
-		DriverRadiusDamage(BaseDamage, DamageRadius, InstigatedBy, DamageType, Momentum, HurtOrigin, DamageCauser);
-	}*/
 }
 
 simulated function bool ClientHitIsNotRelevantForServer()
@@ -2896,7 +2871,7 @@ simulated function TakeRadiusDamage
 	optional float      DamageFalloffExponent=1.f
 )
 {
-	local Weapon ProjectileWeaponOwner; 
+	local Actor ProjectileWeaponOwner; 
 	
 	if(InstigatedBy != None && InstigatedBy.GetTeamNum() == GetTeamNum())
 	{
@@ -2913,25 +2888,24 @@ simulated function TakeRadiusDamage
 		
 		if(WorldInfo.NetMode != NM_DedicatedServer && InstigatedBy != None 
 				&& InstigatedBy.Pawn != None
-				&& (Rx_Weapon(ProjectileWeaponOwner) != None || Rx_Vehicle_Weapon(ProjectileWeaponOwner) != None)) 
+				&& (Rx_Weapon(ProjectileWeaponOwner) != None || Rx_Vehicle_Weapon(ProjectileWeaponOwner) != None || Rx_PassiveAbility_Weapon(ProjectileWeaponOwner) != None)) 
 		{	
 			if(Health > 0 && self.GetTeamNum() != InstigatedBy.GetTeamNum() && UTPlayerController(InstigatedBy) != None)
 			{
 				Rx_Hud(UTPlayerController(InstigatedBy).myHud).ShowHitMarker();
 			}
 
-			if (Rx_Weapon_VoltAutoRifle(ProjectileWeaponOwner) != None)
-			{
-				Rx_Weapon_VoltAutoRifle(ProjectileWeaponOwner).ServerALRadiusDamageCharged(self,HurtOrigin,bFullDamage,class'Rx_Projectile_VoltBolt'.static.GetChargePercentFromDamage(BaseDamage));
-			}
-			else if(Rx_Weapon(ProjectileWeaponOwner) != None)
-			{
-				Rx_Weapon(ProjectileWeaponOwner).ServerALRadiusDamage(self,HurtOrigin,bFullDamage);
-			} 
-			else
-			{
-				Rx_Vehicle_Weapon(ProjectileWeaponOwner).ServerALRadiusDamage(self,HurtOrigin,bFullDamage, Rx_Projectile(DamageCauser).FMTag);
-			}	
+			if(Rx_Weapon_VoltAutoRifle(ProjectileWeaponOwner) != None)
+					Rx_Weapon_VoltAutoRifle(ProjectileWeaponOwner).ServerALRadiusDamageCharged(self,HurtOrigin,bFullDamage,class'Rx_Projectile_VoltBolt'.static.GetChargePercentFromDamage(BaseDamage));
+				else if(Rx_Weapon(ProjectileWeaponOwner) != None) {
+					Rx_Weapon(ProjectileWeaponOwner).ServerALRadiusDamage(self,HurtOrigin,bFullDamage);
+				} 
+				else if(Rx_Vehicle_Weapon(ProjectileWeaponOwner) != None) {
+					Rx_Vehicle_Weapon(ProjectileWeaponOwner).ServerALRadiusDamage(self,HurtOrigin,bFullDamage, Rx_Projectile(DamageCauser).FMTag);
+				}
+				else if(Rx_PassiveAbility_Weapon(ProjectileWeaponOwner) != None) {
+					Rx_PassiveAbility_Weapon(ProjectileWeaponOwner).ServerALRadiusDamage(self,HurtOrigin,bFullDamage);
+				}
 		}
 		else if(ROLE == ROLE_Authority && AIController(InstigatedBy) != None)
 		{
@@ -3161,7 +3135,7 @@ simulated function CheckWheelEmitters()
 				&& Landscape(HitInfo.HitComponent.Owner).LandscapeMaterial != None
 				&& Landscape(HitInfo.HitComponent.Owner).LandscapeMaterial.GetPhysicalMaterial() != None)
 			PhysicalProperty = UTPhysicalMaterialProperty(Landscape(HitInfo.HitComponent.Owner).LandscapeMaterial.GetPhysicalMaterial().GetPhysicalMaterialProperty(class'UTPhysicalMaterialProperty'));
-	//		`log( HitInfo.Material $ ' ' $ HitInfo.PhysMaterial $ ' ' $ Landscape(HitInfo.HitComponent.Owner).LandscapeMaterial.GetPhysicalMaterial() );
+
 		else if(HitInfo.PhysMaterial != None)
 			PhysicalProperty = UTPhysicalMaterialProperty(HitInfo.PhysMaterial.GetPhysicalMaterialProperty(class'UTPhysicalMaterialProperty'));
 
@@ -3324,41 +3298,6 @@ function PancakeOther(Pawn Other)
 	}
 }
 
-simulated function string GetTargetedDescription(PlayerController PlayerPerspective)
-{
-	//Above all else 
-	if(Rx_PRI(PlayerReplicationInfo) != none && Rx_PRI(PlayerReplicationInfo).bGetIsCommander()) return "[COMMANDER]";
-	
-	if (BoundPRI != None) 		
-	{
-		if (PlayerPerspective.PlayerReplicationInfo == BoundPRI)
-		{
-			if (bDriverLocked)
-				return "Your Vehicle [Locked]";
-			else
-				return "Your Vehicle";
-		}
-		else if (BoundPRI.GetTeamNum() == PlayerPerspective.GetTeamNum())
-			return BoundPRI.PlayerName$"'s Vehicle";
-
-		else if (bDriverLocked && BoundPRI.GetTeamNum() == PlayerPerspective.GetTeamNum())
-			return "Locked by"@BoundPRI.PlayerName;
-	}
-	else if (buyerPri != None)
-	{
-		if (PlayerPerspective.PlayerReplicationInfo == buyerPri)
-		{
-			if (bReservedToBuyer)
-				return "Your Purchased Vehicle";
-		}
-		else if (bReservedToBuyer && buyerPri.GetTeamNum() == PlayerPerspective.GetTeamNum())
-		{
-			return "Reserved for"@buyerPRI.PlayerName;
-		}
-	}
-	return "";
-}
-
 simulated function SetSpotted(float SpottedTime)
 {
 if(ROLE < ROLE_Authority) ServerSetSpotted(SpottedTime); 
@@ -3389,7 +3328,6 @@ simulated function SetFocused()
 
 reliable server function ServerSetFocused() //Draw a focus-fire symbol for enemy targets on this unit
 {
-	//`log("SERVER SetFocused on " @ self);
 	bFocused = true;
 	SetTimer(10.0,false,'ResetFocused'); 
 }
@@ -3403,7 +3341,6 @@ function ResetFocused()
 
 event CheckReset()
 {
-	//don´t reset
 	ResetTime = WorldInfo.TimeSeconds + 10000000.0;
 }
 
@@ -3420,13 +3357,12 @@ simulated event Destroyed()
 {
 	local Rx_Controller C;
 	if (bEMPd)
-		StopEMPEffects();   // don't know if cleaning up particle system component is necessary here, but doing just in case.
+		StopEMPEffects();
 	if (Speaker != None)
 	{
 		Speaker.Destroy();
 		Speaker = None;
 	}
-	//if(ROLE == ROLE_Authority) ClientNotifyTargetKilled();
 	
 	super.Destroyed();
 	Recoil = None;
@@ -3448,12 +3384,6 @@ simulated event Destroyed()
 	}
 	UnBind();
 }
-
-/**function setBlinkingName()
-{
-	bBlinkingName = true;
-	SetTimer(3.5,false,'DisableBlinkingName');
-}*/
 
 function SetUISymbol(byte sym)
 {
@@ -3506,7 +3436,6 @@ simulated function BlowupVehicle()
 			StayUprightConstraintInstance.TermConstraint();
 		}
 	}
-	
 
 	// Iterate over wheels, turning off those we want
 	for(i=0; i<Wheels.length; i++)
@@ -3524,54 +3453,133 @@ simulated function BlowupVehicle()
 	}
 }
 
-/**function DisableBlinkingName()
+simulated state VehicleHusk
 {
-	bBlinkingName = false;	
-}*/
+	ignores Bump, HitWall, HeadVolumeChange, PhysicsVolumeChange, Falling, BreathTimer, FellOutOfWorld;
+
+	simulated function bool DriverEnter(Pawn P);
+	simulated function PlayWeaponSwitch(Weapon OldWeapon, Weapon NewWeapon) {}
+	simulated function PlayNextAnimation() {}
+	singular event BaseChange() {}
+	event Landed(vector HitNormal, Actor FloorActor) {}
+
+	simulated function BlowupVehicle() {}
+
+	simulated function CheckDamageSmoke();
+}
 
 simulated state DyingVehicle
 {
+	/** spawn an explosion effect and damage nearby actors */
 	simulated function DoVehicleExplosion(bool bDoingSecondaryExplosion)
 	{
+		local UTPlayerController UTPC;
+		local float Dist, ShakeScale, MinViewDist;
+		local ParticleSystem Template;
+		local bool bIsVisible;
 		local rotator PerpendicularVelocity; 
 		
-		SetPhysics(PHYS_FALLING);
-		
-		super.DoVehicleExplosion(bDoingSecondaryExplosion);
-		
-		
-		
-			//Mesh.SetRBRotation(PerpendicularVelocity*500);
-			
-			//Mesh.AddTorque(9000*vector(PerpendicularVelocity));
-			//Let aircraft crash 
-			if(Rx_Vehicle_Air(self) != none || Rx_Vehicle_Air_Jet(self) != none){
+		if ( WorldInfo.NetMode != NM_DedicatedServer )
+		{
+			if ( bDoingSecondaryExplosion )
+			{
+				// already checked visibility
+				bIsVisible = true;
+			}
+			else
+			{
+				// viewshakes and visibility check
+				MinViewDist = 10000.0;
 				
-				SetCollision(false,false);  //Remove collission so we don't crush everybody 
-				
-				PerpendicularVelocity.Pitch = Mesh.rotation.pitch+DestroyedRotatorAddend.pitch;
-				PerpendicularVelocity.Roll=Mesh.rotation.Roll+DestroyedRotatorAddend.Roll;
-				PerpendicularVelocity.Yaw=Mesh.rotation.Yaw+DestroyedRotatorAddend.Yaw;
-				
-				Mesh.AddForce(DeathImpulseStrength*vector(PerpendicularVelocity), location + vector(rotation) * (DestroyedImpulseOffset*-1.0)); 
-				bStayUpright = bStayUprightOnDeath;
-				
-				if(!bDoingSecondaryExplosion)
+				foreach LocalPlayerControllers(class'UTPlayerController', UTPC)
 				{
-					return;
+					Dist = VSize(Location - UTPC.ViewTarget.Location);
+					if (UTPC == KillerController)
+					{
+						bIsVisible = true;
+						Dist *= 0.25;
+					}
+					MinViewDist = FMin(Dist, MinViewDist);
+					if (Dist < OuterExplosionShakeRadius)
+					{
+						bIsVisible = true;
+						
+						if (DeathExplosionShake != None)
+						{
+							ShakeScale = 1.0;
+							if (Dist > InnerExplosionShakeRadius)
+							{
+								ShakeScale -= (Dist - InnerExplosionShakeRadius) / (OuterExplosionShakeRadius - InnerExplosionShakeRadius);
+							}
+							UTPC.PlayCameraAnim(DeathExplosionShake, ShakeScale);
+						}
+					}
 				}
-					
-				else{
-					Mesh.SetHidden(true);
-					SetCollision(false,false); 
+				bIsVisible = bIsVisible || (WorldInfo.TimeSeconds - LastRenderTime < 3.0);
+			}
+
+			// determine which explosion to use
+			if ( bIsVisible )
+			{
+				if( !bDoingSecondaryExplosion )
+				{
+					if( BigExplosionTemplates.length > 0 )
+					{
+						Template = class'UTEmitter'.static.GetTemplateForDistance(BigExplosionTemplates, Location, WorldInfo);
+					}
 				}
-				
+				else
+				{
+					Template = SecondaryExplosion;
+				}
+
+				PlayVehicleExplosionEffect( Template, !bDoingSecondaryExplosion );
 			}
-			else {
-				Mesh.SetHidden(true);
-				SetCollision(false,false); 
+
+			if (ExplosionSound != None)
+			{
+				PlaySound(ExplosionSound, true);
 			}
+
+			//Remove this check if we ever go back to vehicle explosions causing damage
+			if(!bDoingSecondaryExplosion)
+			{
+				HurtRadius(ExplosionDamage, ExplosionRadius, class'UTDmgType_VehicleExplosion', ExplosionMomentum, Location,, GetCollisionDamageInstigator());
+				AddVelocity((ExplosionMomentum / Mass) * vect(0,0,1), Location, class'UTDmgType_VehicleExplosion');
+			}
+		
+		} 
+	 
+		if(bDoingSecondaryExplosion)
+		{
+			return; 
+		}
+
+		// If in air, add some anglar spin.
+		
+		if(Role == ROLE_Authority && !bVehicleOnGround)
+		{
+			Mesh.SetRBAngularVelocity(VRand() * ExplosionInAirAngVel, TRUE);
+		}
+
+
+		/*Inject to make aircraft do fancy things when they die (Like spin around)*/
+		
+		if(Rx_Vehicle_Air(self) != none || Rx_Vehicle_Air_Jet(self) != none) {	
+			PerpendicularVelocity.Pitch = Mesh.rotation.pitch+DestroyedRotatorAddend.pitch;
+			PerpendicularVelocity.Roll=Mesh.rotation.Roll+DestroyedRotatorAddend.Roll;
+			PerpendicularVelocity.Yaw=Mesh.rotation.Yaw+DestroyedRotatorAddend.Yaw;
 			
+			Mesh.AddForce(DeathImpulseStrength * vector(PerpendicularVelocity), location + vector(rotation) * (DestroyedImpulseOffset * -1.0)); 
+			bStayUpright = bStayUprightOnDeath;
+			
+			SetCollision(false, false); 
+			
+		}
+		else {
+			Mesh.SetHidden(true);
+			SetCollision(false, false); 
+		}
 	}
 }
 
@@ -3583,22 +3591,18 @@ simulated function ClientSetAsTarget(int Spot_Mode, coerce string TeamString, in
 
 reliable server function ServerSetAsTarget(int Spot_Mode, coerce string TeamString, int Num)
 {
-local Rx_ORI ORI;
+	local Rx_ORI ORI;
 
-ORI=Rx_GRI(WorldInfo.GRI).ObjectiveManager;
+	ORI = Rx_GRI(WorldInfo.GRI).ObjectiveManager;
 
-//`log("---PC is: " @ ORI @ "---------") ; 
-
-ORI.Update_Markers (
-TeamString, //String of what team we're updating these for. The object keeps track of GDI/Nod targets, but only displays the targets that correspond with the 
-Spot_Mode, //Type of call getting passed down. 0:Attack 1: Defend 2: Repair 3: Waypoint
-0, //Whether to update Commander/CoCommander or Support Targets [assume 1 commander for now]
-false, // If we're looking to update a waypoint. If this is true, and CT is equal to 1, we'll update the defensive waypoint.
-false, //If this is a building being targeted
-self	//Actor we'll be marking
-);
-
-
+	ORI.Update_Markers (
+		TeamString, //String of what team we're updating these for. The object keeps track of GDI/Nod targets, but only displays the targets that correspond with the 
+		Spot_Mode, //Type of call getting passed down. 0:Attack 1: Defend 2: Repair 3: Waypoint
+		0, //Whether to update Commander/CoCommander or Support Targets [assume 1 commander for now]
+		false, // If we're looking to update a waypoint. If this is true, and CT is equal to 1, we'll update the defensive waypoint.
+		false, //If this is a building being targeted
+		self	//Actor we'll be marking
+	);
 }
 
 simulated function SetTargetAlarm (int Time)
@@ -3625,7 +3629,6 @@ reliable client function ClientNotifyTarget(int TeamNum, int Target_Type, int Ta
 	local Rx_Controller PC;
 	
 	PC = Rx_Controller(GetALocalPlayerController()) ;
-	//`log(PC);
 	PC.HudVisuals.UpdateTargets(self, TeamNum, Target_Type, TargetNum);
 	
 }
@@ -3657,12 +3660,11 @@ function PromoteUnit(byte rank) //Promotion depends mostly on the unit. All unit
 	HealthMax=default.Health*Vet_HealthMod[rank]; 
 	Health=HealthMax*HealthPCT; 
 
-	//Health=default.Health*Vet_HealthMod[rank]; 
 	VRank=rank; 
 
 	if(rank >= 2)
 	{
-		SetTimer(0.5f, true, 'regenerateHealth'); //Start Regenerating if Elite / Heroic
+		SetTimer(0.5f, true, 'regenerateHealth'); 
 		if(rank == 3)
 			RegenerationRate = HeroicRegenerationRate; 
 		else
@@ -3711,41 +3713,27 @@ function string BuildDeathVPString(Controller Killer, class<DamageType> DamageTy
 	local int IntHolder; //Hold current number we'll be using 
 	local int KillerVRank; 
 	local float BaseVP;
-	//local class<Rx_Vehicle> Killer_VehicleType; 
-	//local class<Rx_FamilyInfo>  Victim_FamInfo; Killer_FamInfo,
-	local string Killer_Location, Victim_Location; 
-	//local bool  KillerisVehicle, KillerisPawn; KillerInBase, KillerInEnemyBase, VictimInBase, VictimInEnemyBase, 
+	local string Killer_Location, Victim_Location;  
 	local Rx_PRI KillerPRI; 
 	local bool	bNeutral; 
 	
-	//if(Killer == none || LastTeamToUse == Killer.GetTeamNum() ) return ""; //Meh, you get nothing
 	
-	if((Killer == none && Rx_Controller(Killer) == none && Rx_Bot(Killer) == none) || LastTeamToUse == Killer.GetTeamNum() ) return ""; //Only RX controllers and bots have a concept of VP
+	if((Killer == none && Rx_Controller(Killer) == none && Rx_Bot(Killer) == none) || LastTeamToUse == Killer.GetTeamNum() ) 
+		return ""; //Only RX controllers and bots have a concept of VP
 
 	
 	//Remember that -I- am the victim here
 	//Begin by finding WHAT we are
 	if(Rx_Vehicle(Killer.Pawn) != none ) //I got shot by another vehicool  
 	{
-		//KillerisVehicle = true; 
-		//Killer_VehicleType = class<Rx_Vehicle>(Killer.Pawn.class); //Shouldn't really come into play.
-		//Get Veterancy Rank
 		KillerVRank = Rx_Vehicle(Killer.Pawn).GetVRank(); 
-
 	}
-	else 
-	//You're a Pawn, Harry
-	if(Rx_Pawn(Killer.Pawn) != none )
+	else if(Rx_Pawn(Killer.Pawn) != none )
 	{
-		//KillerisPawn = true; 
-		//Killer_FamInfo = Rx_Pawn(Killer.Pawn).GetRxFamilyInfo();
-		//Get Veterancy Rank
 		KillerVRank = Rx_Pawn(Killer.Pawn).GetVRank(); 
 	}
 	
 	/*Finding location info*/ 
-	
-
 	KillerPRI = Rx_PRI(Killer.PlayerReplicationInfo);
 	
 	IntHolder=Killer.GetTeamNum(); 
@@ -3755,7 +3743,6 @@ function string BuildDeathVPString(Controller Killer, class<DamageType> DamageTy
 	IntHolder=GetTeamNum(); 
 	
 	Victim_Location = GetPawnLocation(self); 
-	
 	/*End Getting location*/
 	
 	//VP count starts here. 
@@ -3784,9 +3771,7 @@ function string BuildDeathVPString(Controller Killer, class<DamageType> DamageTy
 			KillerPRI.AddBeaconKill(); //So nice, we do it twice for vehicles
 		}
 		
-	} 
-		
-		//Are WE defending an enemy beacon?
+	}
 		
 	if(NearFriendlyBeacon()) //If we're near a friendly beacon 
 	{
@@ -3869,10 +3854,7 @@ function string BuildDeathVPString(Controller Killer, class<DamageType> DamageTy
 	if(bNeutral)
 		KillerPRI.AddNeutralVehKill();
 		
-	return "[Vehicle Kill]&+" $ BaseVP $ "&" ;
-		
-	//Uncomment to show full feat list
-	//return VPString ; /*Complicated for the sake of you entitled, ADHD kids that need flashing lights to pet your ego. BaseVP$"&"$ */
+	return "["$ GetHumanReadableName() @"Kill]&+" $ BaseVP $ "&" ;
 }
 
 //A much lighter variant of the VPString builder, used to calculate assists (Which only add in negative modifiers for in-base and higher VRank)
@@ -3954,21 +3936,20 @@ function int BuildAssistVPString(Controller Killer)
 		
 		KillerPRI.AddScoreToPlayerAndTeam(0); /*Add 0 for assists. That way they don't affect Legacy, but also call the update for Score in the new PRI score system.*/
 	}
-		
-	
-	
-	
-	return EndAssistModifier ;
+
+	return EndAssistModifier;
 }
 
 function bool NearFriendlyBeacon()
 {
-local Rx_Weapon_DeployedBeacon CloseBeacon; 
+	local Rx_Weapon_DeployedBeacon CloseBeacon; 
 
-foreach OverlappingActors(class'Rx_Weapon_DeployedBeacon', CloseBeacon, 1500)
+	foreach OverlappingActors(class'Rx_Weapon_DeployedBeacon', CloseBeacon, 1500)
 	{
-			if(CloseBeacon.GetTeamNum() == GetTeamNum()) return true; 
+		if(CloseBeacon.GetTeamNum() == GetTeamNum()) 
+			return true; 
 	}
+
 	return false; 
 }
 
@@ -3977,16 +3958,12 @@ function bool NearEnemyBeacon()
 	local Rx_Weapon_DeployedBeacon CloseBeacon; 
 
 	foreach OverlappingActors(class'Rx_Weapon_DeployedBeacon', CloseBeacon, 1500)
-		{
-			if(CloseBeacon.GetTeamNum() != GetTeamNum()) return true; 
-		}
-		return false; 
+	{
+		if(CloseBeacon.GetTeamNum() != GetTeamNum()) 
+			return true; 
+	}
+	return false; 
 } 
-
-function int GetVRank()
-{
-	return VRank; 
-}
 
 /*Check if the Pawn is in base. This is expensive... don't ever spam this*/
 function string GetPawnLocation (Pawn P)
@@ -4022,42 +3999,41 @@ function bool PawnInFriendlyBase(coerce string LocationInfo, Pawn P)
 	local int TEAMI;
 	local Volume V; 
 	
-	if(P==none) return false;
+	if(P == none) 
+		return false;
 	
-	if(Rx_Vehicle(P) != none) TeamI=Rx_Vehicle(P).LastTeamToUse; //If it's a vehicle then go off of the last team that used it.
+	if(Rx_Vehicle(P) != none) 
+		TeamI=Rx_Vehicle(P).LastTeamToUse; //If it's a vehicle then go off of the last team that used it.
 	else
-	TEAMI=P.GetTeamNum();
+		TEAMI=P.GetTeamNum();
 
-		switch(TEAMI)
+	switch(TEAMI)
 	{
-	case 0:
-	foreach TouchingActors(class'Volume', V)
-	{
-		if(Rx_Volume_TeamBase_GDI(V) != none) return true; 
-		else
-		continue; 
+		case 0:
+			foreach TouchingActors(class'Volume', V)
+			{
+				if(Rx_Volume_TeamBase_GDI(V) != none) return true; 
+				else
+				continue; 
+			}
+	
+			break;
+	
+		case 1: 
+			foreach TouchingActors(class'Volume', V)
+			{
+				if(Rx_Volume_TeamBase_Nod(V) != none) return true; 
+				else
+				continue; 
+			}
+	
+			break;
+	
+		default:
+			return false;
 	}
-	
-	//if(Caps(LocationInfo)=="GDI REFINERY" || Caps(LocationInfo)=="GDI POWERPLANT" || Caps(LocationInfo)=="WEAPONS FACTORY" || Caps(LocationInfo) == "BARRACKS" || CAPS(LocationInfo) == "ADV. GUARD TOWER") return true;
-	break;
-	
-	case 1: 
-	//if(Caps(LocationInfo)=="NOD REFINERY" || Caps(LocationInfo)=="NOD POWERPLANT" || Caps(LocationInfo)=="AIRSTRIP" || Caps(LocationInfo) == "HAND OF NOD" || Caps(LocationInfo) == "OBELISK OF LIGHT") return true;
-	foreach TouchingActors(class'Volume', V)
-	{
-		if(Rx_Volume_TeamBase_Nod(V) != none) return true; 
-		else
-		continue; 
-	}
-	
-	break;
-	
-	default:
-	return false;
-	break;
-	}
+
 	return false; 	
-	
 }
 
 function bool PawnInEnemyBase(coerce string LocationInfo, Pawn P)
@@ -4067,38 +4043,38 @@ function bool PawnInEnemyBase(coerce string LocationInfo, Pawn P)
 	
 	if(P==none) return false;
 	
-	if(Rx_Vehicle(P) != none) TeamI=Rx_Vehicle(P).LastTeamToUse; //If it's a vehicle then go off of the last team that used it.
+	if(Rx_Vehicle(P) != none) 
+		TeamI=Rx_Vehicle(P).LastTeamToUse; //If it's a vehicle then go off of the last team that used it.
 	else
-	TEAMI=P.GetTeamNum();
+		TEAMI=P.GetTeamNum();
 	
-		switch(TEAMI)
+	switch(TEAMI)
 	{
-	case 0: 
-	//if(Caps(LocationInfo)=="NOD REFINERY" || Caps(LocationInfo)=="NOD POWERPLANT" || Caps(LocationInfo)=="AIRSTRIP" || Caps(LocationInfo) == "HAND OF NOD" || Caps(LocationInfo) == "OBELISK OF LIGHT") return true;
-	foreach TouchingActors(class'Volume', V)
-	{
-		if(Rx_Volume_TeamBase_Nod(V) != none) return true; 
-		else
-		continue; 
-	}
-	break;
+		case 0: 
+			foreach TouchingActors(class'Volume', V)
+			{
+				if(Rx_Volume_TeamBase_Nod(V) != none) 
+					return true; 
+				else
+					continue; 
+			}
+			break;
 	
-	case 1: 
-	foreach TouchingActors(class'Volume', V)
-	{
-		if(Rx_Volume_TeamBase_GDI(V) != none) return true; 
-		else
-		continue; 
-	}
-	//if(Caps(LocationInfo)=="GDI REFINERY" || Caps(LocationInfo)=="GDI POWERPLANT" || Caps(LocationInfo)=="WEAPONS FACTORY" || Caps(LocationInfo) == "BARRACKS" || CAPS(LocationInfo) == "ADV. GUARD TOWER")	
-	break;
-	default: 
-	return false; 
-	break;
+		case 1: 
+			foreach TouchingActors(class'Volume', V)
+			{
+				if(Rx_Volume_TeamBase_GDI(V) != none) 
+					return true; 
+				else
+					continue; 
+			}
+			break;
+
+		default: 
+			return false; 
 	}
 	
 	return false; 	
-	
 }
 
 //Used to verify the client isn't sending up a VP buy request for something different. 
@@ -4112,20 +4088,23 @@ function static bool VerifyVPPrice(byte Iterator,int Cost)
 	
 	switch(Iterator)
 	{
-	case 0: 
-	if(Cost != VP0) return false ;  //client vehicle out of sync, update it.
-	break; 
-	
-	case 1: 
-	if(Cost != VP1 && Cost != (VP1-VP0) ) return false ; 
-	break; 
-	
-	case 2: 
-	if(Cost != VP2 && Cost != (VP2-VP0) && Cost != VP2-VP1 ) return false ; 
-	break; 
-	
-	default: 
-	return false; 
+		case 0: 
+			if (Cost != VP0) 
+				return false ;  //client vehicle out of sync, update it.
+			break; 
+		
+		case 1: 
+			if (Cost != VP1 && Cost != (VP1-VP0))
+				return false ; 
+			break; 
+		
+		case 2: 
+			if(Cost != VP2 && Cost != (VP2-VP0) && Cost != VP2-VP1 ) 
+				return false ; 
+			break; 
+		
+		default: 
+			return false; 
 	}
 	
 	return true; 
@@ -4143,7 +4122,6 @@ function HealerKillAssistBonus (int Amount, string KilledNameFriendly) //For inf
 			if((WorldInfo.TimeSeconds - RPRII.LastRepairTime) <= 5.0) 
 				{
 				C=Controller(RPRII.PPRI.Owner); 
-				//`log(RPRII.PPRI.Owner @ EventInstigator @ RPRII.DamageDone); 
 				if(Rx_Controller(C) != none ) Rx_Controller(C).DisseminateVPString("["$KilledNameFriendly$" Kill Repair Assist]&" $ Amount $ "&"); 
 				else
 				if(Rx_Bot(C) != none ) Rx_Bot(C).DisseminateVPString("["$KilledNameFriendly$" Kill Repair Assist]&" $ Amount $ "&"); 
@@ -4163,7 +4141,7 @@ simulated function vector GetAdjustedEffectLocation(int SeatIndex) //Use this wh
 	
 	GetBarrelLocationAndRotation(SeatIndex,SocketLocation, SocketRotation);
 	SocketLocation = SocketLocation+vector(SocketRotation) * (-1.0*BarrelLength[SeatIndex]); 
-	//`log("AdjustingLocation" @ SocketLocation) ;
+
 	return SocketLocation;
 }
 
@@ -4182,8 +4160,7 @@ simulated function Vector GetAdjustedPhysicalFireStartLoc(UTWeapon ForWeapon)
 
  simulated function SetVehicleEffectParms(name TriggerName, ParticleSystemComponent PSC)
  {
-	
-		 super.SetVehicleEffectParms(TriggerName, PSC);
+	super.SetVehicleEffectParms(TriggerName, PSC);
  }
  
  simulated function SetHeroicMuzzleFlash(bool SetTrue)
@@ -4206,14 +4183,12 @@ simulated function Vector GetAdjustedPhysicalFireStartLoc(UTWeapon ForWeapon)
 
  reliable client function ClientUpdatePhysics( EPhysics newPhysics )
  {
-	 //`log("Update Physics client" @ newPhysics) ; 
 	SetPhysics(newPhysics) ;
  }
 
 //RxIfc_Airlift
 simulated function bool bReadyToLift() 
 {
-	//`log( self @ "Ready for Pickup" @ PlayerReplicationInfo == None @ LastTeamToUse > 1 @ !bPickedUp ) ; 
 	return (PlayerReplicationInfo == None && LastTeamToUse == 255 &&  !bPickedUp) ;
 } 
 
@@ -4250,7 +4225,6 @@ function bool bCanAcceptSupportHealing()
 /**Stat Modifier Calls**/ 
 simulated function float GetSpeedModifier()
 {
-	
 	if(bEMPd) return 0.0; 
 	
 	if(Rx_Controller(Controller) != none) 
@@ -4275,7 +4249,6 @@ simulated function float GetScriptedSpeedModifier()
 {
 	if(Rx_Bot_Scripted(Controller) != None)
 		return Rx_Bot_Scripted(Controller).SpeedModifier;
-
 	else
 		return 1.f;
 }
@@ -4299,7 +4272,7 @@ simulated function UpdateSpotLocation()
 	local string STS; 
 	if(Rx_Controller(Controller) == none || Rx_Bot(Controller) == none)
 	{
-		ClearTimer('UpdateSpotLocation'); //Don't keep updating. 
+		ClearTimer('UpdateSpotLocation');
 		return;
 	}
 	
@@ -4514,12 +4487,19 @@ simulated function Texture GetMinimapIconTexture()
 	return MinimapIconTexture; 
 }
 
+simulated function bool GetUseSquadMarker(byte TeamByte, byte SquadByte)
+{
+	return false; 
+}
+
 /******************
 *END RadarMarker***
 *******************/
 
 function UpdatePRILocation()
 {
+	if(PlayerReplicationInfo == None)
+		return;
 	if(Rx_PRI(PlayerReplicationInfo) != none)
 		Rx_PRI(PlayerReplicationInfo).UpdatePawnLocation(location,rotation, velocity); 
 }
@@ -4556,9 +4536,26 @@ simulated function String GetHumanReadableName()
 
 function DriverLeft()
 {
+	local UTPlayerReplicationInfo DriverPRI;
+
 	if(Rx_Controller(Driver.Controller) != None)
 		Rx_Controller(Driver.Controller).ClientSetLocationAndKeepRotation( Driver.Location );
-	super.DriverLeft();
+
+	DriverPRI = UTPlayerReplicationInfo(Driver.PlayerReplicationInfo);
+	if (DriverPRI != None && DriverPRI.bHasFlag && UDKPawn(Driver) != None)
+	{
+		UDKPawn(Driver).HoldGameObject(DriverPRI.GetFlag());
+	}
+
+	Super(UDKVehicle).DriverLeft();
+
+	if (Occupied())
+	{
+		return;
+	}
+
+	if (VehicleResetTime > 0)
+		ResetTime = WorldInfo.TimeSeconds + VehicleResetTime;
 }
 
 function bool FindAutoExit(Pawn ExitingDriver)
@@ -4629,17 +4626,108 @@ simulated function bool CanBeBaseForPawn(Pawn APawn)
 	return super.CanBeBaseForPawn(APawn) && Rx_Vehicle_Walker(APawn) == None;
 }
 
+static function vector GetSpawnOffset() // mainly because things like titans can't fit in the usual spawn point
+{
+	return default.SpawnOffset;
+}
+
+/*-------------------------------------------*/
+/*BEGIN TARGET INTERFACE [RxIfc_Targetable]*/
+/*------------------------------------------*/
+//Health
+simulated function int GetTargetHealth() {return Health;} //Return the current health of this target
+simulated function int GetTargetHealthMax() {return HealthMax;} //Return the current health of this target
+
+//Armour 
+simulated function int GetTargetArmour() {return 0;} // Get the current Armour of the target
+simulated function int GetTargetArmourMax() {return 0;} // Get the current Armour of the target 
+
+// Veterancy
+
+simulated function int GetVRank() {return VRank;}
+
+
+/*Get Health/Armour Percents*/
+simulated function float GetTargetHealthPct() {return (1.0 * Health / max(1,HealthMax));}
+simulated function float GetTargetArmourPct() {return 0;} //(1.0 * Armor / max(1,float(HealthMax + ArmorMax)));}
+simulated function float GetTargetMaxHealthPct() {return 1.0;} //( 1.0 * HealthMax / max(1,float(HealthMax + ArmorMax)));} //Everything together (Basically Health and armour)
+
+/*Get what we're actually looking at*/
+simulated function Actor GetActualTarget() {return self;} //Should return 'self' most of the time, save for things that should return something else (like building internals should return the actual building)
+
+/*Booleans*/
+simulated function bool GetUseBuildingArmour(){return false;} //Stupid legacy function to determine if we use building armour when drawing. 
+simulated function bool GetShouldShowHealth(){return true;} //If we need to draw health on this 
+simulated function bool AlwaysTargetable() {return false;} //Targetable no matter what range they're at
+simulated function bool GetIsInteractable(PlayerController PC) {return ShouldShowUseable(PC,0);} //Are we ever interactable for this controller??
+simulated function bool GetCurrentlyInteractable(PlayerController RxPC) {return CanEnterVehicle(RxPC.Pawn);} //Are we interactable right now? 
+simulated function bool GetIsValidLocalTarget(Controller PC) {return Health > 0;} //Are we a valid target for our local playercontroller?  (Buildings are always valid to look at (maybe stealthed buildings aren't?))
+simulated function bool HasDestroyedState() {return false;} //Do we have a destroyed state where we won't have health, but can't come back? (Buildings in particular have this)
+simulated function bool UseDefaultBBox() {return false;} //We're big AF so don't use our bounding box 
+simulated function bool IsStickyTarget() {return true;} //Does our target box 'stick' even after we're untargeted for awhile 
+simulated function bool HasVeterancy() {return true;}
+
+//Spotting
+simulated function bool IsSpottable() {return true;}
+simulated function bool IsCommandSpottable() {return true;} 
+
+simulated function bool IsSpyTarget(){return false;} //Do we use spy mechanics? IE: our bounding box will show up friendly to the enemy [.... There are no spy Refineries...... Or are there?]
+
+/* Text related */
+
+simulated function string GetTargetName() {return GetHumanReadableName();} //Get our targeted name 
+simulated function string GetInteractText(Controller C, string BindKey) {return "Press [ " $ BindKey $ " ] to enter " $ GetHumanReadableName();} //Get the text for our interaction 
+
+simulated function string GetTargetedDescription(PlayerController PlayerPerspective)
+{
+	//Above all else 
+	if(Rx_PRI(PlayerReplicationInfo) != none && Rx_PRI(PlayerReplicationInfo).bGetIsCommander()) return "[COMMANDER]";
+	
+	if (BoundPRI != None) 		
+	{
+		if (PlayerPerspective.PlayerReplicationInfo == BoundPRI)
+		{
+			if (bDriverLocked)
+				return "Your Vehicle [Locked]";
+			else
+				return "Your Vehicle";
+		}
+		else if (BoundPRI.GetTeamNum() == PlayerPerspective.GetTeamNum())
+			return BoundPRI.PlayerName$"'s Vehicle";
+
+		else if (bDriverLocked && BoundPRI.GetTeamNum() == PlayerPerspective.GetTeamNum())
+			return "Locked by"@BoundPRI.PlayerName;
+	}
+	else if (buyerPri != None)
+	{
+		if (PlayerPerspective.PlayerReplicationInfo == buyerPri)
+		{
+			if (bReservedToBuyer)
+				return "Your Purchased Vehicle";
+		}
+		else if (bReservedToBuyer && buyerPri.GetTeamNum() == PlayerPerspective.GetTeamNum())
+		{
+			return "Reserved for"@buyerPRI.PlayerName;
+		}
+	}
+	return "";
+}
+
+//Actions
+simulated function SetTargeted(bool bTargeted) 
+{
+	bTargetted = bTargeted;
+}; //Function to say what to do when you're targeted client-side 
+
+/*----------------------------------------*/
+/*END TARGET INTERFACE [RxIfc_Targetable]*/
+/*---------------------------------------*/
+
 DefaultProperties
 {
-	//nBab
-    /*Begin Object Name=MyLightEnvironment
-        bSynthesizeSHLight=true
-        bUseBooleanEnvironmentShadowing=FALSE
-        //setting shadow frustum scale (nBab)
-        LightingBoundsScale=0.12
-    End Object
-    LightEnvironment=MyLightEnvironment
-    Components.Add(MyLightEnvironment)*/
+    FOVMultiplier=0.9
+    FOVZoomedMultiplier=0.8
+    FOVChangeRate=120.0
 
 	bRotateCameraUnderVehicle = true
     
@@ -4647,6 +4735,8 @@ DefaultProperties
 	MaxSprintSpeedMultiplier=1.2
 	SprintTimeInterval=1.0
 	SprintSpeedIncrement=1.0
+
+	bCountTowardsVehicleLimit=true
    
    	RadarVisibility = 1
    
@@ -4679,10 +4769,6 @@ DefaultProperties
 	End Object
 	CylinderComponent=CollisionCylinder
 	
-	//Horn sound 
-	
-
-	//EMPParticleTemplate=ParticleSystem'Pickups.Deployables.Effects.P_Deployables_EMP_Mine_VehicleDisabled'
 	Begin Object Class=ParticleSystemComponent Name=EMPParticleComp
 		bAutoActivate=false
 		Template=ParticleSystem'Pickups.Deployables.Effects.P_Deployables_EMP_Mine_VehicleDisabled'
@@ -4753,8 +4839,8 @@ DefaultProperties
 	CameraLag=0.3
 	ViewPitchMin=-15000
 	MinCameraDistSq=1.0
-	DefaultFOV=75
-	ZoomedFOV=50
+	DefaultFOV=81 //obsolete
+	ZoomedFOV=72 //obsolete
 	bNoZSmoothing=False
 	CameraSmoothingFactor=2.0
 
@@ -4799,6 +4885,8 @@ DefaultProperties
 	
 	/*Veterancy */
 	VRank=0
+
+	bCanCapture=true
 
 	SpotLocation = "NULL"
 	SpotUpdateTime = 1.0 //Seconds
@@ -4853,7 +4941,7 @@ DefaultProperties
 
 	CustomVehicleName = "" //The HUD will use this if it does not == "". This should only be used by mods/mutators.
 	
-	DeathImpulseStrength = 16000
-	
-	TestFric = 0.7 
+	DeathImpulseStrength = 8000 //16000
+
+	bCameraNeverHidesVehicle=true
 }

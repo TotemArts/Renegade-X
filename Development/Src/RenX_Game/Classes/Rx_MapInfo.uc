@@ -13,13 +13,14 @@ enum TheaterType
 
 enum BotType
 {
-	Waypoints<ToolTip=Older>,
-	NavMesh<ToolTip=Newer - In Alpha>
+	Waypoints<ToolTip=Older>
 };
 
 var(RenegadeX_Map_Properties) bool bAircraftDisabled;
 var(RenegadeX_Map_Properties) bool bIsDeathmatchMap;
 var(RenegadeX_Map_Properties) TheaterType Theater;
+var(RenegadeX_Map_Properties) bool bNightVisionEnabled;
+var(RenegadeX_Map_Properties) class<Rx_Jukebox> JukeboxClass;
 var(RenegadeX_Globals) float GlobalParticleValue;
 var(RenegadeX_Globals) float GlobalSecondaryParticleValue;
 var(RenegadeX_Globals) float GlobalStealthAddTranslucencyBias;
@@ -108,23 +109,29 @@ DefaultProperties
 	SceneInterpolationDuration=1.0
 	EnablePostProcessing=true
 	PrecipitationParticleSystemTemplate=None
+	bNightVisionEnabled=true
+
+	MapExtent = 40000.f
+
+	JukeboxClass = class'Rx_Jukebox'
 	
 	GDIVehicleArray[0]   = class'RenX_Game.Rx_Vehicle_GDI_Humvee_PTInfo'
 	GDIVehicleArray[1]   = class'RenX_Game.Rx_Vehicle_GDI_APC_PTInfo'
-	GDIVehicleArray[2]  = class'RenX_Game.Rx_Vehicle_GDI_MRLS_PTInfo'
+	GDIVehicleArray[2]   = class'RenX_Game.Rx_Vehicle_GDI_MRLS_PTInfo'
 	GDIVehicleArray[3]   = class'RenX_Game.Rx_Vehicle_GDI_MediumTank_PTInfo'
 	GDIVehicleArray[4]   = class'RenX_Game.Rx_Vehicle_GDI_MammothTank_PTInfo'
-	GDIVehicleArray[5]   = class'RenX_Game.Rx_Vehicle_GDI_Chinook_PTInfo'
-	GDIVehicleArray[6]   = class'RenX_Game.Rx_Vehicle_GDI_Orca_PTInfo'
+	GDIVehicleArray[5]   = None
+	GDIVehicleArray[6]   = class'RenX_Game.Rx_Vehicle_GDI_Chinook_PTInfo'
+	GDIVehicleArray[7]   = class'RenX_Game.Rx_Vehicle_GDI_Orca_PTInfo'
 	
 	NodVehicleArray[0]   = class'RenX_Game.Rx_Vehicle_Nod_Buggy_PTInfo'
 	NodVehicleArray[1]   = class'RenX_Game.Rx_Vehicle_Nod_APC_PTInfo'
 	NodVehicleArray[2]   = class'RenX_Game.Rx_Vehicle_Nod_Artillery_PTInfo'
 	NodVehicleArray[3]   = class'RenX_Game.Rx_Vehicle_Nod_FlameTank_PTInfo'
-	NodVehicleArray[4]  = class'RenX_Game.Rx_Vehicle_Nod_LightTank_PTInfo'
+	NodVehicleArray[4]   = class'RenX_Game.Rx_Vehicle_Nod_LightTank_PTInfo'
 	NodVehicleArray[5]   = class'RenX_Game.Rx_Vehicle_Nod_StealthTank_PTInfo'
 	NodVehicleArray[6]   = class'RenX_Game.Rx_Vehicle_Nod_Chinook_PTInfo'
-	NodVehicleArray[7]  = class'RenX_Game.Rx_Vehicle_Nod_Apache_PTInfo'
+	NodVehicleArray[7]   = class'RenX_Game.Rx_Vehicle_Nod_Apache_PTInfo'
 	
 	GDIInfantryArray[0]  = class'Rx_FamilyInfo_GDI_Soldier'	
 	GDIInfantryArray[1]  = class'Rx_FamilyInfo_GDI_Shotgunner'
@@ -154,7 +161,7 @@ DefaultProperties
 	NodInfantryArray[9]  = class'Rx_FamilyInfo_Nod_Stealthblackhand'
 	NodInfantryArray[10] = class'Rx_FamilyInfo_Nod_LaserChainGunner'
 	NodInfantryArray[11] = class'Rx_FamilyInfo_Nod_Sakura'		
-	NodInfantryArray[12] = class'Rx_FamilyInfo_Nod_Raveshaw'//_Mutant'
+	NodInfantryArray[12] = class'Rx_FamilyInfo_Nod_Raveshaw'
 	NodInfantryArray[13] = class'Rx_FamilyInfo_Nod_Mendoza'
 	NodInfantryArray[14] = class'Rx_FamilyInfo_Nod_Technician'
 }

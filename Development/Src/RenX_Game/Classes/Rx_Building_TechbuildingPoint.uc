@@ -20,10 +20,47 @@ class Rx_Building_TechbuildingPoint extends Rx_Building_Techbuilding;
 
 var(PointCapture) float CaptureRadius;
 var(PointCapture) float CaptureHeight;
+var Rx_CapturePoint_TechBuilding CP;
 
 
 var(PointCapture) Rx_Volume_CaptureArea CaptureVolume; // if assigned, CapturePoint will NOT use the original proximity-based capturing and instead calculates player depending on whether or not they're in the volume
 var(PointCapture) class<Rx_CapturePoint_TechBuilding> CapturePointClass;
+
+Replication
+{
+	if(bNetDirty)
+		CP;
+}
+
+simulated function bool GetShouldShowHealth()
+{
+	if(CP != None)
+		return CP.ReplicatedProgress > 0 && CP.ReplicatedProgress < 1.f;
+
+	return false;
+}
+
+simulated function int GetTargetHealth() 
+{
+	if(CP != None)
+		return CP.ReplicatedProgress;
+
+	return 0.f;
+}
+
+simulated function int GetTargetHealthMax() 
+{
+	return 1.f;
+}
+
+
+simulated function float GetTargetHealthPct()
+{
+	if(CP != None)
+		return CP.ReplicatedProgress;
+
+	return 0.f;
+}
 
 DefaultProperties
 {

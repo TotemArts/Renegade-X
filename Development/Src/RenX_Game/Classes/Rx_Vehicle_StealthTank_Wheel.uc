@@ -2,7 +2,7 @@ class Rx_Vehicle_StealthTank_Wheel extends UDKVehicleWheel;
 
 defaultproperties
 {
-    WheelRadius=40
+    WheelRadius=34
     SuspensionTravel=30
     SuspensionSpeed=50
     bPoweredWheel=True

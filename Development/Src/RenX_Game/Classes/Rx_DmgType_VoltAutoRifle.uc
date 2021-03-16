@@ -58,12 +58,9 @@ defaultproperties
     BuildingDamageScaling= 0.2653061224 //0.2857142857 //0.4
 	MCTDamageScaling=3.0
 	MineDamageScaling=1.0
-	////Infantry Armour Types//////
-	Inf_LazarusDamageScaling = 1.15 //1.3  // Lazarus SBH armour, standard rule is +30% to Electrical damage but likely no other damage modifiers.
 	
-	
-	BleedDamageFactor=0.2
-	BleedCount=5
+	BleedDamageFactor=0.05
+	BleedCount=3
 	
 	PS_AttachToGib=ParticleSystem'RX_WP_VoltAutoRifle.Effects.P_Gib_Effect'
 	DamageCameraAnim=CameraAnim'RX_FX_Munitions2.Camera_FX.C_WP_Link_Beam_Hit' //CameraAnim'Camera_FX.LinkGun.C_WP_Link_Beam_Hit'

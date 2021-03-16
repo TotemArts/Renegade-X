@@ -20,12 +20,13 @@ var protected float	Command_Points, Maximum_CP; //The maximum CP you can have at
 var bool			bHarvesterStopped; 
 var Rx_Vehicle_Harvester CurrentHarvester;
 var bool			bHasHarv;
+var int 			HarvesterTripNumber;
 
 replication
 {
 	
 	if( bNetDirty && (Role==ROLE_Authority) )
-		ReplicatedSize, vehicleCount, mineCount, ReplicatedRenScore, Kills, Deaths, LastAirstrikeTime, VehicleLimit, mineLimit, Command_Points, Maximum_CP, CurrentHarvester, bHasHarv;
+		ReplicatedSize, vehicleCount, mineCount, ReplicatedRenScore, Kills, Deaths, LastAirstrikeTime, VehicleLimit, mineLimit, Command_Points, Maximum_CP, CurrentHarvester, bHasHarv, bHarvesterStopped;
 }
 
 simulated event ReplicatedEvent(name VarName)
@@ -59,7 +60,7 @@ simulated function string GetTeamName()
 
 function Initialize(int NewTeamIndex)
 {
-   TeamIndex = NewTeamIndex;
+	TeamIndex = NewTeamIndex;
 }
 
 simulated function byte GetTeamNum()
@@ -71,14 +72,17 @@ simulated function string GetHumanReadableName()
 {
     return default.TeamNames[TeamIndex];
 }
+
 simulated function color GetHUDColor()
 {
     return default.TeamColors[TeamIndex];
 }
+
 function color GetTextColor()
 {
     return default.TeamColors[TeamIndex];
 }
+
 simulated function color GetTeamColor()
 {
    return default.TeamColors[TeamIndex];
@@ -118,7 +122,7 @@ function RemoveFromTeam(Controller Other)
 
 function DecreaseVehicleCount() 
 {
-	vehicleCount--;
+	vehicleCount = Max(vehicleCount - 1, 0);
 }
 
 function IncreaseVehicleCount() 
@@ -191,19 +195,15 @@ simulated function float GetKDRatio()
 
 function bool BotNameTaken(string BotName)
 {
-	local int i;
-	local UTPlayerReplicationInfo PRI;
-	local UTGameReplicationInfo GRI;
+//	local int i;
+	local PlayerReplicationInfo PRI;
 
-	GRI = UTGameReplicationInfo(WorldInfo.GRI);
-	for (i=0;i<GRI.PRIArray.Length;i++)
+	ForEach WorldInfo.GRI.PRIArray(PRI)
 	{
-		PRI = UTPlayerReplicationInfo(WorldInfo.GRI.PRIArray[i]);
-		if (PRI != None && PRI.PlayerName == BotName)
-		{
+		if (UTPlayerReplicationInfo(PRI) != None && UTPlayerReplicationInfo(PRI).PlayerName == BotName)
 			return true;
-		}
 	}
+
 	return false;
 }
 
@@ -245,6 +245,11 @@ function bool bGetHarvStopped(){
 	return bHarvesterStopped; 
 }
 
+function ResetHarvesterTripNumber()
+{
+	HarvesterTripNumber = default.HarvesterTripNumber;
+}
+
 defaultproperties
 {
 	TeamNames(0)="GDI"
@@ -258,4 +263,5 @@ defaultproperties
 	bAlwaysRelevant=true
 	LastAirstrikeTime=0
 	
+	HarvesterTripNumber=1
 }

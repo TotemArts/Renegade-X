@@ -1,5 +1,22 @@
 class Rx_Weapon_IonCannonBeacon extends Rx_Weapon_Beacon;
 
+simulated function bool IsValidPosition() 
+{
+	local Rx_Weapon_DeployedBeacon DeployedB;
+
+	ForEach WorldInfo.DynamicActors(class'Rx_Weapon_DeployedBeacon', DeployedB)
+	{
+		if (DeployedB.IsA(DeployedActorClass.name) && DeployedB.InstigatorController == Pawn(Owner).Controller)
+		{
+			Rx_Controller(Pawn(Owner).Controller).ClientMessage("You can only have one beacon deployed at once.");
+			return false;
+			break;
+		}
+	}
+
+	return super.IsValidPosition();
+}
+
 DefaultProperties
 {
 	ArmsAnimSet=AnimSet'RX_WP_IonCannon.Anims.AS_IonCannonBeacon_Arms'

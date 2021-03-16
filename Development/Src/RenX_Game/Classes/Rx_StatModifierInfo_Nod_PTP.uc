@@ -14,7 +14,7 @@ DefaultProperties
 
 	//Survivablity
 	DamageResistanceMod = 0.0 //0.10 //*X Not built to be resilient 
-	RegenerationMod 	= 2.0  //+X
+	RegenerationMod 	= 0.0  //+X
 
 	//Modifier stats
 	Mod_Length = 15.0 //20.0
@@ -23,8 +23,10 @@ DefaultProperties
 	EffectColor		= (R=1.0,G=0.0,B=0.0,A=3.0)
 	EffectOpacity	= 1.0
 	EffectInflation	= 0.75
-	EffectPriority	= 1
+	EffectPriority	= 2
 
+	bUseVignette = true
+	
 	PawnMIC = MaterialInstanceConstant'RenX_AssetBase.Stealth.MI_PowerUp_Nod2'
 
 }

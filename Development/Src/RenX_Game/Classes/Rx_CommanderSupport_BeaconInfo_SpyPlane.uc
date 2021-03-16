@@ -10,7 +10,7 @@ DefaultProperties
 {
 	//Should be Nod only
 	SpawnedVehicle(0) = class'Rx_SupportVehicle_A10'
-	SpawnedVehicle(1) = class'Rx_SupportVehicle_MIG35' 
+	SpawnedVehicle(1) = class'Rx_SupportVehicle_MIG35_SpyPlane' 
 
 	SupportPayload = class'Rx_CommanderSupport_SpyCamera'
 	SupportSpawnLocation = (X=0, Y=0, Z=10000)

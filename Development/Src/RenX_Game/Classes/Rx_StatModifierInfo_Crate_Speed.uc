@@ -23,7 +23,7 @@ ModificationName = "Speed Upgrade"
 EffectColor		= (R=0.5,G=0.5,B=1.0,A=1.0)
 EffectOpacity	= 0.15
 EffectInflation	= 0.5
-EffectPriority	= 6
+EffectPriority	= 7
 
 PawnMIC = MaterialInstanceConstant'RenX_AssetBase.Stealth.MI_PowerUp_Speed'
 

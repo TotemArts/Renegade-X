@@ -13,9 +13,9 @@ DefaultProperties
     MuzzleFlashPSCTemplate=ParticleSystem'RX_WP_VoltAutoRifle.Effects.P_VoltRifle_MuzzleFlash_3P_Blue'
 	
 	//Heroic Stats
-	BeamTemplate_Heroic	= ParticleSystem'RX_WP_VoltAutoRifle.Effects.P_Lightning_Thick'
-	MuzzleFlashPSCTemplate_Heroic= ParticleSystem'RX_WP_VoltAutoRifle.Effects.P_VoltRifle_MuzzleFlash_3P'
-	MuzzleFlashLightClass_Heroic=class'UTGame.UTShockMuzzleFlashLight'
-	DefaultImpactEffect_Heroic=(ParticleTemplate=ParticleSystem'RX_WP_VoltAutoRifle.Effects.P_Volt_Impact_Small',Sound=SoundCue'RX_WP_VoltAutoRifle.Sounds.SC_VoltAutoRifle_Impact')
+	BeamTemplate_Heroic	= ParticleSystem'RX_WP_VoltAutoRifle.Effects.P_Lightning_Heroic'
+	MuzzleFlashPSCTemplate_Heroic= ParticleSystem'RX_WP_VoltAutoRifle.Effects.P_VoltRifle_MuzzleFlash_3P_Blue'
+	MuzzleFlashLightClass_Heroic=class'RenX_Game.Rx_Light_VoltRifle_MuzzleFlash'
+	DefaultImpactEffect_Heroic=(ParticleTemplate=ParticleSystem'RX_WP_VoltAutoRifle.Effects.P_Volt_Impact_Small_Blue_Heroic',Sound=SoundCue'RX_WP_VoltAutoRifle.Sounds.SC_VoltAutoRifle_Impact')
 
 }

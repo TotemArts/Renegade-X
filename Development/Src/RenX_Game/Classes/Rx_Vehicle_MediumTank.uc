@@ -252,8 +252,8 @@ DefaultProperties
 
         bClampedFrictionModel=true
 
-        WheelSuspensionStiffness=40
-        WheelSuspensionDamping=2.0
+        WheelSuspensionStiffness=60.0 //40
+        WheelSuspensionDamping=4.0 //2.0
         WheelSuspensionBias=0.2
 
 //        WheelLongExtremumSlip=0

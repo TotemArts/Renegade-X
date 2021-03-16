@@ -13,7 +13,7 @@
 *
 *********************************************************/
 class Rx_Vehicle_Harvester extends Rx_Vehicle_Treaded
-    abstract;
+abstract;
     
 var UTPawn                          DummyDriver; 
 var byte 							TeamNum;  
@@ -27,11 +27,17 @@ var bool 							bTurningToDock;
 var string							FriendlyStateName; 
 var class<Rx_Message_Harvester>     HarvyMessageClass;
 
+var RxIfc_Refinery					MyRefinery;
+var bool 							bHarvSetup;
+
 var SkeletalMeshComponent AntennaMesh;
+var int MaxVP;
+
+var bool bSuicide;
+var float LastAttackTime, LastAttackVPGraceTime;
 
 /** The Cantilever Beam that is the Antenna itself*/
 var UTSkelControl_CantileverBeam AntennaBeamControl;
-
 
 simulated function PostBeginPlay()
 {
@@ -53,8 +59,15 @@ simulated function PostBeginPlay()
 
 replication
 {
-	if ( bNetDirty && ROLE == ROLE_AUTHORITY)
+	if (bNetDirty && ROLE == ROLE_AUTHORITY)
 		bPlayOpeningAnim, bPlayClosingAnim, bPlayHarvestingAnim, FriendlyStateName; 
+}
+
+simulated function string GetTargetedDescription(PlayerController PlayerPerspective)
+{
+	if (PlayerPerspective.GetTeamNum() == GetTeamNum())
+		return GetFriendlyStateName();
+	return "";
 }
 
 simulated event ReplicatedEvent(name VarName)
@@ -75,6 +88,13 @@ simulated event ReplicatedEvent(name VarName)
 	}
 }
 
+simulated function Tick(float DeltaSeconds)
+{
+	super.Tick(DeltaSeconds);
+
+	if(Role == ROLE_Authority && bHarvSetup && (MyRefinery == None || Rx_Building(MyRefinery).IsDestroyed()))
+		TakeDamage(10000,None,vect(0,0,0),vect(0,0,0),class'Rx_DmgType');
+}
 
 /** For Antenna delegate purposes (let's turret motion be more dramatic)*/
 function vector GetVelocity()
@@ -82,7 +102,8 @@ function vector GetVelocity()
 	return Velocity;
 }
 
-function harvInit() {
+function harvInit() 
+{
 
 	local vector tv;
 
@@ -96,11 +117,7 @@ function harvInit() {
 	SetTeamNum(TeamNum);
 	DummyDriver = Spawn(class'UTPawn',,,tv,,,true);
 
-	if(Rx_MapInfo(WorldInfo.GetMapInfo()).MapBotType == navmesh)
-		Controller = Spawn(class'Rx_Vehicle_HarvesterController_Mesh',self,,tv,,,true);
-	else
-		Controller = Spawn(class'Rx_Vehicle_HarvesterController_Waypoints',self,,tv,,,true);
-
+	Controller = Spawn(class'Rx_Vehicle_HarvesterController_Waypoints',self,,tv,,,true);
 
 	Controller.SetOwner(None);
 	AIController(Controller).SetTeam(TeamNum);
@@ -109,10 +126,10 @@ function harvInit() {
 
 	SetTimer(0.1f, false, 'Start');
 	SetTimer(1.0, true, 'regenerateHealth');
-	if(Rx_Game(WorldInfo.Game) != None)
-	{
-		Rx_Game(WorldInfo.Game).ReassignHarvester(Self);
-	}
+
+	Rx_Vehicle_HarvesterController(Controller).ReassignRefinery(MyRefinery);
+
+	bHarvSetup = true;
 	
 }
 
@@ -129,7 +146,6 @@ function Start()
    DriverEnter(DummyDriver);
    Controller.GotoState('MovingToTib');
 }
-
 
 simulated function bool DriverEnter(Pawn p) {
 	if(p.IsA('Rx_Pawn')) {
@@ -148,7 +164,8 @@ event bool ContinueOnFoot()
  * Sets Teammaterials. The Code to change Teammaterials was removed in super.TeamChanged() but it makes sense
  * for the Harvester
  */
-simulated function TeamChanged() {
+simulated function TeamChanged()
+{
 	
 	local MaterialInterface NewMaterial;	
 
@@ -214,6 +231,9 @@ simulated event TakeDamage(int Damage, Controller EventInstigator, vector HitLoc
 {
 
 	super.TakeDamage(Damage, EventInstigator, HitLocation, Momentum, DamageType, HitInfo, DamageCauser);
+	
+	if (EventInstigator != None)
+		LastAttackTime = WorldInfo.TimeSeconds;
 
 	if (EventInstigator != None && WorldInfo.TimeSeconds >= LastAttackBroadCastTime + 30.f && EventInstigator.GetTeamNum() != GetTeamNum())
 	{
@@ -234,6 +254,13 @@ function BroadcastAttack()
 function BroadcastDestroyed()
 {
 	local Rx_Controller PC; 
+	local float AdjustedVPReward;
+	
+	if (bAwardVP())
+	{
+		AdjustedVPReward = Min(class'Rx_VeterancyModifiers'.default.Ev_HarvesterDestroyed*GetTripNumber(), MaxVP);
+		Rx_TeamInfo(WorldInfo.GRI.Teams[GetTeamNum()]).ResetHarvesterTripNumber();
+	}
 	
 	foreach WorldInfo.AllControllers(class'Rx_Controller', PC)
 		{
@@ -243,10 +270,10 @@ function BroadcastDestroyed()
 			}
 			else
 			{
-				PC.CTextMessage(Caps("Enemy Harvester Destroyed"),'Green',180,1);
+				//PC.CTextMessage(Caps("Enemy Harvester Destroyed"),'Green',180,1);
 				//If we were actually being hit by the enemy team, give the team bonus 
 				if(DamagingParties.length > 0)
-					PC.DisseminateVPString("[Team Harvester Kill Bonus]&" $ class'Rx_VeterancyModifiers'.default.Ev_HarvesterDestroyed $ "&");
+					PC.DisseminateVPString("[Team Harvester Kill Bonus]&" $ AdjustedVPReward $ "&");
 			}
 		}
 
@@ -255,8 +282,8 @@ function BroadcastDestroyed()
 
 simulated function Destroyed()
 {
-	if(Rx_Game(WorldInfo.Game) != None)
-		Rx_Game(WorldInfo.Game).GetVehicleManager().HarvDestroyed(TeamNum,true);
+	if(MyRefinery != None && !Rx_Building(MyRefinery).IsDestroyed())
+		MyRefinery.NotifyHarvesterDestroyed();
 	
 	super.Destroyed();
 	
@@ -296,10 +323,14 @@ simulated function byte GetTeamNum() {
 
 function string BuildDeathVPString(Controller Killer, class<DamageType> DamageType)
 {
-	if(Killer == none || LastTeamToUse == Killer.GetTeamNum() ) return ""; //Meh, you get nothing
+	if (!bAwardVP() || Killer == none || LastTeamToUse == Killer.GetTeamNum()) return ""; //Meh, you get nothing
 		
-		return "[Harvester Kill]&+" $ default.VPReward[VRank] $ "&" ;
-	
+	return "[Harvester Kill]&+" $ default.VPReward[VRank] $ "&" ;
+}
+
+function bool bAwardVP()
+{
+	return !bSuicide && DamagingParties.length > 0;
 }
 
 //A much lighter variant of the VPString builder, used to calculate assists (Which only add in negative modifiers for in-base and higher VRank)
@@ -323,8 +354,28 @@ simulated function bool ForceVisible()
 {
 	return PlayerReplicationInfo == none || Rx_DefencePRI(PlayerReplicationInfo).bSpotted;  
 }
+
+function int GetTripNumber()
+{
+	return Rx_TeamInfo(WorldInfo.GRI.Teams[GetTeamNum()]).HarvesterTripNumber;
+}
+
+function AddTripNumber()
+{
+	Rx_TeamInfo(WorldInfo.GRI.Teams[GetTeamNum()]).HarvesterTripNumber++;
+}
+
+simulated function bool GetCurrentlyInteractable(PlayerController RxPC) {return false;}
+simulated function string GetInteractText(Controller C, string BindKey) {return "";}
+
+function SetRefinery(RxIfc_Refinery NewRef)
+{
+	MyRefinery = NewRef;
+}
+
 DefaultProperties
 {
+	LastAttackVPGraceTime = 30
 
     Begin Object Name=CollisionCylinder
     CollisionHeight=100.0
@@ -340,7 +391,8 @@ DefaultProperties
 	
 	MinRunOverSpeed 	= 100.0f
 	
-	bBlocksNavigation = true	
+	bBlocksNavigation = true
+	MaxVP = 40
 
 	Health=1000//1000
     MaxDesireability=0
@@ -354,13 +406,13 @@ DefaultProperties
     MaxSpeed=1500
     LeftStickDirDeadZone=0.1
     TurnTime=18
-     ViewPitchMin=-13000
+    ViewPitchMin=-13000
     HornIndex=0
     COMOffset=(x=-19.0,y=0.0,z=-40.0)
 	bAlwaysRegenerate = true 
 	
 	RadarVisibility = 0 //start invisible for a moment 
-	
+
 	/************************/
 	/*Veterancy Multipliers*/
 	/***********************/

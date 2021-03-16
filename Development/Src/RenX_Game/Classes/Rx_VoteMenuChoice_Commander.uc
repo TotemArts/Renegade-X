@@ -79,7 +79,7 @@ function InputFromConsole(string text)
 
 	Pname = P_PRI.PlayerName;
 	
-	if(P_PRI == None || P_PRI.GetTeamNum() != Handler.PlayerOwner.GetTeamNum() )
+	if(P_PRI == None || (P_PRI.GetTeamNum() != Handler.PlayerOwner.GetTeamNum() || !P_PRI.bCanBeVotedCommander))
 	{
 		//`log("Failed to find player PRI, terminating vote.");
 		Handler.PlayerOwner.CTextMessage("-Vote Failed-",'Red');
@@ -206,12 +206,7 @@ for (i=0;i < LGRI.PRIArray.Length;i++)
 
 function string ComposeTopString()
 {
-
-	//Is it for GDI or Nod?
-	if(ToTeam == 0) 
-		HR_Teamname ="GDI";
-	else
-		HR_Teamname ="Nod" ;
+	HR_Teamname = Rx_Game(VoteInstigator.WorldInfo.Game).GetTeamName(ToTeam);
 	
 //`log("0112121121221212 Composing Top string 11111111");
 	if(VotingIn) 
@@ -223,7 +218,7 @@ function string ComposeTopString()
 	}
 
 	else
-		return super.ComposeTopString() $ " wants to vote  OUT" @ HR_Teamname $"'s" @ "Commander" ;	
+		return super.ComposeTopString() $ " wants to vote OUT" @ HR_Teamname $"'s" @ "Commander" ;	
 
 }
 
@@ -265,6 +260,12 @@ function ServerInit(Rx_Controller instigator, string param, int t)
 	 
 	ToTeam = t;
 	VoteInstigator = instigator;
+
+	//Load team colors from Rx_HUD
+	GDIColor = class<Rx_HUD>(Rx_Game(instigator.WorldInfo.Game).HUDClass).default.GDIColor;
+	NodColor = class<Rx_HUD>(Rx_Game(instigator.WorldInfo.Game).HUDClass).default.NodColor;
+	HostColor = class<Rx_HUD>(Rx_Game(instigator.WorldInfo.Game).HUDClass).default.HostColor;
+
 	DeserializeParam(param);
 
 	if(!VotingIn && Rx_PRI(VoteInstigator.PlayerReplicationInfo).bIsCommander)
@@ -339,7 +340,7 @@ function PlayerVoteNo(Rx_Controller p)
 
 function PlayerVoteYes(Rx_Controller p)
 {
-	if(p.PlayerReplicationInfo.Team.TeamIndex == ToTeam && Rx_PRI(p.PlayerReplicationInfo).bIsCommander && CanConcludeVote(p))
+	if(!VotingIn && p.PlayerReplicationInfo.Team.TeamIndex == ToTeam && Rx_PRI(p.PlayerReplicationInfo).bIsCommander && CanConcludeVote(p))
 	{
 		ConcludeVote();
 		return;
@@ -386,6 +387,7 @@ function ConcludeVote()
 	{
 		G.RxLog("VOTE" `s "Results;" `s TeamTypeToString(ToTeam) `s class `s "fail" `s "Cancelled by candidate" );
 		G.CTextBroadcast(ComC.GetTeamNum(),"-Vote Cancelled :"@ComC.PlayerReplicationInfo.PlayerName@"declined to be the Commander-",'Red');
+		Rx_PRI(ComC.PlayerReplicationInfo).DisallowCommander();
 	}
 	else
 	{

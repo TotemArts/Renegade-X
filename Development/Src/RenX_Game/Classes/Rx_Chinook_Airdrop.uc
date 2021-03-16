@@ -3,20 +3,22 @@ class Rx_Chinook_Airdrop extends Actor;
 var SkeletalMeshComponent Mesh;
 
 
-var private repnotify float CurrentTime;
-var private bool bGotCurrentTime;
+var protected repnotify float CurrentTime;
+var protected bool bGotCurrentTime;
 var SkeletalMeshComponent VehicleMesh;
 var Rx_vehicle CarriedVehicle;
 var const AudioComponent EngineSound;
 var byte TeamNum;
 var Rx_PRI Buyer;
+var RxIfc_Refinery RefineryBuyer;
 var int VehicleID;
 var DynamicLightEnvironmentComponent        LightEnvironment;
+var Rx_PurchaseSystem PurchaseSystem;
 
 replication
 {
 	if (bNetDirty)
-		CurrentTime,TeamNum,Buyer,VehicleID;
+		CurrentTime,TeamNum,Buyer,VehicleID, PurchaseSystem;
 }
 
 simulated event PostBeginPlay()
@@ -46,29 +48,26 @@ simulated event ReplicatedEvent(name VarName)
 	else super.ReplicatedEvent(VarName);
 }
 
-simulated function initialize(Rx_PRI Buyer_Local, int VehicleID_local, byte teamnumber)
+simulated function initialize(Rx_PRI Buyer_Local, RxIfc_Refinery RefineryBuyer_Local, int VehicleID_local, byte teamnumber)
 {			
 	Buyer = Buyer_Local;
 	VehicleID = VehicleID_local;
 	TeamNum = teamnumber;	
+	RefineryBuyer = RefineryBuyer_Local;
+	if(Rx_Game(WorldInfo.Game) != None)
+		PurchaseSystem = Rx_Game(WorldInfo.Game).PurchaseSystem;
 }
 
 simulated function class<Rx_Vehicle> GetVehicleClass()
 {
-	if (TeamNum == TEAM_GDI)
-	{
-		if (VehicleID == 254)
-			return class<Rx_Game>(WorldInfo.GetGameClass()).default.VehicleManagerClass.default.GDIHarvesterClass;
-		else
-			return class<Rx_Game>(WorldInfo.GetGameClass()).default.PurchaseSystemClass.default.GDIVehicleClasses[VehicleID].default.VehicleClass;
-	}
-	else
-	{
-		if (VehicleID == 255)
-			return class<Rx_Game>(WorldInfo.GetGameClass()).default.VehicleManagerClass.default.NodHarvesterClass;
-		else
-			return class<Rx_Game>(WorldInfo.GetGameClass()).default.PurchaseSystemClass.default.NodVehicleClasses[VehicleID].default.VehicleClass;
-	}
+	if(VehicleID < 254)
+		return PurchaseSystem.GetVehicleClass(TeamNum,VehicleID);
+
+	else if (VehicleID == 254)
+		return class<Rx_Game>(WorldInfo.GetGameClass()).default.VehicleManagerClass.default.GDIHarvesterClass;
+
+	else if (VehicleID == 255)
+		return class<Rx_Game>(WorldInfo.GetGameClass()).default.VehicleManagerClass.default.NodHarvesterClass;
 }
 
 simulated function InitEngineSound()
@@ -89,13 +88,21 @@ simulated function DropVehicle()
 	local Rotator SocketRotation;	
 	
 	Mesh.DetachComponent(VehicleMesh);
-	Mesh.GetSocketWorldLocationAndRotation('AirDrop_Vehicle', SocketLocation, SocketRotation);
+	SocketLocation = VehicleMesh.GetPosition();
+	SocketRotation = VehicleMesh.GetRotation();
+//	Mesh.GetSocketWorldLocationAndRotation('AirDrop_Vehicle', SocketLocation, SocketRotation);
 	
 	if (WorldInfo.NetMode != NM_Client)
 	{
-		CarriedVehicle = Spawn(GetVehicleClass(),,, SocketLocation,,,true);	
+		CarriedVehicle = Spawn(GetVehicleClass(),,, SocketLocation,SocketRotation,,true);	
 		CarriedVehicle.DropToGround();	
 		CarriedVehicle.Mesh.WakeRigidBody();
+		if(Rx_Vehicle_Harvester(CarriedVehicle) != None)
+		{
+			Rx_Vehicle_Harvester(CarriedVehicle).SetRefinery(RefineryBuyer);
+			RefineryBuyer.NotifyHarvesterCreated();			
+		}
+
 		Rx_Game(WorldInfo.Game).GetVehicleManager().InitVehicle(CarriedVehicle,TeamNum,Buyer,VehicleID,SocketLocation); 
 	}	
 	

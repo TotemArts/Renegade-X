@@ -416,7 +416,7 @@ function UpdateBuildings(bool force)
 {
 
 	if(BuildingsCoop.Length > 0)
-		UpdateBuildingGFx(BuildingsCoop,force);
+		UpdateBuildingGFx(BuildingsCoop,force, PC.GetTeamNum());
 
 }
 

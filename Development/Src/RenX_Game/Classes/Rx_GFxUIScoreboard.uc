@@ -331,11 +331,9 @@ function LoadBuildings()
 		TempBuilding.iconIndex = GetBuildingPicIndex(B);
 		TempBuilding.iconMC.GotoAndStopI(TempBuilding.iconIndex);
 
-		if(RxGRI.bMatchIsOver)
-		{
-			TempBuilding.hp = 100;
-			TempBuilding.armor = 100;
-		}
+		TempBuilding.hp = 100;
+		TempBuilding.armor = 100;
+
 		if(B.GetTeamNum() == 0)
 		{
 			GDIBuilding.AddItem(TempBuilding);
@@ -373,12 +371,11 @@ function LoadBuildings()
 
 function UpdateBuildings(bool force) 
 {
-
 	if(GDIBuilding.Length > 0)
-		UpdateBuildingGFx(GDIBuilding,force);
+		UpdateBuildingGFx(GDIBuilding,force,0);
 
 	if(NodBuilding.Length > 0);
-		UpdateBuildingGFx(NodBuilding,force);
+		UpdateBuildingGFx(NodBuilding,force,1);
 
 //	if(GDITeam.CurrentHarvester != None)
 	UpdateHarv(GDITeam);
@@ -387,7 +384,7 @@ function UpdateBuildings(bool force)
 	UpdateHarv(NodTeam);
 }
 
-function UpdateBuildingGFx(Array<Buildings> BList, bool force)
+function UpdateBuildingGFx(Array<Buildings> BList, bool force, int BTeam)
 {
 	local int health, armor, i;
 	local Buildings TempBuilding;
@@ -412,10 +409,8 @@ function UpdateBuildingGFx(Array<Buildings> BList, bool force)
 		health = Max(1,health);
 		armor = Max(1,armor);
 
-
 		`logd("Rx_GFxUIScoreBoard::UpdateBuildings"@`ShowVar(health)@`ShowVar(TempBuilding.hp)@`ShowVar(armor),true,'DevGFxUI');
-
-		if(TempBuilding.building.IsDestroyed() && (TempBuilding.hp != 0 || force)) // Building is destroyed, if TempBuilding.hp is already 0, we have already updated flash.
+		if(TempBuilding.building.IsDestroyed() && (TempBuilding.hp > 0 || force)) // Building is destroyed, if TempBuilding.hp is already 0, we have already updated flash.
 		{
 			TempBuilding.hp = 0;
 			TempBuilding.containerMC.GotoAndStopI(2); //swap building symbol to destroyed frame.
@@ -437,6 +432,15 @@ function UpdateBuildingGFx(Array<Buildings> BList, bool force)
 				TempBuilding.armor = armor;
 				TempBuilding.armorMC.GotoAndStopI(TempBuilding.armor);
 			}
+		}
+
+		if(BTeam == 0)
+		{
+			GDIBuilding[i] = TempBuilding;
+		}
+		else if(BTeam == 1)
+		{
+			NodBuilding[i] = TempBuilding;
 		}
 	}	
 }
@@ -1339,6 +1343,8 @@ function int GetBuildingIndex(Rx_Building B)
 
 function int GetBuildingPicIndex(Rx_Building B)
 {
+	if(Rx_Building_Helipad_GDI(B) != None || Rx_Building_Helipad_Nod(B) != None) return 10;
+	
 	if(Rx_Building_GDI_InfantryFactory(B) != None) return 3;
 	if(Rx_Building_GDI_VehicleFactory(B) != None) return 8;
 	if(Rx_Building_GDI_Defense(B) != None) return 1;

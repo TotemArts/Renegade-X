@@ -122,7 +122,7 @@ function FrontalCollisionGripReductionTimer()
           {
             if(UDKVehicleWheel(Wheels[i]) != None)
             {     
-               Wheels[i].LongSlipFactor = 0.1;
+               Wheels[i].LongSlipFactor = 0.85;
                 //loginternal("wheel"@i@"WheelOnGround"@Wheels[i].bWheelOnGround@"bIsSquealing"@Wheels[i].bIsSquealing@"SpinVel"@Wheels[i].SpinVel@"Side"@Wheels[i].Side@"ContactForce"@Wheels[i].ContactForce@"ChassisTorque"@Wheels[i].ChassisTorque@"LongImpulse"@Wheels[i].LongImpulse);
             }
           }
@@ -137,7 +137,7 @@ function FrontalCollisionGripReductionTimer()
     {
       if(UDKVehicleWheel(Wheels[i]) != None)
       {
-        Wheels[i].LongSlipFactor = 0.1;
+        Wheels[i].LongSlipFactor = 0.85;
       }
     }
     bIsReducingFrontalCollisionGrip = true;
@@ -847,7 +847,7 @@ simulated function ClearOverlay()
 /*Functions shared by all stealth units for the HUD (And maybe for a sensor array or something)*/
 
 simulated function bool GetIsinTargetableState(){
-	return (GetStateName() != 'Stealthed' && GetStateName() != 'BeenShot'); 
+	return (GetStateName() != 'Stealthed' && GetStateName() != 'BeenShot' && Health > 0); 
 }
 
 simulated function bool GetIsStealthCapable(){
@@ -863,6 +863,10 @@ simulated function ChangeStealthVisibilityParam(bool ForOnFoot, optional float P
 }
 
 /*End stealth code */
+
+/*RxIfc_Targetable*/
+simulated function bool GetIsValidLocalTarget(Controller PC) {return PC.GetTeamNum() == GetTeamNum() || GetIsinTargetableState();} //Are we a valid target for our local playercontroller?  (Buildings are always valid to look at (maybe stealthed buildings aren't?))
+
 
 DefaultProperties
 {
@@ -958,8 +962,8 @@ DefaultProperties
 
         bClampedFrictionModel=true
 
-        WheelSuspensionStiffness=40
-        WheelSuspensionDamping=1.0
+        WheelSuspensionStiffness=50 //40
+        WheelSuspensionDamping=1.5 //1.0
         WheelSuspensionBias=0.1
 
 //        WheelLongExtremumSlip=0

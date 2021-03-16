@@ -251,7 +251,7 @@ defaultproperties
     bStayUpright=true
     StayUprightRollResistAngle=5.0
     StayUprightPitchResistAngle=5.0
-    StayUprightStiffness=200
+    StayUprightStiffness=1000 //200
     StayUprightDamping=20
 	
 	bIsConsoleTurning=False

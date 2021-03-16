@@ -1,37 +1,53 @@
 class Rx_Buildings_DoorSensor extends Actor;
 
-var repnotify Rx_BuildingAttachment_Door  Door;
+var repnotify Rx_BuildingAttachment_LockableDoor door;
+
 var CylinderComponent           CollisionCylinder;
 
-simulated function RegisterDoor( Rx_BuildingAttachment_Door inDoor )
+replication
 {
-	Door = inDoor;
-	Door.DoorSensor = self;
-	CollisionCylinder.SetCylinderSize(Door.GetSensorRadius(),Door.GetSensorHeight());
-	//`log ("Door registered" @ Door.GetSensorRadius());
+	if ((bNetInitial || bNetDirty) && Role == ROLE_Authority)
+		door;
+}
+
+simulated function RegisterDoor( Rx_BuildingAttachment_LockableDoor inDoor )
+{
+	door = inDoor;
+	door.DoorSensor = self;
+	CollisionCylinder.SetCylinderSize(door.GetSensorRadius(), door.GetSensorHeight());
 }
 
 simulated event Touch( Actor Other, PrimitiveComponent OtherComp, vector HitLocation, vector HitNormal )
 {
-	if( Door != none )
-	{
-//		if(Pawn(Other) != None && Rx_Bot(Pawn(Other).Controller) != None) {
-//			Rx_Bot(Pawn(Other).Controller).setStrafingDisabled(true);
-//		}		
-		Door.SensorTouch(Other);
-	}
+	DoCollide(none);
 }
 
 simulated event UnTouch( Actor Other )
 {	
-	if ( Door != none )
+	DoCollide(Other);
+}
+
+simulated function DoCollide(Actor ignoredActor) 
+{
+	local int authorizedActorCount;
+	local Actor loopActor;
+
+	if (door == none) 
 	{
-//		if(Pawn(Other) != None && Rx_Bot(Pawn(Other).Controller) != None
-//				&& !Rx_Bot(Pawn(Other).Controller).IsInBuilding()) {
-//			Rx_Bot(Pawn(Other).Controller).setStrafingDisabled(false);
-//		}
-		Door.SensorUnTouch(Other);
-	}	
+		return;
+	}
+
+	authorizedActorCount = 0;
+
+	ForEach TouchingActors(class'Actor', loopActor) {
+		if (!door.ShouldAllowActor(loopActor) || loopActor == IgnoredActor) {
+			continue;
+		}
+
+		authorizedActorCount++;
+	}
+
+	door.UpdateActorCountTouchingDoor(authorizedActorCount);
 }
 
 DefaultProperties

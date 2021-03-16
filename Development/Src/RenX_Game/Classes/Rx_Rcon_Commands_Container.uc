@@ -31,6 +31,7 @@ final function InitRconCommands()
 	SpawnCommand(class'Rx_Rcon_Command_MutateAsNone');
 	SpawnCommand(class'Rx_Rcon_Command_MutateAsPlayer');
 	SpawnCommand(Class'Rx_Rcon_Command_HasCommand');
+	SpawnCommand(class'Rx_Rcon_Command_MakeAdmin');
 	SpawnCommand(class'Rx_Rcon_Command_Map');
 	SpawnCommand(class'Rx_Rcon_Command_Ping');
 	SpawnCommand(class'Rx_Rcon_Command_Team');
@@ -59,6 +60,7 @@ final function InitRconCommands()
 	SpawnCommand(class'Rx_Rcon_Command_SetCommander');
 	SpawnCommand(class'Rx_Rcon_Command_ToggleBotVoice');
 	SpawnCommand(class'Rx_Rcon_Command_ToggleCheatBots');
+	SpawnCommand(class'Rx_Rcon_Command_Travel');
 	
 	if (!Rx_Game(`WorldInfoObject.Game).bIsCompetitive)
 	{

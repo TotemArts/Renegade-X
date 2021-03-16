@@ -32,7 +32,7 @@ function GetRolloutNodes()
 	{
 		if(navPoint.ScriptGetTeamNum() == TeamNum && Rx_HelipadVehRolloutPendingNode(navPoint) == None)
 		{
-			Dist = VSizeSq(navPoint.Location - Controller(Rx_Vehicle(Pawn).buyerPri.Owner).Pawn.Location);
+			Dist = VSizeSq(navPoint.Location - Pawn.Location);
 			if(BestPoint == None || BestDist > Dist)
 			{
 				BestPoint = navPoint;

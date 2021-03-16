@@ -305,4 +305,5 @@ defaultproperties
 	DeadVehicleLifeSpan=2.0
 	SecondaryExplosion=ParticleSystem'RX_FX_Munitions2.Particles.Explosions.P_Explosion_Vehicle'
 
+    bisAircraft=true
 }

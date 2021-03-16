@@ -39,16 +39,18 @@ DefaultProperties
 	TossZ=50
 */
     bCollideComplex=true
-    Speed=2000
-    MaxSpeed=2000
+    Speed=2500
+    MaxSpeed=2500
     AccelRate=0
-    LifeSpan=0.6 //0.75
+    LifeSpan=0.48 //0.75
     Damage=12 //11
     //DamageRadius= 0.0
 	HeadShotDamageMult=1.15 //1.0 //1.25
     MomentumTransfer=1
 	
-	SprayRadii = (X=10,Y=10,Z=10)
+	MaxSprayRadii = (X=4,Y=4,Z=4) //You're THIS big in the end 
+	MinSprayRadii =  (X=4,Y=4,Z=4) //You're this big to start with 
+	//SprayRadii = (X=0.0,Y=0.0,Z=0.0)
 	
 	/**Begin Object Name=CollisionCylinder
 		CollisionRadius=10

@@ -75,10 +75,8 @@ var const SoundNodeWave     EnemyBuildingSounds[BuildingAlarm.BuildingAlarm_MAX]
 
 replication
 {
-	if( bNetInitial && Role == ROLE_Authority )
-		HealthMax, TrueHealthMax;
 	if( bNetDirty && Role == ROLE_Authority )
-		Health, Armor, bDestroyed, DamageLodLevel, bNoPower, Destroyer; 
+		Health, Armor, bDestroyed, DamageLodLevel, bNoPower, Destroyer, HealthMax, TrueHealthMax;
 }
 
 simulated event ReplicatedEvent( name VarName )
@@ -159,6 +157,24 @@ simulated function int GetMaxArmor()
 simulated function bool IsDestroyed()
 {
 	return bDestroyed;
+}
+
+reliable server function RestoreMe(optional PlayerReplicationInfo Restorer)
+{
+	Health = TrueHealthMax;
+	Armor = TrueHealthMax;
+
+    DamageLodLevel = GetBuildingHealthLod();
+	ChangeDamageLodLevel(GetBuildingHealthLod());
+
+	if (IsDestroyed() || bNoPower)
+	{
+		bDestroyed = false;
+		PowerRestore();
+	}
+
+	BroadcastLocalizedTeamMessage(GetTeamNum(),MessageClass,BuildingRepaired,Restorer,,self);
+	BroadcastLocalizedMessage(MessageClass,8,Restorer,,self);
 }
 
 function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLocation, vector Momentum, class<DamageType> DamageType, optional TraceHitInfo HitInfo, optional Actor DamageCauser) 
@@ -434,7 +450,7 @@ function TakeDamage(int DamageAmount, Controller EventInstigator, vector HitLoca
 
 function TriggerBuildingUnderAttackMessage(Controller EventInstigator)
 {
-	if(BuildingVisuals.bSignificant && Rx_Game(WorldInfo.Game).CanPlayBuildingUnderAttackMessage(GetTeamNum()) )
+	if( (BuildingVisuals.bSignificant || BuildingVisuals.bTriggerUnderAttack) && Rx_Game(WorldInfo.Game).CanPlayBuildingUnderAttackMessage(GetTeamNum()) )
 	{
 		/**if (Health <= LowHPWarnLevel) 
 			BroadcastLocalizedTeamMessage(GetTeamNum(),MessageClass,BuildingDestructionImminent,EventInstigator.PlayerReplicationInfo,,self);
@@ -467,7 +483,7 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
 	
 
 	Amount = Amount*2;
-	if ((bRepairArmor || repairableHealth > 0) && repairableHealth < repairableMaxHealth && Amount > 0 && Healer != None && Healer.GetTeamNum() == GetTeamNum() )
+	if ((bRepairArmor || repairableHealth > 0) && repairableHealth < repairableMaxHealth && Amount > 0 && (Healer == None || Healer.GetTeamNum() == GetTeamNum()) )
 	{
 		RealAmount = Min(Amount, repairableMaxHealth - repairableHealth);
 
@@ -478,14 +494,21 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
 			{
 				SavedDmg = FMax(0.0f, SavedDmg - Amount);
 				Scr = SavedDmg * HealPointsScale;
-				Rx_PRI(Healer.PlayerReplicationInfo).AddScoreToPlayerAndTeam(Scr);
-				Rx_PRI(Healer.PlayerReplicationInfo).AddRepairPoints_B(RealAmount); //Add to amount of Pawn repair points this 
+
+				if(Healer != None)
+				{
+					Rx_PRI(Healer.PlayerReplicationInfo).AddScoreToPlayerAndTeam(Scr);
+					Rx_PRI(Healer.PlayerReplicationInfo).AddRepairPoints_B(RealAmount); //Add to amount of Pawn repair points this 
+				}
 			}
 
 			
 			Scr = RealAmount * HealPointsScale;
-			Rx_PRI(Healer.PlayerReplicationInfo).AddScoreToPlayerAndTeam(Scr);
-			Rx_PRI(Healer.PlayerReplicationInfo).AddRepairPoints_B(RealAmount); //Add to amount of Pawn repair points this 
+			if(Healer != None)
+			{
+				Rx_PRI(Healer.PlayerReplicationInfo).AddScoreToPlayerAndTeam(Scr);
+				Rx_PRI(Healer.PlayerReplicationInfo).AddRepairPoints_B(RealAmount); //Add to amount of Pawn repair points this 
+			}
 			
 		}
 
@@ -500,7 +523,7 @@ function bool HealDamage(int Amount, Controller Healer, class<DamageType> Damage
 			repairableHealth = Health;
 		}
 		
-		if ( repairableHealth >= repairableMaxHealth )
+		if (Healer != None && repairableHealth >= repairableMaxHealth )
 		{
 			if (RealAmount > 0 && (WorldInfo.TimeSeconds - LastBuildingRepairedMessageTime > 10) && bCanPlayRepaired )
 			{
@@ -881,6 +904,9 @@ static function string GetLocalString(
 			return Repl(str, "`BuildingName`", default.BuildingName);
 		}
 	}
+	else if (Switch == 8)
+		return default.BuildingName;
+
 	return "";
 }
 
@@ -892,7 +918,7 @@ function ArmorBreak(Controller Con)
 		{
 				if (PC.GetTeamNum() == Con.GetTeamNum() )
 				{
-				PC.DisseminateVPString("[" $ BuildingVisuals.GetHumanReadableName() @ "Armour Break Bonus]&" $ class'Rx_VeterancyModifiers'.default.Ev_BuildingArmorBreak $ "&");
+				PC.DisseminateVPString("[" $ GetHumanReadableName() @ "Armour Break Bonus]&" $ class'Rx_VeterancyModifiers'.default.Ev_BuildingArmorBreak $ "&");
 				}
 		}
 		bCanArmorBreak = false; 
@@ -902,6 +928,34 @@ function ArmorBreak(Controller Con)
 function ResetArmorBreakEventTimer()
 {
 	bCanArmorBreak = true; 
+}
+
+simulated function bool CanContributeToRevivePool(Rx_Controller PC)
+{
+	return PC.GetTeamNum() == TeamID && bDestroyed && GetBuybackCost() > 0 && PC.BuildingReviveCreditAmount <= Rx_PRI(PC.PlayerReplicationInfo).GetCredits();
+}
+
+reliable server function bool AddCreditsToRevivePool(Rx_Controller PC, int CreditsToAdd)
+{
+	// Can't rebuild
+	if (!CanContributeToRevivePool(PC))
+		return false;
+
+	BuybackProgress += CreditsToAdd;
+	
+	Rx_PRI(PC.PlayerReplicationInfo).RemoveCredits(CreditsToAdd);
+
+	// Building met the buyback cost
+	if (BuybackProgress >= GetBuybackCost())
+	{
+		RestoreMe(PC.PlayerReplicationInfo);
+		BuybackProgress = 0;
+
+		return true;
+	}
+
+	// Fallback if nothing else.
+	return true;
 }
 
 DefaultProperties

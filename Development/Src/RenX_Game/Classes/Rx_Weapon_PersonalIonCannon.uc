@@ -185,6 +185,7 @@ DefaultProperties
 
     MuzzleFlashSocket="MuzzleFlashSocket"
     MuzzleFlashPSCTemplate=ParticleSystem'RX_WP_PersonalIonCannon.Effects.P_MuzzleFlash_1P'
+    MuzzleFlashPSCTemplate_Heroic=ParticleSystem'RX_WP_PersonalIonCannon.Effects.P_MuzzleFlash_1P_Heroic'
     MuzzleFlashDuration=3.3667
     MuzzleFlashLightClass=class'Rx_Light_AutoRifle_MuzzleFlash'
   

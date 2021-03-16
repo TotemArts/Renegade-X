@@ -42,14 +42,14 @@ simulated function string GetFactoryDescription(byte teamID, string menuName, Rx
 	else if (menuName == "CHARACTERS") {
 		if (teamID == TEAM_GDI) 
 		{
-			factoryName = Barracks.Length > 0 ? Caps(Barracks[0].GetHumanReadableName()) : "ARMORY";
+			factoryName = Barracks.Length > 0 ? Caps(Actor(Barracks[0]).GetHumanReadableName()) : "ARMORY";
 			if(GDIInfantryClasses.Length < 6)
 				factoryStatus = "STATUS: UNAVAILABLE";
 			else
 				factoryStatus = "STATUS: ACTIVE";
 		} 
 		else if (teamID == TEAM_NOD) {
-			factoryName = HandOfNod.Length > 0 ? Caps(HandOfNod[0].GetHumanReadableName()) : "ARMORY";
+			factoryName = HandOfNod.Length > 0 ? Caps(Actor(HandOfNod[0]).GetHumanReadableName()) : "ARMORY";
 			if(NodInfantryClasses.Length < 6)
 				factoryStatus = "STATUS: UNAVAILABLE";
 			else

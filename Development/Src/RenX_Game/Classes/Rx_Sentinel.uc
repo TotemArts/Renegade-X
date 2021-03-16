@@ -284,15 +284,7 @@ function Initialize()
 		}
 	}
 
-
-//   	if(SController != none)
-//	{
-//		SController.CannonSpawning();
-//	}
-//
-//	AutoRotateRate = 0; //Don't start rotating until finished spawning.
-
-    NotifyTeamChanged();    // leads to SController.CannonSpawning();
+    NotifyTeamChanged();
     bForceNetUpdate = true;
 }
 
@@ -322,7 +314,7 @@ simulated function SetWeapon(Rx_SentinelWeapon NewWeapon)
 	SWeapon = NewWeapon;
 
 	SWeapon.InitializeWeaponComponent(WeaponComponent);
-	SetTimer(0.2,false,'UpdateRange'); //Check if map settings change
+	SetTimer(0.2,false,'UpdateRange');
 	UpdateDamageEffects();
 	WeaponComponent.SetTeamColour();
 	WeaponComponent.PlaySpawnEffect();
@@ -348,8 +340,6 @@ function BaseChange()
 {
 	local Pawn P;
 	local DynamicSMActor Dyn;
-	//local SkeletalMeshComponent SMC;
-	//local name SMCBoneName;
 
 	if(Base != none)
 	{
@@ -379,18 +369,6 @@ function BaseChange()
 				{
 					SetCollision(default.bCollideActors, false, default.bIgnoreEncroachers);
 				}
-
-				/*SMC = SkeletalMeshComponent(Base.CollisionComponent);
-
-				if(SMC != none && BaseSkelComponent != SMC)
-				{
-					SMCBoneName = SMC.FindClosestBone(Location);
-
-					if(SMCBoneName != '')
-					{
-						SetBase(Base,, SMC, SMCBoneName);
-					}
-				}*/
 			}
 		}
 	}
@@ -412,7 +390,6 @@ simulated function Landed(Vector HitNormal, Actor FloorActor)
 
 	super.Landed(HitNormal, FloorActor);
 
-	//TODO: Translate down so base is visually sitting on the ground.
 	Z = HitNormal;
 	X = Vector(Rotator(HitNormal) + rot(-16384, 0, 0));
 	Y = Z cross X;
@@ -530,8 +507,6 @@ simulated function PlayTakeHitEffects()
 	if(EffectIsRelevant(LastTakeHitInfo.HitLocation, false, 4000.0))
 	{
 		PlaySound(DamageSound, true,,, LastTakeHitInfo.HitLocation);
-		//TODO: Fix hard-coded template.
-		//WorldInfo.MyEmitterPool.SpawnEmitter(ParticleSystem'KismetExamples.PS_HitEffect', LastTakeHitInfo.HitLocation, Rotator(LastTakeHitInfo.HitLocation - Location));
 	}
 }
 
@@ -569,7 +544,7 @@ function bool Died(Controller Killer, class<DamageType> DamageType, vector HitLo
 
 	if(Killer != none)
 	{
-		Killer = Killer;//.GetKillerController(); // I don't understand this...
+		Killer = Killer;
 	}
 
 	SetTarget(none);
@@ -580,11 +555,6 @@ function bool Died(Controller Killer, class<DamageType> DamageType, vector HitLo
 		UpgradeManager.Destroy();
 	}
 
-//	if(Killer != none && DamageType != class'DmgType_Suicided')
-//	{
-//		HurtRadius(DiedDamage, DiedDamageRadius, DiedDamageType, DiedMomentum, GetPawnViewLocation(),, InstigatorController);
-//	}
-
 	Health = Min(0, Health);
 
 	PlayDying(DamageType, HitLocation);
@@ -592,46 +562,14 @@ function bool Died(Controller Killer, class<DamageType> DamageType, vector HitLo
 	return true;
 }
 
-/** Return false because... I can't remember, lol. */
 simulated function bool IsPlayerPawn()
 {
 	return false;
 }
 
-//Includes not only pawns on the same team, but also this Sentinel's owner and their other Sentinels, and unnocupied UTVehicles assigned to the same team.
 simulated function bool IsSameTeam(Pawn Other)
 {
-	local bool bSameTeam;
-//	local Rx_Sentinel S;
-//	local UTVehicle UTV;
-
-	bSameTeam = super.IsSameTeam(Other);
-
-//	if(!bSameTeam)
-//	{
-//	//	bSameTeam = Other.Controller == InstigatorController;
-//
-//		if(!bSameTeam)
-//		{
-//			S = Sentinel(Other);
-//
-//			if(S != none)
-//			{
-//				bSameTeam = S.InstigatorController == InstigatorController;
-//			}
-//			else
-//			{
-//				UTV = UTVehicle(Other);
-//
-//				if(UTV != none && UTV.Team != 255)
-//				{
-//					bSameTeam = UTV.Team == GetTeamNum();
-//				}
-//			}
-//		}
-//	}
-
-	return bSameTeam;
+	return super.IsSameTeam(Other);
 }
 
 //Return false otherwise bots always aim at origin, which is on the floor or ceiling.
@@ -689,19 +627,10 @@ simulated function OnAnimEnd(AnimNodeSequence SeqNode, float PlayedTime, float E
 
 simulated function Tick(float DeltaTime)
 {
-//	if(Role == ROLE_Authority && (InstigatorController == none || (WorldInfo.GRI.GameClass.default.bTeamGame && !WorldInfo.GRI.OnSameTeam(self, InstigatorController))))
-//	{
-//		//Don't hang around if owner gone or changed team.
-//		RemoveFromGame();
-//	}
-//	else if(Base != none)
-//	{
 	if(target != none) {	
 		CalculateRotation(DeltaTime);
 		DoRotation();
-		//AdjustRotationSounds(DeltaTime);
 	}
-//	}
 }
 
 
@@ -727,14 +656,6 @@ simulated function CalculateRotation(float DeltaTime)
 	local Rotator BoneSpaceDesiredAim, BoneSpaceCurrentAim;
 	local Rotator BoneSpaceDelta;
 	local Vector X, Y, Z;
-	/*local Vector DebugLineStart;
-
-	DebugLineStart = GetPawnViewLocation();
-	DrawDebugLine(DebugLineStart, DebugLineStart + (Vector(Rotation) * 128), 0, 0, 255);
-	DebugLineStart += vect(0.0, 0.0, 2.0) >> Rotation;
-	DrawDebugLine(DebugLineStart, DebugLineStart + (Vector(CurrentAim) * 128), 255, 0, 0);
-	DebugLineStart += vect(0.0, 0.0, 2.0) >> Rotation;
-	DrawDebugLine(DebugLineStart, DebugLineStart + (Vector(DesiredAim) * 128), 0, 255, 0);*/
 
 	if(SWeapon == none || !SWeapon.bCanRotate)
 	{
@@ -896,7 +817,6 @@ function SetWaiting()
  */
 function bool CanDetect(Pawn P)
 {
-	//return !P.IsInvisible() || UpgradeManager.CanDetect(P);
 	return true;
 }
 
@@ -1186,7 +1106,6 @@ ignores Bump, HitWall, HeadVolumeChange, PhysicsVolumeChange, Falling, BreathTim
 
 simulated function Destroyed()
 {
-	//loginternal("Sentinel destroyed...");
 	if(UpgradeManager != none)
 	{
 		UpgradeManager.Destroy();
@@ -1237,7 +1156,7 @@ simulated function DisplayDebug(HUD HUD, out float out_YL, out float out_YPos)
 
 defaultproperties
 {
-	bAmbientCreature=true // So AIs will ignore me. Instead they will attack/repair the Building i´m attached to
+	bAmbientCreature=true // So AIs will ignore me. Instead they will attack/repair the Building iï¿½m attached to
 	
 	//IconHudTexture=Texture2D'Sentinel_Resources.Textures.UI.T_Icon_Sentinel_Floor'
 	IconCoords=(U=0,V=0,UL=128,VL=128)

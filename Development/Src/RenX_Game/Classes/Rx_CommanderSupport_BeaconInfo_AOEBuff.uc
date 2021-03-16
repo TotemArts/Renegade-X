@@ -24,15 +24,20 @@ static function DoAreaEffect(Actor CallingActor, vector L, byte T)
 		if(TargetActor.GetTeamNum() == CallingActor.GetTeamNum()) 
 		{
 			ActorPawn = Pawn(TargetActor); 
-			if(ActorPawn == none) continue; 
+			if(ActorPawn == none) 
+				continue; 
 			else
-			if(Rx_Controller(ActorPawn.Controller) != none) Rx_Controller(ActorPawn.Controller).AddActiveModifier(default.ModifierClass); 
+				if(Rx_Controller(ActorPawn.Controller) != none) 
+					Rx_Controller(ActorPawn.Controller).AddActiveModifier(default.ModifierClass); 
 			else
-			if(Rx_Bot(ActorPawn.Controller) != none) Rx_Bot(ActorPawn.Controller).AddActiveModifier(default.ModifierClass);
+				if(Rx_Bot(ActorPawn.Controller) != none) 
+					Rx_Bot(ActorPawn.Controller).AddActiveModifier(default.ModifierClass);
 			else
-			if(Rx_Defence_Controller(ActorPawn.Controller) != none) Rx_Defence_Controller(ActorPawn.Controller).AddActiveModifier(default.ModifierClass); 
+				if(Rx_Defence_Controller(ActorPawn.Controller) != none) 
+					Rx_Defence_Controller(ActorPawn.Controller).AddActiveModifier(default.ModifierClass); 
 			else
-			if(Rx_Vehicle_HarvesterController(ActorPawn.Controller) != none) Rx_Vehicle_HarvesterController(ActorPawn.Controller).AddActiveModifier(default.ModifierClass); 
+				if(Rx_Vehicle_HarvesterController(ActorPawn.Controller) != none) 
+					Rx_Vehicle_HarvesterController(ActorPawn.Controller).AddActiveModifier(default.ModifierClass); 
 			
 			if(Rx_Vehicle(ActorPawn) != none) 
 			{

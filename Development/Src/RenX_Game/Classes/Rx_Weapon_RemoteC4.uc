@@ -231,6 +231,7 @@ simulated function LinearColor GetSecondTipsColor()
 DefaultProperties
 {
 	DeployedActorClass=class'Rx_Weapon_DeployedRemoteC4'
+	bCanGetAmmo=false
 
 	// Weapon SkeletalMesh
 	Begin Object class=AnimNodeSequence Name=MeshSequenceA
